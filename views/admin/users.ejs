@@ -1,0 +1,77 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', { heading: 'Users', sub: 'Role changes here are the only way to remove a role or grant a privileged one.' }) %>
+
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <form class="card-hub p-3 mb-3" method="get">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-6">
+        <label class="form-label" for="q">Search</label>
+        <input class="form-control" id="q" name="q" value="<%= query.q || '' %>" placeholder="Name or email">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label" for="role">Role</label>
+        <select class="form-select" id="role" name="role">
+          <option value="">Any</option>
+          <% roles.forEach(function (r) { %>
+            <option value="<%= r %>" <%= query.role === r ? 'selected' : '' %>><%= r %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div class="col-md-2"><button class="btn btn-hub w-100" type="submit">Search</button></div>
+    </div>
+  </form>
+
+  <div class="table-responsive card-hub">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>User</th><th>Roles</th><th>State</th><th>Joined</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        <% users.forEach(function (u) { %>
+          <tr>
+            <td>
+              <strong><%= u.name %></strong>
+              <div class="small text-muted-2"><%= u.email %></div>
+            </td>
+            <td>
+              <span class="badge-hub cloud"><%= u.user_type %></span>
+              <% if (u.is_consultant) { %><span class="badge-hub">consultant</span><% } %>
+              <% if (u.is_company) { %><span class="badge-hub">company</span><% } %>
+              <% if (u.is_recruiter) { %><span class="badge-hub">recruiter</span><% } %>
+              <% if (u.is_partner) { %><span class="badge-hub">partner</span><% } %>
+              <% if (u.is_superadmin) { %><span class="badge-hub danger">superadmin</span><% } %>
+            </td>
+            <td>
+              <span class="badge-hub <%= u.is_active ? 'ok' : 'danger' %>"><%= u.is_active ? 'active' : 'disabled' %></span>
+              <span class="badge-hub <%= u.email_verified ? 'ok' : 'warn' %>"><%= u.email_verified ? 'verified' : 'unverified' %></span>
+            </td>
+            <td class="small text-muted-2"><%= new Date(u.created_at).toISOString().slice(0, 10) %></td>
+            <td class="text-end text-nowrap">
+              <% if (!u.email_verified) { %>
+                <form method="post" action="/admin/users/<%= u.id %>/verify" class="d-inline">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button class="btn btn-sm btn-hub-outline" type="submit">Verify</button>
+                </form>
+              <% } %>
+              <% if (currentUser.isSuperadmin && u.id !== currentUser.id) { %>
+                <form method="post" action="/admin/users/<%= u.id %>/active" class="d-inline">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <% if (u.is_active) { %>
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Disable</button>
+                  <% } else { %>
+                    <input type="hidden" name="is_active" value="on">
+                    <button class="btn btn-sm btn-outline-success" type="submit">Enable</button>
+                  <% } %>
+                </form>
+              <% } %>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <%- include('../partials/pagination') %>
+</div>
+
+<%- include('../partials/layout-end') %>

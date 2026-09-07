@@ -1,0 +1,313 @@
+/*
+ * Salesforce Hub design system.
+ *
+ * Bootstrap 5 provides the grid and form primitives; everything below is the brand
+ * layer. Tokens first, then components. Nothing here uses a colour literal outside the
+ * token block, so a re-brand is one edit.
+ */
+
+:root {
+  /* Brand */
+  --sf-blue: #0b5cab;
+  --sf-blue-600: #084a8b;
+  --sf-blue-100: #e7f0fa;
+  --sf-cyan: #00a1e0;
+  --sf-navy: #032d60;
+  --sf-coral: #ff5d2d;
+
+  /* Neutrals */
+  --ink-900: #16191d;
+  --ink-700: #3b4148;
+  --ink-500: #6b7280;
+  --ink-300: #c9cfd6;
+  --ink-100: #eef1f4;
+  --paper: #ffffff;
+  --ground: #f6f8fa;
+
+  /* Semantic */
+  --ok: #2e7d5b;
+  --warn: #a86a00;
+  --danger: #c0392b;
+
+  /* Shape and motion */
+  --radius: 10px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(3, 45, 96, 0.06), 0 1px 3px rgba(3, 45, 96, 0.08);
+  --shadow-md: 0 4px 14px rgba(3, 45, 96, 0.1);
+  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-sans);
+  color: var(--ink-900);
+  background: var(--ground);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { font-weight: 650; letter-spacing: -0.015em; color: var(--ink-900); }
+h1 { font-size: 1.95rem; }
+h2 { font-size: 1.45rem; }
+h3 { font-size: 1.15rem; }
+
+a { color: var(--sf-blue); text-decoration: none; }
+a:hover { color: var(--sf-blue-600); text-decoration: underline; }
+
+.text-muted-2 { color: var(--ink-500); }
+
+/* ---------- Skip link: keyboard users reach content without tabbing the nav ------- */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--sf-navy);
+  color: #fff;
+  padding: 0.6rem 1rem;
+  z-index: 2000;
+}
+.skip-link:focus { left: 0; color: #fff; }
+
+/* ---------- Navigation ------------------------------------------------------------ */
+.navbar-hub {
+  background: var(--paper);
+  border-bottom: 1px solid var(--ink-100);
+  box-shadow: var(--shadow-sm);
+}
+.navbar-hub .navbar-brand {
+  font-weight: 750;
+  color: var(--sf-navy);
+  letter-spacing: -0.03em;
+}
+.navbar-hub .navbar-brand .cloud { color: var(--sf-cyan); }
+.navbar-hub .nav-link { color: var(--ink-700); font-weight: 500; border-radius: 8px; padding: 0.4rem 0.7rem; }
+.navbar-hub .nav-link:hover { background: var(--ink-100); color: var(--ink-900); text-decoration: none; }
+.navbar-hub .nav-link.active { color: var(--sf-blue); background: var(--sf-blue-100); }
+
+.notif-dot {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 5px;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 9px;
+  background: var(--sf-coral);
+  color: #fff;
+  font-weight: 700;
+}
+
+/* ---------- Page header band ------------------------------------------------------ */
+.page-header {
+  background: linear-gradient(135deg, var(--sf-navy) 0%, var(--sf-blue) 60%, var(--sf-cyan) 140%);
+  color: #fff;
+  padding: 2.25rem 0 2rem;
+  margin-bottom: 1.75rem;
+}
+.page-header h1 { color: #fff; margin: 0; }
+.page-header p { color: rgba(255, 255, 255, 0.85); margin: 0.4rem 0 0; max-width: 62ch; }
+.page-header a { color: #fff; text-decoration: underline; }
+
+/* ---------- Cards ----------------------------------------------------------------- */
+.card-hub {
+  background: var(--paper);
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.18s var(--ease), transform 0.18s var(--ease);
+}
+.card-hub:hover { box-shadow: var(--shadow-md); }
+a.card-hub:hover { transform: translateY(-1px); text-decoration: none; }
+.card-hub .card-body { padding: 1.15rem 1.25rem; }
+
+.stat-tile {
+  background: var(--paper);
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+}
+.stat-tile .value { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.stat-tile .label { font-size: 0.8rem; color: var(--ink-500); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ---------- Badges ---------------------------------------------------------------- */
+.badge-hub {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--ink-100);
+  color: var(--ink-700);
+  white-space: nowrap;
+}
+.badge-hub.cloud { background: var(--sf-blue-100); color: var(--sf-blue-600); }
+.badge-hub.ok { background: #e3f3ec; color: var(--ok); }
+.badge-hub.warn { background: #fbf0dc; color: var(--warn); }
+.badge-hub.danger { background: #fbe6e3; color: var(--danger); }
+.badge-hub.muted { background: var(--ink-100); color: var(--ink-500); }
+
+/* ---------- Status pills for the pipeline ---------------------------------------- */
+.status-submitted { background: var(--ink-100); color: var(--ink-700); }
+.status-reviewing { background: #e7f0fa; color: var(--sf-blue-600); }
+.status-shortlisted { background: #e6f4fb; color: #0a7ea4; }
+.status-interviewing { background: #fbf0dc; color: var(--warn); }
+.status-offered { background: #efe7fb; color: #6b3fa0; }
+.status-hired { background: #e3f3ec; color: var(--ok); }
+.status-rejected { background: #fbe6e3; color: var(--danger); }
+.status-withdrawn { background: var(--ink-100); color: var(--ink-500); }
+
+/* ---------- Forms ----------------------------------------------------------------- */
+.form-label { font-weight: 600; font-size: 0.875rem; color: var(--ink-700); margin-bottom: 0.3rem; }
+.form-control, .form-select {
+  border: 1px solid var(--ink-300);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.925rem;
+}
+.form-control:focus, .form-select:focus {
+  border-color: var(--sf-blue);
+  box-shadow: 0 0 0 3px var(--sf-blue-100);
+}
+.form-text { color: var(--ink-500); font-size: 0.8rem; }
+
+.btn-hub {
+  background: var(--sf-blue);
+  border: 1px solid var(--sf-blue);
+  color: #fff;
+  border-radius: 8px;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+}
+.btn-hub:hover { background: var(--sf-blue-600); border-color: var(--sf-blue-600); color: #fff; }
+.btn-hub-outline {
+  background: transparent;
+  border: 1px solid var(--ink-300);
+  color: var(--ink-700);
+  border-radius: 8px;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+}
+.btn-hub-outline:hover { border-color: var(--sf-blue); color: var(--sf-blue); }
+
+/* Focus is always visible. Removing the outline is never the fix for how it looks. */
+:focus-visible { outline: 3px solid var(--sf-cyan); outline-offset: 2px; }
+
+/* ---------- Filter sidebar -------------------------------------------------------- */
+.filter-panel {
+  background: var(--paper);
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem;
+  position: sticky;
+  top: 1rem;
+}
+.filter-panel h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-500); }
+
+/* ---------- Avatars --------------------------------------------------------------- */
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--ink-100);
+  border: 1px solid var(--ink-100);
+}
+.avatar-lg { width: 96px; height: 96px; }
+.logo-tile {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--ink-100);
+  padding: 3px;
+}
+
+/* ---------- Rate index ------------------------------------------------------------ */
+.rate-figure { font-size: 2.1rem; font-weight: 700; letter-spacing: -0.03em; }
+.suppressed {
+  color: var(--ink-500);
+  font-style: italic;
+}
+/* A suppressed trend point is a GAP, never a zero. The bar simply is not drawn. */
+.trend { display: flex; align-items: flex-end; gap: 4px; height: 90px; }
+.trend .bar { flex: 1; background: var(--sf-blue); border-radius: 3px 3px 0 0; min-height: 2px; }
+.trend .bar.gap { background: repeating-linear-gradient(45deg, var(--ink-100), var(--ink-100) 3px, transparent 3px, transparent 6px); }
+.trend-labels { display: flex; gap: 4px; font-size: 10px; color: var(--ink-500); }
+.trend-labels span { flex: 1; text-align: center; }
+
+/* ---------- Completeness meter ---------------------------------------------------- */
+.meter { height: 8px; background: var(--ink-100); border-radius: 999px; overflow: hidden; }
+.meter > i { display: block; height: 100%; background: var(--sf-blue); border-radius: 999px; }
+.meter.ready > i { background: var(--ok); }
+
+/* ---------- Match score ----------------------------------------------------------- */
+.match-ring {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--sf-navy);
+  background: conic-gradient(var(--sf-cyan) calc(var(--pct) * 1%), var(--ink-100) 0);
+  position: relative;
+}
+.match-ring::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: var(--paper);
+}
+.match-ring span { position: relative; z-index: 1; }
+
+/* ---------- Timeline -------------------------------------------------------------- */
+.timeline { list-style: none; padding: 0; margin: 0; border-left: 2px solid var(--ink-100); }
+.timeline li { position: relative; padding: 0 0 1.1rem 1.1rem; }
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--sf-blue);
+  border: 2px solid var(--paper);
+}
+
+/* ---------- Footer ---------------------------------------------------------------- */
+.footer-hub {
+  background: var(--sf-navy);
+  color: rgba(255, 255, 255, 0.75);
+  padding: 2.5rem 0 1.5rem;
+  margin-top: 3rem;
+}
+.footer-hub h3 { color: #fff; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.footer-hub a { color: rgba(255, 255, 255, 0.75); }
+.footer-hub a:hover { color: #fff; }
+
+/* ---------- Empty state ----------------------------------------------------------- */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--ink-500);
+}
+.empty-state .bi { font-size: 2.5rem; color: var(--ink-300); display: block; margin-bottom: 0.6rem; }
+
+@media (max-width: 767.98px) {
+  .page-header { padding: 1.5rem 0; }
+  h1 { font-size: 1.5rem; }
+  .filter-panel { position: static; margin-bottom: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

@@ -1,0 +1,68 @@
+<a class="skip-link" href="#main">Skip to content</a>
+<nav class="navbar navbar-expand-lg navbar-hub sticky-top" aria-label="Main">
+  <div class="container">
+    <a class="navbar-brand" href="/">Salesforce<span class="cloud">Hub</span></a>
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+            aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="mainNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link <%= currentPath.startsWith('/jobs') ? 'active' : '' %>" href="/jobs">Jobs</a></li>
+        <li class="nav-item"><a class="nav-link <%= currentPath.startsWith('/consultants') ? 'active' : '' %>" href="/consultants">Talent</a></li>
+        <li class="nav-item"><a class="nav-link <%= currentPath.startsWith('/companies') ? 'active' : '' %>" href="/companies">Companies</a></li>
+        <li class="nav-item"><a class="nav-link <%= currentPath.startsWith('/rates') ? 'active' : '' %>" href="/rates">Rate index</a></li>
+      </ul>
+
+      <ul class="navbar-nav align-items-lg-center">
+        <% if (currentUser) { %>
+          <% if (currentUser.isCompany) { %>
+            <li class="nav-item me-lg-2"><a class="btn btn-hub btn-sm" href="/jobs/new"><i class="bi bi-plus-lg"></i> Post a job</a></li>
+          <% } %>
+          <li class="nav-item">
+            <a class="nav-link" href="/notifications" aria-label="Notifications">
+              <i class="bi bi-bell"></i>
+              <span class="notif-dot d-none" id="notifCount" aria-live="polite"></span>
+            </a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button"
+               data-bs-toggle="dropdown" aria-expanded="false">
+              <img class="avatar" style="width:28px;height:28px"
+                   src="<%= currentUser.profilePicture || '/images/avatar-placeholder.svg' %>" alt="">
+              <span class="d-none d-lg-inline"><%= currentUser.name %></span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+              <li><a class="dropdown-item" href="/dashboard">Dashboard</a></li>
+              <% if (currentUser.isConsultant) { %>
+                <li><a class="dropdown-item" href="/profile/consultant">Consultant profile</a></li>
+                <li><a class="dropdown-item" href="/dashboard/applications">Your applications</a></li>
+              <% } %>
+              <% if (currentUser.isCompany) { %>
+                <li><a class="dropdown-item" href="/profile/company">Company profile</a></li>
+                <li><a class="dropdown-item" href="/dashboard/jobs">Your jobs</a></li>
+              <% } %>
+              <li><a class="dropdown-item" href="/dashboard/saved">Saved jobs</a></li>
+              <li><a class="dropdown-item" href="/profile/settings">Settings</a></li>
+              <% if (currentUser.isAdmin) { %>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/admin">Admin</a></li>
+              <% } %>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <form method="post" action="/auth/logout" class="px-3 py-1">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button class="btn btn-link p-0 text-decoration-none" type="submit">Sign out</button>
+                </form>
+              </li>
+            </ul>
+          </li>
+        <% } else { %>
+          <li class="nav-item"><a class="nav-link" href="/auth/login">Sign in</a></li>
+          <li class="nav-item ms-lg-2"><a class="btn btn-hub btn-sm" href="/auth/register">Join free</a></li>
+        <% } %>
+      </ul>
+    </div>
+  </div>
+</nav>

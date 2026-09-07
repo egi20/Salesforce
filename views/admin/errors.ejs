@@ -1,0 +1,37 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', { heading: 'Error log' }) %>
+
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <% if (errors.length === 0) { %>
+    <div class="empty-state card-hub"><i class="bi bi-check-circle"></i>No errors recorded.</div>
+  <% } else { %>
+    <div class="card-hub">
+      <div class="accordion accordion-flush" id="errAcc">
+        <% errors.forEach(function (e, i) { %>
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#err<%= i %>">
+                <span class="badge-hub danger me-2"><%= e.status_code %></span>
+                <span class="text-truncate"><%= e.message %></span>
+                <span class="ms-auto small text-muted-2"><%= new Date(e.created_at).toISOString().slice(0, 16).replace('T', ' ') %></span>
+              </button>
+            </h2>
+            <div id="err<%= i %>" class="accordion-collapse collapse" data-bs-parent="#errAcc">
+              <div class="accordion-body">
+                <p class="small mb-1"><strong><%= e.method %></strong> <code><%= e.path %></code></p>
+                <% if (e.user_id) { %><p class="small mb-1">User #<%= e.user_id %></p><% } %>
+                <% if (e.stack) { %><pre class="small bg-light p-2 rounded" style="white-space:pre-wrap"><%= e.stack %></pre><% } %>
+              </div>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+    <%- include('../partials/pagination') %>
+  <% } %>
+</div>
+
+<%- include('../partials/layout-end') %>

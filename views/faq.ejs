@@ -1,0 +1,36 @@
+<%- include('partials/layout-start') %>
+
+<%- include('partials/page-header', { heading: 'Frequently asked questions' }) %>
+
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <%
+        const faqs = [
+          ['Is it free?', 'Yes, for consultants and for companies posting roles. There is no paywall on browsing, applying or contributing rates.'],
+          ['Who can see my profile?', 'Only if you switch it on. A profile stays hidden until you mark it as listed, and it has to be at least 60% complete before it can be listed at all. Your email address is shown to signed-in hiring accounts, not to anonymous visitors.'],
+          ['How does the rate index avoid exposing individuals?', 'Every figure counts one person, not one submission. Any bucket with fewer than three contributors is not published: you see the contributor count, not the numbers. In a trend, a month below the threshold is drawn as a gap rather than as a zero, because interpolating across it would invent data.'],
+          ['Can I change my rate submission?', 'Yes. Submitting again in the same month replaces your previous figure rather than adding a second one. That is what keeps the contributor count a count of people.'],
+          ['What is the match score?', 'A weighted comparison of your role, skills, seniority, location, rate and availability against the role. The weights are shown on every job page, so you can see exactly why a role scored what it did. It is editorial, not learned from anything.'],
+          ['Why can I not remove a role from my account?', 'Adding a role is instant; removing one is done by support. A mis-click on a settings page should not be able to take away access you rely on, or to demote an administrator.'],
+          ['Are you affiliated with Salesforce?', 'No. Salesforce and the product names used here are trademarks of Salesforce, Inc. This is an independent marketplace.']
+        ];
+      %>
+      <div class="accordion" id="faq">
+        <% faqs.forEach(function (f, i) { %>
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button <%= i === 0 ? '' : 'collapsed' %>" type="button"
+                      data-bs-toggle="collapse" data-bs-target="#faq<%= i %>"><%= f[0] %></button>
+            </h2>
+            <div id="faq<%= i %>" class="accordion-collapse collapse <%= i === 0 ? 'show' : '' %>" data-bs-parent="#faq">
+              <div class="accordion-body"><%= f[1] %></div>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/layout-end') %>

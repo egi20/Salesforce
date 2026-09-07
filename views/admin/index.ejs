@@ -1,0 +1,52 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', { heading: 'Admin', sub: 'Platform health at a glance.' }) %>
+
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <div class="row g-3 mb-4">
+    <% [
+      ['Users', counts.users], ['Active', counts.active_users], ['Verified', counts.verified_users],
+      ['Listed consultants', counts.public_consultants], ['Companies', counts.companies],
+      ['Jobs', counts.jobs], ['Open jobs', counts.open_jobs], ['Applications', counts.applications],
+      ['Rate contributors', rateContributors], ['Errors (7d)', counts.recent_errors]
+    ].forEach(function (t) { %>
+      <div class="col-6 col-lg-3">
+        <div class="stat-tile"><div class="value"><%= t[1] %></div><div class="label"><%= t[0] %></div></div>
+      </div>
+    <% }); %>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card-hub h-100"><div class="card-body">
+        <h2 class="h6 mb-3">Visitors by country (30 days)</h2>
+        <p class="small text-muted-2">Country and count only. No addresses, paths or identifiers are stored.</p>
+        <% if (geo.length === 0) { %>
+          <p class="text-muted-2 mb-0">No data yet.</p>
+        <% } else { %>
+          <table class="table table-sm mb-0">
+            <tbody>
+              <% geo.forEach(function (g) { %>
+                <tr><td><%= g.country %></td><td class="text-end"><%= g.visits %></td></tr>
+              <% }); %>
+            </tbody>
+          </table>
+        <% } %>
+      </div></div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card-hub h-100"><div class="card-body">
+        <h2 class="h6 mb-3">Sections</h2>
+        <div class="list-group list-group-flush">
+          <a class="list-group-item list-group-item-action" href="/admin/users">Users and roles</a>
+          <a class="list-group-item list-group-item-action" href="/admin/jobs">Jobs</a>
+          <a class="list-group-item list-group-item-action" href="/admin/errors">Error log</a>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/layout-end') %>

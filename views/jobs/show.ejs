@@ -131,6 +131,24 @@
         </div>
       </div>
 
+      <% if (currentUser && !isOwner && job.status === 'open') { %>
+        <div class="card-hub mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-2">Question about this role?</h2>
+            <form method="post" action="/messages/start">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="kind" value="enquiry">
+              <input type="hidden" name="job_id" value="<%= job.id %>">
+              <input type="hidden" name="recipient_user_id" value="<%= job.company_user_id %>">
+              <textarea class="form-control mb-2" name="body" rows="3" required maxlength="5000"
+                        placeholder="Ask the advertiser directly"></textarea>
+              <button class="btn btn-hub-outline w-100 btn-sm" type="submit">Send question</button>
+            </form>
+            <p class="form-text mb-0">Goes to whoever posted this role, with the role attached.</p>
+          </div>
+        </div>
+      <% } %>
+
       <% if (currentUser && !isOwner) { %>
         <form method="post" action="/jobs/<%= job.slug %>/save" class="mb-3">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">

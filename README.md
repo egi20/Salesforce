@@ -20,6 +20,7 @@ Server-rendered Express + EJS on MySQL 8. No SPA, no ORM, no build step for serv
 | Day-rate index with an n≥3 privacy floor, percentiles and a trend | built |
 | Scope estimator and quotes: phased plan, team shape, budget, timeline, lifecycle | built |
 | Deliverables: SOW (.docx), work breakdown with Gantt (.xlsx), summary deck (.pptx), zipped | built |
+| Messaging: threads anchored to an application or a role, unread counts, notifications | built |
 | Notifications, saved jobs, dashboards | built |
 | Admin: users and roles, jobs, error log, visitor geography | built |
 | SEO: canonicals, JobPosting JSON-LD, sitemap generated from the robots allowlist | built |
@@ -115,6 +116,13 @@ sum of sequential phase durations rather than the whole effort divided by one fu
 team. `reconciliationProblems()` re-checks all of that, and the route refuses to show or
 store an estimate that fails — a quote whose own parts disagree is worse than no quote,
 because the client will find the discrepancy.
+
+**There is no open direct-message inbox.** Every conversation is anchored to a subject —
+an application, or an enquiry about a specific job that one of the two parties owns. An
+unanchored DM channel on a marketplace is a recruiting-spam vector, and anchoring means the
+recipient always knows why they were contacted. Membership is a row in
+`conversation_participants`, so "is this thread mine?" is a JOIN condition on every read
+and write rather than a check a future query can forget.
 
 **Never serve a document you have not opened.** DOCX, XLSX and PPTX are zip containers of
 XML parts, and a subtly broken part produces a file that downloads fine and then fails to

@@ -1,0 +1,59 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', {
+  heading: 'Messages',
+  sub: 'Every conversation is about a specific application or role, so you always know why someone got in touch.'
+}) %>
+
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <% if (conversations.length === 0) { %>
+    <div class="empty-state card-hub">
+      <i class="bi bi-chat-dots"></i>
+      <p class="mb-1">No conversations yet.</p>
+      <p class="small mb-0">
+        Threads start from an application, or from a role — there is no open inbox to be
+        cold-messaged in.
+      </p>
+    </div>
+  <% } else { %>
+    <div class="card-hub">
+      <ul class="list-group list-group-flush">
+        <% conversations.forEach(function (c) { %>
+          <li class="list-group-item p-0">
+            <a class="d-flex gap-3 align-items-center text-reset text-decoration-none p-3 <%= c.unread_count > 0 ? 'bg-light' : '' %>"
+               href="/messages/<%= c.id %>">
+              <img class="avatar flex-shrink-0"
+                   src="<%= c.other_photo || c.other_logo || '/images/avatar-placeholder.svg' %>" alt="" loading="lazy">
+              <div class="flex-grow-1 min-w-0">
+                <div class="d-flex justify-content-between align-items-baseline gap-2">
+                  <strong class="text-truncate"><%= c.other_name %></strong>
+                  <span class="small text-muted-2 text-nowrap">
+                    <%= c.last_message_at ? new Date(c.last_message_at).toISOString().slice(0, 16).replace('T', ' ') : 'no messages yet' %>
+                  </span>
+                </div>
+                <div class="small text-muted-2 text-truncate">
+                  <span class="badge-hub <%= c.kind === 'application' ? 'cloud' : '' %>"><%= c.kind %></span>
+                  <% if (c.job_title) { %><%= c.job_title %><% } %>
+                </div>
+                <% if (c.last_body) { %>
+                  <div class="small text-truncate <%= c.unread_count > 0 ? 'fw-semibold' : 'text-muted-2' %>">
+                    <% if (c.last_sender_id === currentUser.id) { %><span class="text-muted-2">You: </span><% } %>
+                    <%= c.last_body %>
+                  </div>
+                <% } %>
+              </div>
+              <% if (c.unread_count > 0) { %>
+                <span class="notif-dot flex-shrink-0"><%= c.unread_count %></span>
+              <% } %>
+            </a>
+          </li>
+        <% }); %>
+      </ul>
+    </div>
+    <%- include('../partials/pagination') %>
+  <% } %>
+</div>
+
+<%- include('../partials/layout-end') %>

@@ -21,6 +21,12 @@
             <li class="nav-item me-lg-2"><a class="btn btn-hub btn-sm" href="/jobs/new"><i class="bi bi-plus-lg"></i> Post a job</a></li>
           <% } %>
           <li class="nav-item">
+            <a class="nav-link" href="/messages" aria-label="Messages">
+              <i class="bi bi-chat-dots"></i>
+              <span class="notif-dot d-none" id="messageCount" aria-live="polite"></span>
+            </a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link" href="/notifications" aria-label="Notifications">
               <i class="bi bi-bell"></i>
               <span class="notif-dot d-none" id="notifCount" aria-live="polite"></span>
@@ -43,6 +49,7 @@
                 <li><a class="dropdown-item" href="/profile/company">Company profile</a></li>
                 <li><a class="dropdown-item" href="/dashboard/jobs">Your jobs</a></li>
               <% } %>
+              <li><a class="dropdown-item" href="/messages">Messages</a></li>
               <li><a class="dropdown-item" href="/quotes">Quotes &amp; estimates</a></li>
               <li><a class="dropdown-item" href="/dashboard/saved">Saved jobs</a></li>
               <li><a class="dropdown-item" href="/profile/settings">Settings</a></li>

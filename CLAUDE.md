@@ -152,6 +152,38 @@ from the ETag alone.
 Never store durable bytes on disk, and never inline them as a column on a table that gets
 `SELECT *`'d in a list query.
 
+## Messaging
+
+Conversations are ANCHORED. There is no route that opens an unanchored thread, and adding
+one would turn this into a channel for contacting arbitrary accounts. A thread is either:
+
+- `application` — both parties are already in that application, or
+- `enquiry` — about a specific job, where one of the two owns it. An employer may only
+  approach a consultant whose profile is public; a consultant may only approach the
+  advertiser of an OPEN role.
+
+`dedupeKeyFor()` derives the thread's identity from the subject, and the unique index on
+`conversations.dedupe_key` makes `findOrCreate` an idempotent upsert. Two people clicking
+"message" at the same moment get one thread, not two.
+
+The reference implementation keyed one conversation per PAIR of users, which merges every
+topic between two people into a single thread. Do not go back to that.
+
+Membership lives in `conversation_participants`. Every read and write joins on it —
+`forParticipant()` returns null for a non-member, and `postMessage()` re-checks membership
+inside the transaction, so there is no window between "are you in this?" and the insert.
+
+Read state is per participant (`last_read_at`), not a flag on the message: a single
+`is_read` is wrong the moment a thread has more than two people. A message you sent never
+counts as unread to you.
+
+Bodies are PLAIN TEXT and rendered with `<%= %>`. Do not add rich text here — markup buys
+nothing in a chat message and costs an XSS surface.
+
+The display name for the other party falls back to a neutral label, never the email local
+part. That fallback is a real finding from the reference implementation: an account with no
+profile would otherwise leak a `firstname.lastname` email prefix.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

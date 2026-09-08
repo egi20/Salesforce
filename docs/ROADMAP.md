@@ -12,9 +12,6 @@ with the same filter builders behind it. Today each directory has its own search
 "new applicants" digest for employers. The matcher is already shared and pure, so the
 digest and the on-page score cannot disagree.
 
-**Messaging.** Direct conversations between an employer and an applicant, scoped to an
-application so it has a subject and an audit trail.
-
 **LinkedIn verification.** OAuth used only to prove identity, not as a sign-in method,
 setting `consultant_profiles.linkedin_verified`. Note that LinkedIn has no API for sending
 connection requests or DMs — any feature that implies automated outreach would be a lie.

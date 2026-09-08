@@ -22,9 +22,10 @@
    * Fails silently: a 401 here simply means the session ended, and the page should not
    * grow an error banner because a decorative counter could not load.
    */
-  var badge = document.getElementById('notifCount');
-  if (badge) {
-    apiFetch('/notifications/unread-count')
+  function fillBadge(elementId, url) {
+    var badge = document.getElementById(elementId);
+    if (!badge) return;
+    apiFetch(url)
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
         if (data && data.count > 0) {
@@ -34,6 +35,9 @@
       })
       .catch(function () { /* decorative only */ });
   }
+
+  fillBadge('notifCount', '/notifications/unread-count');
+  fillBadge('messageCount', '/messages/unread-count');
 
   /**
    * Guard against a double-submitted form producing two writes.

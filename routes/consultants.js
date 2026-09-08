@@ -5,6 +5,7 @@ const express = require('express');
 const ConsultantProfile = require('../models/ConsultantProfile');
 const ImageBlob = require('../models/ImageBlob');
 const Skill = require('../models/Skill');
+const Job = require('../models/Job');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireIdParam } = require('../utils/ids');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
@@ -91,6 +92,13 @@ router.get(
       ConsultantProfile.listExperiences(profile.user_id)
     ]);
 
+    // A conversation is always anchored to a role, so an employer can only approach this
+    // consultant if they actually have one open. No open role, no approach button.
+    const hiringJobs =
+      viewer && viewer.isCompany && !isSelf
+        ? (await Job.browse({ company_user_id: viewer.id, status: 'open' }, { limit: 50 })).rows
+        : [];
+
     return res.render('consultants/show', {
       title: `${profile.name} — ${profile.headline || 'Salesforce consultant'}`,
       profile,
@@ -98,6 +106,7 @@ router.get(
       certifications,
       experiences,
       isSelf,
+      hiringJobs,
       // Contact details are for signed-in companies only. An open directory of
       // e-mail addresses is a scraping target, and consultants did not consent to that.
       canSeeContact: Boolean(viewer && (viewer.isCompany || viewer.isRecruiter || viewer.isAdmin))

@@ -19,12 +19,13 @@ Server-rendered Express + EJS on MySQL 8. No SPA, no ORM, no build step for serv
 | Match scoring between a consultant and a role, with a visible breakdown | built |
 | Day-rate index with an n≥3 privacy floor, percentiles and a trend | built |
 | Scope estimator and quotes: phased plan, team shape, budget, timeline, lifecycle | built |
+| Deliverables: SOW (.docx), work breakdown with Gantt (.xlsx), summary deck (.pptx), zipped | built |
 | Notifications, saved jobs, dashboards | built |
 | Admin: users and roles, jobs, error log, visitor geography | built |
 | SEO: canonicals, JobPosting JSON-LD, sitemap generated from the robots allowlist | built |
 
-Deliberately not built yet, and listed so nobody mistakes the scope: document generation
-(DOCX/XLSX/PPTX) and AI drafting on top of the estimator, payments and invoicing, referral
+Deliberately not built yet, and listed so nobody mistakes the scope: AI drafting of the
+narrative sections, payments and invoicing, referral
 commissions, a community forum, record deduplication, finance/P&L reporting, a tax service,
 a certification practice bank, a sales CRM, LinkedIn verification, and a Salesforce org
 integration. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
@@ -78,7 +79,7 @@ Seeded sign-in: `admin@example.com` / `Password123`.
 | `npm run seed` | insert development data |
 | `npm run wait-for-db` | block until the database accepts connections |
 | `npm run validate-boot` | config, taxonomy, module and template checks — no database needed |
-| `npm test` | Jest |
+| `npm test` | Jest (with VM modules enabled — see CLAUDE.md) |
 | `npm run lint` | ESLint |
 
 ---
@@ -114,6 +115,18 @@ sum of sequential phase durations rather than the whole effort divided by one fu
 team. `reconciliationProblems()` re-checks all of that, and the route refuses to show or
 store an estimate that fails — a quote whose own parts disagree is worse than no quote,
 because the client will find the discrepancy.
+
+**Never serve a document you have not opened.** DOCX, XLSX and PPTX are zip containers of
+XML parts, and a subtly broken part produces a file that downloads fine and then fails to
+open — which the recipient experiences as "you sent me a corrupt file". Every generator
+runs its output through `utils/documents/validate.js`, which unzips it and strictly parses
+every `.xml` and `.rels` part, before returning. A presence check for the expected parts
+does not catch this; only a real parse does.
+
+**The documents render the estimate, they never recompute it.** All three deliverables read
+the same stored `quote.estimate`, so the document, the workbook, the deck and the web page
+cannot disagree. A formatter that re-derives a percentage or re-rounds a cost is how a
+client ends up quoting your own contradictory figure back at you.
 
 **A saved quote is never recomputed.** The full breakdown is stored as it was presented,
 with a `catalogue_version` fingerprint. Editing a base effort or a day rate later does not

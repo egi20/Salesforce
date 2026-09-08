@@ -214,6 +214,42 @@
     <aside class="col-lg-4">
       <div class="card-hub mb-3">
         <div class="card-body">
+          <h2 class="h6 mb-2">Deliverables</h2>
+          <p class="form-text mb-3">
+            Generated from the stored estimate, so all three agree with each other and with
+            this page. Each file is opened and checked before it is sent.
+          </p>
+          <div class="d-grid gap-2">
+            <a class="btn btn-hub" href="/quotes/<%= quote.reference %>/download/package">
+              <i class="bi bi-file-earmark-zip"></i> Full package (.zip)
+            </a>
+            <a class="btn btn-hub-outline btn-sm" href="/quotes/<%= quote.reference %>/download/sow">
+              <i class="bi bi-file-earmark-word"></i> Statement of work (.docx)
+            </a>
+            <a class="btn btn-hub-outline btn-sm" href="/quotes/<%= quote.reference %>/download/wbs">
+              <i class="bi bi-file-earmark-spreadsheet"></i> Work breakdown (.xlsx)
+            </a>
+            <a class="btn btn-hub-outline btn-sm" href="/quotes/<%= quote.reference %>/download/deck">
+              <i class="bi bi-file-earmark-slides"></i> Summary deck (.pptx)
+            </a>
+          </div>
+          <% if (downloads.length) { %>
+            <hr>
+            <p class="small text-muted-2 mb-1">Recently produced</p>
+            <ul class="list-unstyled small mb-0">
+              <% downloads.slice(0, 5).forEach(function (d) { %>
+                <li class="d-flex justify-content-between">
+                  <span><%= d.kind %></span>
+                  <span class="text-muted-2"><%= new Date(d.created_at).toISOString().slice(0, 16).replace('T', ' ') %></span>
+                </li>
+              <% }); %>
+            </ul>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="card-hub mb-3">
+        <div class="card-body">
           <h2 class="h6 mb-3">Status</h2>
           <% if (transitions.length === 0) { %>
             <p class="small text-muted-2 mb-0">This quote is decided. Produce a new estimate to re-quote.</p>

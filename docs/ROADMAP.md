@@ -21,25 +21,17 @@ connection requests or DMs — any feature that implies automated outreach would
 
 ## Medium term
 
-**Document generation on top of the estimator.** The estimator itself now exists
-(`utils/sowEstimation.js`, `/quotes`): it produces the phased plan, team shape, budget and
-timeline, and refuses to present an estimate that does not reconcile with itself. What is
-still missing is turning that into deliverables — a branded SOW in DOCX, a work-breakdown
-XLSX with a Gantt, and a summary PPTX, packaged as one download.
+**AI drafting.** The deterministic half is done: `/quotes` produces a validated SOW,
+work-breakdown workbook and summary deck from the stored estimate. What is missing is the
+prose: narrative scope, assumptions, risks and commercial framing drafted around the
+deterministic numbers rather than replacing them.
 
-Two constraints from experience, worth writing down before anyone starts:
+Three constraints before anyone starts:
 
-- Validate every generated file before serving it. A template splice that produces
-  unbalanced XML must fall back to a known-good layout rather than ship a corrupt document.
-- Keep every displayed figure reconcilable with the stored estimate. The documents must not
-  re-derive anything; they render `quotes.estimate` verbatim. Largest-remainder
-  apportionment, `cost = days × rounded rate` and percentages summing to exactly 100 are
-  already guaranteed upstream — do not undo them in a formatter.
-
-**AI drafting.** Narrative sections (scope, assumptions, risks, commercials) drafted around
-the deterministic numbers, never replacing them. Required sections must be guaranteed
-structurally rather than by re-prompting until they appear, and no AI-supplied figure may
-enter the budget without going back through the estimator.
+- Required sections are guaranteed structurally, not by re-prompting until they appear.
+- No AI-supplied figure enters the budget without going back through the estimator.
+- The reconciliation check still runs afterwards. A drafting step that changes a number is
+  a bug, and it should fail loudly rather than ship a document that disagrees with itself.
 
 **Payments.** Featured job posts and placement fees. Two rules: put idempotency in the
 webhook handler itself (an invoice row means fulfilled) rather than gating on payment

@@ -20,6 +20,8 @@ const {
 const { CLOUD_FAMILIES, isValidFamily, isValidModule } = require('../config/cloudFamilies');
 const { sanitizeRichText } = require('../utils/sanitize');
 const { returnTo } = require('../utils/returnTo');
+const { isDocumentKind, PACKAGE_KIND, generateDocument, generatePackage } = require('../services/quotePackage');
+const CompanyProfile = require('../models/CompanyProfile');
 
 const router = express.Router();
 
@@ -188,6 +190,58 @@ router.post(
   })
 );
 
+/**
+ * Produce a deliverable from a stored quote.
+ *
+ * Documents are generated on demand rather than stored, because storing them would mean
+ * two sources of truth for the same figures. Each generator validates its own output
+ * before returning it, so a file that cannot be opened never reaches the response.
+ */
+router.get(
+  '/:reference/download/:kind',
+  isEmailVerified,
+  asyncHandler(async (req, res) => {
+    const quote = await Quote.findByReference(req.params.reference);
+    if (!quote || quote.owner_user_id !== req.session.user.id) {
+      return res.status(404).render('errors/404', { title: 'Not found' });
+    }
+
+    const kind = req.params.kind;
+    if (kind !== PACKAGE_KIND && !isDocumentKind(kind)) {
+      return res.status(404).render('errors/404', { title: 'Not found' });
+    }
+
+    // The company name on the cover is the AUTHOR's, not the client's: the document is
+    // issued by whoever produced it.
+    const company = req.session.user.isCompany ? await CompanyProfile.findByUserId(req.session.user.id) : null;
+    const options = { preparedBy: company ? company.company_name : req.session.user.name };
+
+    let result;
+    try {
+      result = kind === PACKAGE_KIND ? await generatePackage(quote, options) : await generateDocument(quote, kind, options);
+    } catch (err) {
+      // A document that failed its own validity check is an engine bug, not user error,
+      // and the author gets told rather than handed a file that will not open.
+      if (err.code === 'DOCUMENT_MALFORMED') {
+        console.error(`Document generation rejected for ${quote.reference}: ${err.message}`);
+        req.flash('error', 'That document could not be produced correctly and was not sent. This has been logged.');
+        return res.redirect(`/quotes/${quote.reference}`);
+      }
+      throw err;
+    }
+
+    Quote.recordDownload(quote.id, req.session.user.id, kind, quote.catalogue_version, result.buffer.length);
+
+    res.set('Content-Type', result.contentType);
+    // The filename is built from slugified values, so it cannot inject a header.
+    res.set('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.set('Content-Length', String(result.buffer.length));
+    // A quote's documents are private and must not sit in a shared cache.
+    res.set('Cache-Control', 'private, no-store');
+    return res.send(result.buffer);
+  })
+);
+
 router.get(
   '/:reference',
   asyncHandler(async (req, res) => {
@@ -196,13 +250,14 @@ router.get(
       return res.status(404).render('errors/404', { title: 'Not found' });
     }
 
-    const events = await Quote.events(quote.id);
+    const [events, downloads] = await Promise.all([Quote.events(quote.id), Quote.downloads(quote.id)]);
 
     return res.render('quotes/show', {
       title: `${quote.reference} — ${quote.project_name}`,
       quote,
       estimate: quote.estimate,
       events,
+      downloads,
       transitions: Quote.TRANSITIONS[quote.status] || [],
       // A quote priced under an older catalogue is flagged rather than silently trusted.
       catalogueIsCurrent: quote.catalogue_version === catalogueVersion(),

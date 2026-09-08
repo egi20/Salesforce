@@ -112,6 +112,35 @@ rather than hand-maintained, because a version someone has to remember to bump i
 that is wrong. A stored quote keeps the version it was priced under and is NEVER
 recomputed on read — it is a statement made to a client on a date.
 
+## Generated documents
+
+`utils/documents/` holds one generator per format plus a shared validator, and
+`services/quotePackage.js` assembles and zips them.
+
+Two rules, and neither is negotiable:
+
+1. **Render, never recompute.** A generator formats `quote.estimate` and derives nothing.
+   All three deliverables read the same stored breakdown, which is why they cannot
+   contradict each other or the web page. If you find yourself writing arithmetic in a
+   formatter, the number belongs in `utils/sowEstimation.js` instead.
+2. **Open it before anyone else has to.** Every generator ends with
+   `assertDocumentOpens(buffer, kind)`, which unzips the package and strictly parses every
+   `.xml`/`.rels` part. A file that fails is never served; the route turns it into a
+   message to the author, because it can only mean a bug in the generator.
+
+Download filenames come from `filenameFor()`, which slugifies the client and project
+names. They land in a `Content-Disposition` header, so an unslugified name is header
+injection as well as a file the recipient's OS refuses to save.
+
+Documents are generated on demand and not stored. Storing them would create a second
+source of truth for the same figures; `quote_downloads` records that one was produced,
+along with the catalogue version it was priced under.
+
+**Test runner note:** `npm test` sets `NODE_OPTIONS=--experimental-vm-modules`.
+`pptxgenjs` lazily does `await import('node:fs')`, which Jest cannot execute inside a CJS
+module without VM modules. It works fine in production; the flag is a test-only
+accommodation, not a runtime requirement.
+
 ## Uploads and images
 
 The host disk is ephemeral. `multer` keeps the file in memory, `sharp` re-encodes it to a

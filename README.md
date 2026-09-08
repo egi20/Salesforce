@@ -18,15 +18,16 @@ Server-rendered Express + EJS on MySQL 8. No SPA, no ORM, no build step for serv
 | Applications: apply, employer pipeline, state machine, audit trail | built |
 | Match scoring between a consultant and a role, with a visible breakdown | built |
 | Day-rate index with an n≥3 privacy floor, percentiles and a trend | built |
+| Scope estimator and quotes: phased plan, team shape, budget, timeline, lifecycle | built |
 | Notifications, saved jobs, dashboards | built |
 | Admin: users and roles, jobs, error log, visitor geography | built |
 | SEO: canonicals, JobPosting JSON-LD, sitemap generated from the robots allowlist | built |
 
-Deliberately not built yet, and listed so nobody mistakes the scope: AI document
-generation, payments and invoicing, referral commissions, a community forum, record
-deduplication, finance/P&L reporting, a tax service, a certification practice bank, a
-sales CRM, LinkedIn verification, and a Salesforce org integration. See
-[`docs/ROADMAP.md`](docs/ROADMAP.md).
+Deliberately not built yet, and listed so nobody mistakes the scope: document generation
+(DOCX/XLSX/PPTX) and AI drafting on top of the estimator, payments and invoicing, referral
+commissions, a community forum, record deduplication, finance/P&L reporting, a tax service,
+a certification practice bank, a sales CRM, LinkedIn verification, and a Salesforce org
+integration. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -105,6 +106,18 @@ interlock and returns 409 rather than acting on rows nobody saw.
 bucket below three contributors keeps its count and loses its values; a suppressed month in
 a trend is a gap, not a zero. All of it is pure functions in `utils/rateAggregation.js` and
 covered by tests.
+
+**An estimate must reconcile with itself.** `utils/sowEstimation.js` apportions man-days by
+the largest-remainder method, so phase days and resource days each sum EXACTLY to the
+headline total; every cost is `days × rate` on integers; and the calendar duration is the
+sum of sequential phase durations rather than the whole effort divided by one fully-parallel
+team. `reconciliationProblems()` re-checks all of that, and the route refuses to show or
+store an estimate that fails — a quote whose own parts disagree is worse than no quote,
+because the client will find the discrepancy.
+
+**A saved quote is never recomputed.** The full breakdown is stored as it was presented,
+with a `catalogue_version` fingerprint. Editing a base effort or a day rate later does not
+rewrite what was already said to a client; the older quote is flagged as stale instead.
 
 **Roles escalate in one direction only.** Public registration can create `consultant` and
 `company` and nothing else. The self-service roles form is add-only and cannot demote an

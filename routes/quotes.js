@@ -1,0 +1,260 @@
+'use strict';
+
+const express = require('express');
+const { body, validationResult } = require('express-validator');
+
+const Quote = require('../models/Quote');
+const { isAuthenticated, isEmailVerified } = require('../middleware/auth');
+const { writeLimiter } = require('../middleware/rateLimit');
+const { asyncHandler } = require('../middleware/errorHandler');
+const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
+const { calculateEstimation, reconciliationProblems } = require('../utils/sowEstimation');
+const {
+  ISV_SOLUTIONS,
+  COMPLEXITY_MULTIPLIERS,
+  CUSTOMIZATION_MULTIPLIERS,
+  INDUSTRY_MULTIPLIERS,
+  COMPANY_SIZE_MULTIPLIERS,
+  catalogueVersion
+} = require('../config/estimation');
+const { CLOUD_FAMILIES, isValidFamily, isValidModule } = require('../config/cloudFamilies');
+const { sanitizeRichText } = require('../utils/sanitize');
+const { returnTo } = require('../utils/returnTo');
+
+const router = express.Router();
+
+router.use(isAuthenticated);
+
+const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'declined', 'expired'];
+
+/** Everything the wizard and the result page need to render their option lists. */
+function catalogueLocals() {
+  return {
+    cloudFamilies: CLOUD_FAMILIES,
+    isvSolutions: Object.entries(ISV_SOLUTIONS).map(([id, isv]) => ({ id, ...isv })),
+    complexityOptions: Object.entries(COMPLEXITY_MULTIPLIERS).map(([id, c]) => ({ id, ...c })),
+    customizationOptions: Object.entries(CUSTOMIZATION_MULTIPLIERS).map(([id, c]) => ({ id, ...c })),
+    industryOptions: Object.keys(INDUSTRY_MULTIPLIERS),
+    companySizeOptions: Object.keys(COMPANY_SIZE_MULTIPLIERS)
+  };
+}
+
+/**
+ * Read the wizard form into the estimator's input shape.
+ *
+ * Everything the client can send is filtered against the catalogue here, so an unknown
+ * slug is dropped rather than silently costed at a default. Free text survives as free
+ * text and is costed explicitly as unmapped scope.
+ */
+function inputsFrom(form) {
+  const asArray = (value) => (Array.isArray(value) ? value : [value].filter(Boolean));
+
+  return {
+    selectedFamilies: asArray(form.families).filter(isValidFamily),
+    selectedModules: asArray(form.modules).filter(isValidModule),
+    selectedIsvs: asArray(form.isvs).filter((id) => Object.prototype.hasOwnProperty.call(ISV_SOLUTIONS, id)),
+    complexity: COMPLEXITY_MULTIPLIERS[form.complexity] ? form.complexity : 'moderate',
+    customizationLevel: CUSTOMIZATION_MULTIPLIERS[form.customization_level] ? form.customization_level : 'medium',
+    clientIndustry: INDUSTRY_MULTIPLIERS[form.client_industry] ? form.client_industry : '',
+    companySize: COMPANY_SIZE_MULTIPLIERS[form.company_size] ? form.company_size : '',
+    numberOfUsers: form.number_of_users,
+    numberOfOrgs: form.number_of_orgs,
+    numberOfIntegrations: form.number_of_integrations,
+    integrationComplexity: ['simple', 'medium', 'complex'].includes(form.integration_complexity)
+      ? form.integration_complexity
+      : 'medium',
+    includeTraining: form.include_training === 'on',
+    includeSupport: form.include_support === 'on',
+    supportDurationDays: Math.max(0, Math.min(365, parseInt(form.support_duration_days, 10) || 0)),
+    otherModules: String(form.other_modules || '').slice(0, 1000),
+    otherIsvs: String(form.other_isvs || '').slice(0, 1000),
+    otherIntegrations: String(form.other_integrations || '').slice(0, 1000)
+  };
+}
+
+router.get(
+  '/',
+  asyncHandler(async (req, res) => {
+    const status = QUOTE_STATUSES.includes(req.query.status) ? req.query.status : '';
+    const { page, perPage, limit, offset } = paginationFrom(req.query);
+
+    const [{ rows, total }, stats] = await Promise.all([
+      Quote.listForOwner(req.session.user.id, { status, limit, offset }),
+      Quote.statsForOwner(req.session.user.id)
+    ]);
+
+    res.render('quotes/index', {
+      title: 'Quotes',
+      quotes: rows,
+      stats,
+      status,
+      statuses: QUOTE_STATUSES,
+      pagination: paginationMeta({ page, perPage, total }),
+      pageUrl: (p) => pageUrl('/quotes', req.query, p)
+    });
+  })
+);
+
+// Declared before `/:reference` so "new" is never read as a quote reference.
+router.get(
+  '/new',
+  isEmailVerified,
+  asyncHandler(async (req, res) => {
+    // Pre-fill nothing from the authoring company: the client is the subject of the quote,
+    // and defaulting their name to the author's own company is a confusing wrong answer.
+
+    res.render('quotes/new', {
+      title: 'New estimate',
+      ...catalogueLocals(),
+      values: { include_training: 'on', include_support: 'on', support_duration_days: 30, number_of_users: 50, number_of_orgs: 1 },
+      errors: []
+    });
+  })
+);
+
+const quoteValidators = [
+  body('client_company').trim().isLength({ min: 2, max: 200 }).withMessage('Who is this estimate for? Enter the client company.'),
+  body('client_name').trim().isLength({ min: 2, max: 200 }).withMessage('Enter a contact name.'),
+  body('client_email').optional({ checkFalsy: true }).isEmail().withMessage('That contact email is not valid.'),
+  body('project_name').trim().isLength({ min: 3, max: 200 }).withMessage('Give the project a name.'),
+  body('number_of_users').optional({ checkFalsy: true }).isInt({ min: 1, max: 1000000 }),
+  body('number_of_orgs').optional({ checkFalsy: true }).isInt({ min: 1, max: 50 }),
+  body('number_of_integrations').optional({ checkFalsy: true }).isInt({ min: 0, max: 200 })
+];
+
+router.post(
+  '/',
+  isEmailVerified,
+  writeLimiter,
+  quoteValidators,
+  asyncHandler(async (req, res) => {
+    const errors = validationResult(req);
+
+    const inputs = inputsFrom(req.body);
+    const nothingSelected =
+      inputs.selectedFamilies.length === 0 &&
+      inputs.selectedModules.length === 0 &&
+      inputs.selectedIsvs.length === 0 &&
+      !inputs.otherModules.trim();
+
+    const problems = errors.array();
+    if (nothingSelected) {
+      problems.push({ msg: 'Choose at least one cloud, module or add-on — an estimate needs a scope.' });
+    }
+
+    if (problems.length) {
+      return res.status(422).render('quotes/new', {
+        title: 'New estimate',
+        ...catalogueLocals(),
+        values: req.body,
+        errors: problems
+      });
+    }
+
+    const estimate = calculateEstimation(inputs, {
+      contingencyPercentage: Math.max(0, Math.min(50, parseInt(req.body.contingency_percentage, 10) || 15)),
+      currency: /^[A-Z]{3}$/.test(req.body.currency || '') ? req.body.currency : 'EUR'
+    });
+
+    // An estimate whose own parts do not add up must never be shown to a client. This is
+    // the guard that makes the invariants in utils/sowEstimation.js real rather than
+    // aspirational: a failure here is a bug in the engine, not user error.
+    const mismatches = reconciliationProblems(estimate);
+    if (mismatches.length) {
+      const err = new Error(`Estimate failed its own reconciliation checks: ${mismatches.join('; ')}`);
+      err.status = 500;
+      throw err;
+    }
+
+    const quote = await Quote.create(req.session.user.id, {
+      client: {
+        name: req.body.client_name.trim(),
+        company: req.body.client_company.trim(),
+        email: req.body.client_email || null,
+        industry: inputs.clientIndustry || null,
+        size: inputs.companySize || null
+      },
+      project: {
+        name: req.body.project_name.trim(),
+        summary: sanitizeRichText(req.body.project_summary || '')
+      },
+      inputs,
+      estimate,
+      catalogueVersion: catalogueVersion()
+    });
+
+    req.flash('success', `Estimate ${quote.reference} saved.`);
+    return res.redirect(`/quotes/${quote.reference}`);
+  })
+);
+
+router.get(
+  '/:reference',
+  asyncHandler(async (req, res) => {
+    const quote = await Quote.findByReference(req.params.reference);
+    if (!quote || quote.owner_user_id !== req.session.user.id) {
+      return res.status(404).render('errors/404', { title: 'Not found' });
+    }
+
+    const events = await Quote.events(quote.id);
+
+    return res.render('quotes/show', {
+      title: `${quote.reference} — ${quote.project_name}`,
+      quote,
+      estimate: quote.estimate,
+      events,
+      transitions: Quote.TRANSITIONS[quote.status] || [],
+      // A quote priced under an older catalogue is flagged rather than silently trusted.
+      catalogueIsCurrent: quote.catalogue_version === catalogueVersion(),
+      ...catalogueLocals()
+    });
+  })
+);
+
+router.post(
+  '/:reference/status',
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const quote = await Quote.findByReference(req.params.reference);
+    if (!quote || quote.owner_user_id !== req.session.user.id) {
+      return res.status(404).render('errors/404', { title: 'Not found' });
+    }
+
+    try {
+      const updated = await Quote.transition(quote.id, req.session.user.id, req.body.to_status, {
+        note: req.body.note ? String(req.body.note).slice(0, 500) : null
+      });
+      req.flash('success', `Quote is now "${updated.status}".`);
+    } catch (err) {
+      if (['INVALID_TRANSITION', 'FORBIDDEN', 'NOT_FOUND'].includes(err.code)) {
+        req.flash('error', err.message);
+      } else {
+        throw err;
+      }
+    }
+
+    return res.redirect(`/quotes/${quote.reference}`);
+  })
+);
+
+router.post(
+  '/:reference/delete',
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const quote = await Quote.findByReference(req.params.reference);
+    if (!quote || quote.owner_user_id !== req.session.user.id) {
+      return res.status(404).render('errors/404', { title: 'Not found' });
+    }
+
+    const removed = await Quote.remove(quote.id, req.session.user.id);
+    req.flash(
+      removed ? 'success' : 'error',
+      removed
+        ? 'Draft deleted.'
+        : 'Only a draft can be deleted. A quote that has been sent is withdrawn by changing its status.'
+    );
+    return res.redirect(removed ? '/quotes' : returnTo(req, `/quotes/${quote.reference}`));
+  })
+);
+
+module.exports = router;

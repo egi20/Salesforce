@@ -15,6 +15,7 @@ const CLOUD_FAMILIES = [
   {
     value: 'sales-cloud',
     label: 'Sales Cloud',
+    foundationEffortDays: 12,
     modules: [
       { value: 'lead-management', label: 'Lead Management', baseEffortDays: 8 },
       { value: 'opportunity-management', label: 'Opportunity Management', baseEffortDays: 10 },
@@ -26,6 +27,7 @@ const CLOUD_FAMILIES = [
   {
     value: 'service-cloud',
     label: 'Service Cloud',
+    foundationEffortDays: 12,
     modules: [
       { value: 'case-management', label: 'Case Management', baseEffortDays: 10 },
       { value: 'omni-channel', label: 'Omni-Channel Routing', baseEffortDays: 12 },
@@ -37,6 +39,7 @@ const CLOUD_FAMILIES = [
   {
     value: 'revenue-cloud',
     label: 'Revenue Cloud',
+    foundationEffortDays: 20,
     modules: [
       { value: 'cpq', label: 'CPQ (Configure Price Quote)', baseEffortDays: 30 },
       { value: 'billing', label: 'Billing & Invoicing', baseEffortDays: 28 },
@@ -47,6 +50,7 @@ const CLOUD_FAMILIES = [
   {
     value: 'marketing-cloud',
     label: 'Marketing Cloud',
+    foundationEffortDays: 18,
     modules: [
       { value: 'engagement', label: 'Marketing Cloud Engagement', baseEffortDays: 25 },
       { value: 'journey-builder', label: 'Journey Builder', baseEffortDays: 15 },
@@ -57,6 +61,7 @@ const CLOUD_FAMILIES = [
   {
     value: 'data-cloud',
     label: 'Data Cloud',
+    foundationEffortDays: 22,
     modules: [
       { value: 'ingestion', label: 'Data Streams & Ingestion', baseEffortDays: 18 },
       { value: 'identity-resolution', label: 'Identity Resolution', baseEffortDays: 16 },
@@ -67,6 +72,7 @@ const CLOUD_FAMILIES = [
   {
     value: 'field-service',
     label: 'Field Service',
+    foundationEffortDays: 18,
     modules: [
       { value: 'work-orders', label: 'Work Orders & Service Appointments', baseEffortDays: 16 },
       { value: 'scheduling-optimization', label: 'Scheduling & Optimisation', baseEffortDays: 22 },
@@ -77,6 +83,7 @@ const CLOUD_FAMILIES = [
   {
     value: 'commerce-cloud',
     label: 'Commerce Cloud',
+    foundationEffortDays: 30,
     modules: [
       { value: 'b2b-commerce', label: 'B2B Commerce', baseEffortDays: 35 },
       { value: 'b2c-commerce', label: 'B2C Commerce', baseEffortDays: 45 },
@@ -86,6 +93,7 @@ const CLOUD_FAMILIES = [
   {
     value: 'experience-cloud',
     label: 'Experience Cloud',
+    foundationEffortDays: 14,
     modules: [
       { value: 'partner-portal', label: 'Partner Portal', baseEffortDays: 18 },
       { value: 'customer-portal', label: 'Customer Self-Service Portal', baseEffortDays: 16 },
@@ -95,6 +103,7 @@ const CLOUD_FAMILIES = [
   {
     value: 'platform',
     label: 'Salesforce Platform',
+    foundationEffortDays: 10,
     modules: [
       { value: 'custom-objects', label: 'Custom Objects & Data Model', baseEffortDays: 10 },
       { value: 'lwc', label: 'Lightning Web Components', baseEffortDays: 14 },
@@ -106,6 +115,7 @@ const CLOUD_FAMILIES = [
   {
     value: 'integration',
     label: 'Integration',
+    foundationEffortDays: 12,
     modules: [
       { value: 'rest-api', label: 'REST / Composite API', baseEffortDays: 10 },
       { value: 'bulk-api', label: 'Bulk API 2.0 Loads', baseEffortDays: 8 },
@@ -117,6 +127,7 @@ const CLOUD_FAMILIES = [
   {
     value: 'analytics',
     label: 'Analytics',
+    foundationEffortDays: 10,
     modules: [
       { value: 'reports-dashboards', label: 'Reports & Dashboards', baseEffortDays: 8 },
       { value: 'crm-analytics', label: 'CRM Analytics', baseEffortDays: 20 },
@@ -126,6 +137,7 @@ const CLOUD_FAMILIES = [
   {
     value: 'agentforce',
     label: 'Agentforce & Einstein',
+    foundationEffortDays: 15,
     modules: [
       { value: 'agents', label: 'Agentforce Agents', baseEffortDays: 20 },
       { value: 'prompt-builder', label: 'Prompt Builder & Templates', baseEffortDays: 10 },
@@ -136,6 +148,7 @@ const CLOUD_FAMILIES = [
   {
     value: 'industries',
     label: 'Industry Clouds',
+    foundationEffortDays: 25,
     modules: [
       { value: 'health-cloud', label: 'Health Cloud', baseEffortDays: 30 },
       { value: 'financial-services-cloud', label: 'Financial Services Cloud', baseEffortDays: 32 },
@@ -152,8 +165,13 @@ const ALL_MODULES = CLOUD_FAMILIES.flatMap((f) =>
 );
 
 const MODULE_BASE_EFFORTS = Object.fromEntries(ALL_MODULES.map((m) => [m.value, m.baseEffortDays]));
+const FAMILY_FOUNDATION_EFFORTS = Object.fromEntries(CLOUD_FAMILIES.map((f) => [f.value, f.foundationEffortDays]));
 const MODULE_LABELS = new Map(ALL_MODULES.map((m) => [m.value, m.label]));
 const FAMILY_LABELS = new Map(CLOUD_FAMILIES.map((f) => [f.value, f.label]));
+
+function isValidFamily(slug) {
+  return FAMILY_LABELS.has(slug);
+}
 
 function isValidModule(slug) {
   return MODULE_LABELS.has(slug);
@@ -171,6 +189,8 @@ module.exports = {
   CLOUD_FAMILIES,
   ALL_MODULES,
   MODULE_BASE_EFFORTS,
+  FAMILY_FOUNDATION_EFFORTS,
+  isValidFamily,
   isValidModule,
   moduleLabel,
   familyLabel

@@ -21,17 +21,25 @@ connection requests or DMs — any feature that implies automated outreach would
 
 ## Medium term
 
-**Statement-of-work generator.** Given a role, a set of clouds and a duration, produce a
-draft SOW, a work-breakdown spreadsheet and a slide summary. `config/cloudFamilies.js`
-already carries per-module base effort days for exactly this.
+**Document generation on top of the estimator.** The estimator itself now exists
+(`utils/sowEstimation.js`, `/quotes`): it produces the phased plan, team shape, budget and
+timeline, and refuses to present an estimate that does not reconcile with itself. What is
+still missing is turning that into deliverables — a branded SOW in DOCX, a work-breakdown
+XLSX with a Gantt, and a summary PPTX, packaged as one download.
 
 Two constraints from experience, worth writing down before anyone starts:
 
 - Validate every generated file before serving it. A template splice that produces
   unbalanced XML must fall back to a known-good layout rather than ship a corrupt document.
-- Guarantee required sections deterministically instead of re-prompting a model until they
-  appear, and keep every displayed figure reconcilable: largest-remainder apportionment,
-  `cost = days × rounded rate`, schedule percentages summing to exactly 100.
+- Keep every displayed figure reconcilable with the stored estimate. The documents must not
+  re-derive anything; they render `quotes.estimate` verbatim. Largest-remainder
+  apportionment, `cost = days × rounded rate` and percentages summing to exactly 100 are
+  already guaranteed upstream — do not undo them in a formatter.
+
+**AI drafting.** Narrative sections (scope, assumptions, risks, commercials) drafted around
+the deterministic numbers, never replacing them. Required sections must be guaranteed
+structurally rather than by re-prompting until they appear, and no AI-supplied figure may
+enter the budget without going back through the estimator.
 
 **Payments.** Featured job posts and placement fees. Two rules: put idempotency in the
 webhook handler itself (an invoice row means fulfilled) rather than gating on payment

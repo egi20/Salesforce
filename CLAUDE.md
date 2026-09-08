@@ -82,6 +82,36 @@ Do not push aggregation into SQL: a `GROUP BY` will quietly bypass the floor.
 `RATE_MIN_SAMPLE` is configurable, but lowering it below 3 to make a sparse index look
 fuller defeats the point of having it.
 
+## The estimator
+
+`utils/sowEstimation.js` is pure — no database, no clock beyond one timestamp — so its
+invariants are testable, and they are the whole point:
+
+1. Phase days sum EXACTLY to the total. Resource days sum EXACTLY to the same total.
+   Both come from `apportionDays` (largest remainder). Never replace it with
+   `Math.round(total * pct / 100)`: each call rounds in isolation and the parts drift
+   away from the headline figure.
+2. Every cost is `days × rate` on integers, so the budget reconciles line by line.
+3. Calendar duration is the SUM of sequential phase durations. Do not "simplify" it to
+   `totalDays / teamSize / 5` — that treats the whole project as one parallel bucket and
+   collapses a 400-day programme into 20 weeks.
+4. Excluding training or hypercare redistributes their share into build. It does not
+   shrink the project.
+
+`reconciliationProblems(estimate)` re-checks 1–3 plus the timeline. `routes/quotes.js`
+calls it before an estimate is shown or stored and throws a 500 on failure, because that
+combination can only mean a bug in the engine.
+
+The module catalogue lives in `config/cloudFamilies.js` and nowhere else. Multipliers,
+phases, resources and add-ons live in `config/estimation.js`. Both are asserted at boot:
+phase and resource percentages that do not sum to 100 shift every estimate by a silent few
+per cent instead of failing visibly.
+
+`catalogueVersion()` is a hash of every number that can move an estimate. It is derived
+rather than hand-maintained, because a version someone has to remember to bump is a version
+that is wrong. A stored quote keeps the version it was priced under and is NEVER
+recomputed on read — it is a statement made to a client on a date.
+
 ## Uploads and images
 
 The host disk is ephemeral. `multer` keeps the file in memory, `sharp` re-encodes it to a

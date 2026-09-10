@@ -80,6 +80,24 @@ Rules:
 - Never greet someone with their raw email — `User.buildSessionUser` already falls back to
   the local part for the display name, and that is as far as it should ever go.
 
+## Where the wash goes
+
+Glass only reads as glass when there is colour behind it. A frosted card on a plain white
+page is just a white card, and a permanent full-page wash greys the whole app.
+
+So the body is a clean white base, and the wash is applied deliberately:
+
+- `.glass-section` — the mesh behind a run of content. Every interior page wraps its
+  container in one, sitting directly under the navy header band.
+- `.glass-section-tall` — adds a full-viewport minimum height and vertical centring, for
+  pages whose content does not fill the screen. The auth pages use it.
+- `.hero` and `.page-header` carry their own navy gradient plus a mesh overlay.
+
+Neither the header band nor the footer has an outside margin. The washed section supplies
+the spacing, so the three meet without a white seam. If you add a page that ends in
+something other than a `.glass-section`, give it bottom padding rather than putting the
+margin back.
+
 ## Components (reuse, do not reinvent)
 
 - **Cards:** `.glass-card` is the primary surface. Inside it, Bootstrap's

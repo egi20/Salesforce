@@ -227,6 +227,10 @@ throwing, because every call site is a side effect of an action that must succee
 `DESIGN.md` is the authority for anything user-facing, and it is short — read it before
 adding a page. The two rules most often broken while moving fast:
 
+- **Bootstrap is served from this origin**, not a CDN (`/vendor/bootstrap`,
+  `/vendor/bootstrap-icons`, from `node_modules`). The CSP allows no CDN at all. A CDN
+  puts a third party on every page load, breaks behind a proxy that blocks it, and forces
+  the policy to trust a host that also serves everybody else's code.
 - **Never inline a brand colour.** There is a token or a class. `views/email/` is the one
   exception, because email clients strip `<style>` and do not support custom properties.
 - **`#00A1E0` never sits behind white text** (2.93:1). Cyan is an accent and a gradient

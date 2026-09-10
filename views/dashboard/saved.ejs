@@ -2,6 +2,7 @@
 
 <%- include('../partials/page-header', { icon: 'bi-bookmark', heading: 'Saved jobs', sub: 'Roles you bookmarked.' }) %>
 
+<section class="glass-section pb-5">
 <div class="container">
   <%- include('../partials/flash') %>
   <% if (jobs.length === 0) { %>
@@ -15,5 +16,6 @@
     </div>
   <% } %>
 </div>
+</section>
 
 <%- include('../partials/layout-end') %>

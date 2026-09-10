@@ -49,9 +49,11 @@ app.use(
         // 'unsafe-inline' is required by the per-page vanilla-JS islands in the views.
         // 'unsafe-eval' is deliberately NOT allowed: no client code may use eval or
         // new Function, and adding a library that needs it is a decision, not an oversight.
-        scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
-        styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com'],
-        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net'],
+        // No CDN is allowed at all: every script, style and font is served from this
+        // origin. Adding a host back here means adding a third party to every page.
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:', 'https:'],
         connectSrc: ["'self'"],
         formAction: ["'self'"],
@@ -80,6 +82,30 @@ app.use(morgan(config.isProduction ? 'combined' : 'dev'));
 // bare 413 that gave the author no way to recover their draft.
 app.use(bodyParser.urlencoded({ extended: true, limit: '5mb' }));
 app.use(bodyParser.json({ limit: '5mb' }));
+
+/*
+ * Bootstrap and Bootstrap Icons are served from node_modules rather than a CDN.
+ *
+ * A CDN adds a third party to every page load: the app stops working behind a corporate
+ * proxy that blocks it, the version can move under you, and the CSP has to allow a host
+ * that also serves everybody else's code. Serving the pinned files from the same origin
+ * removes all three, and the icon font resolves relative to its own stylesheet so it comes
+ * along without extra configuration.
+ */
+app.use(
+  '/vendor/bootstrap',
+  express.static(path.join(__dirname, 'node_modules', 'bootstrap', 'dist'), {
+    maxAge: '30d',
+    immutable: config.isProduction
+  })
+);
+app.use(
+  '/vendor/bootstrap-icons',
+  express.static(path.join(__dirname, 'node_modules', 'bootstrap-icons', 'font'), {
+    maxAge: '30d',
+    immutable: config.isProduction
+  })
+);
 
 app.use(
   express.static(path.join(__dirname, 'public'), {

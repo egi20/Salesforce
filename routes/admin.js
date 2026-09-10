@@ -8,6 +8,9 @@ const ErrorLog = require('../models/ErrorLog');
 const RateSubmission = require('../models/RateSubmission');
 const Payment = require('../models/Payment');
 const { formatMinor } = require('../config/payments');
+const ApiUsage = require('../models/ApiUsage');
+const assistantConfig = require('../config/assistant');
+const { budgetStatus } = require('../utils/aiBudget');
 const { promisePool } = require('../config/database');
 const { isAuthenticated, isAdmin, isSuperadmin } = require('../middleware/auth');
 const { writeLimiter } = require('../middleware/rateLimit');
@@ -200,6 +203,30 @@ router.get(
       formatMinor,
       pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/admin/payments', req.query, p)
+    });
+  })
+);
+
+/**
+ * GET /admin/ai — what the assistant has cost.
+ *
+ * The number that matters is month-to-date against the cap, because that cap is the only
+ * thing bounding a public endpoint that spends money per request. Everything else on this
+ * page is context for it.
+ */
+router.get(
+  '/ai',
+  asyncHandler(async (req, res) => {
+    const [budget, daily] = await Promise.all([budgetStatus(), ApiUsage.dailyCost({ days: 30 })]);
+
+    res.render('admin/ai', {
+      title: 'Assistant usage',
+      budget,
+      daily,
+      model: assistantConfig.MODEL,
+      configured: assistantConfig.isConfigured(),
+      priceInput: assistantConfig.PRICE_PER_MTOK_INPUT,
+      priceOutput: assistantConfig.PRICE_PER_MTOK_OUTPUT
     });
   })
 );

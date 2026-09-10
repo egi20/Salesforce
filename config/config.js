@@ -80,6 +80,11 @@ const config = {
     publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || ''
   },
+  assistant: {
+    // Unset key disables the assistant entirely: the widget is not rendered and the
+    // endpoint answers 503, the same way payments and email degrade without credentials.
+    apiKey: process.env.ANTHROPIC_API_KEY || ''
+  },
   rates: {
     // Privacy floor: never publish an aggregate derived from fewer than this many
     // distinct people. Counting people (not submissions) is part of the rule.

@@ -1,0 +1,62 @@
+<%
+  /*
+   * The in-site assistant.
+   *
+   * Rendered only when an API key is configured. Not hidden with CSS, not disabled with a
+   * flag the client could flip — simply not emitted, so a deployment without credentials
+   * has no launcher to click and no endpoint to discover from the markup.
+   *
+   * Behaviour is in /js/assistant.js. The one thing that MUST stay out of that file is
+   * how a reply is rendered: model output is built from DOM nodes only, never innerHTML.
+   */
+%>
+<div class="sf-assistant" data-assistant>
+  <button type="button" class="sf-assistant-launcher" data-assistant-launcher
+          aria-label="Open the site assistant" aria-expanded="false" aria-controls="sfAssistantPanel">
+    <i class="bi bi-stars" aria-hidden="true"></i>
+    <span class="sf-assistant-launcher-tag" aria-hidden="true">AI</span>
+  </button>
+
+  <div class="sf-assistant-panel" id="sfAssistantPanel" data-assistant-panel role="dialog"
+       aria-label="Site assistant" hidden>
+    <div class="sf-assistant-header">
+      <span class="icon-tile icon-blue sf-assistant-avatar"><i class="bi bi-stars"></i></span>
+      <span class="sf-assistant-title">
+        Hub assistant
+        <span class="badge-hub cloud">AI</span>
+      </span>
+      <button type="button" class="sf-assistant-close" data-assistant-close aria-label="Close the assistant">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <div class="sf-assistant-messages" data-assistant-messages aria-live="polite"></div>
+
+    <div class="sf-assistant-chips" data-assistant-chips>
+      <button type="button" class="sf-assistant-chip">How do I get started?</button>
+      <button type="button" class="sf-assistant-chip">What does it cost?</button>
+      <button type="button" class="sf-assistant-chip">How does the rate index work?</button>
+    </div>
+
+    <%
+      /*
+       * data-no-guard: the global submit guard in /js/main.js disables the button and
+       * relabels it "Working…" on submit, which is right for a page-navigating form and
+       * wrong for one that stays put and sends many messages.
+       */
+    %>
+    <form class="sf-assistant-form" data-assistant-form data-no-guard="true" autocomplete="off">
+      <label class="visually-hidden" for="sfAssistantInput">Message the assistant</label>
+      <input class="sf-assistant-input" id="sfAssistantInput" data-assistant-input type="text"
+             placeholder="Ask about this site…" maxlength="<%= assistantMaxChars %>">
+      <button class="sf-assistant-send" type="submit" aria-label="Send">
+        <i class="bi bi-send-fill"></i>
+      </button>
+    </form>
+
+    <p class="sf-assistant-footnote">
+      An AI assistant, and it can be wrong. It cannot see your account —
+      for anything account-specific, email <%= supportEmail %>.
+    </p>
+  </div>
+</div>

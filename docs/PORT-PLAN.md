@@ -26,30 +26,28 @@ handlers cover a feature that is better here than there.
 | Community: forum + feed | 29 | 14 | Posts, replies, votes, accepted answers, feed, points, levels |
 | Admin | 142 | 8 | Users, jobs, error log, visitor geography, payments and refunds |
 | Payments | 9 | 7 | Featured job placements and quote deposits; idempotency in the schema |
+| In-site assistant | 2 | 1 | Site help on every page, three spend bounds, no transcript storage |
 | Design system | — | — | Glassmorphism ported, palette re-based on Salesforce blue |
 
 ## Next, in order
 
-1. **In-site AI assistant** (2 handlers, but a real feature) — the widget in the corner of
-   every page. Needs an ANTHROPIC_API_KEY and must degrade to hidden without one, the way
-   e-mail already degrades to logging. Deferred at the owner's instruction, after payments.
-2. **Admin, the parts that earn it** (~20 of 142) — settings, analytics, an issue tracker.
+1. **Admin, the parts that earn it** (~20 of 142) — settings, analytics, an issue tracker.
    Not the in-app HTTP test runner: this project has Jest and a boot validator.
-3. **Consultant tooling** (part of 33) — CV builder, rate calculator, document packages.
-4. **Referrals & commissions** (9) — every credit path through one function that pays
+2. **Consultant tooling** (part of 33) — CV builder, rate calculator, document packages.
+3. **Referrals & commissions** (9) — every credit path through one function that pays
    referrer and agent together, all mutations transactional and idempotent, no automatic
    clawback.
-5. **LinkedIn verification** (9) — OAuth to prove identity, never as a sign-in method. Note
+4. **LinkedIn verification** (9) — OAuth to prove identity, never as a sign-in method. Note
    there is no API for sending connection requests or DMs; any feature implying automated
    outreach would be a lie.
-6. **Document generator for CVs and cover letters** (17).
-7. **Company document templates** (16).
-8. **Search across everything** (1) — one box spanning jobs, consultants and companies,
+5. **Document generator for CVs and cover letters** (17).
+6. **Company document templates** (16).
+7. **Search across everything** (1) — one box spanning jobs, consultants and companies,
    behind the existing filter builders.
-9. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
+8. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
    are an internal sales tool and an accounting system that happen to live in the same
    repository.
-10. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
+9. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
     games (13).
 
 ## Done since this plan was written
@@ -66,8 +64,27 @@ area. Departures from the reference, each for a stated reason:
   `hasFulfillment()` check the next handler can forget to call.
 - No automatic refund. A payment that cannot be fulfilled is flagged and worked by a
   person.
-- No commission or referral machinery yet: that is item 4 above, and wiring it in before
+- No commission or referral machinery yet: that is item 3 above, and wiring it in before
   there is a referral model would be inventing the requirement.
+
+**The in-site assistant.** A floating helper on every page, answering from
+`docs/assistant-knowledge.md` and nothing else. Departures from the reference:
+
+- No provider router and no fallback chain. One provider, one model, pinned. A fallback
+  to a second vendor doubles the surface that has to be reasoned about for a feature whose
+  whole job is answering "where is the rate index".
+- No per-user budget overrides, no admin-editable settings rows, no purchasable top-ups.
+  Two caps from the environment, both enforced against one ledger.
+- The system prompt is split into a cached stable half and a volatile viewer half, and
+  the viewer half carries the account's SHAPE only — no name, no email, no id.
+- No conversation tables. Storing transcripts would mean holding whatever people type
+  into a support box, indefinitely, for a feature that answers questions about public
+  pages.
+
+Still not built, and worth being explicit about: AI drafting of the narrative sections of
+a SOW. That is a different feature with a different risk profile — it writes into a
+document a client is quoted from — and it needs the reconciliation rules thought through
+before it exists, not after.
 
 ## Excluded
 

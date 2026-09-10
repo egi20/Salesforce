@@ -25,13 +25,15 @@ Server-rendered Express + EJS on MySQL 8. No SPA, no ORM, no build step for serv
 | Messaging: threads anchored to an application or a role, unread counts, notifications | built |
 | Notifications, saved jobs, dashboards | built |
 | Payments: featured job placements, quote deposits, invoices, Stripe webhook | built |
-| Admin: users and roles, jobs, error log, visitor geography, payments and refunds | built |
+| In-site assistant: site help on every page, with rate limits and a spend cap | built |
+| Admin: users and roles, jobs, error log, visitor geography, payments, refunds, AI spend | built |
 | SEO: canonicals, JobPosting JSON-LD, sitemap generated from the robots allowlist | built |
 
 Deliberately not built yet, and listed so nobody mistakes the scope: AI drafting of the
-narrative sections, referral commissions, record deduplication, finance/P&L reporting, a
-tax service, a certification practice bank, a sales CRM, LinkedIn verification, and a
-Salesforce org integration. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+quote narrative sections, referral commissions, record deduplication, finance/P&L
+reporting, a tax service, a certification practice bank, a sales CRM, LinkedIn
+verification, and a Salesforce org integration. See
+[`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -78,6 +80,11 @@ Seeded sign-in: `admin@example.com` / `Password123`.
 > **This application needs its own empty database.** It cannot share one with another app.
 > The migration runner refuses to start against a database that already has tables but no
 > migration history, rather than mixing its schema into somebody else's.
+
+**The assistant in development.** Leave `ANTHROPIC_API_KEY` unset and it is switched off
+completely: no widget is emitted into any page, and `/assistant/chat` answers 503. To try
+it, set the key and — importantly — set `AI_MONTHLY_BUDGET_USD` to a number you would be
+willing to see on an invoice. `/admin/ai` shows spend against that cap.
 
 **Payments in development.** Leave the three `STRIPE_*` variables unset and payments are
 switched off: the pages render, and every checkout offers a "not switched on yet" path
@@ -188,6 +195,19 @@ amount. The route asks and never decides, so there is no submitted number to val
 nothing to tamper with. Every amount is an integer of minor units, because a float euro
 ends up a cent away from the sum of its parts.
 
+**A public endpoint that spends money needs a cap that is not a rate limiter.** The
+assistant answers anonymous visitors, so it carries three independent bounds: per-IP rate
+limiting keyed on the IP (never the session id — with `saveUninitialized: false` a
+cookie-less flood gets a fresh session per request and a session-keyed counter protects
+nothing), a process-wide backstop, and a month-to-date spend cap read from the `ai_usage`
+ledger. Only the last one bounds the aggregate. It fails open and logs loudly, because an
+unreadable ledger must not be an outage.
+
+**A model reply is never parsed as markup.** `public/js/assistant.js` builds every node
+with `createElement` and validates each link against a same-origin relative-path
+allowlist. Model output is attacker-influenceable text; rendering it through `innerHTML`
+— even "just for the links" — turns a prompt-injected reply into stored XSS on every page.
+
 **Payment idempotency is in the schema, not in a check.** The Stripe webhook and the
 `/payments/success` page race by definition — Stripe fires the redirect and the delivery
 independently — so `payments.stripe_session_id` is unique, every fulfilment table has a
@@ -212,7 +232,7 @@ views/        EJS templates and partials
 public/       CSS design system, vanilla-JS islands, images
 scripts/      migration runner, migrations, seeds, boot validation
 tests/        Jest suites
-docs/         roadmap and design notes
+docs/         roadmap, design notes, and the assistant's knowledge base
 ```
 
 ---

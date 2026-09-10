@@ -21,6 +21,12 @@ function buildApp(mount) {
     req.flash = () => {};
     // seoLocals normally supplies these; the error views need them to render.
     res.locals.appName = 'Salesforce Hub';
+    res.locals.supportEmail = 'support@example.com';
+    // server.js sets these for every request; the error pages include the layout,
+    // which reads them. A missing global local should fail loudly, not be papered
+    // over with a `typeof` guard in the template.
+    res.locals.assistantEnabled = false;
+    res.locals.assistantMaxChars = 2000;
     res.locals.currentUser = null;
     res.locals.currentPath = req.path;
     res.locals.csrfToken = 'test-token';

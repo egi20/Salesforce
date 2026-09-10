@@ -277,6 +277,66 @@ is asked at read time with an EXISTS over the window, never cached in a column o
 a boolean would need something to come round and unset it, and the day that job fails to
 run is the day someone keeps a placement they stopped paying for.
 
+## The in-site assistant
+
+Open to anonymous visitors on purpose — most of what it answers is asked before anyone
+signs up. That makes it a PUBLIC endpoint that spends money per request, and everything
+about its design follows from that.
+
+**Three independent bounds, and only one of them caps the bill.**
+
+1. Per-IP rate limiting. Keyed on the IP and **never** on the session id: with
+   `saveUninitialized: false` a cookie-less flood gets a fresh session id per request, so
+   a session-keyed counter never accumulates. On a paid endpoint that is not a
+   rate-limiting bug, it is a way to run up someone else's bill.
+2. A process-wide backstop (`globalLimiter`), because a distributed flood keeps every
+   individual address politely under the per-IP limit.
+3. `utils/aiBudget.js` — month-to-date spend against a cap, read from the shared
+   `ai_usage` ledger. This is the only one that bounds the aggregate.
+
+The budget check **fails OPEN** and says so in the log. An unreadable ledger must not
+become a site-wide outage of the feature; the failure mode of failing closed is worse than
+a few minutes uncapped. And because a call's cost is only known once it returns, the cap
+is always crossed by at most one exchange — which is why the caps are set well below the
+number that would hurt.
+
+**Token counts come from the API response, never from a local estimate.** A
+character-count guess ignores the cached prefix and the tokeniser, and a budget built on a
+guess cuts off at a number nobody can reconcile with the invoice. `ai_usage.cost_usd` is
+`DECIMAL`, not `FLOAT`: the column is summed to decide whether to stop spending.
+
+**The system prompt is split in two, and the split is the point.**
+`utils/assistantPrompt.js` composes the long half ONCE at module load and it must stay
+byte-identical — it is sent with `cache_control` and anything interpolated per request
+(a timestamp, a path, a name) misses the cache on every exchange and multiplies the input
+cost of the whole feature. The per-viewer half is appended after it. Only the account's
+SHAPE goes in that half — signed in or not, which roles — never a name, an email or an id:
+none of it improves an answer about how the site works, and all of it would be personal
+data leaving for a third party on every message.
+
+`docs/assistant-knowledge.md` is the only thing it knows about the site. **Edit it in the
+same commit that adds or moves a page.** An assistant confidently sending people to a
+route that no longer exists is worse than one that says it does not know.
+
+**A reply is rendered from DOM nodes only — never `innerHTML`.** Model output is
+attacker-influenceable text: whatever a visitor types can steer it. Parsing it as markup
+turns a prompt-injected reply into stored XSS on every page, and rendering markdown "just
+for the links" through `innerHTML` is exactly how that happens. `public/js/assistant.js`
+builds each anchor with `createElement` and validates its `href` against a same-origin
+relative-path allowlist; anything that fails renders as plain text. A test asserts the
+file contains no `innerHTML` at all.
+
+**There are no conversation tables.** History lives in the visitor's `sessionStorage` and
+is posted back with each message, then capped and re-validated server-side — the array is
+cut BEFORE it is walked, because a hostile request can carry tens of thousands of entries
+inside the JSON body limit. A `role` that is not `user` or `assistant` is dropped, not
+repaired: it is someone probing for a way to write into the system prompt.
+
+With no `ANTHROPIC_API_KEY` the widget is **not emitted into the markup at all** — not
+hidden with CSS, not gated by a flag the client could flip — and `/assistant/chat` answers
+503. Unlike the Stripe webhook, this endpoint is NOT CSRF-exempt: it is an ordinary POST
+from a page on this origin.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

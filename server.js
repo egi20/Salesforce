@@ -16,6 +16,7 @@ const { assertEstimationIntegrity } = require('./config/estimation');
 const { assertCommunityIntegrity } = require('./config/community');
 const { seoLocals } = require('./config/seoMeta');
 const { assertPaymentIntegrity, WEBHOOK_PATH } = require('./config/payments');
+const assistantConfig = require('./config/assistant');
 const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
@@ -34,6 +35,9 @@ assertCommunityIntegrity();
 // And again for money: a product with no resolver, or a deposit floor above its cap, is
 // a silently wrong charge rather than a visible failure.
 assertPaymentIntegrity();
+// And for the one feature that spends money per request: a negative cap or a non-numeric
+// price does not fail at request time, it fails as an invoice at the end of the month.
+assistantConfig.assertAssistantIntegrity();
 
 const app = express();
 
@@ -174,6 +178,10 @@ app.use(seoLocals);
 // Locals every template can rely on.
 app.use((req, res, next) => {
   res.locals.appName = config.app.name;
+  res.locals.supportEmail = config.app.supportEmail;
+  // Decided once per request from the configuration, never from anything the client sends.
+  res.locals.assistantEnabled = assistantConfig.isConfigured();
+  res.locals.assistantMaxChars = assistantConfig.MAX_MESSAGE_CHARS;
   res.locals.currentUser = req.session.user || null;
   res.locals.currentPath = req.path;
   res.locals.query = req.query;
@@ -203,6 +211,7 @@ app.use('/applications', require('./routes/applications'));
 app.use('/quotes', require('./routes/quotes'));
 app.use('/rates', require('./routes/rates'));
 app.use('/payments', require('./routes/payments'));
+app.use('/assistant', require('./routes/assistant'));
 app.use('/messages', require('./routes/messages'));
 app.use('/notifications', require('./routes/notifications'));
 app.use('/admin', require('./routes/admin'));

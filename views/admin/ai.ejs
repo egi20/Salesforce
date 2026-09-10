@@ -1,0 +1,110 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', { icon: 'bi-stars', heading: 'Assistant usage', sub: 'What the in-site assistant has cost this month.' }) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <% if (!configured) { %>
+    <div class="alert alert-info">
+      <i class="bi bi-info-circle"></i>
+      No <code>ANTHROPIC_API_KEY</code> is set, so the assistant is switched off entirely:
+      the widget is not rendered and <code>/assistant/chat</code> answers 503. Any figures
+      below are historical.
+    </div>
+  <% } %>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="stat-tile">
+        <div class="value">$<%= budget.spentUsd.toFixed(2) %></div>
+        <div class="label">spent this month</div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-tile">
+        <div class="value"><%= budget.capped ? '$' + budget.globalCapUsd.toFixed(2) : 'none' %></div>
+        <div class="label">monthly cap</div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-tile">
+        <div class="value"><%= budget.remainingUsd === null ? '—' : '$' + budget.remainingUsd.toFixed(2) %></div>
+        <div class="label">remaining</div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-tile">
+        <div class="value"><%= budget.userCapUsd > 0 ? '$' + budget.userCapUsd.toFixed(2) : 'none' %></div>
+        <div class="label">per-user cap</div>
+      </div>
+    </div>
+  </div>
+
+  <% if (!budget.capped) { %>
+    <div class="alert alert-warning">
+      <strong>No global cap is set.</strong> Rate limiting bounds requests per address, not
+      spend in aggregate — a distributed flood keeps every individual address under the
+      limit. Set <code>AI_MONTHLY_BUDGET_USD</code> to a number you would be willing to see
+      on an invoice.
+    </div>
+  <% } else if (budget.percentUsed >= 80) { %>
+    <div class="alert alert-warning">
+      <strong><%= budget.percentUsed %>% of this month's budget is used.</strong>
+      At the cap the assistant tells visitors it is paused until next month, rather than failing.
+    </div>
+  <% } %>
+
+  <div class="glass-card mb-4">
+    <div class="card-body">
+      <h2 class="h6">Settings in force</h2>
+      <dl class="row mb-0 small">
+        <dt class="col-sm-4">Model</dt>
+        <dd class="col-sm-8"><code><%= model %></code></dd>
+        <dt class="col-sm-4">Price per million tokens</dt>
+        <dd class="col-sm-8">
+          $<%= priceInput %> in, $<%= priceOutput %> out
+          <span class="text-muted-2">— list price recorded in <code>config/assistant.js</code>; check it against an invoice rather than trusting it.</span>
+        </dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="glass-card">
+    <div class="card-header"><h2 class="h6 mb-0">Last 30 days</h2></div>
+    <% if (!daily.length) { %>
+      <div class="card-body"><p class="text-muted-2 mb-0">No calls recorded.</p></div>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th scope="col">Day</th>
+              <th scope="col" class="text-end">Calls</th>
+              <th scope="col" class="text-end">Input tokens</th>
+              <th scope="col" class="text-end">Output tokens</th>
+              <th scope="col" class="text-end">Cost</th>
+              <th scope="col" class="text-end">Errors</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% daily.forEach(function (d) { %>
+              <tr>
+                <td class="small"><%= new Date(d.day).toLocaleDateString('en-GB') %></td>
+                <td class="text-end"><%= d.calls %></td>
+                <td class="text-end"><%= Number(d.input_tokens).toLocaleString('en-GB') %></td>
+                <td class="text-end"><%= Number(d.output_tokens).toLocaleString('en-GB') %></td>
+                <td class="text-end fw-semibold">$<%= Number(d.cost).toFixed(4) %></td>
+                <td class="text-end"><%= d.errors > 0 ? d.errors : '—' %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

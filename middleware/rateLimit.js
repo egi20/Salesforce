@@ -55,4 +55,38 @@ const writeLimiter = ipLimiter({
   message: 'You are doing that too quickly. Please slow down.'
 });
 
-module.exports = { ipLimiter, loginLimiter, registerLimiter, passwordLimiter, writeLimiter };
+/**
+ * A process-wide backstop, keyed on a constant.
+ *
+ * NOT redundant with an IP limiter, and the difference matters most on an endpoint that
+ * costs money per request: five hundred addresses each staying politely under a per-IP
+ * limit still produce five hundred times that many calls. Only a global counter sees the
+ * aggregate.
+ *
+ * The counter is in this process's memory, so a multi-instance deployment gets one bucket
+ * per instance. That is a weaker bound than it looks and the spend circuit-breaker in
+ * `utils/aiBudget.js` — which reads a shared ledger — is what actually caps the bill.
+ */
+function globalLimiter({ windowMs, max, message }) {
+  return rateLimit({
+    windowMs,
+    max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: () => 'global',
+    // The default validator objects to a keyGenerator that ignores the IP; that is
+    // exactly what this limiter is for.
+    validate: { keyGeneratorIpFallback: false },
+    message: { success: false, error: message },
+    handler: (req, res, next, options) => res.status(options.statusCode).json(options.message)
+  });
+}
+
+module.exports = {
+  ipLimiter,
+  globalLimiter,
+  loginLimiter,
+  registerLimiter,
+  passwordLimiter,
+  writeLimiter
+};

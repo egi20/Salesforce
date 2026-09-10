@@ -1,4 +1,15 @@
 </main>
 <%- include('footer') %>
+<%
+  /*
+   * The assistant is emitted only where it is configured. `assistantEnabled` is a server
+   * local, so a deployment without an ANTHROPIC_API_KEY ships no launcher and no script
+   * — rather than a hidden element and an endpoint anyone can find in the markup.
+   */
+%>
+<% if (assistantEnabled) { %>
+  <%- include('assistant-widget') %>
+  <script src="/js/assistant.js" defer></script>
+<% } %>
 </body>
 </html>

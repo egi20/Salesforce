@@ -11,6 +11,7 @@ const CompanyProfile = require('../models/CompanyProfile');
 const ConsultantProfile = require('../models/ConsultantProfile');
 const { isAuthenticated, isCompany, isConsultant, isEmailVerified } = require('../middleware/auth');
 const { writeLimiter } = require('../middleware/rateLimit');
+const { JOB_FEATURE_DAYS, JOB_FEATURE_PRICE_MINOR, formatMinor } = require('../config/payments');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
 const { ROLE_CATEGORIES, isValidRole, ROLE_SLUGS } = require('../config/roleTaxonomy');
@@ -339,6 +340,10 @@ router.get(
 
     if (!isOwner) Job.incrementViews(job.id);
 
+    // Only the owner is offered the placement, so only the owner's page pays for the
+    // extra query.
+    const featuredUntil = isOwner ? await Job.featuredUntil(job.id) : null;
+
     return res.render('jobs/show', {
       title: `${job.title} — ${job.company_name || 'Confidential'}`,
       job,
@@ -349,6 +354,9 @@ router.get(
       application,
       saved,
       match,
+      featuredUntil,
+      jobFeatureDays: JOB_FEATURE_DAYS,
+      jobFeaturePrice: formatMinor(JOB_FEATURE_PRICE_MINOR),
       jsonLd: jobPostingJsonLd(job)
     });
   })

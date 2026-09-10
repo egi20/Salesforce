@@ -6,6 +6,8 @@ const User = require('../models/User');
 const Job = require('../models/Job');
 const ErrorLog = require('../models/ErrorLog');
 const RateSubmission = require('../models/RateSubmission');
+const Payment = require('../models/Payment');
+const { formatMinor } = require('../config/payments');
 const { promisePool } = require('../config/database');
 const { isAuthenticated, isAdmin, isSuperadmin } = require('../middleware/auth');
 const { writeLimiter } = require('../middleware/rateLimit');
@@ -152,6 +154,52 @@ router.get(
       errors: rows,
       pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/admin/errors', req.query, p)
+    });
+  })
+);
+
+/**
+ * GET /admin/payments — the money view, and the refund queue.
+ *
+ * The queue is the point of the page. A payment flagged `needs_refund` is money that
+ * arrived and could not be fulfilled — almost always two checkout tabs open against one
+ * quote, where the schema let exactly one of them settle it. Nothing reverses those
+ * automatically: a refund is a decision with a person on the other end of it, and a
+ * webhook handler issuing one has neither the context nor the accountability for it.
+ */
+router.get(
+  '/payments',
+  asyncHandler(async (req, res) => {
+    const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 30 });
+
+    const [[totals]] = await promisePool.query(
+      `SELECT
+         (SELECT COUNT(*) FROM payments WHERE status = 'paid')                     AS paid_count,
+         (SELECT COALESCE(SUM(amount_minor), 0) FROM payments WHERE status = 'paid') AS paid_minor,
+         (SELECT COUNT(*) FROM payments WHERE status = 'pending')                  AS pending_count,
+         (SELECT COUNT(*) FROM payments WHERE needs_refund = 1)                    AS refund_count,
+         (SELECT COUNT(*) FROM invoices)                                           AS invoices`
+    );
+
+    const [rows] = await promisePool.query(
+      `SELECT p.*, u.email, i.number AS invoice_number
+         FROM payments p
+         JOIN users u ON u.id = p.user_id
+         LEFT JOIN invoices i ON i.payment_id = p.id
+        ORDER BY p.created_at DESC
+        LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+    const [[{ total }]] = await promisePool.query('SELECT COUNT(*) AS total FROM payments');
+
+    res.render('admin/payments', {
+      title: 'Payments',
+      totals,
+      payments: rows,
+      refunds: await Payment.listNeedingRefund({ limit: 20 }),
+      formatMinor,
+      pagination: paginationMeta({ page, perPage, total }),
+      pageUrl: (p) => pageUrl('/admin/payments', req.query, p)
     });
   })
 );

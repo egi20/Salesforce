@@ -670,6 +670,22 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 .badge-hub.danger { background: rgba(179, 54, 74, 0.12); color: #9e2b3d; }
 .badge-hub.muted { background: rgba(3, 45, 96, 0.06); color: var(--text-light); }
 
+/*
+ * A paid featured placement.
+ *
+ * Amber rather than a brand blue, and it carries the WORD "Featured" — a paid position
+ * in a list has to be labelled as one, and a colour alone is neither a label nor
+ * something a colour-blind reader can act on.
+ */
+.badge-hub.featured { background: rgba(201, 122, 0, 0.16); color: #8a5100; }
+
+/*
+ * The card of a featured job. A warm left edge and a slightly stronger shadow, so the
+ * placement is visible while scanning without shouting over the content.
+ */
+.job-featured { border-left: 3px solid rgba(201, 122, 0, 0.55); }
+.job-featured:hover { border-left-color: rgba(201, 122, 0, 0.85); }
+
 /* Work-mode pills, mirroring the reference's .job-badge family. */
 .job-badge { display: inline-block; padding: 0.25rem 0.7rem; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 600; }
 .badge-remote { background: rgba(1, 118, 211, 0.12); color: var(--primary-blue-dark); }
@@ -966,3 +982,23 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 .footer-blurb { max-width: 38ch; }
 /* The wordmark's accent half, on a dark ground where the gradient would disappear. */
 .brand-accent { color: var(--primary-blue-bright); }
+
+/* ============================================================================
+   INVOICE
+   ==========================================================================
+
+   An invoice is a document before it is a page: people print it and file it. The
+   print rules strip the chrome rather than opening a second, drifting "printable
+   version" template — one source for the figures, here as everywhere else.
+ */
+.invoice-sheet { max-width: 46rem; margin: 0 auto; }
+.invoice-sheet .invoice-total { font-size: 1.5rem; font-weight: 700; color: var(--primary-blue-dark); }
+.invoice-meta dt { font-weight: 600; color: var(--text-medium); }
+.invoice-meta dd { margin-bottom: var(--space-2); }
+
+@media print {
+  .navbar-hub, .footer-hub, .page-header, .skip-link, .no-print { display: none !important; }
+  .glass-section, body { background: #fff !important; }
+  .invoice-sheet { max-width: none; }
+  .glass-card { border: 1px solid #ccc !important; box-shadow: none !important; backdrop-filter: none !important; }
+}

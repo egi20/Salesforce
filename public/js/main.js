@@ -83,6 +83,20 @@
   }
 
   /**
+   * Print button (the invoice).
+   *
+   * Delegated rather than an inline `onclick`, so no view has to carry executable markup.
+   * Without JavaScript the page still prints correctly from the browser's own menu — the
+   * print stylesheet does the real work; this is only a shortcut to it.
+   */
+  document.addEventListener('click', function (event) {
+    var trigger = event.target.closest ? event.target.closest('[data-print]') : null;
+    if (!trigger) return;
+    event.preventDefault();
+    window.print();
+  });
+
+  /**
    * Availability date is only meaningful for a profile that is actually available.
    * Purely a convenience: the server does not depend on it.
    */

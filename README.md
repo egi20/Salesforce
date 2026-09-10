@@ -24,14 +24,14 @@ Server-rendered Express + EJS on MySQL 8. No SPA, no ORM, no build step for serv
 | Signed-in home feed, points and levels, 30-day leaderboard | built |
 | Messaging: threads anchored to an application or a role, unread counts, notifications | built |
 | Notifications, saved jobs, dashboards | built |
-| Admin: users and roles, jobs, error log, visitor geography | built |
+| Payments: featured job placements, quote deposits, invoices, Stripe webhook | built |
+| Admin: users and roles, jobs, error log, visitor geography, payments and refunds | built |
 | SEO: canonicals, JobPosting JSON-LD, sitemap generated from the robots allowlist | built |
 
 Deliberately not built yet, and listed so nobody mistakes the scope: AI drafting of the
-narrative sections, payments and invoicing, referral
-commissions, a community forum, record deduplication, finance/P&L reporting, a tax service,
-a certification practice bank, a sales CRM, LinkedIn verification, and a Salesforce org
-integration. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+narrative sections, referral commissions, record deduplication, finance/P&L reporting, a
+tax service, a certification practice bank, a sales CRM, LinkedIn verification, and a
+Salesforce org integration. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -41,7 +41,7 @@ integration. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 |---|---|
 | Runtime | Node.js ≥ 18, CommonJS, no transpilation |
 | HTTP | Express 4, `express-session` with a MySQL store |
-| Views | EJS, server-rendered; Bootstrap 5 from CDN plus a hand-written design system |
+| Views | EJS, server-rendered; Bootstrap 5 served from this origin plus a hand-written design system |
 | Data | MySQL 8 via `mysql2`. **No ORM** — every model is a class of static methods issuing parameterised SQL |
 | Schema | Forward-only numbered `.sql` migrations, applied by `scripts/migrate.js` under an advisory lock |
 | Auth | First-party email + password, `bcryptjs`, server-side sessions. No OAuth, no JWT |
@@ -78,6 +78,15 @@ Seeded sign-in: `admin@example.com` / `Password123`.
 > **This application needs its own empty database.** It cannot share one with another app.
 > The migration runner refuses to start against a database that already has tables but no
 > migration history, rather than mixing its schema into somebody else's.
+
+**Payments in development.** Leave the three `STRIPE_*` variables unset and payments are
+switched off: the pages render, and every checkout offers a "not switched on yet" path
+instead of failing. To try the real flow, set `STRIPE_SECRET_KEY` and
+`STRIPE_PUBLISHABLE_KEY` to your test keys, then run `stripe listen --forward-to
+localhost:3000/payments/webhook` and put the `whsec_…` it prints into
+`STRIPE_WEBHOOK_SECRET`. Without that secret the webhook rejects every delivery rather
+than trusting an unsigned body — which is the right way round, but it does mean fulfilment
+then depends entirely on the buyer landing back on the success page.
 
 ### Scripts
 
@@ -172,6 +181,21 @@ is `44`; that is how a sourcemap probe once put a raw string into an `UPDATE`.
 
 **Notifications are fire-and-forget with a stable dedupe key.** They can never fail the
 action that triggered them, and undoing then redoing something cannot notify twice.
+
+**A checkout price is never in the request.** `config/payments.js` holds one resolver per
+product; it re-checks ownership and eligibility against the database and answers with the
+amount. The route asks and never decides, so there is no submitted number to validate and
+nothing to tamper with. Every amount is an integer of minor units, because a float euro
+ends up a cent away from the sum of its parts.
+
+**Payment idempotency is in the schema, not in a check.** The Stripe webhook and the
+`/payments/success` page race by definition — Stripe fires the redirect and the delivery
+independently — so `payments.stripe_session_id` is unique, every fulfilment table has a
+unique key on `payment_id`, and an exclusive product's fulfilment table has one on its
+subject too. That last key is the only thing that can catch two checkout tabs opened
+against one quote, which are two different payments. Fulfilment is never gated on a
+payment's own status. Money that cannot be fulfilled is flagged for a person to refund,
+never reversed automatically from inside a handler.
 
 ---
 

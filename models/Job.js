@@ -12,6 +12,31 @@ const SORTS = {
 };
 
 /**
+ * Whether a paid featured window is open on this job right now.
+ *
+ * A correlated EXISTS rather than a column on `jobs`, because a window EXPIRES: a
+ * boolean flag would need something to come round and unset it, and the day that job
+ * fails to run is the day someone keeps a placement they stopped paying for. Asking the
+ * question at read time cannot go stale. Overlapping rows are expected — a renewal
+ * bought mid-window appends another row (see migration 010).
+ */
+const FEATURED_EXPR = `EXISTS (
+        SELECT 1 FROM job_features f
+         WHERE f.job_id = j.id AND f.starts_at <= NOW() AND f.ends_at > NOW()
+      )`;
+
+/**
+ * Featured jobs sort first, within whatever order was asked for.
+ *
+ * Prefixed rather than replacing the sort: someone who explicitly sorted by rate still
+ * gets a rate-sorted list, with the paid placements at its head. Silently overriding a
+ * chosen sort would make the control look broken.
+ */
+function orderByFor(sort) {
+  return `is_featured DESC, ${SORTS[sort] || SORTS.newest}`;
+}
+
+/**
  * THE single WHERE builder for job browsing.
  *
  * Used by the public list, the count behind it, the RSS feed, the sitemap and every
@@ -221,7 +246,8 @@ class Job {
   static async findBySlug(slug) {
     const [rows] = await promisePool.query(
       `SELECT j.*, cp.company_name, cp.slug AS company_slug, cp.logo AS company_logo,
-              cp.website AS company_website, cp.company_type
+              cp.website AS company_website, cp.company_type,
+              ${FEATURED_EXPR} AS is_featured
          FROM jobs j
          LEFT JOIN company_profiles cp ON cp.user_id = j.company_user_id
         WHERE j.slug = ? LIMIT 1`,
@@ -232,13 +258,14 @@ class Job {
 
   static async browse(filters = {}, { limit = 20, offset = 0, sort = 'newest' } = {}) {
     const { clause, params } = buildFilter(filters);
-    const orderBy = SORTS[sort] || SORTS.newest;
+    const orderBy = orderByFor(sort);
 
     const [rows] = await promisePool.query(
       `SELECT j.id, j.title, j.slug, j.role, j.seniority, j.engagement_type, j.work_mode,
               j.country, j.city, j.rate_min, j.rate_max, j.currency, j.rate_visible,
               j.duration_months, j.published_at, j.application_count, j.status,
-              cp.company_name, cp.slug AS company_slug, cp.logo AS company_logo
+              cp.company_name, cp.slug AS company_slug, cp.logo AS company_logo,
+              ${FEATURED_EXPR} AS is_featured
          FROM jobs j
          LEFT JOIN company_profiles cp ON cp.user_id = j.company_user_id
         WHERE ${clause}
@@ -315,6 +342,20 @@ class Job {
       [userId, limit, offset]
     );
     return rows;
+  }
+
+  /**
+   * When the current featured placement on a job runs out, or null if none is open.
+   *
+   * MAX rather than "the latest row": renewals overlap deliberately, so the window that
+   * matters is the furthest-out end date, not the most recently bought one.
+   */
+  static async featuredUntil(jobId) {
+    const [rows] = await promisePool.query(
+      'SELECT MAX(ends_at) AS ends_at FROM job_features WHERE job_id = ? AND ends_at > NOW()',
+      [jobId]
+    );
+    return (rows[0] && rows[0].ends_at) || null;
   }
 }
 

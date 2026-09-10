@@ -24,35 +24,50 @@ handlers cover a feature that is better here than there.
 | Consultants | 33 | 3 | Directory and profile |
 | Notifications | 5 | 4 | |
 | Community: forum + feed | 29 | 14 | Posts, replies, votes, accepted answers, feed, points, levels |
-| Admin | 142 | 7 | Users, jobs, error log, visitor geography |
+| Admin | 142 | 8 | Users, jobs, error log, visitor geography, payments and refunds |
+| Payments | 9 | 7 | Featured job placements and quote deposits; idempotency in the schema |
 | Design system | — | — | Glassmorphism ported, palette re-based on Salesforce blue |
 
 ## Next, in order
 
 1. **In-site AI assistant** (2 handlers, but a real feature) — the widget in the corner of
    every page. Needs an ANTHROPIC_API_KEY and must degrade to hidden without one, the way
-   e-mail already degrades to logging.
-2. **Payments** (9) — featured job posts and placement fees. Put idempotency in the webhook
-   handler itself (an invoice row means fulfilled) rather than gating on payment status,
-   and add a second guard against two checkout sessions for the same quote.
-3. **Admin, the parts that earn it** (~20 of 142) — settings, analytics, an issue tracker.
+   e-mail already degrades to logging. Deferred at the owner's instruction, after payments.
+2. **Admin, the parts that earn it** (~20 of 142) — settings, analytics, an issue tracker.
    Not the in-app HTTP test runner: this project has Jest and a boot validator.
-4. **Consultant tooling** (part of 33) — CV builder, rate calculator, document packages.
-5. **Referrals & commissions** (9) — every credit path through one function that pays
+3. **Consultant tooling** (part of 33) — CV builder, rate calculator, document packages.
+4. **Referrals & commissions** (9) — every credit path through one function that pays
    referrer and agent together, all mutations transactional and idempotent, no automatic
    clawback.
-6. **LinkedIn verification** (9) — OAuth to prove identity, never as a sign-in method. Note
+5. **LinkedIn verification** (9) — OAuth to prove identity, never as a sign-in method. Note
    there is no API for sending connection requests or DMs; any feature implying automated
    outreach would be a lie.
-7. **Document generator for CVs and cover letters** (17).
-8. **Company document templates** (16).
-9. **Search across everything** (1) — one box spanning jobs, consultants and companies,
+6. **Document generator for CVs and cover letters** (17).
+7. **Company document templates** (16).
+8. **Search across everything** (1) — one box spanning jobs, consultants and companies,
    behind the existing filter builders.
-10. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
-    are an internal sales tool and an accounting system that happen to live in the same
-    repository.
-11. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
-    games (13), in-site assistant (2).
+9. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
+   are an internal sales tool and an accounting system that happen to live in the same
+   repository.
+10. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
+    games (13).
+
+## Done since this plan was written
+
+**Payments.** Two products — a featured job placement and a deposit against an accepted
+quote — plus invoices, an append-only payment event log and a refund queue in the admin
+area. Departures from the reference, each for a stated reason:
+
+- The price is derived by a resolver in `config/payments.js` from a row the payer owns,
+  never read from the request. Same conclusion as the reference's "C3" fix, reached
+  structurally rather than by validating a submitted number.
+- Idempotency is in the SCHEMA — unique keys on `stripe_session_id`, on each fulfilment
+  table's `payment_id`, and on the subject of an exclusive product — rather than in a
+  `hasFulfillment()` check the next handler can forget to call.
+- No automatic refund. A payment that cannot be fulfilled is flagged and worked by a
+  person.
+- No commission or referral machinery yet: that is item 4 above, and wiring it in before
+  there is a referral model would be inventing the requirement.
 
 ## Excluded
 

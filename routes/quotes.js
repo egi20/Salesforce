@@ -22,6 +22,14 @@ const { sanitizeRichText } = require('../utils/sanitize');
 const { returnTo } = require('../utils/returnTo');
 const { isDocumentKind, PACKAGE_KIND, generateDocument, generatePackage } = require('../services/quotePackage');
 const CompanyProfile = require('../models/CompanyProfile');
+const Payment = require('../models/Payment');
+const {
+  depositForTotal,
+  formatMinor,
+  DEPOSIT_PERCENT,
+  DEPOSIT_MIN_MINOR,
+  DEPOSIT_MAX_MINOR
+} = require('../config/payments');
 
 const router = express.Router();
 
@@ -250,7 +258,15 @@ router.get(
       return res.status(404).render('errors/404', { title: 'Not found' });
     }
 
-    const [events, downloads] = await Promise.all([Quote.events(quote.id), Quote.downloads(quote.id)]);
+    const [events, downloads, deposit] = await Promise.all([
+      Quote.events(quote.id),
+      Quote.downloads(quote.id),
+      Payment.depositForQuote(quote.id)
+    ]);
+
+    // Derived from THIS quote's stored total by the same function the checkout uses, so
+    // the figure on the page and the figure charged cannot disagree.
+    const depositMinor = depositForTotal(quote.total_budget);
 
     return res.render('quotes/show', {
       title: `${quote.reference} — ${quote.project_name}`,
@@ -258,6 +274,11 @@ router.get(
       estimate: quote.estimate,
       events,
       downloads,
+      deposit,
+      depositAmount: depositMinor === null ? '—' : formatMinor(depositMinor, quote.currency),
+      depositPercent: DEPOSIT_PERCENT,
+      depositFloor: formatMinor(DEPOSIT_MIN_MINOR),
+      depositCap: formatMinor(DEPOSIT_MAX_MINOR),
       transitions: Quote.TRANSITIONS[quote.status] || [],
       // A quote priced under an older catalogue is flagged rather than silently trusted.
       catalogueIsCurrent: quote.catalogue_version === catalogueVersion(),

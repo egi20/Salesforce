@@ -280,6 +280,40 @@
         </div>
       </div>
 
+      <% if (quote.status === 'accepted') { %>
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-2">Deposit</h2>
+            <% if (deposit) { %>
+              <p class="small mb-1">
+                <span class="badge-hub ok"><i class="bi bi-check-lg"></i> Paid</span>
+                on <%= new Date(deposit.created_at).toLocaleDateString('en-GB') %>
+              </p>
+              <p class="invoice-total mb-0"><%= depositAmount %></p>
+            <% } else { %>
+              <p class="invoice-total mb-1"><%= depositAmount %></p>
+              <%
+                /*
+                 * The percentage is stated next to the figure on purpose. A deposit that
+                 * appears as a bare number is a number the client has to take on trust,
+                 * and it is derived from THIS quote's own total, not today's catalogue.
+                 */
+              %>
+              <p class="small text-muted-2">
+                <%= depositPercent %>% of the quoted total, within a
+                <%= depositFloor %>–<%= depositCap %> band.
+              </p>
+              <form method="post" action="/payments/checkout/quote_deposit">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="subjectId" value="<%= quote.id %>">
+                <input type="hidden" name="redirectTo" value="/quotes/<%= quote.reference %>">
+                <button class="btn btn-primary w-100" type="submit">Pay the deposit</button>
+              </form>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+
       <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6 mb-2">Scope chosen</h2>

@@ -15,6 +15,7 @@ const { assertTaxonomyIntegrity } = require('./config/roleTaxonomy');
 const { assertEstimationIntegrity } = require('./config/estimation');
 const { assertCommunityIntegrity } = require('./config/community');
 const { seoLocals } = require('./config/seoMeta');
+const { assertPaymentIntegrity, WEBHOOK_PATH } = require('./config/payments');
 const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
@@ -30,6 +31,9 @@ assertTaxonomyIntegrity();
 // estimate by a silent few per cent rather than failing visibly.
 assertEstimationIntegrity();
 assertCommunityIntegrity();
+// And again for money: a product with no resolver, or a deposit floor above its cap, is
+// a silently wrong charge rather than a visible failure.
+assertPaymentIntegrity();
 
 const app = express();
 
@@ -79,6 +83,16 @@ app.use((req, res, next) => {
 });
 
 app.use(morgan(config.isProduction ? 'combined' : 'dev'));
+
+/*
+ * The Stripe webhook needs the RAW bytes, and it needs them BEFORE any JSON parser sees
+ * the stream. Stripe's signature covers exactly what it sent; a body that has been
+ * parsed and re-serialised will not verify, however identical it looks.
+ *
+ * Mounting the raw parser first also disarms the JSON parser below for this one path:
+ * body-parser marks the request as read and every later parser skips it.
+ */
+app.use(WEBHOOK_PATH, express.raw({ type: 'application/json', limit: '1mb' }));
 
 // 5 MB rather than the 100 kB default: long rich-text bodies were being rejected with a
 // bare 413 that gave the author no way to recover their draft.
@@ -145,7 +159,14 @@ app.use(
 );
 
 app.use(flash());
-app.use(csrfProtection());
+/*
+ * The webhook is the one exempt route, and it is exempt through the predicate rather than
+ * by being mounted outside the middleware — which is the difference between a documented
+ * hole and an accidental one. It authenticates itself with a Stripe signature over the
+ * raw body, which is a stronger check than a token it could not carry anyway: it has no
+ * browser, no session and no page to read a token from.
+ */
+app.use(csrfProtection({ exempt: (req) => req.path === WEBHOOK_PATH }));
 app.use(validateActiveAccount);
 app.use(visitGeo);
 app.use(seoLocals);
@@ -181,6 +202,7 @@ app.use('/jobs', require('./routes/jobs'));
 app.use('/applications', require('./routes/applications'));
 app.use('/quotes', require('./routes/quotes'));
 app.use('/rates', require('./routes/rates'));
+app.use('/payments', require('./routes/payments'));
 app.use('/messages', require('./routes/messages'));
 app.use('/notifications', require('./routes/notifications'));
 app.use('/admin', require('./routes/admin'));

@@ -223,6 +223,60 @@ category. `npm run sync:categories` reconciles them and runs from `npm start` be
 migrations; a category dropped from the config is deactivated, never deleted, because posts
 point at it.
 
+## Payments
+
+Two products, and the shape is what matters more than either: a payment names a PRODUCT
+and a SUBJECT, and the subject is a row the payer demonstrably owns.
+
+**The price is never in the request.** `config/payments.js` holds a resolver per product;
+it re-checks ownership and eligibility against the database and answers with the amount.
+A route asks; a route never decides. This is the reference implementation's "C3"
+price-tampering finding, closed structurally rather than by validating a submitted number.
+
+Every amount is MINOR UNITS as an integer — Stripe speaks minor units, invoices reconcile
+line by line, and a float euro ends up a cent away from the sum of its parts.
+
+**Idempotency lives in the schema, not in a code path.** The webhook and the `/success`
+page race by definition, because Stripe fires the redirect and the delivery independently.
+So:
+
+- `payments.stripe_session_id` is UNIQUE — one checkout, one payment.
+- every fulfilment table has a UNIQUE key on `payment_id` — fulfilling twice for one
+  payment is a duplicate-key no-op.
+- a fulfilment table for an EXCLUSIVE product also has a unique key on its SUBJECT
+  (`quote_deposits.quote_id`). That is the guard the per-payment key cannot give: two
+  checkout tabs against one quote are two DIFFERENT payments, and only one may settle it.
+
+`Payment.markPaid` is a CLAIM, not a setter: a conditional UPDATE that reports whether
+this call moved the row. It decides who sends the receipt and nothing else. **Never gate
+fulfilment on a payment's status** — that was the reference's worst payment bug, where the
+success page flipped the row to complete without creating anything and the webhook then
+skipped fulfilment because the row already looked done.
+
+A payment that arrives for a subject someone else already settled is flagged
+`needs_refund` and appears in `/admin/payments`. It is **never** auto-refunded: reversing
+a charge from inside a webhook handler is an irreversible act on a partial view of the
+world.
+
+The webhook route is arranged in `server.js`, not in `routes/payments.js`, and all three
+parts are load-bearing: `express.raw` mounted BEFORE the body parsers (the signature
+covers the exact bytes Stripe sent), the CSRF `exempt` predicate (it has no browser and no
+session; the signature is the stronger check), and `WEBHOOK_PATH` shared from
+`config/payments.js` so the two can never point at different paths. It answers **200 for
+events it ignores** — a non-2xx tells Stripe to retry, so an error for "not interesting"
+is an infinite redelivery loop.
+
+With no `STRIPE_SECRET_KEY` the module loads, `isConfigured()` is false and checkout
+offers a "not switched on" path, the same way `utils/email.js` degrades to logging.
+`STRIPE_WEBHOOK_SECRET` is different: unset means the webhook refuses every delivery
+rather than trusting an unsigned body.
+
+Featured job windows are ADDITIVE — buying again extends rather than collides — which is
+why `job_features` deliberately has no unique key on `job_id`. Whether a job is featured
+is asked at read time with an EXISTS over the window, never cached in a column on `jobs`:
+a boolean would need something to come round and unset it, and the day that job fails to
+run is the day someone keeps a placement they stopped paying for.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

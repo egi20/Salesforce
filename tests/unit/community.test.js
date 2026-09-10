@@ -96,14 +96,19 @@ describe('levels', () => {
 });
 
 describe('the single post filter builder', () => {
-  it('matches everything by default rather than producing invalid SQL', () => {
+  it('produces valid parameter-free SQL with no filters at all', () => {
+    // The default is no longer "everything": moderated content is excluded here, in the
+    // one builder, so a list and its count can never disagree about whether a hidden post
+    // is in scope. See tests/unit/moderation.test.js for that contract.
     const { clause, params } = Post.buildFilter({});
-    expect(clause).toBe('1 = 1');
+    expect(clause).toBe('p.hidden_at IS NULL');
     expect(params).toEqual([]);
   });
 
   it('drops a kind that is not in the taxonomy', () => {
-    expect(Post.buildFilter({ kind: 'rant' }).clause).toBe('1 = 1');
+    const bogus = Post.buildFilter({ kind: 'rant' });
+    expect(bogus.clause).not.toContain('p.kind');
+    expect(bogus.params).toEqual([]);
     expect(Post.buildFilter({ kind: 'question' }).clause).toContain('p.kind = ?');
   });
 

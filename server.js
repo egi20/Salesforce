@@ -17,9 +17,11 @@ const { assertCommunityIntegrity } = require('./config/community');
 const { seoLocals } = require('./config/seoMeta');
 const { assertPaymentIntegrity, WEBHOOK_PATH } = require('./config/payments');
 const assistantConfig = require('./config/assistant');
+const { assertSettingsIntegrity } = require('./config/settings');
+const AppSetting = require('./models/AppSetting');
 const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
-const { notFound, errorHandler } = require('./middleware/errorHandler');
+const { notFound, errorHandler, asyncHandler } = require('./middleware/errorHandler');
 const { visitGeo } = require('./middleware/visitGeo');
 const { sanitizeRichText, toPlainText, jsonForScript } = require('./utils/sanitize');
 const { roleLabel } = require('./config/roleTaxonomy');
@@ -38,6 +40,7 @@ assertPaymentIntegrity();
 // And for the one feature that spends money per request: a negative cap or a non-numeric
 // price does not fail at request time, it fails as an invoice at the end of the month.
 assistantConfig.assertAssistantIntegrity();
+assertSettingsIntegrity();
 
 const app = express();
 
@@ -174,6 +177,21 @@ app.use(csrfProtection({ exempt: (req) => req.path === WEBHOOK_PATH }));
 app.use(validateActiveAccount);
 app.use(visitGeo);
 app.use(seoLocals);
+
+/*
+ * The site-wide notice.
+ *
+ * Read from a process cache, not the database, on all but roughly one request a minute —
+ * a banner nobody has set must not cost a query per page. `AppSetting.all()` falls back to
+ * the declared defaults rather than throwing, so a settings table that is briefly
+ * unreadable cannot take down every page on the site.
+ */
+app.use(
+  asyncHandler(async (req, res, next) => {
+    res.locals.siteNotice = await AppSetting.get('site_notice');
+    next();
+  })
+);
 
 // Locals every template can rely on.
 app.use((req, res, next) => {

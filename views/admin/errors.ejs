@@ -32,6 +32,33 @@
       </div>
     </div>
     <%- include('../partials/pagination') %>
+
+    <% if (currentUser && currentUser.isSuperadmin) { %>
+      <div class="glass-card mt-4">
+        <div class="card-body">
+          <h2 class="h6">Housekeeping</h2>
+          <p class="small text-muted-2">
+            The table grows without bound, and an error log too big to load is an error log
+            nobody reads. This is the one action on this screen that cannot be undone, which
+            is why the retention window is a fixed choice rather than a number you type — an
+            <code>INTERVAL 0 DAY</code> would take everything.
+          </p>
+          <form method="post" action="/admin/errors/purge" class="d-flex gap-2 align-items-end">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div>
+              <label class="form-label" for="days">Delete entries older than</label>
+              <select class="form-select" id="days" name="days">
+                <option value="30">30 days</option>
+                <option value="90" selected>90 days</option>
+                <option value="180">180 days</option>
+                <option value="365">365 days</option>
+              </select>
+            </div>
+            <button class="btn btn-outline-primary" type="submit">Purge</button>
+          </form>
+        </div>
+      </div>
+    <% } %>
   <% } %>
 </div>
 </section>

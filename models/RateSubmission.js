@@ -86,7 +86,16 @@ class RateSubmission {
    * of it in SQL would let a GROUP BY quietly bypass the floor.
    */
   static async rowsFor({ role = '', seniority = '', engagementType = 'contract', country = '', periods = [] } = {}) {
-    const where = ['engagement_type = ?'];
+    /*
+     * `voided_at IS NULL` is not optional and is not a filter the caller may turn off.
+     *
+     * A voided submission is one an administrator has established is wrong — most often a
+     * figure entered in the wrong unit. It is kept for the audit trail and for the unique
+     * key that stops a re-submission, but it must never reach an aggregate: one annual
+     * salary in a day-rate bucket moves a percentile for everybody, and it does it
+     * silently. There is no `include_voided` option here on purpose.
+     */
+    const where = ['voided_at IS NULL', 'engagement_type = ?'];
     const params = [engagementType];
 
     if (role) {
@@ -151,8 +160,46 @@ class RateSubmission {
   }
 
   static async totalContributors() {
-    const [[row]] = await promisePool.query('SELECT COUNT(DISTINCT user_id) AS count FROM rate_submissions');
+    // Counting PEOPLE, and only people whose contribution still counts — this number is
+    // shown next to the index as evidence of how much it rests on.
+    const [[row]] = await promisePool.query(
+      'SELECT COUNT(DISTINCT user_id) AS count FROM rate_submissions WHERE voided_at IS NULL'
+    );
     return row.count;
+  }
+
+  /**
+   * The submissions themselves, for the moderation screen.
+   *
+   * The one place raw rows with an identifiable person attached are read, and it is
+   * superadmin-gated in the route. `outlier` flags a figure far from its own bucket's
+   * median — a hint about where to look, never an automatic void: an unusually high rate
+   * is much more often a real senior contractor than a mistake.
+   */
+  static async listForReview({ limit = 50, offset = 0, includeVoided = false } = {}) {
+    const where = includeVoided ? '1 = 1' : 'rs.voided_at IS NULL';
+
+    const [rows] = await promisePool.query(
+      `SELECT rs.*, u.email, u.name AS contributor_name,
+              (SELECT ROUND(AVG(peer.amount_eur))
+                 FROM rate_submissions peer
+                WHERE peer.role = rs.role
+                  AND peer.seniority = rs.seniority
+                  AND peer.engagement_type = rs.engagement_type
+                  AND peer.voided_at IS NULL) AS bucket_mean_eur
+         FROM rate_submissions rs
+         JOIN users u ON u.id = rs.user_id
+        WHERE ${where}
+        ORDER BY rs.created_at DESC
+        LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+
+    const [[{ total }]] = await promisePool.query(
+      `SELECT COUNT(*) AS total FROM rate_submissions rs WHERE ${where}`
+    );
+
+    return { rows, total };
   }
 }
 

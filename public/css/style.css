@@ -1004,6 +1004,22 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 }
 
 /* ============================================================================
+   SITE NOTICE
+   ==========================================================================
+
+   The operational banner. Amber, in the flow of the document rather than fixed, and it
+   carries an icon AND words — a coloured bar with no label is decoration, not a notice.
+ */
+.site-notice {
+  background: rgba(201, 122, 0, 0.14);
+  color: #8a5100;
+  border-bottom: 1px solid rgba(201, 122, 0, 0.3);
+  padding: var(--space-2) 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* ============================================================================
    ASSISTANT WIDGET
    ==========================================================================
 

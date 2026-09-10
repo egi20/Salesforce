@@ -8,6 +8,7 @@ const Points = require('../models/Points');
 const Notification = require('../models/Notification');
 const { isAuthenticated, isEmailVerified } = require('../middleware/auth');
 const { writeLimiter, ipLimiter } = require('../middleware/rateLimit');
+const { communityWritable } = require('../middleware/settingsGates');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireIdParam } = require('../utils/ids');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
@@ -73,6 +74,7 @@ router.get(
   '/new',
   isAuthenticated,
   isEmailVerified,
+  communityWritable,
   asyncHandler(async (req, res) => {
     const categories = await Post.listCategories();
     res.render('community/new', {
@@ -89,6 +91,7 @@ router.post(
   '/',
   isAuthenticated,
   isEmailVerified,
+  communityWritable,
   postLimiter,
   [
     body('title').trim().isLength({ min: 8, max: 200 }).withMessage('Give it a title of at least 8 characters.'),
@@ -162,15 +165,30 @@ router.get(
     const post = await Post.findBySlug(req.params.slug, viewerId);
     if (!post) return res.status(404).render('errors/404', { title: 'Not found' });
 
+    /*
+     * A hidden post is a 404 for everyone except an admin, who needs to be able to open
+     * the thing they just removed — and 404 rather than 403, because "this exists but you
+     * may not see it" tells a spammer their post is still there and worth appealing.
+     *
+     * `Post.findBySlug` deliberately returns hidden posts; this is where the decision is
+     * made, once, with the viewer in hand.
+     */
+    const isAdmin = Boolean(req.session.user && req.session.user.isAdmin);
+    if (post.hidden_at && !isAdmin) {
+      return res.status(404).render('errors/404', { title: 'Not found' });
+    }
+
     const replies = await Post.replies(post.id, viewerId);
-    if (!viewerId || viewerId !== post.author_user_id) Post.incrementViews(post.id);
+    // A hidden post must not accumulate views from the moderators checking it.
+    if (!post.hidden_at && (!viewerId || viewerId !== post.author_user_id)) Post.incrementViews(post.id);
 
     return res.render('community/show', {
       title: post.title,
       post,
       replies,
       kind: postKind(post.kind),
-      isAuthor: Boolean(viewerId && viewerId === post.author_user_id)
+      isAuthor: Boolean(viewerId && viewerId === post.author_user_id),
+      canModerate: isAdmin
     });
   })
 );
@@ -179,6 +197,7 @@ router.post(
   '/:slug/reply',
   isAuthenticated,
   isEmailVerified,
+  communityWritable,
   writeLimiter,
   [body('body').trim().isLength({ min: 2 }).withMessage('Write something first.')],
   asyncHandler(async (req, res) => {

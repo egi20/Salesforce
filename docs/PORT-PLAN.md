@@ -24,30 +24,28 @@ handlers cover a feature that is better here than there.
 | Consultants | 33 | 3 | Directory and profile |
 | Notifications | 5 | 4 | |
 | Community: forum + feed | 29 | 14 | Posts, replies, votes, accepted answers, feed, points, levels |
-| Admin | 142 | 8 | Users, jobs, error log, visitor geography, payments and refunds |
 | Payments | 9 | 7 | Featured job placements and quote deposits; idempotency in the schema |
 | In-site assistant | 2 | 1 | Site help on every page, three spend bounds, no transcript storage |
+| Admin | 142 | 14 | Users, jobs, moderation, analytics, settings, errors, payments, AI spend |
 | Design system | — | — | Glassmorphism ported, palette re-based on Salesforce blue |
 
 ## Next, in order
 
-1. **Admin, the parts that earn it** (~20 of 142) — settings, analytics, an issue tracker.
-   Not the in-app HTTP test runner: this project has Jest and a boot validator.
-2. **Consultant tooling** (part of 33) — CV builder, rate calculator, document packages.
-3. **Referrals & commissions** (9) — every credit path through one function that pays
+1. **Consultant tooling** (part of 33) — CV builder, rate calculator, document packages.
+2. **Referrals & commissions** (9) — every credit path through one function that pays
    referrer and agent together, all mutations transactional and idempotent, no automatic
    clawback.
-4. **LinkedIn verification** (9) — OAuth to prove identity, never as a sign-in method. Note
+3. **LinkedIn verification** (9) — OAuth to prove identity, never as a sign-in method. Note
    there is no API for sending connection requests or DMs; any feature implying automated
    outreach would be a lie.
-5. **Document generator for CVs and cover letters** (17).
-6. **Company document templates** (16).
-7. **Search across everything** (1) — one box spanning jobs, consultants and companies,
+4. **Document generator for CVs and cover letters** (17).
+5. **Company document templates** (16).
+6. **Search across everything** (1) — one box spanning jobs, consultants and companies,
    behind the existing filter builders.
-8. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
+7. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
    are an internal sales tool and an accounting system that happen to live in the same
    repository.
-9. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
+8. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
     games (13).
 
 ## Done since this plan was written
@@ -64,7 +62,7 @@ area. Departures from the reference, each for a stated reason:
   `hasFulfillment()` check the next handler can forget to call.
 - No automatic refund. A payment that cannot be fulfilled is flagged and worked by a
   person.
-- No commission or referral machinery yet: that is item 3 above, and wiring it in before
+- No commission or referral machinery yet: that is item 2 above, and wiring it in before
   there is a referral model would be inventing the requirement.
 
 **The in-site assistant.** A floating helper on every page, answering from
@@ -85,6 +83,20 @@ Still not built, and worth being explicit about: AI drafting of the narrative se
 a SOW. That is a different feature with a different risk profile — it writes into a
 document a client is quoted from — and it needs the reconciliation rules thought through
 before it exists, not after.
+
+**Admin, the parts that earn it.** 14 handlers of the reference's 142, chosen by what was
+actually missing rather than by what existed there:
+
+- **Moderation** was the real gap. The community and the rate index both accept content
+  from anyone with an account and there was no way to take any of it down.
+- **Settings**, **analytics** and **error-log housekeeping**, all small and all things you
+  reach for at an awkward hour.
+
+Deliberately not ported: the in-app HTTP test runner (this project has Jest and a boot
+validator), the newsletter sender, the CRM-adjacent screens (contacts, referrers, sales
+agents, recruiters, team, success stories), and the SOW config editor — that last one on
+principle, since it would move estimate inputs out of version control and into a form with
+no author, diff or review.
 
 ## Excluded
 

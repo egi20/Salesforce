@@ -24,6 +24,18 @@ function buildFilter(filters = {}) {
   const where = [];
   const params = [];
 
+  /*
+   * Hidden posts are excluded by DEFAULT, and the opt-in is explicit.
+   *
+   * This lives inside the one builder rather than being bolted onto each query, for the
+   * same reason the builder exists at all: a list view and a count that disagree about
+   * whether removed content is in scope is how a moderated post keeps appearing in a
+   * total nobody can explain. Only the moderation screens pass `include_hidden`.
+   */
+  if (!filters.include_hidden) {
+    where.push('p.hidden_at IS NULL');
+  }
+
   if (filters.kind && isPostKind(filters.kind)) {
     where.push('p.kind = ?');
     params.push(filters.kind);
@@ -108,6 +120,9 @@ class Post {
         WHERE p.slug = ? LIMIT 1`,
       viewerUserId ? [viewerUserId, slug] : [slug]
     );
+    // Returned INCLUDING a hidden post: the route decides what a given viewer may see, so
+    // that a moderator can open the thing they just removed. A model that silently
+    // returned null here would make the moderation screens unable to link anywhere.
     return rows[0] || null;
   }
 
@@ -157,9 +172,20 @@ class Post {
     }
   }
 
+  /**
+   * The replies on a thread, hidden ones included as TOMBSTONES.
+   *
+   * A hidden reply keeps its place and loses its body — the text never leaves the
+   * database. Dropping the row entirely would orphan any reply written underneath it and
+   * would silently disagree with `posts.reply_count`; showing "removed" is both honest and
+   * the only version a threaded conversation still reads correctly.
+   */
   static async replies(postId, viewerUserId = null) {
     const [rows] = await promisePool.query(
-      `SELECT r.*, u.name AS author_name,
+      `SELECT r.id, r.post_id, r.author_user_id, r.parent_reply_id, r.vote_score,
+              r.is_solution, r.created_at, r.updated_at, r.hidden_at,
+              CASE WHEN r.hidden_at IS NULL THEN r.body ELSE NULL END AS body,
+              u.name AS author_name,
               COALESCE(cp.profile_picture, comp.logo) AS author_avatar,
               (SELECT COALESCE(SUM(pl.points), 0) FROM points_ledger pl WHERE pl.user_id = r.author_user_id) AS author_points,
               ${viewerUserId ? '(SELECT v.value FROM post_votes v WHERE v.user_id = ? AND v.target_type = \'reply\' AND v.target_id = r.id)' : 'NULL'} AS my_vote

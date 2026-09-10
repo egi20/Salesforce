@@ -1,0 +1,61 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', { icon: 'bi-graph-up-arrow', heading: 'Analytics', sub: 'The last twelve months, by month.' }) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <% if (!periods.length) { %>
+    <div class="glass-card"><div class="card-body"><p class="text-muted-2 mb-0">No activity recorded yet.</p></div></div>
+  <% } else { %>
+    <div class="glass-card">
+      <div class="table-responsive">
+        <%
+          /*
+           * A table, not a chart. The CSP allows no CDN, so a charting library would have
+           * to be vendored and served from this origin — a real cost for a screen whose
+           * whole job is answering "is this growing", which a column of numbers answers
+           * exactly as well.
+           */
+        %>
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th scope="col">Month</th>
+              <% series.forEach(function (s) { %>
+                <th scope="col" class="text-end"><%= s.label %></th>
+              <% }); %>
+            </tr>
+          </thead>
+          <tbody>
+            <% periods.slice().reverse().forEach(function (period) { %>
+              <tr>
+                <th scope="row" class="fw-normal"><%= period %></th>
+                <% series.forEach(function (s) { %>
+                  <%
+                    /* A month with none of something is a zero, not a gap: unlike the rate
+                       index, these are complete counts, so there is nothing suppressed. */
+                    const value = s.byPeriod[period] || 0;
+                  %>
+                  <td class="text-end <%= value ? 'fw-semibold' : 'text-muted-2' %>"><%= value %></td>
+                <% }); %>
+              </tr>
+            <% }); %>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row">Total</th>
+              <% series.forEach(function (s) { %>
+                <th class="text-end"><%= Object.values(s.byPeriod).reduce(function (a, b) { return a + Number(b); }, 0) %></th>
+              <% }); %>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  <% } %>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

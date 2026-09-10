@@ -337,6 +337,65 @@ hidden with CSS, not gated by a flag the client could flip — and `/assistant/c
 503. Unlike the Stripe webhook, this endpoint is NOT CSRF-exempt: it is an ordinary POST
 from a page on this origin.
 
+## Moderation
+
+Content is **HIDDEN, never deleted**, and `models/Moderation.js` is the only module that
+touches the flags. Three reasons, in order of how much they cost when ignored:
+
+1. A hide is reversible. Deleting is not a decision anyone should be able to take in one
+   click from a list view, and a moderator who cannot undo will not act at all.
+2. The row survives, so denormalised counters, foreign keys and the points ledger stay
+   consistent. A reply that vanished from under `posts.reply_count` would leave the counter
+   permanently wrong, and nothing recomputes it.
+3. `moderation_events` is append-only. "Who did this, when and why" must always have an
+   answer; an undo is another row.
+
+**Hiding a reply moves three things in the same transaction** — `posts.reply_count`, the
+accepted-solution mark (a question must never point at content nobody can read), and the
+points. That is why there is no bare `UPDATE post_replies SET hidden_at` anywhere.
+
+**Points adjustments are keyed on the moderation EVENT id, not on the content id.**
+`points_ledger.dedupe_key` is unique and every insert is an `INSERT IGNORE`, so a key
+derived from the post id would make hide → restore take the points away once and never
+give them back — the restore's insert would be silently ignored. A new event id per action
+makes each half of each cycle its own ledger entry.
+
+The exclusion of hidden posts lives **inside `Post.buildFilter`**, with `include_hidden`
+as the single explicit opt-in used only by the moderation screens. Same rule as ever: one
+builder, so a list and its count cannot disagree about what is in scope.
+
+**A voided rate submission is a different thing from a hidden post.** It is not moderation
+of speech, it is excluding a figure from an average: one annual salary typed into a
+day-rate field moves a published percentile for everybody, silently.
+`RateSubmission.rowsFor` hard-codes `voided_at IS NULL` with **no option to turn it off**,
+and there is deliberately no path to correct a value — an aggregate whose inputs an
+administrator can retype is an aggregate nobody should trust. `/admin/rates` is
+superadmin-gated because it is the one screen that shows individual figures next to the
+people who gave them.
+
+## Settings
+
+`config/settings.js` declares every runtime-editable setting, and that list is provably
+the whole surface: `AppSetting.setMany` iterates the DECLARED keys, never the submitted
+body. That also fixes the checkbox problem — an unticked box posts nothing, so a
+body-driven loop would leave every switch that was turned off silently on forever.
+
+Look up definitions with `isValidKey`, never with a truthiness check on the lookup:
+`DEFINITIONS['__proto__']` is `Object.prototype`, which is truthy, and a plain
+`if (!definition)` guard lets a request carrying `__proto__` through to the write path.
+
+**A setting is an operational switch, never a catalogue value.** Roles, cloud modules,
+phase percentages, day rates and prices stay in `config/*.js` under version control, where
+a change has an author, a diff and a review. `RATE_MIN_SAMPLE` is an environment variable
+for the same reason: lowering the privacy floor should be a deployment decision, not a
+checkbox that makes a sparse index look fuller.
+
+`AppSetting.all()` falls back to the declared defaults instead of throwing — the site
+notice is read on nearly every request, and a hiccup in a table holding three rows must
+not take down every page. The switches are enforced as middleware
+(`middleware/settingsGates.js`) so that turning one off closes every door at once; a gate
+written into three of four write handlers is a gate that is off.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

@@ -1,0 +1,150 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', { icon: 'bi-shield-check', heading: 'Moderation', sub: 'Content is hidden, never deleted. Every action here can be undone.' }) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <div class="glass-card mb-4">
+    <div class="card-body">
+      <h2 class="h6">How this works</h2>
+      <p class="small text-muted-2 mb-0">
+        Hiding takes content out of every list, feed and count, and reverses the points it
+        earned. The author's text stays in the database, so a decision made on a bad report
+        can be reversed with one click. Hiding an accepted answer also un-solves its
+        question — a question must never point at something nobody can read.
+      </p>
+    </div>
+  </div>
+
+  <% if (hidden.posts.length || hidden.replies.length) { %>
+    <h2 class="h5 mb-3">Currently hidden</h2>
+
+    <% if (hidden.posts.length) { %>
+      <div class="glass-card mb-3">
+        <div class="card-header"><h3 class="h6 mb-0">Posts</h3></div>
+        <div class="card-body">
+          <% hidden.posts.forEach(function (p) { %>
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 border-top py-2">
+              <div class="min-w-0">
+                <a href="/community/<%= p.slug %>"><%= p.title %></a>
+                <div class="small text-muted-2">
+                  <%= p.author_name %> · hidden by <%= p.hidden_by_name || 'a former moderator' %>
+                  on <%= new Date(p.hidden_at).toLocaleDateString('en-GB') %>
+                  <% if (p.hidden_reason) { %> · <%= p.hidden_reason %><% } %>
+                </div>
+              </div>
+              <form method="post" action="/admin/moderation/posts/<%= p.id %>">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="hidden" value="false">
+                <input type="hidden" name="redirectTo" value="/admin/moderation">
+                <button class="btn btn-sm btn-outline-primary" type="submit">Restore</button>
+              </form>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+    <% } %>
+
+    <% if (hidden.replies.length) { %>
+      <div class="glass-card mb-4">
+        <div class="card-header"><h3 class="h6 mb-0">Replies</h3></div>
+        <div class="card-body">
+          <% hidden.replies.forEach(function (r) { %>
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 border-top py-2">
+              <div class="min-w-0">
+                <a href="/community/<%= r.post_slug %>">on “<%= r.post_title %>”</a>
+                <div class="small text-muted-2">
+                  <%= r.author_name %> · hidden by <%= r.hidden_by_name || 'a former moderator' %>
+                  on <%= new Date(r.hidden_at).toLocaleDateString('en-GB') %>
+                  <% if (r.hidden_reason) { %> · <%= r.hidden_reason %><% } %>
+                </div>
+              </div>
+              <form method="post" action="/admin/moderation/replies/<%= r.id %>">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="hidden" value="false">
+                <input type="hidden" name="redirectTo" value="/admin/moderation">
+                <button class="btn btn-sm btn-outline-primary" type="submit">Restore</button>
+              </form>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+    <% } %>
+  <% } %>
+
+  <h2 class="h5 mb-3">Newest posts</h2>
+  <div class="glass-card mb-4">
+    <div class="card-body">
+      <% if (!recentPosts.length) { %>
+        <p class="text-muted-2 mb-0">Nothing posted yet.</p>
+      <% } %>
+      <% recentPosts.forEach(function (p) { %>
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 border-top py-2">
+          <div class="min-w-0">
+            <a href="/community/<%= p.slug %>"><%= p.title %></a>
+            <span class="badge-hub"><%= p.kind %></span>
+            <div class="small text-muted-2">
+              <%= p.author_name %> · <%= new Date(p.created_at).toLocaleDateString('en-GB') %>
+              · <%= p.reply_count %> replies
+            </div>
+          </div>
+          <form method="post" action="/admin/moderation/posts/<%= p.id %>" class="d-flex gap-2">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="hidden" value="true">
+            <input type="hidden" name="redirectTo" value="/admin/moderation">
+            <label class="visually-hidden" for="reason-<%= p.id %>">Reason</label>
+            <input class="form-control form-control-sm" id="reason-<%= p.id %>" name="reason"
+                   type="text" placeholder="Reason (optional)" maxlength="200" style="width: 14rem;">
+            <button class="btn btn-sm btn-outline-primary" type="submit">Hide</button>
+          </form>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+
+  <h2 class="h5 mb-3">Log</h2>
+  <div class="glass-card">
+    <% if (!events.length) { %>
+      <div class="card-body"><p class="text-muted-2 mb-0">Nothing has been moderated yet.</p></div>
+    <% } else { %>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th scope="col">When</th>
+              <th scope="col">Action</th>
+              <th scope="col">What</th>
+              <th scope="col">Whose</th>
+              <th scope="col">By</th>
+              <th scope="col">Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% events.forEach(function (e) { %>
+              <tr>
+                <td class="small text-muted-2"><%= new Date(e.created_at).toLocaleString('en-GB') %></td>
+                <td>
+                  <%
+                    const tone = ['hide', 'void'].includes(e.action) ? 'warn' : 'ok';
+                  %>
+                  <span class="badge-hub <%= tone %>"><%= e.action %></span>
+                </td>
+                <td class="small"><%= e.subject_type %> #<%= e.subject_id %></td>
+                <td class="small"><%= e.member_name || '—' %></td>
+                <td class="small"><%= e.actor_name || 'a former moderator' %></td>
+                <td class="small text-muted-2"><%= e.reason || '—' %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+
+  <%- include('../partials/pagination') %>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

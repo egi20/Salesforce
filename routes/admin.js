@@ -11,6 +11,11 @@ const { formatMinor } = require('../config/payments');
 const ApiUsage = require('../models/ApiUsage');
 const assistantConfig = require('../config/assistant');
 const { budgetStatus } = require('../utils/aiBudget');
+const Moderation = require('../models/Moderation');
+const Post = require('../models/Post');
+const AppSetting = require('../models/AppSetting');
+const { DEFINITIONS: SETTING_DEFINITIONS } = require('../config/settings');
+const { returnTo } = require('../utils/returnTo');
 const { promisePool } = require('../config/database');
 const { isAuthenticated, isAdmin, isSuperadmin } = require('../middleware/auth');
 const { writeLimiter } = require('../middleware/rateLimit');
@@ -227,6 +232,242 @@ router.get(
       configured: assistantConfig.isConfigured(),
       priceInput: assistantConfig.PRICE_PER_MTOK_INPUT,
       priceOutput: assistantConfig.PRICE_PER_MTOK_OUTPUT
+    });
+  })
+);
+
+/**
+ * POST /admin/errors/purge — drop error logs older than a chosen number of days.
+ *
+ * The table grows without bound otherwise, and an error log nobody can load is an error
+ * log nobody reads. The window is validated against a fixed set rather than taken as a
+ * number: `INTERVAL ? DAY` with a zero would delete everything, and a purge is the one
+ * action on this screen that cannot be undone.
+ */
+router.post(
+  '/errors/purge',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const ALLOWED_DAYS = [30, 90, 180, 365];
+    const days = parseInt(req.body.days, 10);
+    if (!ALLOWED_DAYS.includes(days)) {
+      req.flash('error', 'Choose one of the offered retention windows.');
+      return res.redirect('/admin/errors');
+    }
+
+    const removed = await ErrorLog.purgeOlderThan(days);
+    req.flash('success', `Removed ${removed} entries older than ${days} days.`);
+    return res.redirect('/admin/errors');
+  })
+);
+
+/* ---------------------------------------------------------------- moderation */
+
+/**
+ * GET /admin/moderation — the queue, and what has already been taken down.
+ *
+ * Content is HIDDEN, never deleted, so this screen is as much about putting things back
+ * as about removing them: every hidden item is listed with who hid it and why, and one
+ * button restores it. A moderation tool that can only remove is a tool nobody dares use.
+ */
+router.get(
+  '/moderation',
+  asyncHandler(async (req, res) => {
+    const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 30 });
+
+    const [hidden, log, recent] = await Promise.all([
+      Moderation.hiddenContent({ limit: 50 }),
+      Moderation.events({ limit, offset }),
+      // The same builder the public list uses, with the one documented opt-in, so the
+      // moderator is provably looking at the same rows a reader would.
+      Post.browse({ include_hidden: true }, { limit: 20, offset: 0, sort: 'newest' })
+    ]);
+
+    res.render('admin/moderation', {
+      title: 'Moderation',
+      hidden,
+      events: log.rows,
+      recentPosts: recent.rows,
+      pagination: paginationMeta({ page, perPage, total: log.total }),
+      pageUrl: (p) => pageUrl('/admin/moderation', req.query, p)
+    });
+  })
+);
+
+/**
+ * The three content actions.
+ *
+ * Each is a single POST that flips a flag one way or the other, so there is no "delete"
+ * verb anywhere in the admin surface for user-written content. `Moderation` is the only
+ * module that touches these columns — it also moves the reply counter, the accepted-answer
+ * mark and the points ledger, none of which a bare UPDATE here would remember to do.
+ */
+function moderationAction(handler, describe) {
+  return asyncHandler(async (req, res) => {
+    const back = returnTo(req, '/admin/moderation');
+    const hide = req.body.hidden === 'true';
+    const reason = (req.body.reason || '').trim() || null;
+
+    try {
+      const result = await handler(req.params.id, hide, {
+        actorUserId: req.session.user.id,
+        reason
+      });
+      req.flash(
+        'success',
+        result.changed ? describe(hide) : 'Nothing to do — it was already in that state.'
+      );
+    } catch (err) {
+      if (err.code !== 'NOT_FOUND') throw err;
+      req.flash('error', err.message);
+    }
+
+    return res.redirect(back);
+  });
+}
+
+router.post(
+  '/moderation/posts/:id',
+  requireIdParam('id'),
+  writeLimiter,
+  moderationAction(
+    (id, hide, options) => Moderation.setPostHidden(id, hide, options),
+    (hide) => (hide ? 'Post hidden. Its author keeps the text; you can restore it.' : 'Post restored.')
+  )
+);
+
+router.post(
+  '/moderation/replies/:id',
+  requireIdParam('id'),
+  writeLimiter,
+  moderationAction(
+    (id, hide, options) => Moderation.setReplyHidden(id, hide, options),
+    (hide) => (hide ? 'Reply hidden, and the thread count corrected.' : 'Reply restored.')
+  )
+);
+
+/**
+ * A rate submission is VOIDED rather than hidden, and the wording matters: this is not
+ * moderation of speech, it is excluding a figure from an average. Superadmin-gated
+ * because the screen behind it shows contributed rates next to the people who gave them,
+ * which is the one place the index's own promise of aggregation is set aside.
+ */
+router.post(
+  '/moderation/rates/:id',
+  isSuperadmin,
+  requireIdParam('id'),
+  writeLimiter,
+  moderationAction(
+    (id, voided, options) => Moderation.setRateVoided(id, voided, options),
+    (voided) => (voided ? 'Submission voided and removed from every aggregate.' : 'Submission reinstated.')
+  )
+);
+
+/**
+ * GET /admin/rates — contributed figures, with a hint about which look wrong.
+ *
+ * Superadmin-only. Everywhere else in this application a rate is only ever seen as part
+ * of an aggregate over at least three people; this screen deliberately breaks that, which
+ * is why the narrowest role guard in the app is on it.
+ */
+router.get(
+  '/rates',
+  isSuperadmin,
+  asyncHandler(async (req, res) => {
+    const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 40 });
+    const includeVoided = req.query.voided === '1';
+    const { rows, total } = await RateSubmission.listForReview({ limit, offset, includeVoided });
+
+    res.render('admin/rates', {
+      title: 'Rate submissions',
+      submissions: rows,
+      includeVoided,
+      pagination: paginationMeta({ page, perPage, total }),
+      pageUrl: (p) => pageUrl('/admin/rates', req.query, p)
+    });
+  })
+);
+
+/* ------------------------------------------------------------------ settings */
+
+router.get(
+  '/settings',
+  isSuperadmin,
+  asyncHandler(async (req, res) => {
+    res.render('admin/settings', {
+      title: 'Settings',
+      definitions: SETTING_DEFINITIONS,
+      values: await AppSetting.all()
+    });
+  })
+);
+
+/**
+ * Superadmin-gated: these switches close registration and freeze the community, which is
+ * not something an ordinary admin account should be able to do on its own.
+ *
+ * `AppSetting.setMany` iterates the DECLARED keys rather than the submitted body, so an
+ * unchecked box (which posts nothing) is correctly read as false and an unknown field is
+ * a no-op rather than a new row.
+ */
+router.post(
+  '/settings',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    await AppSetting.setMany(req.body);
+    req.flash('success', 'Settings saved. They take effect within a minute on every instance.');
+    return res.redirect('/admin/settings');
+  })
+);
+
+/* ----------------------------------------------------------------- analytics */
+
+/**
+ * GET /admin/analytics — growth, in one query per series.
+ *
+ * Read-only and deliberately plain: counts per month for the handful of things that say
+ * whether the marketplace is alive. No charting library — the CSP allows no CDN, and a
+ * table of numbers is what someone actually reads off a screen like this.
+ */
+router.get(
+  '/analytics',
+  asyncHandler(async (req, res) => {
+    const MONTHS = 12;
+
+    // One shape for every series, so the view has one loop rather than five.
+    const series = async (label, table, column = 'created_at', extraWhere = '1 = 1') => {
+      const [rows] = await promisePool.query(
+        `SELECT DATE_FORMAT(${column}, '%Y-%m') AS period, COUNT(*) AS count
+           FROM ${table}
+          WHERE ${extraWhere} AND ${column} >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL ? MONTH)
+          GROUP BY period ORDER BY period`,
+        [MONTHS - 1]
+      );
+      return { label, rows };
+    };
+
+    const [signups, jobs, applications, posts, quotes, rates] = await Promise.all([
+      series('Sign-ups', 'users'),
+      series('Jobs posted', 'jobs'),
+      series('Applications', 'applications'),
+      series('Community posts', 'posts', 'created_at', 'hidden_at IS NULL'),
+      series('Quotes', 'quotes'),
+      series('Rate contributions', 'rate_submissions', 'created_at', 'voided_at IS NULL')
+    ]);
+
+    // The periods present in ANY series, so a month with no sign-ups still has a row.
+    const periods = [...new Set([signups, jobs, applications, posts, quotes, rates]
+      .flatMap((s) => s.rows.map((r) => r.period)))].sort();
+
+    res.render('admin/analytics', {
+      title: 'Analytics',
+      periods,
+      series: [signups, jobs, applications, posts, quotes, rates].map((s) => ({
+        label: s.label,
+        byPeriod: Object.fromEntries(s.rows.map((r) => [r.period, r.count]))
+      }))
     });
   })
 );

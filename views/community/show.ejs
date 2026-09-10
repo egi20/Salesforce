@@ -55,7 +55,38 @@
             </div>
 
             <hr>
+            <% if (post.hidden_at) { %>
+              <div class="alert alert-warning">
+                <i class="bi bi-eye-slash"></i>
+                <strong>This post is hidden.</strong> Nobody but a moderator can reach it.
+                <% if (post.hidden_reason) { %> Reason: <%= post.hidden_reason %><% } %>
+              </div>
+            <% } %>
+
             <div class="post-body"><%- sanitizeRichText(post.body) %></div>
+
+            <% if (typeof canModerate !== 'undefined' && canModerate) { %>
+              <%
+                /*
+                 * Moderating in context rather than only from a list: the decision is
+                 * almost always made while reading the thing, and a moderator who has to
+                 * go and find it again in an admin table reads less of it.
+                 */
+              %>
+              <form method="post" action="/admin/moderation/posts/<%= post.id %>" class="d-flex gap-2 mt-4 pt-3 border-top">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="hidden" value="<%= post.hidden_at ? 'false' : 'true' %>">
+                <input type="hidden" name="redirectTo" value="/community/<%= post.slug %>">
+                <% if (!post.hidden_at) { %>
+                  <label class="visually-hidden" for="hide-post-reason">Reason</label>
+                  <input class="form-control form-control-sm" id="hide-post-reason" name="reason"
+                         type="text" placeholder="Reason (optional)" maxlength="200" style="max-width: 18rem;">
+                <% } %>
+                <button class="btn btn-sm btn-outline-primary" type="submit">
+                  <%= post.hidden_at ? 'Restore this post' : 'Hide this post' %>
+                </button>
+              </form>
+            <% } %>
 
             <% if (isAuthor || (currentUser && currentUser.isAdmin)) { %>
               <hr>
@@ -122,7 +153,36 @@
                   </div>
                 </div>
 
-                <div><%- sanitizeRichText(reply.body) %></div>
+                <% if (reply.hidden_at) { %>
+                  <%
+                    /*
+                     * A tombstone, not a gap. The body is never sent — the model returns
+                     * NULL for it — but the reply keeps its place so anything written
+                     * underneath still makes sense and the thread count still adds up.
+                     */
+                  %>
+                  <p class="text-muted-2 fst-italic mb-0">
+                    <i class="bi bi-eye-slash"></i> This reply was removed by a moderator.
+                  </p>
+                <% } else { %>
+                  <div><%- sanitizeRichText(reply.body) %></div>
+                <% } %>
+
+                <% if (typeof canModerate !== 'undefined' && canModerate) { %>
+                  <form method="post" action="/admin/moderation/replies/<%= reply.id %>" class="d-flex gap-2 mt-3">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="hidden" value="<%= reply.hidden_at ? 'false' : 'true' %>">
+                    <input type="hidden" name="redirectTo" value="/community/<%= post.slug %>">
+                    <% if (!reply.hidden_at) { %>
+                      <label class="visually-hidden" for="hide-reply-<%= reply.id %>">Reason</label>
+                      <input class="form-control form-control-sm" id="hide-reply-<%= reply.id %>" name="reason"
+                             type="text" placeholder="Reason (optional)" maxlength="200" style="max-width: 16rem;">
+                    <% } %>
+                    <button class="btn btn-sm btn-outline-primary" type="submit">
+                      <%= reply.hidden_at ? 'Restore reply' : 'Hide reply' %>
+                    </button>
+                  </form>
+                <% } %>
               </div>
             </div>
           <% }); %>

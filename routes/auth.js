@@ -9,6 +9,7 @@ const ConsultantProfile = require('../models/ConsultantProfile');
 const CompanyProfile = require('../models/CompanyProfile');
 const { isGuest, isAuthenticated } = require('../middleware/auth');
 const { loginLimiter, registerLimiter, passwordLimiter } = require('../middleware/rateLimit');
+const { registrationOpen } = require('../middleware/settingsGates');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { safePath } = require('../utils/safeRedirect');
 const { countryFromIp, clientIp, packIp } = require('../utils/geo');
@@ -50,7 +51,7 @@ const registerValidators = [
     })
 ];
 
-router.get('/register', isGuest, (req, res) => {
+router.get('/register', isGuest, registrationOpen, (req, res) => {
   res.render('auth/register', {
     title: 'Create an account',
     values: {},
@@ -62,6 +63,9 @@ router.get('/register', isGuest, (req, res) => {
 router.post(
   '/register',
   isGuest,
+  // On the POST as well as the page: closing sign-ups only on the form leaves the
+  // endpoint open to anyone with the tab still loaded from before.
+  registrationOpen,
   registerLimiter,
   registerValidators,
   asyncHandler(async (req, res) => {

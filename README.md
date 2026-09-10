@@ -26,7 +26,8 @@ Server-rendered Express + EJS on MySQL 8. No SPA, no ORM, no build step for serv
 | Notifications, saved jobs, dashboards | built |
 | Payments: featured job placements, quote deposits, invoices, Stripe webhook | built |
 | In-site assistant: site help on every page, with rate limits and a spend cap | built |
-| Admin: users and roles, jobs, error log, visitor geography, payments, refunds, AI spend | built |
+| Moderation: hide and restore community content, void a bad rate submission, audit log | built |
+| Admin: users, jobs, moderation, analytics, settings, error log, payments, AI spend | built |
 | SEO: canonicals, JobPosting JSON-LD, sitemap generated from the robots allowlist | built |
 
 Deliberately not built yet, and listed so nobody mistakes the scope: AI drafting of the
@@ -194,6 +195,17 @@ product; it re-checks ownership and eligibility against the database and answers
 amount. The route asks and never decides, so there is no submitted number to validate and
 nothing to tamper with. Every amount is an integer of minor units, because a float euro
 ends up a cent away from the sum of its parts.
+
+**Content is hidden, never deleted.** A hide is reversible, keeps the row so counters and
+foreign keys stay consistent, and is written to an append-only log — so "who took this down
+and why" always has an answer. Hiding a reply corrects `posts.reply_count`, un-solves the
+question if it was the accepted answer, and reverses the points, all in one transaction.
+Points adjustments key on the moderation event rather than the content, because the ledger
+is idempotent on its dedupe key and a content-keyed restore would be silently ignored.
+
+**A voided rate submission is excluded from every aggregate, with no way to turn that
+off.** One figure entered in the wrong unit moves a published percentile for everybody, and
+nothing raises. There is deliberately no path to correct a value.
 
 **A public endpoint that spends money needs a cap that is not a rate limiter.** The
 assistant answers anonymous visitors, so it carries three independent bounds: per-IP rate

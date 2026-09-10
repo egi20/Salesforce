@@ -18,6 +18,8 @@ const CompanyProfile = require('../models/CompanyProfile');
 const Job = require('../models/Job');
 const Skill = require('../models/Skill');
 const RateSubmission = require('../models/RateSubmission');
+const Post = require('../models/Post');
+const { sync: syncCategories } = require('./sync-categories');
 const { ROLE_SLUGS, baseDayRate } = require('../config/roleTaxonomy');
 const { ALL_MODULES } = require('../config/cloudFamilies');
 const { ALL_CERTIFICATIONS } = require('../config/certifications');
@@ -208,6 +210,63 @@ async function seed() {
     rateCount += 1;
   }
   console.log(`  ${rateCount} rate submissions`);
+
+  // --- community ---------------------------------------------------------------
+  // The category tree is derived from config, so it is synced rather than invented here.
+  await syncCategories();
+  const categories = await Post.listCategories();
+  const categoryBySlug = Object.fromEntries(categories.map((c) => [c.slug, c.id]));
+
+  const SEED_POSTS = [
+    ['question', 'revenue-cloud', 'CPQ price rules firing in the wrong order — what am I missing?',
+      '<p>I have two price rules on the same quote line, and the discount one evaluates before the cost one, which gives me a margin that is wrong by exactly the discount. Evaluation order is set, both are active, and calculator sequence looks right. What is the thing everybody misses here?</p>'],
+    ['question', 'integration', 'Bulk API 2.0 job stuck in UploadComplete for 40 minutes',
+      '<p>Ingest job with about 900k records, CSV, upsert on an external id. It moved to UploadComplete and has sat there since. No failed records, no error. Is this queueing behind something, or have I done something wrong with the batching?</p>'],
+    ['discussion', 'architecture', 'When is a second org actually the right answer?',
+      '<p>Every consolidation project I have been on started as "we will merge the orgs" and ended as "we will keep both and integrate". I am starting to think a second org is more often correct than we admit. Curious where other people draw the line.</p>'],
+    ['article', 'devops', 'A deployment checklist that has survived four programmes',
+      '<p>Nothing clever here, just the list I actually run before a production deployment, and why each line is on it. Most of them exist because of a specific outage.</p><p>The short version: validate against a full-copy sandbox with production data volumes, run the destructive changes as a separate step, and never let a deployment be the first time a permission set is applied.</p>'],
+    ['article', 'careers', 'What a day rate is actually made of',
+      '<p>A day rate is not a salary divided by 220. It has to cover the gaps between contracts, your own pension, sick days you do not get paid for, insurance, accounting, and the training nobody else is buying you.</p><p>Working backwards from take-home is the only way to know whether a number is good.</p>'],
+    ['win', 'sales-cloud', 'Go-live: 1,400 users across nine countries',
+      '<p>Eighteen months, three false starts and one very long weekend. Data migration reconciled to the penny on the first run, which I still do not entirely believe.</p>'],
+    ['win', 'certification', 'Passed Integration Architect on the second attempt',
+      '<p>Failed the first one by a few percent, mostly on the async patterns. Second time round I built the thing instead of reading about it. That was the difference.</p>'],
+    ['question', 'data-cloud', 'Identity resolution matching too aggressively on shared household emails',
+      '<p>Ruleset matches on email plus last name. Families sharing an address and a mailbox are collapsing into one unified profile. Has anyone found a match rule that survives this without going full deterministic?</p>'],
+    ['discussion', 'agentforce', 'Is anyone running Agentforce in production yet, honestly?',
+      '<p>Plenty of demos, very few war stories. If you have it live with real customers, what broke that you did not expect?</p>']
+  ];
+
+  let postCount = 0;
+  for (let i = 0; i < SEED_POSTS.length; i += 1) {
+    const [kind, categorySlug, title, body] = SEED_POSTS[i];
+    const categoryId = categoryBySlug[categorySlug] || categories[0].id;
+    const author = consultantUsers[(i * 5) % consultantUsers.length];
+
+    const created = await Post.create(author.id, { categoryId, kind, title, body });
+    postCount += 1;
+
+    // A couple of replies so threads are not all empty, and one accepted answer so the
+    // solved state is visible without anyone having to produce it by hand.
+    const repliers = pick(consultantUsers.filter((u) => u.id !== author.id), randomInt(0, 3));
+    let firstReplyId = null;
+    for (const replier of repliers) {
+      const { replyId } = await Post.reply(created.id, replier.id,
+        '<p>Ran into this too. What worked for us was checking the order of evaluation first, then reproducing it in a scratch org with the minimum config.</p>');
+      if (!firstReplyId) firstReplyId = replyId;
+    }
+
+    if (kind === 'question' && firstReplyId && i % 2 === 0) {
+      await Post.acceptSolution(created.id, firstReplyId, author.id);
+    }
+
+    // Some votes, from people who are not the author.
+    for (const voter of pick(consultantUsers.filter((u) => u.id !== author.id), randomInt(0, 6))) {
+      await Post.vote('post', created.id, voter.id, 1);
+    }
+  }
+  console.log(`  ${postCount} community posts`);
 
   console.log(`\nDone. Sign in with admin@example.com / ${SEED_PASSWORD}`);
 }

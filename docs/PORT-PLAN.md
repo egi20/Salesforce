@@ -1,7 +1,7 @@
 # Port plan
 
 Tracking the port of the DynamicsHub feature set onto Salesforce Hub. The reference has
-**551 route handlers**; this app has **89**. This file is the honest ledger of what is
+**551 route handlers**; this app has **103**. This file is the honest ledger of what is
 done, what is next, and what is deliberately excluded.
 
 Counts are handlers in the reference implementation, which is a rough proxy for size, not
@@ -23,16 +23,18 @@ handlers cover a feature that is better here than there.
 | Companies | 10 | 3 | Directory and profile |
 | Consultants | 33 | 3 | Directory and profile |
 | Notifications | 5 | 4 | |
+| Community: forum + feed | 29 | 14 | Posts, replies, votes, accepted answers, feed, points, levels |
 | Admin | 142 | 7 | Users, jobs, error log, visitor geography |
 | Design system | — | — | Glassmorphism ported, palette re-based on Salesforce blue |
 
 ## Next, in order
 
-1. **Payments** (9) — featured job posts and placement fees. Put idempotency in the webhook
+1. **In-site AI assistant** (2 handlers, but a real feature) — the widget in the corner of
+   every page. Needs an ANTHROPIC_API_KEY and must degrade to hidden without one, the way
+   e-mail already degrades to logging.
+2. **Payments** (9) — featured job posts and placement fees. Put idempotency in the webhook
    handler itself (an invoice row means fulfilled) rather than gating on payment status,
    and add a second guard against two checkout sessions for the same quote.
-2. **Community: forum + feed** (29) — questions, answers and articles per cloud, reusing
-   the module taxonomy as the category tree.
 3. **Admin, the parts that earn it** (~20 of 142) — settings, analytics, an issue tracker.
    Not the in-app HTTP test runner: this project has Jest and a boot validator.
 4. **Consultant tooling** (part of 33) — CV builder, rate calculator, document packages.

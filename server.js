@@ -13,6 +13,7 @@ const config = require('./config/config');
 const { pool } = require('./config/database');
 const { assertTaxonomyIntegrity } = require('./config/roleTaxonomy');
 const { assertEstimationIntegrity } = require('./config/estimation');
+const { assertCommunityIntegrity } = require('./config/community');
 const { seoLocals } = require('./config/seoMeta');
 const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
@@ -28,6 +29,7 @@ assertTaxonomyIntegrity();
 // Same reasoning: phase and resource percentages that do not sum to 100 shift every
 // estimate by a silent few per cent rather than failing visibly.
 assertEstimationIntegrity();
+assertCommunityIntegrity();
 
 const app = express();
 
@@ -174,6 +176,7 @@ app.use('/dashboard', require('./routes/dashboard'));
 app.use('/profile', require('./routes/profile'));
 app.use('/consultants', require('./routes/consultants'));
 app.use('/companies', require('./routes/companies'));
+app.use('/community', require('./routes/community'));
 app.use('/jobs', require('./routes/jobs'));
 app.use('/applications', require('./routes/applications'));
 app.use('/quotes', require('./routes/quotes'));

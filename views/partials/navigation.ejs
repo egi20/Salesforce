@@ -8,18 +8,89 @@
     </button>
 
     <div class="collapse navbar-collapse" id="mainNav">
-      <ul class="navbar-nav me-auto">
-        <li class="nav-item"><a class="nav-link <%= currentPath.startsWith('/jobs') ? 'active' : '' %>" href="/jobs">Jobs</a></li>
-        <li class="nav-item"><a class="nav-link <%= currentPath.startsWith('/consultants') ? 'active' : '' %>" href="/consultants">Talent</a></li>
-        <li class="nav-item"><a class="nav-link <%= currentPath.startsWith('/companies') ? 'active' : '' %>" href="/companies">Companies</a></li>
-        <li class="nav-item"><a class="nav-link <%= currentPath.startsWith('/rates') ? 'active' : '' %>" href="/rates">Rate index</a></li>
+      <%
+        /*
+         * Grouped into hubs rather than one flat row.
+         *
+         * A flat list grows until nothing in it is findable. Grouping by WHO the item is
+         * for — someone looking for work, someone hiring — means a person only ever reads
+         * the half that is theirs. Items behind a sign-in appear only when signed in;
+         * showing them to a stranger and then bouncing them to a login is a worse
+         * experience than not offering them.
+         */
+        const path = currentPath;
+        const startsWith = (p) => path === p || path.startsWith(p + '/');
+        const isConsultantArea = startsWith('/jobs') || startsWith('/rates') || (currentUser && startsWith('/profile/consultant'));
+        const isCompanyArea = startsWith('/consultants') || startsWith('/companies') || (currentUser && startsWith('/quotes'));
+      %>
+
+      <ul class="navbar-nav me-auto align-items-lg-center">
+        <li class="nav-item">
+          <a class="nav-link <%= path === '/' ? 'active' : '' %>" href="/"><i class="bi bi-house"></i> Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link <%= startsWith('/community') ? 'active' : '' %>" href="/community">
+            <i class="bi bi-people"></i> Community
+          </a>
+        </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle <%= isConsultantArea ? 'active' : '' %>" href="#" role="button"
+             data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
+            <i class="bi bi-person-badge"></i> Consultant Hub
+          </a>
+          <ul class="dropdown-menu shadow-sm">
+            <li><a class="dropdown-item" href="/jobs"><i class="bi bi-briefcase"></i> Find work</a></li>
+            <li><a class="dropdown-item" href="/rates"><i class="bi bi-graph-up"></i> Rate index</a></li>
+            <% if (currentUser && currentUser.isConsultant) { %>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="/profile/consultant"><i class="bi bi-person-gear"></i> Build your profile</a></li>
+              <li><a class="dropdown-item" href="/dashboard/applications"><i class="bi bi-send"></i> Your applications</a></li>
+              <li><a class="dropdown-item" href="/dashboard/saved"><i class="bi bi-bookmark"></i> Saved jobs</a></li>
+              <li><a class="dropdown-item" href="/rates/submit"><i class="bi bi-plus-circle"></i> Contribute your rate</a></li>
+            <% } %>
+          </ul>
+        </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle <%= isCompanyArea ? 'active' : '' %>" href="#" role="button"
+             data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
+            <i class="bi bi-building"></i> Companies Hub
+          </a>
+          <ul class="dropdown-menu shadow-sm">
+            <li><a class="dropdown-item" href="/consultants"><i class="bi bi-people"></i> Find consultants</a></li>
+            <li><a class="dropdown-item" href="/companies"><i class="bi bi-buildings"></i> Companies</a></li>
+            <% if (currentUser && currentUser.isCompany) { %>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="/jobs/new"><i class="bi bi-plus-square"></i> Post a role</a></li>
+              <li><a class="dropdown-item" href="/dashboard/jobs"><i class="bi bi-briefcase"></i> Your roles</a></li>
+              <li><a class="dropdown-item" href="/profile/company"><i class="bi bi-building-gear"></i> Company profile</a></li>
+            <% } %>
+          </ul>
+        </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle <%= startsWith('/quotes') ? 'active' : '' %>" href="#" role="button"
+             data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
+            <i class="bi bi-tools"></i> Services
+          </a>
+          <ul class="dropdown-menu shadow-sm">
+            <li><a class="dropdown-item" href="/quotes/new"><i class="bi bi-calculator"></i> Scope estimator</a></li>
+            <% if (currentUser) { %>
+              <li><a class="dropdown-item" href="/quotes"><i class="bi bi-file-earmark-text"></i> Your quotes</a></li>
+            <% } %>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="/rates"><i class="bi bi-graph-up"></i> Day rate index</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link <%= startsWith('/faq') ? 'active' : '' %>" href="/faq"><i class="bi bi-info-circle"></i> About</a>
+        </li>
       </ul>
 
       <ul class="navbar-nav align-items-lg-center">
         <% if (currentUser) { %>
-          <% if (currentUser.isCompany) { %>
-            <li class="nav-item me-lg-2"><a class="btn btn-primary btn-sm" href="/jobs/new"><i class="bi bi-plus-lg"></i> Post a job</a></li>
-          <% } %>
           <li class="nav-item">
             <a class="nav-link" href="/messages" aria-label="Messages">
               <i class="bi bi-chat-dots"></i>
@@ -34,28 +105,19 @@
           </li>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button"
-               data-bs-toggle="dropdown" aria-expanded="false">
-              <img class="avatar" style="width:28px;height:28px"
+               data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
+              <img class="avatar" style="width:30px;height:30px"
                    src="<%= currentUser.profilePicture || '/images/avatar-placeholder.svg' %>" alt="">
               <span class="d-none d-lg-inline"><%= currentUser.name %></span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-              <li><a class="dropdown-item" href="/dashboard">Dashboard</a></li>
-              <% if (currentUser.isConsultant) { %>
-                <li><a class="dropdown-item" href="/profile/consultant">Consultant profile</a></li>
-                <li><a class="dropdown-item" href="/dashboard/applications">Your applications</a></li>
-              <% } %>
-              <% if (currentUser.isCompany) { %>
-                <li><a class="dropdown-item" href="/profile/company">Company profile</a></li>
-                <li><a class="dropdown-item" href="/dashboard/jobs">Your jobs</a></li>
-              <% } %>
-              <li><a class="dropdown-item" href="/messages">Messages</a></li>
-              <li><a class="dropdown-item" href="/quotes">Quotes &amp; estimates</a></li>
-              <li><a class="dropdown-item" href="/dashboard/saved">Saved jobs</a></li>
-              <li><a class="dropdown-item" href="/profile/settings">Settings</a></li>
+              <li><a class="dropdown-item" href="/dashboard"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+              <li><a class="dropdown-item" href="/community/new"><i class="bi bi-pencil"></i> Write a post</a></li>
+              <li><a class="dropdown-item" href="/messages"><i class="bi bi-chat-dots"></i> Messages</a></li>
+              <li><a class="dropdown-item" href="/profile/settings"><i class="bi bi-gear"></i> Settings</a></li>
               <% if (currentUser.isAdmin) { %>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="/admin">Admin</a></li>
+                <li><a class="dropdown-item" href="/admin"><i class="bi bi-shield-lock"></i> Admin</a></li>
               <% } %>
               <li><hr class="dropdown-divider"></li>
               <li>

@@ -20,6 +20,8 @@ Server-rendered Express + EJS on MySQL 8. No SPA, no ORM, no build step for serv
 | Day-rate index with an n≥3 privacy floor, percentiles and a trend | built |
 | Scope estimator and quotes: phased plan, team shape, budget, timeline, lifecycle | built |
 | Deliverables: SOW (.docx), work breakdown with Gantt (.xlsx), summary deck (.pptx), zipped | built |
+| Community: questions, discussions, articles and wins, with votes and accepted answers | built |
+| Signed-in home feed, points and levels, 30-day leaderboard | built |
 | Messaging: threads anchored to an application or a role, unread counts, notifications | built |
 | Notifications, saved jobs, dashboards | built |
 | Admin: users and roles, jobs, error log, visitor geography | built |
@@ -87,6 +89,7 @@ Seeded sign-in: `admin@example.com` / `Password123`.
 | `npm run dev` | serve with nodemon |
 | `npm run migrate` | apply pending migrations |
 | `npm run migrate:status` | list applied and pending migrations |
+| `npm run sync:categories` | bring community categories into line with the config |
 | `npm run seed` | insert development data |
 | `npm run wait-for-db` | block until the database accepts connections |
 | `npm run validate-boot` | config, taxonomy, module and template checks — no database needed |

@@ -2,6 +2,7 @@
 
 const express = require('express');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
 const { PUBLIC_PATHS, canonicalUrl } = require('../config/seoMeta');
 const { ROLE_CATEGORIES } = require('../config/roleTaxonomy');
 const { CLOUD_FAMILIES } = require('../config/cloudFamilies');
@@ -9,13 +10,27 @@ const Job = require('../models/Job');
 const RateSubmission = require('../models/RateSubmission');
 const ConsultantProfile = require('../models/ConsultantProfile');
 const config = require('../config/config');
+const Post = require('../models/Post');
+const Points = require('../models/Points');
+const Notification = require('../models/Notification');
+const { POST_KINDS, isPostKind, postKind } = require('../config/community');
+const { toPlainText } = require('../utils/sanitize');
 const legalVersions = require('../config/legal-versions');
 
 const router = express.Router();
 
+/**
+ * The front door is two different pages.
+ *
+ * Signed out it is the marketing landing: what this is, and why to join. Signed in that
+ * pitch is noise — the person has already joined — so it becomes the community feed, which
+ * is the thing worth coming back to daily.
+ */
 router.get(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req, res, next) => {
+    if (req.session.user) return feedHandler(req, res, next);
+
     const [latestJobs, featuredConsultants, contributors] = await Promise.all([
       Job.browse({}, { limit: 6, sort: 'newest' }),
       ConsultantProfile.browse({}, { limit: 6 }),
@@ -36,6 +51,73 @@ router.get(
     });
   })
 );
+
+/**
+ * The signed-in feed.
+ *
+ * Deliberately one query set and no personalisation beyond the filters: a feed that tries
+ * to guess what someone wants, on a community this size, mostly hides things.
+ */
+const feedHandler = asyncHandler(async (req, res) => {
+  const filters = {
+    kind: isPostKind(req.query.kind) ? req.query.kind : '',
+    category_slug: req.query.category ? String(req.query.category).slice(0, 64) : '',
+    unanswered: req.query.unanswered === '1' ? '1' : ''
+  };
+
+  const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 15 });
+
+  const [{ rows: posts, total }, counts, standing, leaderboard, newMembers, unread, latestJobs] = await Promise.all([
+    Post.browse(filters, { limit, offset, sort: 'recent' }),
+    Post.countsByKind(filters),
+    Points.standingFor(req.session.user.id),
+    Points.leaderboard({ days: 30, limit: 6 }),
+    countRecentMembers(),
+    Notification.unreadCount(req.session.user.id),
+    Job.browse({}, { limit: 4, sort: 'newest' })
+  ]);
+
+  res.render('feed/index', {
+    title: 'Home',
+    posts,
+    counts,
+    filters,
+    standing,
+    leaderboard,
+    newMembers,
+    unread,
+    latestJobs: latestJobs.rows,
+    kinds: POST_KINDS,
+    postKind,
+    toPlainText,
+    greeting: greetingFor(new Date()),
+    pagination: paginationMeta({ page, perPage, total }),
+    pageUrl: (p) => pageUrl('/', req.query, p)
+  });
+});
+
+/** People who joined in the last seven days — the "new this week" line. */
+async function countRecentMembers() {
+  const { promisePool } = require('../config/database');
+  const [[row]] = await promisePool.query(
+    'SELECT COUNT(*) AS count FROM users WHERE is_active = 1 AND created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)'
+  );
+  return row.count;
+}
+
+/**
+ * Time-of-day greeting, from the SERVER's clock.
+ *
+ * Worth knowing rather than discovering: a user in another timezone will be greeted with
+ * the server's idea of evening. Storing a per-user timezone would fix it; until then this
+ * is a deliberate, small inaccuracy rather than a bug.
+ */
+function greetingFor(now) {
+  const hour = now.getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
 
 router.get('/faq', (req, res) => {
   res.render('faq', { title: 'Frequently asked questions' });

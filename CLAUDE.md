@@ -194,6 +194,35 @@ The display name for the other party falls back to a neutral label, never the em
 part. That fallback is a real finding from the reference implementation: an account with no
 profile would otherwise leak a `firstname.lastname` email prefix.
 
+## Community and points
+
+One `posts` table with a `kind` discriminator — article, question, discussion, win. They
+differ in presentation and affordances (only a question can be solved), not in what they
+store. Four near-identical tables would mean four of every query and a feed built on a
+UNION no index serves well.
+
+Counters (`reply_count`, `vote_score`, `last_activity_at`) are maintained in the SAME
+transaction as the row they count. That is what lets the feed render without aggregating.
+
+**Voting recomputes the score, it does not increment it.** An increment is wrong the moment
+a vote is CHANGED rather than added — the delta is 2, not 1 — and that error drifts
+silently forever. `Post.vote` re-sums `post_votes` inside the transaction.
+
+**The points ledger is append-only.** A `points` column on the user row would be
+unauditable: nobody could say where a total came from, and a double award could never be
+found. Reversals write a compensating entry rather than deleting the original, so a total
+CAN go negative — `levelFor` clamps for that, and its "next level" is the one above the
+current band, not the first threshold above the total.
+
+Every award carries a `dedupe_key`, so an event can never pay twice however many times its
+emitter runs. The scheme deliberately pays far more for an accepted answer than for a post:
+one that pays for volume gets volume.
+
+The category tree is DERIVED from `config/cloudFamilies.js`, so adding a cloud adds a
+category. `npm run sync:categories` reconciles them and runs from `npm start` beside the
+migrations; a category dropped from the config is deactivated, never deleted, because posts
+point at it.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

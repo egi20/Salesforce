@@ -40,6 +40,15 @@ belongs in the visible dependency list. The image pipeline in `models/ImageBlob.
 re-checked afterwards, including that a non-image buffer still fails to decode, which is
 what makes re-encoding the real upload sanitiser.
 
+`multer` was raised to `^2.3.0`. npm audit does NOT flag 1.x, but the maintainers deprecation
+notice states plainly that 1.x is impacted by vulnerabilities patched in 2.x — including an
+unhandled exception on a malformed multipart request. Audit silence is not evidence of
+safety, and this package sits directly on the path where a stranger supplies bytes. The API
+surface used here (`memoryStorage`, `limits`, `fileFilter`, `single`) is unchanged across
+the major, and `tests/integration/fileUpload.test.js` now exercises it over real HTTP:
+allowed types, a MIME/extension mismatch, the size limit, a second file, and a malformed
+body.
+
 `uuid` and `cors` were removed outright. Both came from the reference implementation's
 dependency list and nothing here ever required them. An unused dependency is still an
 audit finding and still ships.

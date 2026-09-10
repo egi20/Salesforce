@@ -139,6 +139,35 @@ async function ensureMigrationsTable(conn) {
   `);
 }
 
+/**
+ * Refuse to run our migrations into somebody else's schema.
+ *
+ * If nothing has been applied yet but the database already contains tables, DB_NAME is
+ * almost certainly pointing at a different application's database. Without this check the
+ * first migration fails with a bare "Table 'users' already exists", which reads like a bug
+ * in the migration rather than a misconfigured connection — and a schema that DID happen to
+ * have no name collisions would get our tables mixed into it.
+ */
+async function assertDatabaseIsOursOrEmpty(conn, database) {
+  const [[{ applied }]] = await conn.query('SELECT COUNT(*) AS applied FROM schema_migrations');
+  if (applied > 0) return;
+
+  const [[{ tables }]] = await conn.query(
+    `SELECT COUNT(*) AS tables FROM information_schema.TABLES
+      WHERE TABLE_SCHEMA = ? AND TABLE_NAME <> 'schema_migrations'`,
+    [database]
+  );
+  if (tables === 0) return;
+
+  throw new Error(
+    `Database "${database}" already contains ${tables} table(s) but has no migration history.\n` +
+      '  This looks like another application\'s database. Salesforce Hub uses its own schema and\n' +
+      '  cannot share one.\n' +
+      `  Point DB_NAME at an empty database (npm run db:create creates one), or drop "${database}"\n` +
+      '  first if it really is a stale attempt at this app.'
+  );
+}
+
 async function appliedMigrations(conn) {
   const [rows] = await conn.query('SELECT filename, checksum FROM schema_migrations');
   return new Map(rows.map((r) => [r.filename, r.checksum]));
@@ -154,6 +183,7 @@ async function up() {
 
     try {
       await ensureMigrationsTable(conn);
+      await assertDatabaseIsOursOrEmpty(conn, config.database.database);
       const applied = await appliedMigrations(conn);
       const files = migrationFiles();
       let count = 0;

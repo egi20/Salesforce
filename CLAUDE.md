@@ -15,6 +15,11 @@ wrong produced a real bug.
   `ConsultantProfile.buildFilter` are the only ones. A list view and a bulk mutation must
   provably target the same rows.
 - **Validate `:id` params with `requireIdParam`.** `parseInt('44.map')` is `44`.
+- **Salesforce Hub owns its database.** It does not share a schema with any other
+  application. `scripts/migrate.js` refuses to run when the target database already has
+  tables but no migration history, because that means DB_NAME points somewhere else — and
+  the bare "Table 'users' already exists" it would otherwise produce reads like a bug in the
+  migration rather than a misconfigured connection.
 - **Run `npm run validate-boot` before pushing.** It loads every module and compiles every
   template without needing a database.
 

@@ -52,27 +52,37 @@ integration. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Getting started
 
+Requires **Node 18+** and **MySQL 8**.
+
 ```bash
-git clone <this repo>
+git clone -b claude/dynamichub-webapp-clone-4cmj1w https://github.com/egi20/Salesforce.git
 cd Salesforce
 npm install
 
-cp .env.example .env
-# Fill in DB_* and SESSION_SECRET.
-
-mysql -u root -e "CREATE DATABASE salesforce_hub CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-
-npm run migrate        # apply the schema
-npm run seed           # optional: demo data
-npm run dev            # http://localhost:3000
+cp .env.example .env        # Windows: copy .env.example .env
 ```
 
+Edit `.env` and set at least `DB_USER`, `DB_PASSWORD` and `SESSION_SECRET`. Leave
+`DB_NAME=salesforce_hub`.
+
+```bash
+npm run setup               # creates the database, migrates, seeds
+npm run dev                 # http://localhost:3000
+```
+
+`npm run setup` is `db:create` + `migrate` + `seed`; run them individually if you prefer.
 Seeded sign-in: `admin@example.com` / `Password123`.
+
+> **This application needs its own empty database.** It cannot share one with another app.
+> The migration runner refuses to start against a database that already has tables but no
+> migration history, rather than mixing its schema into somebody else's.
 
 ### Scripts
 
 | Command | Does |
 |---|---|
+| `npm run setup` | create the database, migrate, seed — one-off, first run |
+| `npm run db:create` | create the configured database if it does not exist |
 | `npm start` | migrate, then serve |
 | `npm run dev` | serve with nodemon |
 | `npm run migrate` | apply pending migrations |

@@ -22,19 +22,19 @@
       </div>
 
       <% if (conversation.job_slug) { %>
-        <div class="card-hub mb-3">
+        <div class="glass-card mb-3">
           <div class="card-body py-2 d-flex justify-content-between align-items-center gap-2">
             <span class="small text-muted-2">
               About <a href="/jobs/<%= conversation.job_slug %>"><%= conversation.job_title %></a>
             </span>
             <% if (conversation.application_id) { %>
-              <a class="btn btn-sm btn-hub-outline" href="/applications/<%= conversation.application_id %>">Open application</a>
+              <a class="btn btn-sm btn-outline-primary" href="/applications/<%= conversation.application_id %>">Open application</a>
             <% } %>
           </div>
         </div>
       <% } %>
 
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <% if (messages.length === 0) { %>
             <div class="empty-state py-4"><i class="bi bi-chat"></i>No messages yet. Say hello.</div>
@@ -42,14 +42,12 @@
             <% messages.forEach(function (m) { %>
               <% const mine = m.sender_user_id === currentUser.id; %>
               <div class="d-flex mb-3 <%= mine ? 'justify-content-end' : '' %>">
-                <div style="max-width: 78%">
+                <div class="msg-column">
                   <div class="small text-muted-2 mb-1 <%= mine ? 'text-end' : '' %>">
                     <%= mine ? 'You' : m.sender_name %> ·
                     <%= new Date(m.created_at).toISOString().slice(0, 16).replace('T', ' ') %>
                   </div>
-                  <div class="p-2 px-3"
-                       style="border-radius: 14px; white-space: pre-wrap; word-break: break-word;
-                              background: <%= mine ? 'var(--sf-blue-100)' : 'var(--ink-100)' %>;">
+                  <div class="msg-bubble <%= mine ? 'msg-bubble-mine' : '' %>">
                     <%= m.body %>
                   </div>
                 </div>
@@ -59,7 +57,7 @@
         </div>
       </div>
 
-      <form method="post" action="/messages/<%= conversation.id %>/reply" class="card-hub">
+      <form method="post" action="/messages/<%= conversation.id %>/reply" class="glass-card">
         <div class="card-body">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <label class="form-label" for="body">Reply</label>
@@ -67,7 +65,7 @@
                     maxlength="<%= maxLength %>" placeholder="Write a message"></textarea>
           <div class="d-flex justify-content-between align-items-center">
             <p class="form-text mb-0">Plain text. Up to <%= maxLength.toLocaleString('en-GB') %> characters.</p>
-            <button class="btn btn-hub" type="submit">Send</button>
+            <button class="btn btn-primary" type="submit">Send</button>
           </div>
         </div>
       </form>

@@ -20,6 +20,11 @@ wrong produced a real bug.
   tables but no migration history, because that means DB_NAME points somewhere else — and
   the bare "Table 'users' already exists" it would otherwise produce reads like a bug in the
   migration rather than a misconfigured connection.
+- **The error handler must never respond twice.** `middleware/errorHandler.js` checks
+  `res.headersSent` and delegates to Express when the response has already started.
+  Writing a second status line throws ERR_HTTP_HEADERS_SENT and buries the original error.
+  This is reachable whenever something fails mid-stream — a download, or a session store
+  failing asynchronously after the response is out.
 - **Run `npm run validate-boot` before pushing.** It loads every module and compiles every
   template without needing a database.
 
@@ -216,6 +221,20 @@ Nothing else hardcodes a slug list. Keep it that way.
 With no `RESEND_API_KEY`, `utils/email.js` logs instead of sending, which is what makes
 local development and CI work without credentials. `send()` returns failures rather than
 throwing, because every call site is a side effect of an action that must succeed anyway.
+
+## Look and feel
+
+`DESIGN.md` is the authority for anything user-facing, and it is short — read it before
+adding a page. The two rules most often broken while moving fast:
+
+- **Never inline a brand colour.** There is a token or a class. `views/email/` is the one
+  exception, because email clients strip `<style>` and do not support custom properties.
+- **`#00A1E0` never sits behind white text** (2.93:1). Cyan is an accent and a gradient
+  stop; `--primary-blue` #0176D3 is the CTA and link colour.
+
+The scroll-reveal hidden state is gated behind `.js-reveal`, set by an inline script in
+`views/partials/head.ejs` before first paint. With scripting off the content is simply
+visible. Never let an animation be the reason a page cannot be read.
 
 ## Style
 

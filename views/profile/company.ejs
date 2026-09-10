@@ -1,13 +1,13 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { heading: 'Your company profile', sub: 'Shown on every job you post.' }) %>
+<%- include('../partials/page-header', { icon: 'bi-building-gear', heading: 'Your company profile', sub: 'Shown on every job you post.' }) %>
 
 <div class="container">
   <%- include('../partials/flash') %>
 
   <div class="row g-4">
     <div class="col-lg-8">
-      <form method="post" action="/profile/company" class="card-hub">
+      <form method="post" action="/profile/company" class="glass-card">
         <div class="card-body">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
@@ -77,21 +77,21 @@
             <label class="form-check-label" for="is_public">List us in the company directory</label>
           </div>
 
-          <button class="btn btn-hub" type="submit">Save</button>
-          <a class="btn btn-hub-outline" href="/companies/<%= company.slug %>">Preview</a>
+          <button class="btn btn-primary" type="submit">Save</button>
+          <a class="btn btn-outline-primary" href="/companies/<%= company.slug %>">Preview</a>
         </div>
       </form>
     </div>
 
     <div class="col-lg-4">
-      <div class="card-hub">
+      <div class="glass-card">
         <div class="card-body text-center">
           <img class="logo-tile mb-3" style="width:96px;height:96px" src="<%= company.logo || '/images/logo-placeholder.svg' %>" alt="">
           <form method="post" action="/profile/company/logo" enctype="multipart/form-data">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <label class="form-label" for="logo">Company logo</label>
             <input class="form-control mb-2" id="logo" name="logo" type="file" accept="image/*" required>
-            <button class="btn btn-hub-outline w-100 btn-sm" type="submit">Upload</button>
+            <button class="btn btn-outline-primary w-100 btn-sm" type="submit">Upload</button>
           </form>
         </div>
       </div>

@@ -1,11 +1,11 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { heading: 'Companies', sub: 'Partners, ISVs and end customers hiring on the Hub.' }) %>
+<%- include('../partials/page-header', { icon: 'bi-building', heading: 'Companies', sub: 'Partners, ISVs and end customers hiring on the Hub.' }) %>
 
 <div class="container">
   <%- include('../partials/flash') %>
 
-  <form class="card-hub p-3 mb-4" method="get" action="/companies">
+  <form class="glass-card p-3 mb-4" method="get" action="/companies">
     <div class="row g-2 align-items-end">
       <div class="col-md-5">
         <label class="form-label" for="co-q">Search</label>
@@ -30,17 +30,17 @@
           <% }); %>
         </select>
       </div>
-      <div class="col-md-1"><button class="btn btn-hub w-100" type="submit">Go</button></div>
+      <div class="col-md-1"><button class="btn btn-primary w-100" type="submit">Go</button></div>
     </div>
   </form>
 
   <% if (companies.length === 0) { %>
-    <div class="empty-state card-hub"><i class="bi bi-building"></i>No companies match.</div>
+    <div class="empty-state glass-card"><i class="bi bi-building"></i>No companies match.</div>
   <% } else { %>
     <div class="row g-3">
       <% companies.forEach(function (co) { %>
         <div class="col-md-6 col-lg-4">
-          <a class="card-hub d-block h-100 text-reset" href="/companies/<%= co.slug %>">
+          <a class="glass-card d-block h-100 text-reset" href="/companies/<%= co.slug %>">
             <div class="card-body">
               <div class="d-flex gap-3 align-items-center mb-2">
                 <img class="logo-tile" src="<%= co.logo || '/images/logo-placeholder.svg' %>" alt="" loading="lazy">

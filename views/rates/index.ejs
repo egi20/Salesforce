@@ -1,6 +1,6 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', {
+<%- include('../partials/page-header', { icon: 'bi-graph-up',
   heading: 'Salesforce day rate index',
   sub: 'Built from figures contributed by consultants, one per person per month.'
 }) %>
@@ -18,7 +18,7 @@
     </div>
   </div>
 
-  <form class="card-hub p-3 mb-4" method="get" action="/rates">
+  <form class="glass-card p-3 mb-4" method="get" action="/rates">
     <div class="row g-2 align-items-end">
       <div class="col-md-4">
         <label class="form-label" for="r-role">Role</label>
@@ -58,13 +58,13 @@
           <% }); %>
         </select>
       </div>
-      <div class="col-md-1"><button class="btn btn-hub w-100" type="submit">Go</button></div>
+      <div class="col-md-1"><button class="btn btn-primary w-100" type="submit">Go</button></div>
     </div>
   </form>
 
   <div class="row g-3 mb-4">
     <div class="col-md-8">
-      <div class="card-hub h-100">
+      <div class="glass-card h-100">
         <div class="card-body">
           <h2 class="h6 text-muted-2 text-uppercase">
             <%= filters.role ? roleLabel(filters.role) : 'All roles' %><%= filters.seniority ? ' · ' + filters.seniority : '' %>
@@ -90,7 +90,7 @@
       </div>
     </div>
     <div class="col-md-4">
-      <div class="card-hub h-100">
+      <div class="glass-card h-100">
         <div class="card-body">
           <h2 class="h6 text-muted-2 text-uppercase">Editorial baseline</h2>
           <% if (curatedBaseline) { %>
@@ -108,7 +108,7 @@
   </div>
 
   <% if (filters.role && trend.length) { %>
-    <div class="card-hub mb-4">
+    <div class="glass-card mb-4">
       <div class="card-body">
         <h2 class="h6 mb-3">Last 12 months</h2>
         <%
@@ -134,7 +134,7 @@
   <% } %>
 
   <% if (filters.role && bySeniority.length) { %>
-    <div class="card-hub mb-4">
+    <div class="glass-card mb-4">
       <div class="card-body">
         <h2 class="h6 mb-3">By seniority — <%= roleLabel(filters.role) %></h2>
         <div class="table-responsive">
@@ -161,7 +161,7 @@
     </div>
   <% } %>
 
-  <div class="card-hub mb-4">
+  <div class="glass-card mb-4">
     <div class="card-body">
       <h2 class="h6 mb-3">All roles</h2>
       <% if (byRole.length === 0) { %>
@@ -190,16 +190,16 @@
     </div>
   </div>
 
-  <div class="card-hub">
+  <div class="glass-card">
     <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
       <div>
         <h2 class="h6 mb-1">Add your figure</h2>
         <p class="small text-muted-2 mb-0"><%= contributors %> people have contributed so far.</p>
       </div>
       <% if (currentUser && currentUser.isConsultant) { %>
-        <a class="btn btn-hub" href="/rates/submit">Contribute your rate</a>
+        <a class="btn btn-primary" href="/rates/submit">Contribute your rate</a>
       <% } else if (!currentUser) { %>
-        <a class="btn btn-hub" href="/auth/register">Create a consultant account</a>
+        <a class="btn btn-primary" href="/auth/register">Create a consultant account</a>
       <% } %>
     </div>
   </div>

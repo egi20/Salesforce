@@ -1,6 +1,6 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', {
+<%- include('../partials/page-header', { icon: 'bi-chat-dots',
   heading: 'Messages',
   sub: 'Every conversation is about a specific application or role, so you always know why someone got in touch.'
 }) %>
@@ -9,7 +9,7 @@
   <%- include('../partials/flash') %>
 
   <% if (conversations.length === 0) { %>
-    <div class="empty-state card-hub">
+    <div class="empty-state glass-card">
       <i class="bi bi-chat-dots"></i>
       <p class="mb-1">No conversations yet.</p>
       <p class="small mb-0">
@@ -18,7 +18,7 @@
       </p>
     </div>
   <% } else { %>
-    <div class="card-hub">
+    <div class="glass-card">
       <ul class="list-group list-group-flush">
         <% conversations.forEach(function (c) { %>
           <li class="list-group-item p-0">

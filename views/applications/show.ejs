@@ -5,7 +5,7 @@
 
   <div class="row g-4">
     <div class="col-lg-8">
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
             <div>
@@ -50,7 +50,7 @@
         </div>
       </div>
 
-      <div class="card-hub">
+      <div class="glass-card">
         <div class="card-body">
           <h2 class="h6 mb-3">History</h2>
           <ul class="timeline mb-0">
@@ -69,7 +69,7 @@
     </div>
 
     <aside class="col-lg-4">
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6 mb-2">Message</h2>
           <p class="form-text mb-2">
@@ -79,14 +79,14 @@
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <input type="hidden" name="kind" value="application">
             <input type="hidden" name="application_id" value="<%= application.id %>">
-            <button class="btn btn-hub-outline w-100" type="submit">
+            <button class="btn btn-outline-primary w-100" type="submit">
               <i class="bi bi-chat-dots"></i> Open conversation
             </button>
           </form>
         </div>
       </div>
 
-      <div class="card-hub">
+      <div class="glass-card">
         <div class="card-body">
           <h2 class="h6 mb-3">Move this application</h2>
           <% if (transitions.length === 0) { %>
@@ -111,7 +111,7 @@
                 <label class="form-label" for="note">Note (optional)</label>
                 <textarea class="form-control" id="note" name="note" rows="3" maxlength="500"></textarea>
               </div>
-              <button class="btn btn-hub w-100" type="submit">Update</button>
+              <button class="btn btn-primary w-100" type="submit">Update</button>
             </form>
           <% } %>
         </div>

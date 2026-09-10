@@ -1,14 +1,14 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { heading: 'Error log' }) %>
+<%- include('../partials/page-header', { icon: 'bi-exclamation-triangle', heading: 'Error log' }) %>
 
 <div class="container">
   <%- include('../partials/flash') %>
 
   <% if (errors.length === 0) { %>
-    <div class="empty-state card-hub"><i class="bi bi-check-circle"></i>No errors recorded.</div>
+    <div class="empty-state glass-card"><i class="bi bi-check-circle"></i>No errors recorded.</div>
   <% } else { %>
-    <div class="card-hub">
+    <div class="glass-card">
       <div class="accordion accordion-flush" id="errAcc">
         <% errors.forEach(function (e, i) { %>
           <div class="accordion-item">

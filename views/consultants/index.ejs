@@ -1,13 +1,13 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { heading: 'Salesforce consultants', sub: 'Certified specialists across every cloud. Filter by role, credential, availability and rate.' }) %>
+<%- include('../partials/page-header', { icon: 'bi-people', heading: 'Salesforce consultants', sub: 'Certified specialists across every cloud. Filter by role, credential, availability and rate.' }) %>
 
 <div class="container">
   <%- include('../partials/flash') %>
 
   <div class="row g-4">
     <aside class="col-lg-3">
-      <form class="filter-panel" method="get" action="/consultants">
+      <form class="glass-panel filter-panel" method="get" action="/consultants">
         <h2 class="mb-3">Filters</h2>
 
         <div class="mb-3">
@@ -80,8 +80,8 @@
           <label class="form-check-label" for="c-cert">Certified only</label>
         </div>
 
-        <button class="btn btn-hub w-100 mb-2" type="submit">Apply filters</button>
-        <a class="btn btn-hub-outline w-100" href="/consultants">Clear</a>
+        <button class="btn btn-primary w-100 mb-2" type="submit">Apply filters</button>
+        <a class="btn btn-outline-primary w-100" href="/consultants">Clear</a>
       </form>
     </aside>
 
@@ -103,7 +103,7 @@
       </div>
 
       <% if (consultants.length === 0) { %>
-        <div class="empty-state card-hub">
+        <div class="empty-state glass-card">
           <i class="bi bi-people"></i>
           <p class="mb-1">No consultants match these filters.</p>
           <a href="/consultants">Clear the filters</a>

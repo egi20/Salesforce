@@ -1,6 +1,6 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { heading: 'Applicants', sub: job.title }) %>
+<%- include('../partials/page-header', { icon: 'bi-people', heading: 'Applicants', sub: job.title }) %>
 
 <div class="container">
   <%- include('../partials/flash') %>
@@ -14,14 +14,14 @@
         </li>
       <% }); %>
     </ul>
-    <a class="btn btn-hub-outline btn-sm" href="/jobs/<%= job.slug %>">View the job</a>
+    <a class="btn btn-outline-primary btn-sm" href="/jobs/<%= job.slug %>">View the job</a>
   </div>
 
   <% if (applications.length === 0) { %>
-    <div class="empty-state card-hub"><i class="bi bi-people"></i>No applications<%= status ? ' in this stage' : ' yet' %>.</div>
+    <div class="empty-state glass-card"><i class="bi bi-people"></i>No applications<%= status ? ' in this stage' : ' yet' %>.</div>
   <% } else { %>
     <% applications.forEach(function (a) { %>
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body d-flex flex-wrap gap-3 align-items-center">
           <img class="avatar" src="<%= a.profile_picture || '/images/avatar-placeholder.svg' %>" alt="">
           <div class="flex-grow-1 min-w-0">
@@ -38,7 +38,7 @@
           </div>
           <div class="text-end">
             <span class="badge-hub status-<%= a.status %> d-block mb-2"><%= a.status %></span>
-            <a class="btn btn-sm btn-hub" href="/applications/<%= a.id %>">Review</a>
+            <a class="btn btn-sm btn-primary" href="/applications/<%= a.id %>">Review</a>
           </div>
         </div>
       </div>

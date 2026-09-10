@@ -1,6 +1,6 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { heading: 'Admin', sub: 'Platform health at a glance.' }) %>
+<%- include('../partials/page-header', { icon: 'bi-shield-lock', heading: 'Admin', sub: 'Platform health at a glance.' }) %>
 
 <div class="container">
   <%- include('../partials/flash') %>
@@ -20,7 +20,7 @@
 
   <div class="row g-3">
     <div class="col-lg-6">
-      <div class="card-hub h-100"><div class="card-body">
+      <div class="glass-card h-100"><div class="card-body">
         <h2 class="h6 mb-3">Visitors by country (30 days)</h2>
         <p class="small text-muted-2">Country and count only. No addresses, paths or identifiers are stored.</p>
         <% if (geo.length === 0) { %>
@@ -37,7 +37,7 @@
       </div></div>
     </div>
     <div class="col-lg-6">
-      <div class="card-hub h-100"><div class="card-body">
+      <div class="glass-card h-100"><div class="card-body">
         <h2 class="h6 mb-3">Sections</h2>
         <div class="list-group list-group-flush">
           <a class="list-group-item list-group-item-action" href="/admin/users">Users and roles</a>

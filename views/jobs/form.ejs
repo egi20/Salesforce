@@ -1,6 +1,6 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { heading: job ? 'Edit role' : 'Post a role', sub: 'Roles are visible to every consultant on the Hub once published.' }) %>
+<%- include('../partials/page-header', { icon: 'bi-plus-square', heading: job ? 'Edit role' : 'Post a role', sub: 'Roles are visible to every consultant on the Hub once published.' }) %>
 
 <div class="container">
   <%- include('../partials/flash') %>
@@ -15,7 +15,7 @@
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
     <div class="col-lg-8">
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6 mb-3">The role</h2>
 
@@ -59,7 +59,7 @@
     </div>
 
     <div class="col-lg-4">
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6 mb-3">Classification</h2>
 
@@ -122,7 +122,7 @@
         </div>
       </div>
 
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6 mb-3">Budget</h2>
           <div class="row g-2 mb-2">
@@ -164,7 +164,7 @@
         </div>
       </div>
 
-      <div class="card-hub">
+      <div class="glass-card">
         <div class="card-body">
           <% if (!job) { %>
             <div class="form-check mb-3">
@@ -172,9 +172,9 @@
               <label class="form-check-label" for="publish">Publish immediately</label>
             </div>
           <% } %>
-          <button class="btn btn-hub w-100" type="submit"><%= job ? 'Save changes' : 'Create role' %></button>
+          <button class="btn btn-primary w-100" type="submit"><%= job ? 'Save changes' : 'Create role' %></button>
           <% if (job) { %>
-            <a class="btn btn-hub-outline w-100 mt-2" href="/jobs/<%= job.slug %>">Cancel</a>
+            <a class="btn btn-outline-primary w-100 mt-2" href="/jobs/<%= job.slug %>">Cancel</a>
           <% } %>
         </div>
       </div>

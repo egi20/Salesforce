@@ -1,6 +1,6 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', {
+<%- include('../partials/page-header', { icon: 'bi-calculator',
   heading: 'New estimate',
   sub: 'Pick the scope. The engine turns it into man-days, a phased plan, a team shape and a budget that all reconcile.'
 }) %>
@@ -18,7 +18,7 @@
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
     <div class="col-lg-8">
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6 mb-3">Who it is for</h2>
           <div class="row g-2 mb-3">
@@ -74,7 +74,7 @@
         </div>
       </div>
 
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6 mb-1">Scope</h2>
           <p class="form-text mb-3">
@@ -119,7 +119,7 @@
         </div>
       </div>
 
-      <div class="card-hub">
+      <div class="glass-card">
         <div class="card-body">
           <h2 class="h6 mb-3">Add-ons and integrations</h2>
           <div class="row g-1 mb-3">
@@ -161,7 +161,7 @@
     </div>
 
     <div class="col-lg-4">
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6 mb-3">Shape of the work</h2>
 
@@ -203,7 +203,7 @@
         </div>
       </div>
 
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6 mb-3">Included</h2>
           <div class="form-check mb-2">
@@ -227,7 +227,7 @@
         </div>
       </div>
 
-      <div class="card-hub">
+      <div class="glass-card">
         <div class="card-body">
           <div class="row g-2 mb-3">
             <div class="col-7">
@@ -244,8 +244,8 @@
               </select>
             </div>
           </div>
-          <button class="btn btn-hub w-100" type="submit">Calculate estimate</button>
-          <a class="btn btn-hub-outline w-100 mt-2" href="/quotes">Cancel</a>
+          <button class="btn btn-primary w-100" type="submit">Calculate estimate</button>
+          <a class="btn btn-outline-primary w-100 mt-2" href="/quotes">Cancel</a>
         </div>
       </div>
     </div>

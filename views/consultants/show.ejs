@@ -9,7 +9,7 @@
 
   <div class="row g-4">
     <div class="col-lg-8">
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <div class="d-flex gap-3 mb-3">
             <img class="avatar avatar-lg" src="<%= profile.profile_picture || '/images/avatar-placeholder.svg' %>" alt="">
@@ -35,7 +35,7 @@
       </div>
 
       <% if (experiences.length) { %>
-        <div class="card-hub mb-3">
+        <div class="glass-card mb-3">
           <div class="card-body">
             <h2 class="h6 mb-3">Experience</h2>
             <ul class="timeline">
@@ -56,7 +56,7 @@
     </div>
 
     <aside class="col-lg-4">
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6">Availability and rate</h2>
           <p class="mb-1">
@@ -85,18 +85,18 @@
           <% } else if (!isSelf) { %>
             <hr>
             <p class="small text-muted-2 mb-2">Contact details are shown to signed-in hiring accounts.</p>
-            <a class="btn btn-hub-outline w-100 btn-sm" href="/auth/login?redirect=<%= encodeURIComponent('/consultants/' + profile.user_id) %>">Sign in to contact</a>
+            <a class="btn btn-outline-primary w-100 btn-sm" href="/auth/login?redirect=<%= encodeURIComponent('/consultants/' + profile.user_id) %>">Sign in to contact</a>
           <% } %>
 
           <% if (isSelf) { %>
             <hr>
-            <a class="btn btn-hub w-100" href="/profile/consultant">Edit your profile</a>
+            <a class="btn btn-primary w-100" href="/profile/consultant">Edit your profile</a>
           <% } %>
         </div>
       </div>
 
       <% if (hiringJobs && hiringJobs.length && !isSelf) { %>
-        <div class="card-hub mb-3">
+        <div class="glass-card mb-3">
           <div class="card-body">
             <h2 class="h6 mb-2">Approach about a role</h2>
             <form method="post" action="/messages/start">
@@ -113,7 +113,7 @@
               </div>
               <textarea class="form-control mb-2" name="body" rows="3" required maxlength="5000"
                         placeholder="Why this role might suit them"></textarea>
-              <button class="btn btn-hub w-100 btn-sm" type="submit">Send</button>
+              <button class="btn btn-primary w-100 btn-sm" type="submit">Send</button>
             </form>
             <p class="form-text mb-0">
               A conversation is always attached to a role, so the recipient can see what it is about.
@@ -123,7 +123,7 @@
       <% } %>
 
       <% if (certifications.length) { %>
-        <div class="card-hub mb-3">
+        <div class="glass-card mb-3">
           <div class="card-body">
             <h2 class="h6 mb-2">Certifications</h2>
             <ul class="list-unstyled mb-0 small">
@@ -139,7 +139,7 @@
       <% } %>
 
       <% if (skills.length) { %>
-        <div class="card-hub">
+        <div class="glass-card">
           <div class="card-body">
             <h2 class="h6 mb-2">Skills</h2>
             <div class="d-flex flex-wrap gap-1">

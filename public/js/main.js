@@ -57,6 +57,32 @@
   });
 
   /**
+   * Scroll reveal: a 16px rise as an element enters the viewport, once.
+   *
+   * Above-the-fold content is revealed immediately rather than waiting for a scroll that
+   * may never happen. Anything already intersecting on load counts as above the fold.
+   * With reduced motion requested, everything is revealed at once and no observer runs.
+   */
+  var revealTargets = document.querySelectorAll('.animate-on-scroll');
+  var prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (revealTargets.length) {
+    if (prefersReducedMotion || typeof IntersectionObserver !== 'function') {
+      Array.prototype.forEach.call(revealTargets, function (el) { el.classList.add('is-visible'); });
+    } else {
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        });
+      }, { rootMargin: '0px 0px -40px 0px', threshold: 0.05 });
+
+      Array.prototype.forEach.call(revealTargets, function (el) { observer.observe(el); });
+    }
+  }
+
+  /**
    * Availability date is only meaningful for a profile that is actually available.
    * Purely a convenience: the server does not depend on it.
    */

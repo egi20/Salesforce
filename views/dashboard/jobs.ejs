@@ -1,6 +1,6 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { heading: 'Your jobs', sub: 'Publish, pause and close the roles you have posted.' }) %>
+<%- include('../partials/page-header', { icon: 'bi-briefcase', heading: 'Your jobs', sub: 'Publish, pause and close the roles you have posted.' }) %>
 
 <div class="container">
   <%- include('../partials/flash') %>
@@ -13,13 +13,13 @@
         </li>
       <% }); %>
     </ul>
-    <a class="btn btn-hub" href="/jobs/new">Post a role</a>
+    <a class="btn btn-primary" href="/jobs/new">Post a role</a>
   </div>
 
   <% if (jobs.length === 0) { %>
-    <div class="empty-state card-hub"><i class="bi bi-briefcase"></i>No <%= status %> roles.</div>
+    <div class="empty-state glass-card"><i class="bi bi-briefcase"></i>No <%= status %> roles.</div>
   <% } else { %>
-    <div class="card-hub mb-3">
+    <div class="glass-card mb-3">
       <div class="card-body">
         <form method="post" action="/jobs/bulk-status" class="d-flex flex-wrap align-items-end gap-2">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -38,12 +38,12 @@
               <option value="closed">Close them</option>
             </select>
           </div>
-          <button class="btn btn-hub-outline" type="submit">Apply</button>
+          <button class="btn btn-outline-primary" type="submit">Apply</button>
         </form>
       </div>
     </div>
 
-    <div class="table-responsive card-hub">
+    <div class="table-responsive glass-card">
       <table class="table align-middle mb-0">
         <thead>
           <tr><th>Role</th><th>Status</th><th class="text-end">Applicants</th><th class="text-end">Views</th><th></th></tr>
@@ -58,7 +58,7 @@
               <td><span class="badge-hub"><%= job.status %></span></td>
               <td class="text-end"><a href="/applications/job/<%= job.slug %>"><%= job.application_count %></a></td>
               <td class="text-end text-muted-2"><%= job.view_count || 0 %></td>
-              <td class="text-end"><a class="btn btn-sm btn-hub-outline" href="/jobs/<%= job.slug %>/edit">Edit</a></td>
+              <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="/jobs/<%= job.slug %>/edit">Edit</a></td>
             </tr>
           <% }); %>
         </tbody>

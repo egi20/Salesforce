@@ -18,7 +18,7 @@
       <ul class="navbar-nav align-items-lg-center">
         <% if (currentUser) { %>
           <% if (currentUser.isCompany) { %>
-            <li class="nav-item me-lg-2"><a class="btn btn-hub btn-sm" href="/jobs/new"><i class="bi bi-plus-lg"></i> Post a job</a></li>
+            <li class="nav-item me-lg-2"><a class="btn btn-primary btn-sm" href="/jobs/new"><i class="bi bi-plus-lg"></i> Post a job</a></li>
           <% } %>
           <li class="nav-item">
             <a class="nav-link" href="/messages" aria-label="Messages">
@@ -68,7 +68,7 @@
           </li>
         <% } else { %>
           <li class="nav-item"><a class="nav-link" href="/auth/login">Sign in</a></li>
-          <li class="nav-item ms-lg-2"><a class="btn btn-hub btn-sm" href="/auth/register">Join free</a></li>
+          <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm" href="/auth/register">Join free</a></li>
         <% } %>
       </ul>
     </div>

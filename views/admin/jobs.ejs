@@ -1,6 +1,6 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { heading: 'Jobs' }) %>
+<%- include('../partials/page-header', { icon: 'bi-briefcase', heading: 'Jobs' }) %>
 
 <div class="container">
   <%- include('../partials/flash') %>
@@ -12,9 +12,9 @@
   </ul>
 
   <% if (jobs.length === 0) { %>
-    <div class="empty-state card-hub"><i class="bi bi-briefcase"></i>No <%= status %> jobs.</div>
+    <div class="empty-state glass-card"><i class="bi bi-briefcase"></i>No <%= status %> jobs.</div>
   <% } else { %>
-    <div class="table-responsive card-hub">
+    <div class="table-responsive glass-card">
       <table class="table align-middle mb-0">
         <thead><tr><th>Role</th><th>Company</th><th>Posted</th><th class="text-end">Applicants</th></tr></thead>
         <tbody>

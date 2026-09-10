@@ -1,11 +1,11 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { heading: 'Your consultant profile', sub: 'This is what employers see in the talent directory.' }) %>
+<%- include('../partials/page-header', { icon: 'bi-person-badge', heading: 'Your consultant profile', sub: 'This is what employers see in the talent directory.' }) %>
 
 <div class="container">
   <%- include('../partials/flash') %>
 
-  <div class="card-hub mb-4">
+  <div class="glass-card mb-4">
     <div class="card-body">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-2">
         <div>
@@ -33,7 +33,7 @@
 
   <div class="row g-4">
     <div class="col-lg-8">
-      <form method="post" action="/profile/consultant" class="card-hub mb-4">
+      <form method="post" action="/profile/consultant" class="glass-card mb-4">
         <div class="card-body">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <h2 class="h6 mb-3">About you</h2>
@@ -167,26 +167,26 @@
             </div>
           </div>
 
-          <button class="btn btn-hub" type="submit">Save profile</button>
-          <a class="btn btn-hub-outline" href="/consultants/<%= profile.user_id %>">Preview</a>
+          <button class="btn btn-primary" type="submit">Save profile</button>
+          <a class="btn btn-outline-primary" href="/consultants/<%= profile.user_id %>">Preview</a>
         </div>
       </form>
     </div>
 
     <div class="col-lg-4">
-      <div class="card-hub mb-4">
+      <div class="glass-card mb-4">
         <div class="card-body text-center">
           <img class="avatar avatar-lg mb-3" src="<%= profile.profile_picture || '/images/avatar-placeholder.svg' %>" alt="">
           <form method="post" action="/profile/consultant/photo" enctype="multipart/form-data">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <label class="form-label" for="photo">Profile photo</label>
             <input class="form-control mb-2" id="photo" name="photo" type="file" accept="image/*" required>
-            <button class="btn btn-hub-outline w-100 btn-sm" type="submit">Upload</button>
+            <button class="btn btn-outline-primary w-100 btn-sm" type="submit">Upload</button>
           </form>
         </div>
       </div>
 
-      <div class="card-hub mb-4">
+      <div class="glass-card mb-4">
         <div class="card-body">
           <h2 class="h6 mb-2">Certifications</h2>
           <% if (certifications.length) { %>
@@ -214,12 +214,12 @@
               <% }); %>
             </select>
             <input class="form-control form-control-sm mb-2" name="earned_on" type="date" aria-label="Earned on">
-            <button class="btn btn-hub-outline w-100 btn-sm" type="submit">Add</button>
+            <button class="btn btn-outline-primary w-100 btn-sm" type="submit">Add</button>
           </form>
         </div>
       </div>
 
-      <div class="card-hub">
+      <div class="glass-card">
         <div class="card-body">
           <h2 class="h6 mb-2">Experience</h2>
           <% if (experiences.length) { %>
@@ -247,7 +247,7 @@
               <input class="form-check-input" type="checkbox" name="is_current" id="is_current">
               <label class="form-check-label small" for="is_current">Current role</label>
             </div>
-            <button class="btn btn-hub-outline w-100 btn-sm" type="submit">Add</button>
+            <button class="btn btn-outline-primary w-100 btn-sm" type="submit">Add</button>
           </form>
         </div>
       </div>

@@ -59,7 +59,7 @@
 
   <div class="row g-4">
     <div class="col-lg-8">
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6 mb-3">Phases</h2>
           <div class="table-responsive">
@@ -87,7 +87,7 @@
         </div>
       </div>
 
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6 mb-3">Team and budget</h2>
           <div class="table-responsive">
@@ -129,7 +129,7 @@
         </div>
       </div>
 
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6 mb-3">Timeline</h2>
           <ul class="timeline mb-0">
@@ -148,7 +148,7 @@
         </div>
       </div>
 
-      <div class="card-hub">
+      <div class="glass-card">
         <div class="card-body">
           <h2 class="h6 mb-3">How the number was reached</h2>
           <div class="table-responsive">
@@ -212,7 +212,7 @@
     </div>
 
     <aside class="col-lg-4">
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6 mb-2">Deliverables</h2>
           <p class="form-text mb-3">
@@ -220,16 +220,16 @@
             this page. Each file is opened and checked before it is sent.
           </p>
           <div class="d-grid gap-2">
-            <a class="btn btn-hub" href="/quotes/<%= quote.reference %>/download/package">
+            <a class="btn btn-primary" href="/quotes/<%= quote.reference %>/download/package">
               <i class="bi bi-file-earmark-zip"></i> Full package (.zip)
             </a>
-            <a class="btn btn-hub-outline btn-sm" href="/quotes/<%= quote.reference %>/download/sow">
+            <a class="btn btn-outline-primary btn-sm" href="/quotes/<%= quote.reference %>/download/sow">
               <i class="bi bi-file-earmark-word"></i> Statement of work (.docx)
             </a>
-            <a class="btn btn-hub-outline btn-sm" href="/quotes/<%= quote.reference %>/download/wbs">
+            <a class="btn btn-outline-primary btn-sm" href="/quotes/<%= quote.reference %>/download/wbs">
               <i class="bi bi-file-earmark-spreadsheet"></i> Work breakdown (.xlsx)
             </a>
-            <a class="btn btn-hub-outline btn-sm" href="/quotes/<%= quote.reference %>/download/deck">
+            <a class="btn btn-outline-primary btn-sm" href="/quotes/<%= quote.reference %>/download/deck">
               <i class="bi bi-file-earmark-slides"></i> Summary deck (.pptx)
             </a>
           </div>
@@ -248,7 +248,7 @@
         </div>
       </div>
 
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6 mb-3">Status</h2>
           <% if (transitions.length === 0) { %>
@@ -266,20 +266,20 @@
                 <label class="form-label" for="note">Note</label>
                 <textarea class="form-control" id="note" name="note" rows="2" maxlength="500"></textarea>
               </div>
-              <button class="btn btn-hub w-100" type="submit">Update</button>
+              <button class="btn btn-primary w-100" type="submit">Update</button>
             </form>
           <% } %>
 
           <% if (quote.status === 'draft') { %>
             <form method="post" action="/quotes/<%= quote.reference %>/delete" class="mt-2">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <button class="btn btn-hub-outline w-100 btn-sm" type="submit">Delete this draft</button>
+              <button class="btn btn-outline-primary w-100 btn-sm" type="submit">Delete this draft</button>
             </form>
           <% } %>
         </div>
       </div>
 
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6 mb-2">Scope chosen</h2>
           <div class="d-flex flex-wrap gap-1">
@@ -297,7 +297,7 @@
         </div>
       </div>
 
-      <div class="card-hub">
+      <div class="glass-card">
         <div class="card-body">
           <h2 class="h6 mb-2">History</h2>
           <ul class="timeline mb-0">

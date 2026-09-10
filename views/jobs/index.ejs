@@ -1,13 +1,13 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { heading: 'Salesforce jobs and contracts', sub: 'Filter by cloud, role, seniority, work mode and country.' }) %>
+<%- include('../partials/page-header', { icon: 'bi-briefcase', heading: 'Salesforce jobs and contracts', sub: 'Filter by cloud, role, seniority, work mode and country.' }) %>
 
 <div class="container">
   <%- include('../partials/flash') %>
 
   <div class="row g-4">
     <aside class="col-lg-3">
-      <form class="filter-panel" method="get" action="/jobs">
+      <form class="glass-panel filter-panel" method="get" action="/jobs">
         <h2 class="mb-3">Filters</h2>
 
         <div class="mb-3">
@@ -89,8 +89,8 @@
                  value="<%= filters.rate_min %>" placeholder="Any">
         </div>
 
-        <button class="btn btn-hub w-100 mb-2" type="submit">Apply filters</button>
-        <a class="btn btn-hub-outline w-100" href="/jobs">Clear</a>
+        <button class="btn btn-primary w-100 mb-2" type="submit">Apply filters</button>
+        <a class="btn btn-outline-primary w-100" href="/jobs">Clear</a>
       </form>
     </aside>
 
@@ -111,7 +111,7 @@
       </div>
 
       <% if (jobs.length === 0) { %>
-        <div class="empty-state card-hub">
+        <div class="empty-state glass-card">
           <i class="bi bi-search"></i>
           <p class="mb-1">No roles match these filters.</p>
           <a href="/jobs">Clear the filters</a>

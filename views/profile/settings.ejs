@@ -1,6 +1,6 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { heading: 'Account settings', sub: 'Your sign-in details and what you use the Hub for.' }) %>
+<%- include('../partials/page-header', { icon: 'bi-gear', heading: 'Account settings', sub: 'Your sign-in details and what you use the Hub for.' }) %>
 
 <div class="container">
   <%- include('../partials/flash') %>
@@ -10,14 +10,14 @@
       <span>Your email address is not confirmed yet.</span>
       <form method="post" action="/auth/resend-verification" class="ms-auto">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <button class="btn btn-sm btn-hub-outline" type="submit">Resend confirmation</button>
+        <button class="btn btn-sm btn-outline-primary" type="submit">Resend confirmation</button>
       </form>
     </div>
   <% } %>
 
   <div class="row g-4">
     <div class="col-lg-6">
-      <div class="card-hub mb-4">
+      <div class="glass-card mb-4">
         <div class="card-body">
           <h2 class="h6 mb-3">Account</h2>
           <dl class="row mb-0 small">
@@ -32,7 +32,7 @@
         </div>
       </div>
 
-      <div class="card-hub">
+      <div class="glass-card">
         <div class="card-body">
           <h2 class="h6 mb-3">What you use the Hub for</h2>
           <form method="post" action="/profile/settings/roles">
@@ -53,14 +53,14 @@
               Adding a role here is instant. Removing one is done by support, so a mis-click can
               never take away access you rely on.
             </p>
-            <button class="btn btn-hub" type="submit">Save roles</button>
+            <button class="btn btn-primary" type="submit">Save roles</button>
           </form>
         </div>
       </div>
     </div>
 
     <div class="col-lg-6">
-      <div class="card-hub">
+      <div class="glass-card">
         <div class="card-body">
           <h2 class="h6 mb-3">Change password</h2>
           <form method="post" action="/profile/settings/password">
@@ -78,7 +78,7 @@
               <label class="form-label" for="confirm_password">Confirm new password</label>
               <input class="form-control" id="confirm_password" name="confirm_password" type="password" required autocomplete="new-password">
             </div>
-            <button class="btn btn-hub" type="submit">Update password</button>
+            <button class="btn btn-primary" type="submit">Update password</button>
           </form>
         </div>
       </div>

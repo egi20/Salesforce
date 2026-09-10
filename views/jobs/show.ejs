@@ -5,7 +5,7 @@
 
   <div class="row g-4">
     <div class="col-lg-8">
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <div class="d-flex gap-3 mb-3">
             <img class="logo-tile" src="<%= job.company_logo || '/images/logo-placeholder.svg' %>" alt="">
@@ -62,12 +62,12 @@
     </div>
 
     <aside class="col-lg-4">
-      <div class="card-hub mb-3">
+      <div class="glass-card mb-3">
         <div class="card-body">
           <% if (isOwner) { %>
             <h2 class="h6">Manage this job</h2>
-            <a class="btn btn-hub w-100 mb-2" href="/jobs/<%= job.slug %>/edit">Edit</a>
-            <a class="btn btn-hub-outline w-100 mb-3" href="/applications/job/<%= job.slug %>">
+            <a class="btn btn-primary w-100 mb-2" href="/jobs/<%= job.slug %>/edit">Edit</a>
+            <a class="btn btn-outline-primary w-100 mb-3" href="/applications/job/<%= job.slug %>">
               Applicants (<%= job.application_count %>)
             </a>
             <form method="post" action="/jobs/<%= job.slug %>/status">
@@ -79,7 +79,7 @@
                     <option value="<%= s %>" <%= job.status === s ? 'selected' : '' %>><%= s %></option>
                   <% }); %>
                 </select>
-                <button class="btn btn-hub-outline" type="submit">Set</button>
+                <button class="btn btn-outline-primary" type="submit">Set</button>
               </div>
             </form>
             <p class="small text-muted-2 mt-3 mb-0"><%= job.view_count %> views</p>
@@ -90,7 +90,7 @@
               <p class="mb-2">
                 <span class="badge-hub status-<%= application.status %>"><%= application.status %></span>
               </p>
-              <a class="btn btn-hub-outline w-100" href="/applications/<%= application.id %>">View application</a>
+              <a class="btn btn-outline-primary w-100" href="/applications/<%= application.id %>">View application</a>
             <% } else if (job.status === 'open') { %>
               <h2 class="h6">Apply</h2>
               <form method="post" action="/jobs/<%= job.slug %>/apply">
@@ -116,7 +116,7 @@
                   <label class="form-label" for="available_from">Available from</label>
                   <input class="form-control" id="available_from" name="available_from" type="date">
                 </div>
-                <button class="btn btn-hub w-100" type="submit">Send application</button>
+                <button class="btn btn-primary w-100" type="submit">Send application</button>
               </form>
             <% } else { %>
               <p class="mb-0 text-muted-2">This role is no longer accepting applications.</p>
@@ -125,14 +125,14 @@
           <% } else if (!currentUser) { %>
             <h2 class="h6">Interested?</h2>
             <p class="text-muted-2 small">Create a free consultant profile to apply.</p>
-            <a class="btn btn-hub w-100 mb-2" href="/auth/register?redirect=<%= encodeURIComponent('/jobs/' + job.slug) %>">Create an account</a>
-            <a class="btn btn-hub-outline w-100" href="/auth/login?redirect=<%= encodeURIComponent('/jobs/' + job.slug) %>">Sign in</a>
+            <a class="btn btn-primary w-100 mb-2" href="/auth/register?redirect=<%= encodeURIComponent('/jobs/' + job.slug) %>">Create an account</a>
+            <a class="btn btn-outline-primary w-100" href="/auth/login?redirect=<%= encodeURIComponent('/jobs/' + job.slug) %>">Sign in</a>
           <% } %>
         </div>
       </div>
 
       <% if (currentUser && !isOwner && job.status === 'open') { %>
-        <div class="card-hub mb-3">
+        <div class="glass-card mb-3">
           <div class="card-body">
             <h2 class="h6 mb-2">Question about this role?</h2>
             <form method="post" action="/messages/start">
@@ -142,7 +142,7 @@
               <input type="hidden" name="recipient_user_id" value="<%= job.company_user_id %>">
               <textarea class="form-control mb-2" name="body" rows="3" required maxlength="5000"
                         placeholder="Ask the advertiser directly"></textarea>
-              <button class="btn btn-hub-outline w-100 btn-sm" type="submit">Send question</button>
+              <button class="btn btn-outline-primary w-100 btn-sm" type="submit">Send question</button>
             </form>
             <p class="form-text mb-0">Goes to whoever posted this role, with the role attached.</p>
           </div>
@@ -153,7 +153,7 @@
         <form method="post" action="/jobs/<%= job.slug %>/save" class="mb-3">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <input type="hidden" name="saved" value="<%= saved ? 'true' : 'false' %>">
-          <button class="btn btn-hub-outline w-100" type="submit">
+          <button class="btn btn-outline-primary w-100" type="submit">
             <i class="bi bi-bookmark<%= saved ? '-fill' : '' %>"></i>
             <%= saved ? 'Saved' : 'Save this job' %>
           </button>
@@ -161,7 +161,7 @@
       <% } %>
 
       <% if (match) { %>
-        <div class="card-hub">
+        <div class="glass-card">
           <div class="card-body">
             <h2 class="h6">Why this score</h2>
             <ul class="list-unstyled small mb-0">

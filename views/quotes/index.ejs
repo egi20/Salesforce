@@ -1,6 +1,6 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { heading: 'Quotes', sub: 'Scope estimates you have produced.' }) %>
+<%- include('../partials/page-header', { icon: 'bi-calculator', heading: 'Quotes', sub: 'Scope estimates you have produced.' }) %>
 
 <div class="container">
   <%- include('../partials/flash') %>
@@ -25,17 +25,17 @@
         <li class="nav-item"><a class="nav-link <%= status === s ? 'active' : '' %>" href="/quotes?status=<%= s %>"><%= s %></a></li>
       <% }); %>
     </ul>
-    <a class="btn btn-hub" href="/quotes/new"><i class="bi bi-plus-lg"></i> New estimate</a>
+    <a class="btn btn-primary" href="/quotes/new"><i class="bi bi-plus-lg"></i> New estimate</a>
   </div>
 
   <% if (quotes.length === 0) { %>
-    <div class="empty-state card-hub">
+    <div class="empty-state glass-card">
       <i class="bi bi-calculator"></i>
       <p class="mb-1">No estimates<%= status ? ' in this state' : ' yet' %>.</p>
       <a href="/quotes/new">Produce your first one</a>
     </div>
   <% } else { %>
-    <div class="table-responsive card-hub">
+    <div class="table-responsive glass-card">
       <table class="table align-middle mb-0">
         <thead>
           <tr>

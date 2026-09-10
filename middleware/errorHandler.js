@@ -19,12 +19,27 @@ function notFound(req, res) {
  * gives a CSRF rejection its own message so the person is told to reload rather than
  * shown a generic failure they cannot act on.
  */
-// eslint-disable-next-line no-unused-vars
 function errorHandler(err, req, res, next) {
   const status = err.status || err.statusCode || 500;
 
   if (status >= 500) {
     console.error(err);
+  }
+
+  /*
+   * If the response has already started, there is nothing useful left to send: writing a
+   * second status line throws ERR_HTTP_HEADERS_SENT and the original error is lost behind
+   * it. Express's default handler is the only correct move — it destroys the socket so the
+   * client sees a truncated response rather than a mangled one.
+   *
+   * This happens more often than it sounds: an error surfacing after a file download has
+   * begun streaming, or a session store failing asynchronously once the response is out.
+   * Found by rendering real pages in a browser against an unreachable database, where the
+   * store's late failure landed here after a 404 had already been sent.
+   */
+  if (res.headersSent) {
+    ErrorLog.record(err, req, status);
+    return next(err);
   }
   // Fire and forget: persisting the log must not delay or break the response.
   ErrorLog.record(err, req, status);

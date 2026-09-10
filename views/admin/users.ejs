@@ -1,11 +1,11 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { heading: 'Users', sub: 'Role changes here are the only way to remove a role or grant a privileged one.' }) %>
+<%- include('../partials/page-header', { icon: 'bi-people', heading: 'Users', sub: 'Role changes here are the only way to remove a role or grant a privileged one.' }) %>
 
 <div class="container">
   <%- include('../partials/flash') %>
 
-  <form class="card-hub p-3 mb-3" method="get">
+  <form class="glass-card p-3 mb-3" method="get">
     <div class="row g-2 align-items-end">
       <div class="col-md-6">
         <label class="form-label" for="q">Search</label>
@@ -20,11 +20,11 @@
           <% }); %>
         </select>
       </div>
-      <div class="col-md-2"><button class="btn btn-hub w-100" type="submit">Search</button></div>
+      <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Search</button></div>
     </div>
   </form>
 
-  <div class="table-responsive card-hub">
+  <div class="table-responsive glass-card">
     <table class="table align-middle mb-0">
       <thead><tr><th>User</th><th>Roles</th><th>State</th><th>Joined</th><th class="text-end">Actions</th></tr></thead>
       <tbody>
@@ -51,7 +51,7 @@
               <% if (!u.email_verified) { %>
                 <form method="post" action="/admin/users/<%= u.id %>/verify" class="d-inline">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <button class="btn btn-sm btn-hub-outline" type="submit">Verify</button>
+                  <button class="btn btn-sm btn-outline-primary" type="submit">Verify</button>
                 </form>
               <% } %>
               <% if (currentUser.isSuperadmin && u.id !== currentUser.id) { %>

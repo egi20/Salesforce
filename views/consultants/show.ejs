@@ -22,7 +22,23 @@
                 <% if (profile.seniority) { %><span class="badge-hub"><%= profile.seniority %></span><% } %>
                 <% if (profile.years_experience) { %><span class="badge-hub"><%= profile.years_experience %> yrs</span><% } %>
                 <% if (profile.country) { %><span class="badge-hub"><%= [profile.city, profile.country].filter(Boolean).join(', ') %></span><% } %>
-                <% if (profile.linkedin_verified) { %><span class="badge-hub ok"><i class="bi bi-patch-check"></i> Verified</span><% } %>
+                <%
+                  /*
+                   * "LinkedIn confirmed", not "Verified".
+                   *
+                   * What was actually checked is that this person controls a LinkedIn
+                   * account. LinkedIn's userinfo response carries no vanity URL, no
+                   * headline and no positions, so nothing here verifies the profile link
+                   * below, their job title or their employer — and a bare "Verified" badge
+                   * would be read as verifying all three. The reference implementation's
+                   * badge said exactly that while checking exactly this.
+                   */
+                %>
+                <% if (profile.linkedin_verified) { %>
+                  <span class="badge-hub ok" title="This member signed in to LinkedIn to confirm they control a LinkedIn account. It does not verify the profile link, their job title or their employer.">
+                    <i class="bi bi-patch-check"></i> LinkedIn confirmed
+                  </span>
+                <% } %>
               </div>
             </div>
           </div>
@@ -81,7 +97,16 @@
             <hr>
             <h2 class="h6">Contact</h2>
             <p class="mb-1"><a href="mailto:<%= profile.email %>"><%= profile.email %></a></p>
-            <% if (profile.linkedin_url) { %><p class="mb-1"><a href="<%= profile.linkedin_url %>" rel="nofollow noopener noreferrer" target="_blank">LinkedIn</a></p><% } %>
+            <% if (profile.linkedin_url) { %>
+              <%
+                /* Labelled as a link the member gave us, because that is all it is —
+                   nothing available through LinkedIn's API can confirm it is theirs. */
+              %>
+              <p class="mb-1">
+                <a href="<%= profile.linkedin_url %>" rel="nofollow noopener noreferrer" target="_blank">LinkedIn</a>
+                <span class="small text-muted-2">(link provided by the member)</span>
+              </p>
+            <% } %>
             <% if (profile.trailblazer_url) { %><p class="mb-0"><a href="<%= profile.trailblazer_url %>" rel="nofollow noopener noreferrer" target="_blank">Trailblazer profile</a></p><% } %>
           <% } else if (!isSelf) { %>
             <hr>

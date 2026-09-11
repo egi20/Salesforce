@@ -492,6 +492,54 @@ the same reason `needs_refund` on a payment is a queue rather than an API call.
 Which products pay is named in `config/referrals.js`, not inferred: adding a product to
 `config/payments.js` must not silently create a liability.
 
+## LinkedIn verification
+
+**What LinkedIn actually returns decides the whole design.** The OpenID Connect userinfo
+response carries `sub`, `name`, `given_name`, `family_name`, `picture`, `locale`, `email`
+and `email_verified`. It does NOT carry the member's vanity URL, headline, positions or
+employer, and no scope available to an ordinary application returns them.
+
+So the badge confirms exactly one thing and says exactly that: **this person controls a
+LinkedIn account, and here is the name on it.** The `linkedin_url` on a profile stays a
+claim and is labelled as one. Do not reword the badge into anything broader.
+
+This is a real bug in the reference implementation, not a hypothetical. `routes/linkedin.js`
+there extracts the username from the URL the member typed, logs it next to the subject
+LinkedIn returned — and then sets `linkedin_verified = true` without comparing them,
+because there is nothing to compare against. The badge claimed a specific profile was
+verified when all that had happened was an OAuth round trip.
+
+**Linking only, never a sign-in method.** Every route requires an authenticated session.
+An OAuth provider that can also sign you in has to decide what to do when its email matches
+an existing account, and every answer to that is a documented account-takeover pattern.
+Requiring an existing session removes the question.
+
+**The access token is never stored.** It is used for one userinfo call and dropped. This
+application never posts to LinkedIn, so holding a credential that can act as the member
+would be a liability with no purpose — the reference keeps them. Nor is the profile payload
+retained: only the opaque subject and the display name.
+
+`external_identities` has UNIQUE keys on both `(provider, subject)` and `(provider,
+user_id)`: one LinkedIn account verifies one Hub account. A subject already claimed by
+someone else is REFUSED, never moved — and the message does not name the other account.
+
+`consultant_profiles.linkedin_verified` stays a denormalised column, which this codebase
+otherwise refuses (see the featured-job window). The difference is that a verification does
+not EXPIRE, so nothing has to come round and unset it; it changes only when the member
+acts, and `models/ExternalIdentity.js` is the single writer, moving both rows in one
+transaction.
+
+`namesAgree()` is the one cross-check available, and it is deliberately loose: a shared
+distinctive token, diacritics stripped. The result is RECORDED AND SHOWN, never used to
+refuse the link — a stricter rule would reject real people to catch a case it cannot catch
+anyway. `/linkedin/start` saves the session explicitly before redirecting, because the
+store write is asynchronous and the callback arrives on a different request; without it the
+flow fails as "security verification failed" on an entirely legitimate attempt.
+
+There is no LinkedIn API for sending connection requests or direct messages. Any feature
+implying automated outreach would be a lie, and a test asserts the module exposes nothing
+shaped like one.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

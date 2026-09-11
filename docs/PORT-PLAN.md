@@ -28,23 +28,21 @@ handlers cover a feature that is better here than there.
 | In-site assistant | 2 | 1 | Site help on every page, three spend bounds, no transcript storage |
 | Admin | 142 | 18 | Users, jobs, moderation, analytics, settings, errors, payments, AI spend, payouts |
 | Referrals & commissions | 9 | 6 | Link, append-only ledger, admin payouts. One payee type, not three |
+| LinkedIn verification | 9 | 3 | Link-only identity confirmation. No posting, no token stored |
 | Design system | — | — | Glassmorphism ported, palette re-based on Salesforce blue |
 
 ## Next, in order
 
-1. **LinkedIn verification** (9) — OAuth to prove identity, never as a sign-in method. Note
-   there is no API for sending connection requests or DMs; any feature implying automated
-   outreach would be a lie.
-2. **AI drafting** (part of the reference's 17 doc-generator handlers) — prose for the
+1. **AI drafting** (part of the reference's 17 doc-generator handlers) — prose for the
    narrative sections of a SOW, and optionally a tailored cover letter. NOT a replacement
    for the CV generator: that renders what the consultant wrote and should keep doing so.
-3. **Company document templates** (16).
-4. **Search across everything** (1) — one box spanning jobs, consultants and companies,
+2. **Company document templates** (16).
+3. **Search across everything** (1) — one box spanning jobs, consultants and companies,
    behind the existing filter builders.
-5. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
+4. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
    are an internal sales tool and an accounting system that happen to live in the same
    repository.
-6. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
+5. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
     games (13).
 
 ## Done since this plan was written
@@ -130,6 +128,22 @@ admin payout screen. Departures from the reference, each for a stated reason:
 - **Session, not a thirty-day tracking cookie.** An attribution that does not survive a
   browser restart is lost; a second cookie following people for a month is a consent
   question nobody asked. The `?ref=` on the registration link covers the common case.
+
+**LinkedIn verification.** Three handlers of the reference's nine, and the difference is
+what the badge is allowed to claim.
+
+The reference asks for the member's `linkedin.com/in/...` URL, runs OAuth, extracts the
+username from the URL they typed, logs it beside the subject LinkedIn returned — and then
+sets `linkedin_verified = true` without comparing the two, because LinkedIn's userinfo
+response contains no vanity URL to compare against. The badge asserted that a specific
+profile had been verified; what had happened was an OAuth round trip.
+
+So: the badge reads "LinkedIn confirmed", the profile link is labelled as a member-supplied
+claim, and the one available cross-check (the name) is shown rather than used as a gate.
+Also dropped from the reference's version — the `w_member_social` posting scope, the stored
+access token, the retained profile payload, and the six handlers that exist to post on
+somebody's behalf. There is no LinkedIn API for connection requests or direct messages, so
+nothing here implies outreach.
 
 ## Excluded
 

@@ -19,6 +19,7 @@ const { assertPaymentIntegrity, WEBHOOK_PATH } = require('./config/payments');
 const assistantConfig = require('./config/assistant');
 const { assertSettingsIntegrity } = require('./config/settings');
 const { assertReferralIntegrity } = require('./config/referrals');
+const { assertLinkedInIntegrity, isConfigured: linkedInConfigured } = require('./config/linkedin');
 const AppSetting = require('./models/AppSetting');
 const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
@@ -45,6 +46,9 @@ assertSettingsIntegrity();
 // And for the scheme that owes people money: a rate above its own ceiling, or a payout
 // floor no commission can reach, fails as a person asking why they have not been paid.
 assertReferralIntegrity();
+// Half-configured is worse than absent: the button appears, the member is sent to
+// LinkedIn, and the failure lands after they have already granted access.
+assertLinkedInIntegrity();
 
 const app = express();
 
@@ -203,6 +207,7 @@ app.use((req, res, next) => {
   res.locals.supportEmail = config.app.supportEmail;
   // Decided once per request from the configuration, never from anything the client sends.
   res.locals.assistantEnabled = assistantConfig.isConfigured();
+  res.locals.linkedInEnabled = linkedInConfigured();
   res.locals.assistantMaxChars = assistantConfig.MAX_MESSAGE_CHARS;
   res.locals.currentUser = req.session.user || null;
   res.locals.currentPath = req.path;
@@ -235,6 +240,7 @@ app.use('/rates', require('./routes/rates'));
 app.use('/payments', require('./routes/payments'));
 app.use('/assistant', require('./routes/assistant'));
 app.use('/referrals', require('./routes/referrals'));
+app.use('/linkedin', require('./routes/linkedin'));
 app.use('/messages', require('./routes/messages'));
 app.use('/notifications', require('./routes/notifications'));
 app.use('/admin', require('./routes/admin'));

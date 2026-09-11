@@ -19,6 +19,7 @@ const { CERTIFICATIONS } = require('../config/certifications');
 const countries = require('../config/all-countries.json');
 const { ALL_MODULES } = require('../config/cloudFamilies');
 const { build: buildDossier } = require('../services/consultantDossier');
+const ExternalIdentity = require('../models/ExternalIdentity');
 const {
   isDocumentKind,
   PACKAGE_KIND,
@@ -36,7 +37,12 @@ router.get(
   '/settings',
   asyncHandler(async (req, res) => {
     const user = await User.findById(req.session.user.id);
-    res.render('profile/settings', { title: 'Account settings', user, errors: [] });
+    res.render('profile/settings', {
+      title: 'Account settings',
+      user,
+      linkedInIdentity: await ExternalIdentity.find(ExternalIdentity.LINKEDIN, req.session.user.id),
+      errors: []
+    });
   })
 );
 

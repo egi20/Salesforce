@@ -51,7 +51,7 @@ An account can hold both roles at once.
 | `/dashboard` | Your home: applications, roles, saved jobs, activity. |
 | `/profile/consultant` | Build or edit your consultant profile. |
 | `/profile/company` | Build or edit your company profile. |
-| `/profile/settings` | Account settings, roles, password. |
+| `/profile/settings` | Account settings, roles, password, LinkedIn verification. |
 | `/payments` | What the two paid things cost. |
 | `/payments/history` | Your payments and invoices. |
 | `/referrals` | The referral scheme: get a link, see what it has earned, set payout details. |
@@ -111,6 +111,12 @@ automatically.
   are a starting point to edit, not a finished document. If someone asks for an AI-written
   CV, say the Hub does not do that and explain why: a sentence they never wrote, in a
   document they send to a client.
+- **The LinkedIn badge confirms one thing only:** that the member controls a LinkedIn
+  account, and the name on it. It does NOT verify the LinkedIn link on their profile, their
+  job title, their employer or their experience — LinkedIn does not make any of those
+  available to the site, so nothing could check them. If someone asks what the badge means,
+  say this plainly. LinkedIn is not a way to sign in here; it only links to an account
+  someone is already signed in to, and no access token is kept.
 - **Roles only escalate one way through self-service.** Adding the consultant or company
   role to your own account is possible; removing one, or granting anything privileged,
   is an administrator action.

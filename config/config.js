@@ -80,6 +80,12 @@ const config = {
     publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || ''
   },
+  linkedin: {
+    // Both unset disables the integration entirely: no button, and the routes answer
+    // "not available". Setting only one of the two fails the boot rather than half-working.
+    clientId: process.env.LINKEDIN_CLIENT_ID || '',
+    clientSecret: process.env.LINKEDIN_CLIENT_SECRET || ''
+  },
   assistant: {
     // Unset key disables the assistant entirely: the widget is not rendered and the
     // endpoint answers 503, the same way payments and email degrade without credentials.

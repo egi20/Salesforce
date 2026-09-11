@@ -14,7 +14,11 @@
       <% if (c.certification_count > 0) { %>
         <span class="badge-hub ok"><i class="bi bi-patch-check"></i> <%= c.certification_count %> cert<%= c.certification_count > 1 ? 's' : '' %></span>
       <% } %>
-      <% if (c.linkedin_verified) { %><span class="badge-hub ok">Verified</span><% } %>
+      <%
+        /* Names what was checked. A bare "Verified" reads as verifying the whole profile;
+           all that was confirmed is control of a LinkedIn account. */
+      %>
+      <% if (c.linkedin_verified) { %><span class="badge-hub ok"><i class="bi bi-patch-check"></i> LinkedIn</span><% } %>
     </div>
     <p class="small text-muted-2 mb-0">
       <% if (c.day_rate) { %><strong><%= Math.round(c.day_rate) %> <%= c.currency %></strong>/day · <% } %>

@@ -54,6 +54,7 @@ An account can hold both roles at once.
 | `/profile/settings` | Account settings, roles, password. |
 | `/payments` | What the two paid things cost. |
 | `/payments/history` | Your payments and invoices. |
+| `/referrals` | The referral scheme: get a link, see what it has earned, set payout details. |
 | `/notifications` | Your notifications. |
 | `/auth/register` | Create a free account. |
 | `/auth/login` | Sign in. |
@@ -73,6 +74,22 @@ Paid, and only these two:
   minimum and maximum, taken from the quote page.
 
 Exact figures are on `/payments`. Do not quote a number from memory; send people there.
+
+## The referral scheme
+
+Anyone with an account can opt in at `/referrals` and gets a link. Someone who signs up
+through it is attributed to them, once and permanently, and the referrer earns a percentage
+of what that person pays — credited only when the money is actually received, and only on
+the two paid products. Attribution earns for a limited window; the record of who introduced
+whom does not expire, the earning does.
+
+Exact figures — the rate, the per-payment cap, the payout minimum and the window — are on
+`/referrals`. **Do not quote any of them from memory**, they are configuration.
+
+Things people ask: you cannot refer yourself; first touch wins and a later link does not
+move someone already attributed; a balance below the payout minimum keeps accruing and is
+never lost; payouts are made by a person against details the referrer supplies, not
+automatically.
 
 ## Rules the site follows that people ask about
 

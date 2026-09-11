@@ -445,6 +445,53 @@ this lands in a `Content-Disposition` header on every download they make.
 Documents are generated on demand and never stored: a profile changes, and the stale copy
 is the one someone would eventually send.
 
+## Referrals and commissions
+
+**The ledger IS the balance.** There is no cached total on the referrer row —
+`Referral.balanceFor` is a SUM over `commission_ledger`, exactly as a points total is a SUM
+over `points_ledger`, and here the reason is stronger because this is money somebody is
+owed. The reference implementation kept `pending_earnings`, `total_earnings` and
+`paid_earnings` alongside the rows that produced them; the first time a crash lands between
+two statements, nobody can say which number is right.
+
+**Integers, minor units, basis points.** A rate is `rate_bps` (1000 = 10.00%), so
+`amount_minor * rate_bps / 10000` is exact. The reference stored a DECIMAL percentage and
+reconciled payouts with `parseFloat` plus a `+ 0.001` tolerance in every comparison — that
+tolerance is the bug made visible. `commissionMinor` is strict about the TYPE, not just the
+value: a numeric string means a caller handed it unvalidated request data, and coercing it
+is how a form field becomes a liability. It rounds DOWN, because rounding a debt up by
+default puts a balance above what the ledger can cover.
+
+**Commission is credited on money RECEIVED.** `Referral.credit` is called from
+`services/paymentFulfilment.js` and nowhere else, outside the fulfilment transaction: a
+bookkeeping failure must not roll back what the customer paid for. It never throws and is
+idempotent on `earn:<payment id>`, so the webhook and the success page racing produce one
+entry.
+
+**A zero entry is still written** when the product pays nothing. "Your introduction bought
+something and it earned nothing" is information the referrer is owed; a gap is what
+produces the email asking where their money went.
+
+**Attribution is first touch and permanent** — `UNIQUE (referred_user_id)` makes a second
+attribution a no-op. Last touch would let anyone claim someone else's introduction by
+getting a link in front of them the day before they pay. The rate and the earning window
+are SNAPSHOT on the attribution row, so renegotiating a rate or extending the window never
+reprices an introduction made under different terms. Self-referral is refused before
+anything is written; there is no path that creates one to clean up later.
+
+**A payout settles the whole unpaid balance**, never an amount someone types. The reference
+matched a requested figure against unpaid rows FIFO and produced refusals like "requested
+€3 cannot be matched exactly by unpaid commissions" — a problem created entirely by that
+design. `payout_id` is the one column on the ledger that is ever updated, and only from
+NULL, inside the transaction that locks the rows.
+
+**No automatic clawback.** A refund does not silently reverse a commission. `Referral.adjust`
+writes a compensating entry and requires a human and a reason the referrer will see, for
+the same reason `needs_refund` on a payment is a queue rather than an API call.
+
+Which products pay is named in `config/referrals.js`, not inferred: adding a product to
+`config/payments.js` must not silently create a liability.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

@@ -4,6 +4,7 @@ const { promisePool, withTransaction } = require('../config/database');
 const Payment = require('../models/Payment');
 const Invoice = require('../models/Invoice');
 const Notification = require('../models/Notification');
+const Referral = require('../models/Referral');
 const { JOB_FEATURE_DAYS, formatMinor } = require('../config/payments');
 
 /**
@@ -163,6 +164,20 @@ async function fulfil(payment, { source = 'unknown', stripeSessionId = null, str
     }
     throw err;
   }
+
+  /*
+   * Commission is credited HERE — on money actually received — and nowhere else.
+   *
+   * Not at checkout creation, not on a quote's headline figure: a scheme that credits on
+   * anything but a settled payment ends up owing people a percentage of revenue that
+   * never arrived. `Referral.credit` never throws and is idempotent on the payment id,
+   * so the webhook and the success page racing each other produce exactly one entry, and
+   * a commission problem cannot break a service the customer has already paid for.
+   *
+   * Outside the transaction above on purpose: the fulfilment and the invoice are what the
+   * buyer paid for, and they must not be rolled back by a bookkeeping failure.
+   */
+  await Referral.credit(settled);
 
   // Only the caller that actually claimed the payment tells the buyer, so a webhook and
   // a page refresh do not produce two receipts. The dedupe key would make a second one

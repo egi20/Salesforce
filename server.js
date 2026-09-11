@@ -18,6 +18,7 @@ const { seoLocals } = require('./config/seoMeta');
 const { assertPaymentIntegrity, WEBHOOK_PATH } = require('./config/payments');
 const assistantConfig = require('./config/assistant');
 const { assertSettingsIntegrity } = require('./config/settings');
+const { assertReferralIntegrity } = require('./config/referrals');
 const AppSetting = require('./models/AppSetting');
 const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
@@ -41,6 +42,9 @@ assertPaymentIntegrity();
 // price does not fail at request time, it fails as an invoice at the end of the month.
 assistantConfig.assertAssistantIntegrity();
 assertSettingsIntegrity();
+// And for the scheme that owes people money: a rate above its own ceiling, or a payout
+// floor no commission can reach, fails as a person asking why they have not been paid.
+assertReferralIntegrity();
 
 const app = express();
 
@@ -230,6 +234,7 @@ app.use('/quotes', require('./routes/quotes'));
 app.use('/rates', require('./routes/rates'));
 app.use('/payments', require('./routes/payments'));
 app.use('/assistant', require('./routes/assistant'));
+app.use('/referrals', require('./routes/referrals'));
 app.use('/messages', require('./routes/messages'));
 app.use('/notifications', require('./routes/notifications'));
 app.use('/admin', require('./routes/admin'));

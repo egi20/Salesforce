@@ -97,6 +97,18 @@
   });
 
   /**
+   * Select the whole value of a read-only field when it is focused.
+   *
+   * Delegated rather than an inline `onfocus`, so no view carries executable markup.
+   * Without JavaScript the field still shows the full value and can be selected by hand —
+   * this only saves a drag.
+   */
+  document.addEventListener('focusin', function (event) {
+    var field = event.target;
+    if (field && field.hasAttribute && field.hasAttribute('data-select-on-focus')) field.select();
+  });
+
+  /**
    * Availability date is only meaningful for a profile that is actually available.
    * Purely a convenience: the server does not depend on it.
    */

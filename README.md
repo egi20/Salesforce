@@ -27,15 +27,15 @@ Server-rendered Express + EJS on MySQL 8. No SPA, no ORM, no build step for serv
 | Payments: featured job placements, quote deposits, invoices, Stripe webhook | built |
 | In-site assistant: site help on every page, with rate limits and a spend cap | built |
 | Consultant tooling: delivery history, generated CV and rate card, contract rate calculator | built |
+| Referrals: shareable link, append-only commission ledger, admin payouts | built |
 | Moderation: hide and restore community content, void a bad rate submission, audit log | built |
 | Admin: users, jobs, moderation, analytics, settings, error log, payments, AI spend | built |
 | SEO: canonicals, JobPosting JSON-LD, sitemap generated from the robots allowlist | built |
 
 Deliberately not built yet, and listed so nobody mistakes the scope: AI drafting of the
-quote narrative sections, referral commissions, record deduplication, finance/P&L
-reporting, a tax service, a certification practice bank, a sales CRM, LinkedIn
-verification, and a Salesforce org integration. See
-[`docs/ROADMAP.md`](docs/ROADMAP.md).
+quote narrative sections, record deduplication, finance/P&L reporting, a tax service, a
+certification practice bank, a sales CRM, LinkedIn verification, and a Salesforce org
+integration. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -208,6 +208,13 @@ drift, and the whole projection is reconciled before it renders.
 no invented profile statement. The reference implementation put a language model here; what
 that buys is fluent text about a career the model does not know, and what it costs is a
 sentence the consultant never wrote in a document they send to a client.
+
+**A commission balance is a SUM, never a stored number.** `commission_ledger` is
+append-only and signed, in minor units, with a unique dedupe key per entry; the balance is
+derived from it. A cached total alongside the rows that produced it is unauditable the
+moment the two disagree, and this is money somebody is owed. Commission is credited when a
+payment is actually received, attribution is first-touch and permanent, and a refund never
+claws one back automatically — that takes a person and a reason the referrer can read.
 
 **Content is hidden, never deleted.** A hide is reversible, keeps the row so counters and
 foreign keys stay consistent, and is written to an append-only log — so "who took this down

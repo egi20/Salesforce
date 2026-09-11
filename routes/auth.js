@@ -10,6 +10,7 @@ const CompanyProfile = require('../models/CompanyProfile');
 const { isGuest, isAuthenticated } = require('../middleware/auth');
 const { loginLimiter, registerLimiter, passwordLimiter } = require('../middleware/rateLimit');
 const { registrationOpen } = require('../middleware/settingsGates');
+const Referral = require('../models/Referral');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { safePath } = require('../utils/safeRedirect');
 const { countryFromIp, clientIp, packIp } = require('../utils/geo');
@@ -52,9 +53,13 @@ const registerValidators = [
 ];
 
 router.get('/register', isGuest, registrationOpen, (req, res) => {
+  // `?ref=` is honoured as well as the session, so a link pasted straight to the form
+  // still attributes. It is only ever a code — everything about the referrer is re-read
+  // from the database.
+  const ref = Referral.normaliseCode(req.query.ref) || req.session.referralCode || '';
   res.render('auth/register', {
     title: 'Create an account',
-    values: {},
+    values: { ref },
     errors: [],
     redirect: safePath(req.query.redirect, '')
   });
@@ -110,6 +115,20 @@ router.post(
 
     if (finalRoles.includes('consultant')) await ConsultantProfile.ensureExists(user.id);
     if (finalRoles.includes('company')) await CompanyProfile.ensureExists(user.id, req.body.company_name || user.name);
+
+    /*
+     * Attribution, once, at the only moment it can happen.
+     *
+     * The session is checked BEFORE the form field: the session value was put there by
+     * the `/r/:code` route the visitor actually followed, whereas the field is whatever
+     * the browser posted and could name anybody. Neither is trusted beyond being a code —
+     * `Referral.attribute` re-reads the referrer, refuses a self-referral, and the unique
+     * key on `referred_user_id` makes a second attribution a no-op.
+     *
+     * Fire and forget: a registration that succeeded must not fail over bookkeeping.
+     */
+    await Referral.attribute(req.session.referralCode || req.body.ref, user.id);
+    delete req.session.referralCode;
 
     const { token } = await Token.issue('email_verification', user.id);
     email.send({

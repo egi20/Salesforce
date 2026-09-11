@@ -20,6 +20,15 @@
           <form method="post" action="/auth/register" novalidate>
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <input type="hidden" name="redirect" value="<%= redirect %>">
+            <%
+              /*
+               * The referral code carried through a failed validation, so someone who
+               * mistypes their password does not lose the attribution. The session copy is
+               * checked first server-side, so this field is a convenience, not the source
+               * of truth.
+               */
+            %>
+            <input type="hidden" name="ref" value="<%= values.ref || '' %>">
 
             <fieldset class="mb-3">
               <legend class="form-label">I am</legend>

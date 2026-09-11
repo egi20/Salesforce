@@ -17,6 +17,14 @@ const { sanitizeRichText } = require('../utils/sanitize');
 const { ROLE_CATEGORIES, ROLE_SLUGS } = require('../config/roleTaxonomy');
 const { CERTIFICATIONS } = require('../config/certifications');
 const countries = require('../config/all-countries.json');
+const { ALL_MODULES } = require('../config/cloudFamilies');
+const { build: buildDossier } = require('../services/consultantDossier');
+const {
+  isDocumentKind,
+  PACKAGE_KIND,
+  generateDocument,
+  generatePackage
+} = require('../services/consultantPackage');
 
 const router = express.Router();
 
@@ -89,10 +97,11 @@ router.get(
   asyncHandler(async (req, res) => {
     const userId = req.session.user.id;
     const profile = await ConsultantProfile.ensureExists(userId);
-    const [skills, certifications, experiences] = await Promise.all([
+    const [skills, certifications, experiences, projects] = await Promise.all([
       Skill.forConsultant(userId),
       ConsultantProfile.listCertifications(userId),
-      ConsultantProfile.listExperiences(userId)
+      ConsultantProfile.listExperiences(userId),
+      ConsultantProfile.listProjects(userId)
     ]);
 
     res.render('profile/consultant', {
@@ -101,6 +110,8 @@ router.get(
       skills,
       certifications,
       experiences,
+      projects,
+      allModules: ALL_MODULES,
       roleCategories: ROLE_CATEGORIES,
       certificationGroups: CERTIFICATIONS,
       countries,
@@ -278,6 +289,108 @@ router.post(
     await ConsultantProfile.removeExperience(req.session.user.id, req.params.id);
     req.flash('success', 'Experience removed.');
     return res.redirect('/profile/consultant');
+  })
+);
+
+/**
+ * Delivery history.
+ *
+ * `consultant_projects` has been in the schema since migration 002 with nothing reading or
+ * writing it — which meant the CV's most useful section was always empty. For a contractor
+ * this is the substance of the document: which orgs, which clouds, what shipped. The
+ * employer column matters far less, and through an agency it is often the same name on
+ * every line.
+ */
+router.post(
+  '/consultant/projects',
+  isConsultant,
+  writeLimiter,
+  [
+    body('name').trim().isLength({ min: 2, max: 200 }),
+    body('client').optional({ checkFalsy: true }).trim().isLength({ max: 180 })
+  ],
+  asyncHandler(async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      req.flash('error', 'Give the engagement a name of at least two characters.');
+      return res.redirect('/profile/consultant');
+    }
+
+    await ConsultantProfile.addProject(req.session.user.id, {
+      name: req.body.name.trim(),
+      client: (req.body.client || '').trim() || null,
+      // Both are taxonomy slugs, checked against the catalogue rather than trusted: a
+      // stored value that is not in `config/cloudFamilies.js` renders as a blank label.
+      cloud: ALL_MODULES.some((m) => m.value === req.body.cloud) ? req.body.cloud : null,
+      role: ROLE_SLUGS.includes(req.body.role) ? req.body.role : null,
+      startedOn: req.body.started_on || null,
+      endedOn: req.body.ended_on || null,
+      description: sanitizeRichText(req.body.description || '')
+    });
+
+    req.flash('success', 'Engagement added. It will appear on your CV.');
+    return res.redirect('/profile/consultant');
+  })
+);
+
+router.post(
+  '/consultant/projects/:id/delete',
+  isConsultant,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    await ConsultantProfile.removeProject(req.session.user.id, req.params.id);
+    req.flash('success', 'Engagement removed.');
+    return res.redirect('/profile/consultant');
+  })
+);
+
+/**
+ * GET /profile/consultant/download/:kind — cv, rate-card, or the two zipped.
+ *
+ * Generated on demand and never stored, exactly as the quote documents are. Storing them
+ * would create a second source of truth for a profile that changes, and the stale copy is
+ * the one someone would eventually send.
+ *
+ * A generator that fails its own validity check produces a message to the author rather
+ * than a served file: it can only mean a bug here, and a .docx that downloads fine and
+ * then will not open is experienced as "you sent me a corrupt file".
+ */
+router.get(
+  '/consultant/download/:kind',
+  isConsultant,
+  asyncHandler(async (req, res) => {
+    const { kind } = req.params;
+    if (kind !== PACKAGE_KIND && !isDocumentKind(kind)) {
+      return res.status(404).render('errors/404', { title: 'Not found' });
+    }
+
+    const dossier = await buildDossier(req.session.user.id);
+    if (!dossier) {
+      req.flash('error', 'Build your profile first — there is nothing to put in a document yet.');
+      return res.redirect('/profile/consultant');
+    }
+
+    let result;
+    try {
+      result = kind === PACKAGE_KIND
+        ? await generatePackage(dossier)
+        : await generateDocument(dossier, kind);
+    } catch (err) {
+      if (err.code === 'DOCUMENT_MALFORMED') {
+        req.flash('error', 'That document did not generate correctly and was not sent. Please report it.');
+        return res.redirect('/profile/consultant');
+      }
+      throw err;
+    }
+
+    res.set('Content-Type', result.contentType);
+    // The filename is built from a slugified name, so it cannot inject a header.
+    res.set('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.set('Content-Length', String(result.buffer.length));
+    // Somebody's CV is private and must not sit in a shared cache.
+    res.set('Cache-Control', 'private, no-store');
+    return res.send(result.buffer);
   })
 );
 

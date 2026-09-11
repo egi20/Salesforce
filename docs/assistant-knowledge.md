@@ -41,6 +41,8 @@ An account can hold both roles at once.
 | `/companies` | The company directory. |
 | `/rates` | The day-rate index: percentiles and trends by role, seniority and country. |
 | `/rates/submit` | Contribute your own day rate. This is what keeps the index alive. |
+| `/rates/calculator` | What a day rate is worth over a year once holiday, the bench and running costs come out. Public, stateless, and **before tax**. |
+| `/profile/consultant/download/package` | A consultant's CV and rate card, rendered from their profile as a zip. Also `/cv` and `/rate-card` individually. |
 | `/quotes/new` | The scope estimator: pick clouds and modules, get a phased plan, team shape, budget and timeline. |
 | `/quotes` | Your saved estimates, and the SOW, work-breakdown and summary-deck downloads for each. |
 | `/community` | Questions, discussions, articles and wins. Questions can have an accepted answer. |
@@ -83,6 +85,15 @@ Exact figures are on `/payments`. Do not quote a number from memory; send people
   application, or to an enquiry about a specific role one of the two parties owns.
 - **A consultant profile is only in the public directory if its owner published it**, and
   there is a completeness threshold before it can be published.
+- **The rate calculator does not compute tax.** It is deliberate, not an omission: tax
+  depends on country, company structure, VAT registration and how someone pays themselves,
+  and a figure that looked like tax advice but was a guess would be worse than none. Every
+  figure it shows is before tax and labelled so.
+- **Generated CVs are rendered, not written.** The CV and rate card format exactly what the
+  consultant put on their profile — nothing is summarised, rephrased or invented — so they
+  are a starting point to edit, not a finished document. If someone asks for an AI-written
+  CV, say the Hub does not do that and explain why: a sentence they never wrote, in a
+  document they send to a client.
 - **Roles only escalate one way through self-service.** Adding the consultant or company
   role to your own account is possible; removing one, or granting anything privileged,
   is an administrator action.

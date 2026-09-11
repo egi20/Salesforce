@@ -1,0 +1,270 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', {
+  icon: 'bi-calculator',
+  heading: 'Contract rate calculator',
+  sub: 'What a day rate is actually worth over a year — and what rate a target needs.'
+}) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    <strong>Everything here is before tax.</strong> Tax depends on your country, your company
+    structure, VAT registration and how you pay yourself — a figure that looked like tax advice
+    but was a guess would be worse than none, so this does not produce one. Take these numbers
+    to an accountant.
+  </div>
+
+  <form method="get" action="/rates/calculator">
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-3">Your rate</h2>
+            <div class="mb-3">
+              <label class="form-label" for="dayRate">Day rate (EUR)</label>
+              <input class="form-control form-control-lg" id="dayRate" name="dayRate" type="number"
+                     min="1" max="10000" step="25" value="<%= projection.assumptions.dayRate %>" required>
+            </div>
+            <div class="mb-0">
+              <label class="form-label" for="targetNet">Target for the year, before tax (optional)</label>
+              <input class="form-control" id="targetNet" name="targetNet" type="number" min="0" step="1000"
+                     value="<%= targetNet || '' %>" placeholder="e.g. 120000">
+              <div class="form-text">Answers the question the other way round: what rate gets you here.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-1">Days you will not invoice</h2>
+            <p class="small text-muted-2">
+              Named one by one rather than rolled into a single “utilisation” percentage. 80%
+              sounds fine until you notice it has to cover all of these at once.
+            </p>
+            <% dayCategories.forEach(function (c) { %>
+              <div class="mb-3">
+                <label class="form-label" for="<%= c.key %>"><%= c.label %></label>
+                <input class="form-control" id="<%= c.key %>" name="<%= c.key %>" type="number"
+                       min="0" max="260" value="<%= projection.assumptions[c.key] %>">
+                <div class="form-text"><%= c.help %></div>
+              </div>
+            <% }); %>
+          </div>
+        </div>
+
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-1">Annual running costs</h2>
+            <p class="small text-muted-2">Every one of these is an invoice somebody sends you.</p>
+            <% costCategories.forEach(function (c) { %>
+              <div class="mb-3">
+                <label class="form-label" for="<%= c.key %>"><%= c.label %> (EUR)</label>
+                <input class="form-control" id="<%= c.key %>" name="<%= c.key %>" type="number"
+                       min="0" max="1000000" step="50" value="<%= projection.assumptions[c.key] %>">
+                <div class="form-text"><%= c.help %></div>
+              </div>
+            <% }); %>
+          </div>
+        </div>
+
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-3">Compare against the index</h2>
+            <div class="mb-2">
+              <label class="form-label" for="role">Role</label>
+              <select class="form-select" id="role" name="role">
+                <option value="">Skip the comparison</option>
+                <% roleCategories.forEach(function (cat) { %>
+                  <optgroup label="<%= cat.category %>">
+                    <% cat.roles.forEach(function (r) { %>
+                      <option value="<%= r.value %>" <%= role === r.value ? 'selected' : '' %>><%= r.label %></option>
+                    <% }); %>
+                  </optgroup>
+                <% }); %>
+              </select>
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label" for="seniority">Seniority</label>
+                <select class="form-select" id="seniority" name="seniority">
+                  <option value="">Any</option>
+                  <% seniorities.forEach(function (s) { %>
+                    <option value="<%= s %>" <%= seniority === s ? 'selected' : '' %>><%= s %></option>
+                  <% }); %>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label" for="country">Country</label>
+                <select class="form-select" id="country" name="country">
+                  <option value="">Any</option>
+                  <% countries.forEach(function (c) { %>
+                    <option value="<%= c.code %>" <%= country === c.code ? 'selected' : '' %>><%= c.name %></option>
+                  <% }); %>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary w-100" type="submit">Work it out</button>
+      </div>
+
+      <div class="col-lg-7">
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-3">The year</h2>
+
+            <div class="row g-3 mb-3">
+              <div class="col-6 col-md-3">
+                <div class="stat-tile">
+                  <div class="value"><%= projection.days.billable %></div>
+                  <div class="label">billable days</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="stat-tile">
+                  <div class="value"><%= projection.days.utilisationPercent %>%</div>
+                  <div class="label">of the working year</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="stat-tile">
+                  <div class="value"><%= projection.money.revenue.toLocaleString('en-GB') %></div>
+                  <div class="label">revenue, EUR</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="stat-tile">
+                  <div class="value"><%= projection.money.netBeforeTax.toLocaleString('en-GB') %></div>
+                  <div class="label">net before tax</div>
+                </div>
+              </div>
+            </div>
+
+            <table class="table table-sm mb-0">
+              <tbody>
+                <tr>
+                  <th scope="row">Working days</th>
+                  <td class="text-end"><%= projection.days.working %></td>
+                </tr>
+                <% projection.days.breakdown.forEach(function (row) { %>
+                  <tr class="text-muted-2">
+                    <td class="ps-4">− <%= row.label %></td>
+                    <td class="text-end">−<%= row.days %></td>
+                  </tr>
+                <% }); %>
+                <tr class="border-top">
+                  <th scope="row">Billable days</th>
+                  <td class="text-end fw-semibold"><%= projection.days.billable %></td>
+                </tr>
+                <tr>
+                  <th scope="row">× <%= projection.assumptions.dayRate.toLocaleString('en-GB') %> EUR</th>
+                  <td class="text-end fw-semibold"><%= projection.money.revenue.toLocaleString('en-GB') %></td>
+                </tr>
+                <% projection.money.costBreakdown.forEach(function (row) { %>
+                  <% if (row.amount) { %>
+                    <tr class="text-muted-2">
+                      <td class="ps-4">− <%= row.label %></td>
+                      <td class="text-end">−<%= row.amount.toLocaleString('en-GB') %></td>
+                    </tr>
+                  <% } %>
+                <% }); %>
+                <tr class="border-top">
+                  <th scope="row">Net before tax</th>
+                  <td class="text-end invoice-total"><%= projection.money.netBeforeTax.toLocaleString('en-GB') %> EUR</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <h2 class="h6">What one invoiced day is really worth</h2>
+            <p class="invoice-total mb-1"><%= projection.money.effectiveDayRate.toLocaleString('en-GB') %> EUR</p>
+            <p class="small text-muted-2 mb-0">
+              Your headline rate is <%= projection.assumptions.dayRate.toLocaleString('en-GB') %>. Spread the
+              unbillable days and the running costs back across the days you do invoice and this is what is
+              left. It is the number to compare against a salary — and it is always lower than the one on
+              the contract.
+            </p>
+          </div>
+        </div>
+
+        <% if (requiredRate) { %>
+          <div class="glass-card mb-3">
+            <div class="card-body">
+              <h2 class="h6">To clear <%= targetNet.toLocaleString('en-GB') %> EUR before tax</h2>
+              <p class="invoice-total mb-1"><%= requiredRate.toLocaleString('en-GB') %> EUR / day</p>
+              <p class="small text-muted-2 mb-0">
+                On the same assumptions — <%= projection.days.billable %> billable days and
+                <%= projection.money.costs.toLocaleString('en-GB') %> EUR of costs. Rounded up, because a rate
+                that lands a euro short every year is the wrong kind of precise.
+              </p>
+            </div>
+          </div>
+        <% } %>
+
+        <% if (market) { %>
+          <div class="glass-card mb-3">
+            <div class="card-body">
+              <h2 class="h6 mb-2">Against the rate index</h2>
+              <% if (!market.position) { %>
+                <%
+                  /* A suppressed bucket is a GAP, never a zero. The index refuses to publish
+                     a figure derived from fewer than `minSample` distinct people, and that
+                     refusal has to survive all the way out to here. */
+                %>
+                <p class="small text-muted-2 mb-0">
+                  Not enough contributors in that bucket yet — the index needs at least
+                  <%= minSample %> distinct people before it will publish a figure, and it
+                  currently has <%= market.summary.contributors %>.
+                  <a href="/rates/submit">Adding yours</a> is what fixes that.
+                </p>
+              <% } else { %>
+                <p class="mb-2">
+                  The median for this bucket is
+                  <strong><%= market.position.median.toLocaleString('en-GB') %> EUR</strong>,
+                  from <%= market.summary.contributors %> people.
+                </p>
+                <p class="mb-0">
+                  <%
+                    const tone = market.position.band === 'above' ? 'ok'
+                      : market.position.band === 'below' ? 'warn' : 'cloud';
+                  %>
+                  <span class="badge-hub <%= tone %>">
+                    <%= market.position.differencePercent > 0 ? '+' : '' %><%= market.position.differencePercent %>%
+                    <%= market.position.band === 'around' ? 'around the median' : market.position.band + ' the median' %>
+                  </span>
+                </p>
+                <p class="small text-muted-2 mb-0 mt-2">
+                  The band is deliberately coarse. This is a sample of a few dozen people; implying
+                  that 7% above is meaningfully different from 3% would be false precision.
+                </p>
+              <% } %>
+            </div>
+          </div>
+        <% } %>
+
+        <div class="glass-card">
+          <div class="card-body">
+            <h2 class="h6">What this does not include</h2>
+            <ul class="small text-muted-2 mb-0">
+              <li><strong>Tax, of any kind.</strong> Income tax, corporation tax, social contributions, VAT.</li>
+              <li>Pension, unless you put a number in the box. Nobody else is contributing one.</li>
+              <li>Notice periods, late payment, and clients who pay at 60 days.</li>
+              <li>The fact that a 260-day working year is a convention, not a calendar.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

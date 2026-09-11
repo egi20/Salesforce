@@ -283,6 +283,50 @@ class ConsultantProfile {
     await promisePool.query('DELETE FROM consultant_work_experiences WHERE id = ? AND user_id = ?', [experienceId, userId]);
     await ConsultantProfile.recomputeCompleteness(userId);
   }
+
+  /**
+   * Delivery history: the engagements themselves, as distinct from employment.
+   *
+   * `consultant_projects` has existed since migration 002 with nothing reading or writing
+   * it, which meant the CV's most useful section was always empty. A contractor's CV is
+   * mostly "which orgs, which clouds, what did you actually ship" — the employer column
+   * matters far less than it does for a permanent role, and for someone through an agency
+   * it may be the same company for every line.
+   *
+   * Ordered by end date with anything still running first: a current engagement is the one
+   * a reader wants at the top.
+   */
+  static async listProjects(userId) {
+    const [rows] = await promisePool.query(
+      `SELECT * FROM consultant_projects WHERE user_id = ?
+        ORDER BY ended_on IS NULL DESC, ended_on DESC, started_on DESC`,
+      [userId]
+    );
+    return rows;
+  }
+
+  static async addProject(userId, project) {
+    await promisePool.query(
+      `INSERT INTO consultant_projects (user_id, name, client, cloud, role, started_on, ended_on, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        userId,
+        project.name,
+        project.client || null,
+        project.cloud || null,
+        project.role || null,
+        project.startedOn || null,
+        project.endedOn || null,
+        project.description || null
+      ]
+    );
+    await ConsultantProfile.recomputeCompleteness(userId);
+  }
+
+  static async removeProject(userId, projectId) {
+    await promisePool.query('DELETE FROM consultant_projects WHERE id = ? AND user_id = ?', [projectId, userId]);
+    await ConsultantProfile.recomputeCompleteness(userId);
+  }
 }
 
 module.exports = ConsultantProfile;

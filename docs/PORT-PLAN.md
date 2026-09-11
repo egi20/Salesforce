@@ -19,7 +19,7 @@ handlers cover a feature that is better here than there.
 | Quotes & estimator | 29 | 7 | Deterministic half done; AI drafting is not |
 | Documents (SOW/WBS/deck) | 17 | — | Generated on demand from the stored estimate |
 | Messaging | 6 | 5 | Anchored to a subject rather than keyed per user pair |
-| Profiles | 47 | 15 | Core done; CV builder and rate calculator are not |
+| Profiles | 47 | 20 | Core, delivery history, generated CV and rate card, rate calculator |
 | Companies | 10 | 3 | Directory and profile |
 | Consultants | 33 | 3 | Directory and profile |
 | Notifications | 5 | 4 | |
@@ -31,21 +31,22 @@ handlers cover a feature that is better here than there.
 
 ## Next, in order
 
-1. **Consultant tooling** (part of 33) — CV builder, rate calculator, document packages.
-2. **Referrals & commissions** (9) — every credit path through one function that pays
+1. **Referrals & commissions** (9) — every credit path through one function that pays
    referrer and agent together, all mutations transactional and idempotent, no automatic
    clawback.
-3. **LinkedIn verification** (9) — OAuth to prove identity, never as a sign-in method. Note
+2. **LinkedIn verification** (9) — OAuth to prove identity, never as a sign-in method. Note
    there is no API for sending connection requests or DMs; any feature implying automated
    outreach would be a lie.
-4. **Document generator for CVs and cover letters** (17).
-5. **Company document templates** (16).
-6. **Search across everything** (1) — one box spanning jobs, consultants and companies,
+3. **AI drafting** (part of the reference's 17 doc-generator handlers) — prose for the
+   narrative sections of a SOW, and optionally a tailored cover letter. NOT a replacement
+   for the CV generator: that renders what the consultant wrote and should keep doing so.
+4. **Company document templates** (16).
+5. **Search across everything** (1) — one box spanning jobs, consultants and companies,
    behind the existing filter builders.
-7. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
+6. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
    are an internal sales tool and an accounting system that happen to live in the same
    repository.
-8. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
+7. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
     games (13).
 
 ## Done since this plan was written
@@ -62,7 +63,7 @@ area. Departures from the reference, each for a stated reason:
   `hasFulfillment()` check the next handler can forget to call.
 - No automatic refund. A payment that cannot be fulfilled is flagged and worked by a
   person.
-- No commission or referral machinery yet: that is item 2 above, and wiring it in before
+- No commission or referral machinery yet: that is item 1 above, and wiring it in before
   there is a referral model would be inventing the requirement.
 
 **The in-site assistant.** A floating helper on every page, answering from
@@ -97,6 +98,21 @@ validator), the newsletter sender, the CRM-adjacent screens (contacts, referrers
 agents, recruiters, team, success stories), and the SOW config editor — that last one on
 principle, since it would move estimate inputs out of version control and into a form with
 no author, diff or review.
+
+**Consultant tooling.** Delivery history (the `consultant_projects` table had been in the
+schema since migration 002 with nothing reading or writing it, so the CV's most useful
+section was always empty), a generated CV and rate card, and a contract rate calculator.
+
+Two deliberate departures from the reference, both of which made this far smaller than the
+8,000 lines it spends there:
+
+- **No LLM in the CV.** It renders the structured profile the consultant already entered.
+  Fluent text about a career the model does not know is not worth a sentence they never
+  wrote in a document they send to a client.
+- **No tax calculation.** The reference's `calculateTaxSavings` is a hard-coded 30%
+  against a hard-coded 5%, with its own comment calling it placeholder logic, presented to
+  users as a saving. Everything in `utils/contractorEconomics.js` is before tax and says
+  so.
 
 ## Excluded
 

@@ -26,6 +26,7 @@ Server-rendered Express + EJS on MySQL 8. No SPA, no ORM, no build step for serv
 | Notifications, saved jobs, dashboards | built |
 | Payments: featured job placements, quote deposits, invoices, Stripe webhook | built |
 | In-site assistant: site help on every page, with rate limits and a spend cap | built |
+| Consultant tooling: delivery history, generated CV and rate card, contract rate calculator | built |
 | Moderation: hide and restore community content, void a bad rate submission, audit log | built |
 | Admin: users, jobs, moderation, analytics, settings, error log, payments, AI spend | built |
 | SEO: canonicals, JobPosting JSON-LD, sitemap generated from the robots allowlist | built |
@@ -195,6 +196,18 @@ product; it re-checks ownership and eligibility against the database and answers
 amount. The route asks and never decides, so there is no submitted number to validate and
 nothing to tamper with. Every amount is an integer of minor units, because a float euro
 ends up a cent away from the sum of its parts.
+
+**The rate calculator does not compute tax, and that is the point.** Tax depends on
+jurisdiction, entity type, VAT status and how someone pays themselves. A figure that looks
+like tax advice but is a guess is worse than none, because people act on it. Everything it
+shows is before tax and says so; a test asserts the module exposes nothing tax-shaped. Its
+two directions — rate to net, and target to required rate — are one formula, so they cannot
+drift, and the whole projection is reconciled before it renders.
+
+**A generated CV renders the profile; it never writes prose.** No summary, no rephrasing,
+no invented profile statement. The reference implementation put a language model here; what
+that buys is fluent text about a career the model does not know, and what it costs is a
+sentence the consultant never wrote in a document they send to a client.
 
 **Content is hidden, never deleted.** A hide is reversible, keeps the row so counters and
 foreign keys stay consistent, and is written to an append-only log — so "who took this down

@@ -11,6 +11,14 @@ const { ROLE_CATEGORIES, ROLE_SLUGS, isValidRole, baseDayRate } = require('../co
 const { MIN_SAMPLE } = require('../utils/rateAggregation');
 const countries = require('../config/all-countries.json');
 const config = require('../config/config');
+const {
+  project,
+  rateForTarget,
+  positionAgainstMarket,
+  reconciliationProblems,
+  DAY_CATEGORIES,
+  COST_CATEGORIES
+} = require('../utils/contractorEconomics');
 
 const router = express.Router();
 
@@ -115,6 +123,80 @@ router.post(
       `Thank you. Your figure counts towards this month, and no bucket is published until at least ${config.rates.minSampleSize} people have contributed to it.`
     );
     return res.redirect(`/rates?role=${encodeURIComponent(req.body.role)}`);
+  })
+);
+
+/**
+ * GET /rates/calculator — what a day rate is actually worth over a year.
+ *
+ * PUBLIC and stateless. Public because the question is asked before anyone signs up, and
+ * because the rate index it compares against is public too. Stateless because the inputs
+ * are somebody's private financial assumptions — what they expect to be ill, how long they
+ * expect to sit on the bench — and there is no reason for this application to hold any of
+ * that. The whole state is in the query string, which also makes a working through
+ * shareable by copying the URL.
+ *
+ * The market comparison is READ from the index's own answer, so the n-person privacy floor
+ * is applied exactly once, in `utils/rateAggregation.js`, and a suppressed bucket arrives
+ * as null rather than as a zero to divide by.
+ */
+router.get(
+  '/calculator',
+  asyncHandler(async (req, res) => {
+    const submitted = Object.keys(req.query).length > 0;
+
+    const projection = project(req.query);
+    /*
+     * Re-checked before it is shown, exactly as `routes/quotes.js` re-checks an estimate:
+     * a projection whose parts do not add up can only mean a bug in the engine, and
+     * someone is about to plan a year around this.
+     */
+    const problems = reconciliationProblems(projection);
+    if (problems.length) {
+      const err = new Error(`Rate projection failed its own reconciliation: ${problems.join('; ')}`);
+      err.status = 500;
+      throw err;
+    }
+
+    const targetNet = Number(req.query.targetNet) || 0;
+    const requiredRate = targetNet > 0 ? rateForTarget(targetNet, req.query) : null;
+
+    // Compare against the same bucket the index would show, when one was chosen.
+    const role = isValidRole(req.query.role) ? req.query.role : '';
+    const seniority = SENIORITIES.includes(req.query.seniority) ? req.query.seniority : '';
+    let market = null;
+    if (role) {
+      const summary = await RateSubmission.summary({
+        role,
+        seniority,
+        engagementType: 'contract',
+        country: /^[A-Z]{2}$/.test(req.query.country || '') ? req.query.country : ''
+      });
+      // `median` is null for a bucket below the floor. positionAgainstMarket answers null
+      // for that, and the view says "not enough contributors" rather than showing a zero.
+      market = {
+        summary,
+        position: positionAgainstMarket(projection.assumptions.dayRate, summary && summary.median)
+      };
+    }
+
+    return res.render('rates/calculator', {
+      title: 'Contract rate calculator',
+      submitted,
+      projection,
+      targetNet,
+      requiredRate,
+      market,
+      role,
+      seniority,
+      country: /^[A-Z]{2}$/.test(req.query.country || '') ? req.query.country : '',
+      dayCategories: DAY_CATEGORIES,
+      costCategories: COST_CATEGORIES,
+      roleCategories: ROLE_CATEGORIES,
+      seniorities: SENIORITIES,
+      countries,
+      minSample: MIN_SAMPLE
+    });
   })
 );
 

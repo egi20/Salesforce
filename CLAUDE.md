@@ -396,6 +396,55 @@ not take down every page. The switches are enforced as middleware
 (`middleware/settingsGates.js`) so that turning one off closes every door at once; a gate
 written into three of four write handlers is a gate that is off.
 
+## Consultant documents and the rate calculator
+
+`utils/contractorEconomics.js` is pure, for the same reason `utils/sowEstimation.js` is,
+and it carries one refusal that shapes everything else: **it does not compute tax.** The
+reference implementation shipped a `calculateTaxSavings` that compared a hard-coded 30%
+against a hard-coded 5% and presented the difference as a saving. Tax depends on
+jurisdiction, entity type, VAT status and how someone pays themselves; a number that looks
+like tax advice but is a guess is worse than no number, because people act on it. A test
+asserts the module's surface exposes nothing tax-shaped, so nobody adds one in passing.
+
+Its invariants, re-checked by `reconciliationProblems()` before the page renders, exactly
+as `routes/quotes.js` re-checks an estimate:
+
+1. Billable days = working days − every named non-billable category, EXACTLY.
+2. Net = revenue − costs, on integers.
+3. `rateForTarget` is the exact inverse of `project` under the same assumptions. A rate
+   round-tripped through both must come back unchanged — two directions, one formula.
+
+Non-billable days are NAMED (holiday, illness, bench, admin, training) rather than rolled
+into one utilisation percentage: 80% sounds fine until you notice what it has to cover.
+The market comparison READS the index's own answer so the privacy floor is applied once,
+in `utils/rateAggregation.js`; a suppressed bucket arrives as a null median and is shown as
+"not enough contributors", never as a zero.
+
+The calculator is public and **stateless**. Its inputs are somebody's private financial
+assumptions and there is no reason to hold them; the whole state is in the query string,
+which also makes a working-through shareable.
+
+`utils/documents/cvDocx.js` and `rateCardDocx.js` follow the same two rules as the quote
+generators: **render, never recompute**, and **open it before anyone else has to**. The CV
+formats the dossier from `services/consultantDossier.js` and writes no prose of its own —
+no summary, no rephrasing, no "profile statement". The reference put an LLM here across
+four thousand lines; what that buys is fluent text about a career the model does not know,
+and what it costs is a sentence the consultant never wrote in a document they send to a
+client.
+
+Layout decisions that are deliberate: delivery history before employment (for a contractor
+the engagements are the substance and the employing entity is often an agency), no photo or
+date of birth (discrimination surface, and the Hub has the photo and chooses not to use
+it), one column (two-column CVs are what shred in a recruiter's parser). An expired
+certification is LABELLED, never dropped — hiding it conceals from the consultant exactly
+what a client is about to check.
+
+`filenameFor()` slugifies the consultant's NAME. Unlike a client name typed into one form,
+this lands in a `Content-Disposition` header on every download they make.
+
+Documents are generated on demand and never stored: a profile changes, and the stale copy
+is the one someone would eventually send.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

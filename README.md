@@ -29,14 +29,14 @@ Server-rendered Express + EJS on MySQL 8. No SPA, no ORM, no build step for serv
 | Consultant tooling: delivery history, generated CV and rate card, contract rate calculator | built |
 | Referrals: shareable link, append-only commission ledger, admin payouts | built |
 | LinkedIn: confirm control of an account, link-only, no token stored | built |
+| AI drafting of quote narratives, with every draft checked against the figures | built |
 | Moderation: hide and restore community content, void a bad rate submission, audit log | built |
 | Admin: users, jobs, moderation, analytics, settings, error log, payments, AI spend | built |
 | SEO: canonicals, JobPosting JSON-LD, sitemap generated from the robots allowlist | built |
 
-Deliberately not built yet, and listed so nobody mistakes the scope: AI drafting of the
-quote narrative sections, record deduplication, finance/P&L reporting, a tax service, a
-certification practice bank, a sales CRM, and a Salesforce org integration. See
-[`docs/ROADMAP.md`](docs/ROADMAP.md).
+Deliberately not built yet, and listed so nobody mistakes the scope: record
+deduplication, finance/P&L reporting, a tax service, a certification practice bank, a sales
+CRM, and a Salesforce org integration. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
 
@@ -209,6 +209,14 @@ drift, and the whole projection is reconciled before it renders.
 no invented profile statement. The reference implementation put a language model here; what
 that buys is fluent text about a career the model does not know, and what it costs is a
 sentence the consultant never wrote in a document they send to a client.
+
+**A generated narrative may not contain a figure the estimate does not.** AI drafting
+writes the prose sections of a quote — summary, approach, assumptions, risks — and every
+draft is checked before anyone sees it: any numeral absent from the stored estimate fails
+it, and a failing draft is discarded with its reasons shown rather than silently retried.
+The model is never handed a day count, a cost or a rate, so it cannot repeat one. Drafts
+live in their own table with no code path to `quotes.estimate`, and nothing reaches a
+document until the author reads it, edits it and accepts it.
 
 **The LinkedIn badge says exactly what was checked.** LinkedIn's userinfo response carries
 a name and no vanity URL, headline or positions, so the badge reads "LinkedIn confirmed" —

@@ -29,20 +29,18 @@ handlers cover a feature that is better here than there.
 | Admin | 142 | 18 | Users, jobs, moderation, analytics, settings, errors, payments, AI spend, payouts |
 | Referrals & commissions | 9 | 6 | Link, append-only ledger, admin payouts. One payee type, not three |
 | LinkedIn verification | 9 | 3 | Link-only identity confirmation. No posting, no token stored |
+| AI drafting | part of 17 | 3 | Narrative sections only, every draft verified against the figures |
 | Design system | — | — | Glassmorphism ported, palette re-based on Salesforce blue |
 
 ## Next, in order
 
-1. **AI drafting** (part of the reference's 17 doc-generator handlers) — prose for the
-   narrative sections of a SOW, and optionally a tailored cover letter. NOT a replacement
-   for the CV generator: that renders what the consultant wrote and should keep doing so.
-2. **Company document templates** (16).
-3. **Search across everything** (1) — one box spanning jobs, consultants and companies,
+1. **Company document templates** (16).
+2. **Search across everything** (1) — one box spanning jobs, consultants and companies,
    behind the existing filter builders.
-4. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
+3. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
    are an internal sales tool and an accounting system that happen to live in the same
    repository.
-5. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
+4. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
     games (13).
 
 ## Done since this plan was written
@@ -144,6 +142,23 @@ Also dropped from the reference's version — the `w_member_social` posting scop
 access token, the retained profile payload, and the six handlers that exist to post on
 somebody's behalf. There is no LinkedIn API for connection requests or direct messages, so
 nothing here implies outreach.
+
+**AI drafting.** Prose for the narrative sections of a quote, and nothing else.
+
+The reference spends ~8,000 lines putting a model in front of documents; this is three
+handlers, because the hard part was never the generation. It was deciding what a generated
+paragraph is allowed to say next to figures that reconcile exactly, and then checking it:
+
+- **Every draft is verified.** Any numeral not in the stored estimate fails it, and a
+  failing draft is discarded with its reasons shown to the author — never silently retried.
+- **The model is never given a figure**, so it cannot repeat one. That, not the prompt's
+  politeness, is what makes the rule hold.
+- **Drafts live in their own table.** There is no code path from a model response to
+  `quotes.estimate`, and nothing reaches a document until a person accepts it.
+
+Still not built, deliberately: AI-written CVs and cover letters. `utils/documents/cvDocx.js`
+renders what the consultant wrote and should keep doing so — the reasoning is in the
+consultant-tooling entry above and has not changed.
 
 ## Excluded
 

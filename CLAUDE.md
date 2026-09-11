@@ -540,6 +540,57 @@ There is no LinkedIn API for sending connection requests or direct messages. Any
 implying automated outreach would be a lie, and a test asserts the module exposes nothing
 shaped like one.
 
+## AI drafting for quote narratives
+
+The highest-risk feature here, and the constraints are what make it defensible rather than
+reckless. A quote is a statement made to a client on a date; `utils/sowEstimation.js` exists
+so its parts reconcile exactly. Generated prose beside those figures can only ADD risk.
+
+**THE RULE: the narrative may not contain a numeral the estimate does not contain.**
+`utils/draftVerification.js` checks every draft, and a draft that fails is never stored and
+never shown — the prose equivalent of `assertDocumentOpens`. It is not silently retried:
+the author is told what the model did, because that failure is the one thing this feature
+has to be watched for.
+
+Two things make the rule enforceable rather than merely requested:
+
+1. **The model is never given a figure.** `factsFor()` hands over modules, phases by name
+   and description, team roles and what is out of scope — no day count, no cost, no rate,
+   no week number. It cannot repeat a figure it never saw. The client-size band is turned
+   into a phrase for the same reason: "Large (501-5000)" would put digits in front of a
+   model told to write none.
+2. **Numerals the model WAS handed are permitted.** Not a loophole — a correction the
+   verifier itself exposed. "B2B Commerce", "Five9" and "Bulk API 2.0" are real names, and
+   a narrative naming a product in scope was being flagged for inventing the figure 2.
+
+The verifier also rejects placeholders (`[insert…]`, TBD, `{{`), lengths outside the
+section's range, and commitments a generated paragraph must not make — guarantee, warranty,
+indemnity, penalty, fixed price. Those terms are EXPORTED, because the accept route applies
+the same commitment rule to the author's own edit while deliberately dropping the numeral
+rule: a consultant quoting a figure in their own words is exactly what they are entitled
+to do.
+
+**A draft is a draft.** `quote_drafts` is a separate table — there is no code path from a
+model response to `quotes.estimate`. Nothing reaches a document until the author accepts
+it, they can edit every word first, and `edited_body` is what a client reads while `body`
+keeps what the model originally wrote. That is the whole ethical basis: what goes out is
+what a person put their name to.
+
+At most one accepted, non-superseded draft per section, held in one transaction by
+`QuoteDraft.accept` — two live drafts would make a document's contents depend on which row
+a query returned first. Superseded drafts are kept, not deleted: they may already have
+been sent. `catalogue_version` is stamped at drafting time so prose written against one set
+of figures and shown beside another is detectable.
+
+It drafts the summary, the approach narrative, project assumptions and risks — sections
+that are prose anyway. It never writes scope, effort, rates, timeline or price, and a test
+asserts no section key is named after any of them.
+
+The model is Claude Opus 5, not the Haiku the assistant runs on: this writes paragraphs a
+consultant puts in front of a client. Spend goes to the same `ai_usage` ledger and the same
+month-to-date cap, and `MAX_DRAFTS_PER_QUOTE` bounds an otherwise unbounded "try again"
+button on an Opus-priced call.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

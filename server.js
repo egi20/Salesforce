@@ -20,6 +20,7 @@ const assistantConfig = require('./config/assistant');
 const { assertSettingsIntegrity } = require('./config/settings');
 const { assertReferralIntegrity } = require('./config/referrals');
 const { assertLinkedInIntegrity, isConfigured: linkedInConfigured } = require('./config/linkedin');
+const { assertDraftingIntegrity } = require('./config/drafting');
 const AppSetting = require('./models/AppSetting');
 const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
@@ -49,6 +50,9 @@ assertReferralIntegrity();
 // Half-configured is worse than absent: the button appears, the member is sent to
 // LinkedIn, and the failure lands after they have already granted access.
 assertLinkedInIntegrity();
+// And for the one feature that writes into a client-facing document: a section with no
+// stated boundary is a section whose prompt does not say what it must not write.
+assertDraftingIntegrity();
 
 const app = express();
 

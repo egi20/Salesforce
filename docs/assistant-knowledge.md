@@ -96,6 +96,12 @@ automatically.
 - **The rate index never publishes a figure derived from fewer than three distinct
   contributors.** Below that floor the sample count is shown and the values are withheld,
   and a suppressed month appears as a gap rather than a zero.
+- **AI drafting writes prose, never figures.** The quote pages can draft the narrative
+  sections — summary, approach, assumptions, risks — from the scope that was chosen. The
+  model is never given a day count, a cost or a rate, and any draft containing a figure the
+  estimate does not is discarded before the author sees it. Nothing reaches a document until
+  the author reads it and accepts it, and they can edit every word first. It does not and
+  will not write scope, effort, rates, timeline or price.
 - **A saved quote is never recomputed.** It keeps the catalogue version it was priced
   under, so editing a rate later does not rewrite what a client was already told.
 - **There is no open direct-message inbox.** Every conversation is anchored — to an

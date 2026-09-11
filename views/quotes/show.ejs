@@ -280,6 +280,97 @@
         </div>
       </div>
 
+      <div class="glass-card mb-3" id="drafting">
+        <div class="card-body">
+          <h2 class="h6 mb-1">Narrative sections</h2>
+          <%
+            /*
+             * The panel says what this does and, more importantly, what it cannot do.
+             * The figures come from the engine; a draft that contains a number the
+             * estimate does not is rejected before anyone sees it. Saying so here is
+             * what makes the button honest.
+             */
+          %>
+          <p class="small text-muted-2">
+            A first draft of the prose sections, written from this quote's own scope. It is
+            never given a day count, a rate or a cost, and any draft containing a figure this
+            estimate does not is discarded before you see it. Nothing reaches a document until
+            you read it and accept it — and you can edit every word first.
+          </p>
+
+          <% if (!draftingEnabled) { %>
+            <p class="small text-muted-2 mb-0">
+              Drafting is not switched on for this deployment. These sections are yours to write.
+            </p>
+          <% } else { %>
+            <p class="small text-muted-2">
+              <%= draftUsage.used %> of <%= draftUsage.limit %> drafts used on this quote.
+            </p>
+
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              <% Object.values(draftSections).forEach(function (section) { %>
+                <form method="post" action="/quotes/<%= quote.reference %>/draft/<%= section.key %>">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button class="btn btn-sm btn-outline-primary" type="submit"
+                          <%= draftUsage.used >= draftUsage.limit ? 'disabled' : '' %>>
+                    Draft <%= section.label.toLowerCase() %>
+                  </button>
+                </form>
+              <% }); %>
+            </div>
+          <% } %>
+
+          <% if (drafts.length) { %>
+            <% drafts.forEach(function (d) { %>
+              <%
+                const section = draftSections[d.section];
+                const live = d.accepted_at && !d.superseded_at;
+                const stale = d.catalogue_version && d.catalogue_version !== quote.catalogue_version;
+              %>
+              <div class="border-top py-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                  <strong><%= section ? section.label : d.section %></strong>
+                  <span class="small text-muted-2">
+                    <% if (live) { %><span class="badge-hub ok">in the document</span><% } %>
+                    <% if (d.superseded_at) { %><span class="badge-hub muted">superseded</span><% } %>
+                    <% if (stale) { %>
+                      <span class="badge-hub warn" title="Drafted against a different catalogue version than this quote now carries.">check against the figures</span>
+                    <% } %>
+                    <%= new Date(d.created_at).toLocaleDateString('en-GB') %> · <%= d.model %>
+                  </span>
+                </div>
+
+                <form method="post" action="/quotes/<%= quote.reference %>/draft/<%= d.id %>/accept">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <label class="visually-hidden" for="draft-<%= d.id %>">Draft text</label>
+                  <textarea class="form-control form-control-sm mb-2" id="draft-<%= d.id %>"
+                            name="edited_body" rows="6"><%= d.edited_body || d.body %></textarea>
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-primary" type="submit">
+                      <%= live ? 'Save and keep in the document' : 'Accept into the document' %>
+                    </button>
+                  </div>
+                </form>
+
+                <% if (live) { %>
+                  <form method="post" action="/quotes/<%= quote.reference %>/draft/<%= d.id %>/withdraw" class="mt-2">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button class="btn btn-sm btn-outline-primary" type="submit">Take it out of the document</button>
+                  </form>
+                <% } %>
+
+                <% if (d.edited_body) { %>
+                  <details class="mt-2">
+                    <summary class="small text-muted-2">What the model originally wrote</summary>
+                    <p class="small text-muted-2 mt-2 mb-0" style="white-space: pre-wrap"><%= d.body %></p>
+                  </details>
+                <% } %>
+              </div>
+            <% }); %>
+          <% } %>
+        </div>
+      </div>
+
       <% if (quote.status === 'accepted') { %>
         <div class="glass-card mb-3">
           <div class="card-body">

@@ -64,6 +64,26 @@ function filenameFor(quote, kind) {
  * Generate one document.
  * @returns {Promise<{buffer: Buffer, filename: string, contentType: string}>}
  */
+/**
+ * Attach the narrative the author ACCEPTED, if any.
+ *
+ * Read here rather than inside the generator so that the generator stays a pure renderer —
+ * and so there is exactly one place where drafted prose enters a document, which is the
+ * place to look when asking whether it can.
+ *
+ * Never throws: a quote with no drafts, or a drafts table that is briefly unreadable, must
+ * still produce the document it always produced.
+ */
+async function withNarrative(quote) {
+  try {
+    const QuoteDraft = require('../models/QuoteDraft');
+    return { ...quote, narrative: await QuoteDraft.acceptedFor(quote.id) };
+  } catch (err) {
+    console.error(`Could not read accepted narrative for quote #${quote.id}: ${err.message}`);
+    return { ...quote, narrative: {} };
+  }
+}
+
 async function generateDocument(quote, kind, options = {}) {
   if (!isDocumentKind(kind)) {
     const err = new Error(`Unknown document kind: ${kind}`);
@@ -72,7 +92,7 @@ async function generateDocument(quote, kind, options = {}) {
   }
 
   const spec = DOCUMENT_KINDS[kind];
-  const buffer = await spec.generate(quote, options);
+  const buffer = await spec.generate(await withNarrative(quote), options);
 
   return { buffer, filename: filenameFor(quote, kind), contentType: spec.contentType };
 }

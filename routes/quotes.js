@@ -22,6 +22,11 @@ const { sanitizeRichText } = require('../utils/sanitize');
 const { returnTo } = require('../utils/returnTo');
 const { isDocumentKind, PACKAGE_KIND, generateDocument, generatePackage } = require('../services/quotePackage');
 const CompanyProfile = require('../models/CompanyProfile');
+const QuoteDraft = require('../models/QuoteDraft');
+const drafting = require('../config/drafting');
+const { draftSection, isConfigured: draftingConfigured } = require('../utils/quoteDrafting');
+const { requireIdParam } = require('../utils/ids');
+const { FORBIDDEN_TERMS } = require('../utils/draftVerification');
 const Payment = require('../models/Payment');
 const {
   depositForTotal,
@@ -258,10 +263,12 @@ router.get(
       return res.status(404).render('errors/404', { title: 'Not found' });
     }
 
-    const [events, downloads, deposit] = await Promise.all([
+    const [events, downloads, deposit, drafts, draftUsage] = await Promise.all([
       Quote.events(quote.id),
       Quote.downloads(quote.id),
-      Payment.depositForQuote(quote.id)
+      Payment.depositForQuote(quote.id),
+      QuoteDraft.listFor(quote.id),
+      QuoteDraft.countFor(quote.id)
     ]);
 
     // Derived from THIS quote's stored total by the same function the checkout uses, so
@@ -275,6 +282,10 @@ router.get(
       events,
       downloads,
       deposit,
+      drafts,
+      draftUsage,
+      draftSections: drafting.SECTIONS,
+      draftingEnabled: draftingConfigured(),
       depositAmount: depositMinor === null ? '—' : formatMinor(depositMinor, quote.currency),
       depositPercent: DEPOSIT_PERCENT,
       depositFloor: formatMinor(DEPOSIT_MIN_MINOR),
@@ -330,6 +341,131 @@ router.post(
         : 'Only a draft can be deleted. A quote that has been sent is withdrawn by changing its status.'
     );
     return res.redirect(removed ? '/quotes' : returnTo(req, `/quotes/${quote.reference}`));
+  })
+);
+
+/* ------------------------------------------------------------------- drafting */
+
+/**
+ * POST /quotes/:reference/draft/:section — ask for a first draft of a narrative section.
+ *
+ * The route does three things and refuses at each one: it re-checks ownership, it enforces
+ * the per-quote cap, and it stores NOTHING unless the draft passed
+ * `utils/draftVerification.js`. A draft that invented a figure comes back with its reasons
+ * shown to the author rather than being retried out of sight — that failure is the one
+ * thing this feature has to be watched for, and hiding it would defeat the check.
+ */
+router.post(
+  '/:reference/draft/:section',
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const quote = await Quote.findByReference(req.params.reference);
+    if (!quote || quote.owner_user_id !== req.session.user.id) {
+      return res.status(404).render('errors/404', { title: 'Not found' });
+    }
+
+    const back = `/quotes/${quote.reference}#drafting`;
+
+    if (!drafting.isSection(req.params.section)) {
+      req.flash('error', 'That is not a section this can draft.');
+      return res.redirect(back);
+    }
+    if (!draftingConfigured()) {
+      req.flash('error', 'Drafting is not switched on for this deployment. The sections are yours to write.');
+      return res.redirect(back);
+    }
+
+    const { used, limit } = await QuoteDraft.countFor(quote.id);
+    if (used >= limit) {
+      // A cost control, not a quality one. Regenerating is the natural response to a draft
+      // you dislike, and an unbounded "try again" button on an Opus-priced call is a bill.
+      req.flash('error', `This quote has used all ${limit} drafts. Edit what you have, or write the section yourself.`);
+      return res.redirect(back);
+    }
+
+    const result = await draftSection(quote, req.params.section, { userId: req.session.user.id });
+
+    if (!result.ok) {
+      req.flash('error', result.problems && result.problems.length
+        ? `${result.reason} What went wrong: ${result.problems.join('; ')}.`
+        : result.reason);
+      return res.redirect(back);
+    }
+
+    await QuoteDraft.create(quote.id, {
+      section: req.params.section,
+      body: result.body,
+      model: result.model,
+      inputTokens: result.inputTokens,
+      outputTokens: result.outputTokens,
+      // The catalogue the estimate was priced under WHEN this was drafted, so a draft
+      // written against one set of figures beside another is detectable later.
+      catalogueVersion: quote.catalogue_version
+    });
+
+    req.flash('success', 'Draft ready. Read it, edit it, and accept it if you want it in the document.');
+    return res.redirect(back);
+  })
+);
+
+/**
+ * POST /quotes/:reference/draft/:id/accept — put it in the document, as edited.
+ *
+ * The edited text is what is stored and what a client reads; the model's original is kept
+ * beside it. That is the whole ethical basis of the feature: what goes out is what a
+ * person put their name to, and they could change every word of it first.
+ */
+router.post(
+  '/:reference/draft/:id/accept',
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const quote = await Quote.findByReference(req.params.reference);
+    if (!quote || quote.owner_user_id !== req.session.user.id) {
+      return res.status(404).render('errors/404', { title: 'Not found' });
+    }
+
+    const edited = (req.body.edited_body || '').trim();
+
+    /*
+     * The author's own edit is checked too, and the check is deliberately looser: the
+     * numeral rule is dropped, because a consultant quoting a figure in their own words is
+     * exactly what they are entitled to do. What still applies is the commitment rule —
+     * nothing this application stores should promise a warranty on their behalf.
+     */
+    if (edited) {
+      const promised = FORBIDDEN_TERMS.filter((term) => edited.toLowerCase().includes(term));
+      if (promised.length) {
+        req.flash('error', `That text commits to something a scope document should not: ${promised.join(', ')}.`);
+        return res.redirect(`/quotes/${quote.reference}#drafting`);
+      }
+    }
+
+    try {
+      await QuoteDraft.accept(req.params.id, quote.id, { editedBody: edited || null });
+      req.flash('success', 'Accepted. It will appear in the statement of work.');
+    } catch (err) {
+      if (err.code !== 'NOT_FOUND') throw err;
+      req.flash('error', err.message);
+    }
+
+    return res.redirect(`/quotes/${quote.reference}#drafting`);
+  })
+);
+
+router.post(
+  '/:reference/draft/:id/withdraw',
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const quote = await Quote.findByReference(req.params.reference);
+    if (!quote || quote.owner_user_id !== req.session.user.id) {
+      return res.status(404).render('errors/404', { title: 'Not found' });
+    }
+
+    await QuoteDraft.withdraw(req.params.id, quote.id);
+    req.flash('success', 'Withdrawn. It will no longer appear in the document.');
+    return res.redirect(`/quotes/${quote.reference}#drafting`);
   })
 );
 

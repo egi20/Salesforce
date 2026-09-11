@@ -167,6 +167,32 @@ function coverSection(quote, estimate) {
   ];
 }
 
+/**
+ * An accepted narrative section, rendered where one exists.
+ *
+ * `quote.narrative` is populated by `services/quotePackage.js` from the drafts the AUTHOR
+ * accepted — never from a model response directly. If nothing was accepted, the section is
+ * simply absent: the document has always read correctly without it, and an empty heading
+ * would be worse than no heading.
+ *
+ * The text is rendered as PLAIN paragraphs. No markdown interpretation, no rich text: what
+ * the author accepted is what appears, character for character.
+ */
+function narrativeSection(quote, sectionKey, headingText) {
+  const narrative = (quote.narrative || {})[sectionKey];
+  const body = narrative && String(narrative.body || '').trim();
+  if (!body) return [];
+
+  return [
+    heading(headingText, HeadingLevel.HEADING_2),
+    ...body
+      .split(/\n{2,}/)
+      .map((block) => block.trim())
+      .filter(Boolean)
+      .map((block) => para(block, { size: 22 }))
+  ];
+}
+
 function scopeSection(quote, estimate) {
   const children = [heading('1. Scope')];
 
@@ -435,10 +461,17 @@ async function generateSowDocx(quote, { preparedBy = '' } = {}) {
         },
         children: [
           ...coverSection(quote, estimate),
+          // The summary sits before the scope tables, where an executive reads it first.
+          ...narrativeSection(quote, 'executive_summary', 'Executive summary'),
           ...scopeSection(quote, estimate),
           ...approachSection(estimate),
+          // Narrative goes AFTER the figures it describes, never before: the tables are
+          // the statement, the prose is the explanation of it.
+          ...narrativeSection(quote, 'approach', 'How we will run it'),
           ...commercialsSection(estimate),
-          ...assumptionsSection({ ...estimate, catalogueVersion: quote.catalogue_version })
+          ...assumptionsSection({ ...estimate, catalogueVersion: quote.catalogue_version }),
+          ...narrativeSection(quote, 'assumptions', 'Assumptions specific to this engagement'),
+          ...narrativeSection(quote, 'risks', 'What could move this estimate')
         ]
       }
     ]

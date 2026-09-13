@@ -31,6 +31,7 @@ Server-rendered Express + EJS on MySQL 8. No SPA, no ORM, no build step for serv
 | LinkedIn: confirm control of an account, link-only, no token stored | built |
 | AI drafting of quote narratives, with every draft checked against the figures | built |
 | Company document branding: colours, letterhead and standard clauses — no uploads | built |
+| Search across jobs, consultants, companies and the community, through the same builders | built |
 | Moderation: hide and restore community content, void a bad rate submission, audit log | built |
 | Admin: users, jobs, moderation, analytics, settings, error log, payments, AI spend | built |
 | SEO: canonicals, JobPosting JSON-LD, sitemap generated from the robots allowlist | built |
@@ -210,6 +211,12 @@ drift, and the whole projection is reconciled before it renders.
 no invented profile statement. The reference implementation put a language model here; what
 that buys is fluent text about a career the model does not know, and what it costs is a
 sentence the consultant never wrote in a document they send to a client.
+
+**Search adds no filter builder.** It calls the same `browse` each list view calls, so a
+row hidden on `/jobs` is hidden in search without the search code knowing why — and the
+count next to "see all 43" is the count that page delivers. Results are grouped by type
+with no cross-type relevance score, because a match on a company name and a match inside a
+long post are not comparable and a blended ranking would be invented precision.
 
 **Company branding is configured, never uploaded.** A company sets its colours, letterhead
 and standard clauses; the Hub's own validated generators render with them. Accepting a Word

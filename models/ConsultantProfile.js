@@ -1,6 +1,7 @@
 'use strict';
 
 const { promisePool, withTransaction } = require('../config/database');
+const { containsPattern } = require('../utils/likePattern');
 const { isValidRole } = require('../config/roleTaxonomy');
 
 /**
@@ -89,7 +90,7 @@ function buildFilter(filters = {}) {
   }
   if (filters.q) {
     where.push('(cp.headline LIKE ? OR cp.bio LIKE ? OR u.name LIKE ?)');
-    const like = `%${String(filters.q).trim()}%`;
+    const like = containsPattern(filters.q);
     params.push(like, like, like);
   }
 

@@ -1,6 +1,7 @@
 'use strict';
 
 const { promisePool, withTransaction } = require('../config/database');
+const { containsPattern } = require('../utils/likePattern');
 const { uniqueSlug } = require('../utils/slug');
 const { isPostKind, POST_KIND_VALUES } = require('../config/community');
 const Points = require('./Points');
@@ -58,7 +59,7 @@ function buildFilter(filters = {}) {
     // LIKE rather than MATCH: the FULLTEXT index exists, but boolean mode on a corpus of
     // short, jargon-heavy titles returns worse results than a plain substring match.
     where.push('(p.title LIKE ? OR p.body LIKE ?)');
-    const like = `%${String(filters.q).trim()}%`;
+    const like = containsPattern(filters.q);
     params.push(like, like);
   }
 

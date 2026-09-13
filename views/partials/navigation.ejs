@@ -91,6 +91,22 @@
         </li>
       </ul>
 
+      <%
+        /*
+         * A plain GET form. It works with scripting off, it is bookmarkable, and it
+         * carries no token because it changes nothing — a search is a read.
+         */
+      %>
+      <form class="d-flex nav-search me-lg-3 my-2 my-lg-0" method="get" action="/search" role="search">
+        <label class="visually-hidden" for="navSearch">Search the Hub</label>
+        <input class="form-control form-control-sm" id="navSearch" name="q" type="search" maxlength="120"
+               value="<%= currentPath === '/search' && query && query.q ? query.q : '' %>"
+               placeholder="Search…" aria-label="Search the Hub">
+        <button class="btn btn-sm btn-outline-light ms-1" type="submit" aria-label="Search">
+          <i class="bi bi-search"></i>
+        </button>
+      </form>
+
       <ul class="navbar-nav align-items-lg-center">
         <% if (currentUser) { %>
           <li class="nav-item">

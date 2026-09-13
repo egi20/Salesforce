@@ -31,16 +31,14 @@ handlers cover a feature that is better here than there.
 | LinkedIn verification | 9 | 3 | Link-only identity confirmation. No posting, no token stored |
 | AI drafting | part of 17 | 3 | Narrative sections only, every draft verified against the figures |
 | Company document templates | 16 | 5 | Branding and clauses, configured rather than uploaded |
+| Search | 1 | 1 | One box, four sources, through the existing builders |
 | Design system | — | — | Glassmorphism ported, palette re-based on Salesforce blue |
 
 ## Next, in order
 
-1. **Search across everything** (1) — one box spanning jobs, consultants and companies,
-   behind the existing filter builders. No second filter builder: the existing ones answer
-   the question, a search page just asks all three.
-2. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
+1. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
    games (13).
-3. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
+2. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
    are an internal sales tool and an accounting system that happen to live in the same
    repository as a marketplace.
 
@@ -181,6 +179,19 @@ Two things that fell out of doing it this way:
 Deliberately not built: agency-branded CVs for consultants a company submits. It takes one
 person's data and puts another party's brand on it, which needs the consultant's consent
 and a sharing model that does not exist here.
+
+**Search.** One handler, and it does what the plan said: asks the four existing builders
+and presents the answers together.
+
+Two things it refuses. It builds no SQL — a test strips the comments and asserts the module
+contains none — because a second place that has to remember `is_public` and `status =
+'open'` is the place that eventually leaks. And it produces no cross-type relevance score,
+because a match on a company name and a match inside a long post are not comparable.
+
+Writing it surfaced a bug present in every list view: none of the four builders escaped LIKE
+metacharacters, so a search for `50%` asked a different question than the one typed, and a
+search for `%` was a full table scan. `utils/likePattern.js` fixes it in one place for all
+four.
 
 ## Excluded
 

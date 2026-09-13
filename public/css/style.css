@@ -1004,6 +1004,32 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 }
 
 /* ============================================================================
+   NAVIGATION SEARCH
+   ==========================================================================
+
+   A narrow box in the bar on large screens, full width once the menu collapses —
+   a search field squeezed to nothing on a phone is a field nobody uses.
+ */
+.nav-search .form-control {
+  min-width: 9rem;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+.nav-search .form-control::placeholder { color: rgba(255, 255, 255, 0.65); }
+.nav-search .form-control:focus {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border-color: #fff;
+  box-shadow: none;
+}
+
+@media (max-width: 991.98px) {
+  .nav-search { width: 100%; }
+  .nav-search .form-control { min-width: 0; }
+}
+
+/* ============================================================================
    SITE NOTICE
    ==========================================================================
 

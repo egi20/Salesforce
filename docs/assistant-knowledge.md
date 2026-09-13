@@ -59,6 +59,7 @@ An account can hold both roles at once.
 | `/notifications` | Your notifications. |
 | `/auth/register` | Create a free account. |
 | `/auth/login` | Sign in. |
+| `/search` | One box across jobs, consultants, companies and the community. |
 | `/faq` | Frequently asked questions. |
 | `/legal/privacy`, `/legal/terms` | The policies. |
 

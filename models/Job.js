@@ -1,6 +1,7 @@
 'use strict';
 
 const { promisePool, withTransaction } = require('../config/database');
+const { containsPattern } = require('../utils/likePattern');
 const { uniqueSlug } = require('../utils/slug');
 const { isValidRole } = require('../config/roleTaxonomy');
 
@@ -106,7 +107,9 @@ function buildFilter(filters = {}) {
     // LIKE rather than MATCH: the FULLTEXT index exists, but a mixed-language, mostly
     // short-token corpus made boolean-mode results worse than a plain substring match.
     where.push('(j.title LIKE ? OR j.description LIKE ?)');
-    const like = `%${String(filters.q).trim()}%`;
+    // Escaped, so a search for "50%" looks for "50%" and a search for "%" is not a scan
+    // of the whole table. See utils/likePattern.js.
+    const like = containsPattern(filters.q);
     params.push(like, like);
   }
 

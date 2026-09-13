@@ -1,6 +1,7 @@
 'use strict';
 
 const { promisePool } = require('../config/database');
+const { containsPattern } = require('../utils/likePattern');
 const { uniqueSlug } = require('../utils/slug');
 
 class CompanyProfile {
@@ -91,7 +92,8 @@ class CompanyProfile {
 
     if (q) {
       where.push('(cp.company_name LIKE ? OR cp.tagline LIKE ?)');
-      params.push(`%${q}%`, `%${q}%`);
+      const like = containsPattern(q);
+      params.push(like, like);
     }
     if (company_type) {
       where.push('cp.company_type = ?');

@@ -250,6 +250,7 @@ app.use('/payments', require('./routes/payments'));
 app.use('/assistant', require('./routes/assistant'));
 app.use('/referrals', require('./routes/referrals'));
 app.use('/linkedin', require('./routes/linkedin'));
+app.use('/search', require('./routes/search'));
 app.use('/messages', require('./routes/messages'));
 app.use('/notifications', require('./routes/notifications'));
 app.use('/admin', require('./routes/admin'));

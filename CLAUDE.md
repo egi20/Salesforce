@@ -642,6 +642,40 @@ serve it. They are escaped explicitly, and a test reads app.xml back and asserts
 appears escaped exactly once: a parse check alone would miss a double-escape, because
 `&amp;amp;` is valid XML.
 
+## Search
+
+**Search adds no filter builder of its own**, and that is the security argument as much as
+a tidiness one. `services/search.js` calls the same `browse` each list view calls, with the
+same defaults, so a row invisible on `/jobs` is invisible in search without anything in
+that file knowing why. A search page assembling its own WHERE clause would be a second
+place that has to remember `is_public`, `status = 'open'` and `hidden_at IS NULL` — and the
+first one to forget is the one that leaks. A test strips the comments and asserts the
+module contains no SQL, no `buildFilter` call and no visibility override.
+
+It also means the count next to "see all 43 jobs" is the count that page will show, because
+both came from the same query.
+
+**No cross-type relevance score.** A LIKE match on a company name and a LIKE match inside a
+five-thousand-word post are not comparable; a blended ranking would be a number invented to
+look authoritative. Results are grouped by type and ordered within a type by that type's own
+ordering. Same instinct as the rate index suppressing a bucket rather than interpolating one.
+
+**One failing source is a missing section with a note, never a failed page.** The four
+queries run in parallel and each can fail alone. A section that is down says so — showing
+it as "no results" would be a different claim, and a false one.
+
+`utils/likePattern.js` escapes `%`, `_` and the backslash before a query becomes a LIKE
+pattern, and ALL FOUR builders use it. Two real bugs it fixes, both present in every list
+view before search existed: a search for `50%` looked for "50 followed by anything", and a
+search for `%` became `%%%`, which matches every row — a free full scan per request, four
+times over once one box asks four builders. Escape the backslash FIRST; doing it after the
+wildcards escapes the escapes.
+
+A query shorter than two characters is refused rather than answered slowly, and nothing is
+queried at all until there is something to query for. `/search` is deliberately absent from
+`PUBLIC_PATHS`, so `seo.indexable` is false: a results page is infinite crawl space and
+every query string would be a separate URL.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

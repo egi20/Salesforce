@@ -109,6 +109,19 @@
   });
 
   /**
+   * A colour picker that writes into its hex field.
+   *
+   * The text field is the one that submits, so the page works identically with scripting
+   * off — the picker is a convenience for choosing, never the source of the value.
+   */
+  document.addEventListener('input', function (event) {
+    var picker = event.target;
+    if (!picker || !picker.hasAttribute || !picker.hasAttribute('data-mirror')) return;
+    var target = document.getElementById(picker.getAttribute('data-mirror'));
+    if (target) target.value = picker.value;
+  });
+
+  /**
    * Availability date is only meaningful for a profile that is actually available.
    * Purely a convenience: the server does not depend on it.
    */

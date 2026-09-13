@@ -591,6 +591,57 @@ consultant puts in front of a client. Spend goes to the same `ai_usage` ledger a
 month-to-date cap, and `MAX_DRAFTS_PER_QUOTE` bounds an otherwise unbounded "try again"
 button on an Opus-priced call.
 
+## Company document branding
+
+**No document is ever uploaded.** A company supplies its brand and its own standard
+wording; the Hub's validated generators render with them. That is the feature, and the
+absence is the design.
+
+The reference implementation goes the other way, and the cost is specific: it asks a
+company to upload a REAL PERSON'S CV as the sample, stores that person's name and up to
+forty thousand characters of their document as "template configuration", writes the file to
+disk, and later serves it back out. Three standing rules here at once — durable bytes never
+live on disk, a document nobody validated is never served, and personal data kept without a
+purpose is personal data to explain later. A .docx can also carry macros and remote
+template references; serving one we did not build breaks "open it before anyone else has
+to" in the most complete way available.
+
+**Only the two ACCENT colours are brandable**, and `paletteFor()` ignores every other key.
+Body text, rules and shading stay the Hub's neutrals: a company choosing its heading colour
+is branding, a company choosing its body-text colour is a company shipping an unreadable
+document to a client under its own name.
+
+**A brand colour must clear 4.5:1 against white**, measured by `utils/contrast.js`. A
+colour that fails is REFUSED with its measured ratio, never silently substituted — a
+company that picked a colour and got a different one has been lied to about what it
+configured. This is the same rule `DESIGN.md` states for `#00A1E0` (2.93:1), now enforced
+rather than remembered; a test asserts the Hub's own colours pass the check a company's
+has to.
+
+On the deck's title slide the text is WHITE, not cyan, and that follows from the rule: a
+colour that clears 4.5:1 against white has exactly that ratio for white text on it, so
+white is guaranteed readable on any permitted brand and cyan is guaranteed nothing.
+
+**Company clauses are APPENDED, never substituted.** The standard assumptions are what make
+an estimate mean anything; a company that could replace them could ship a figure with its
+basis quietly removed.
+
+The palette is resolved ONCE per document, in the entry point, and threaded down. A
+module-level "current company's colours" would be a race between two documents generating
+at the same time — there are await points inside every generator.
+
+`services/quotePackage.js` is the single place a company's configuration enters a document,
+for the same reason it is the single place accepted narrative does. `brandingFor()` never
+throws and returns an empty shape, so a generator renders the Hub's defaults without
+branching on whether a template exists.
+
+**`pptxgenjs` does not escape `author` or `company`.** It escapes slide body text, but
+those two go straight into `docProps/app.xml` — so a company called "Smith & Jones Ltd"
+produced a package whose app.xml would not parse, and `assertDocumentOpens` refused to
+serve it. They are escaped explicitly, and a test reads app.xml back and asserts the name
+appears escaped exactly once: a parse check alone would miss a double-escape, because
+`&amp;amp;` is valid XML.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

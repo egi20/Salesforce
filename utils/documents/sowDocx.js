@@ -20,7 +20,7 @@ const {
   convertInchesToTwip
 } = require('docx');
 
-const { HEX, FONT, formatNumber, formatMoney, formatDate } = require('./brand');
+const { HEX, FONT, formatNumber, formatMoney, formatDate, paletteFor, letterheadLines } = require('./brand');
 const { assertDocumentOpens } = require('./validate');
 const { familyLabel, moduleLabel } = require('../../config/cloudFamilies');
 
@@ -51,11 +51,15 @@ function para(value, options = {}) {
   });
 }
 
-function heading(value, level = HeadingLevel.HEADING_1) {
+/**
+ * @param {object} brand a palette from `paletteFor()`. Defaults to the Hub's own, so a
+ *   company with no template renders exactly as before.
+ */
+function heading(value, level = HeadingLevel.HEADING_1, brand = HEX) {
   return new Paragraph({
     heading: level,
     spacing: { before: 320, after: 160 },
-    children: [text(value, { bold: true, color: HEX.navy, size: level === HeadingLevel.HEADING_1 ? 30 : 24 })]
+    children: [text(value, { bold: true, color: brand.navy, size: level === HeadingLevel.HEADING_1 ? 30 : 24 })]
   });
 }
 
@@ -74,7 +78,7 @@ function cell(value, { bold = false, align = AlignmentType.LEFT, shade = null, c
   });
 }
 
-function table(headers, rows, { widths = null, footer = null } = {}) {
+function table(headers, rows, { widths = null, footer = null, brand = HEX } = {}) {
   const borders = {
     top: { style: BorderStyle.SINGLE, size: 2, color: HEX.rule },
     bottom: { style: BorderStyle.SINGLE, size: 2, color: HEX.rule },
@@ -90,7 +94,7 @@ function table(headers, rows, { widths = null, footer = null } = {}) {
       cell(h.label, {
         bold: true,
         color: 'FFFFFF',
-        shade: HEX.navy,
+        shade: brand.navy,
         align: h.align || AlignmentType.LEFT,
         width: widths ? widths[i] : null
       })
@@ -131,10 +135,29 @@ function table(headers, rows, { widths = null, footer = null } = {}) {
 const RIGHT = AlignmentType.RIGHT;
 
 /** Cover block. Deliberately plain: a cover that overstates is the first thing a client discounts. */
-function coverSection(quote, estimate) {
+function coverSection(quote, estimate, brand, branding) {
+  /*
+   * The letterhead sits ABOVE the title, where a reader looks for who sent a document.
+   * Every line is plain text the company typed; nothing here is markup, and nothing is
+   * derived from anywhere a client could influence.
+   */
+  const letterhead = letterheadLines(branding);
+
   return [
-    new Paragraph({ spacing: { before: 1200, after: 0 }, children: [text('Statement of Work', { bold: true, size: 56, color: HEX.navy })] }),
-    new Paragraph({ spacing: { after: 480 }, children: [text(quote.project_name, { size: 32, color: HEX.blue })] }),
+    ...(letterhead.length
+      ? [
+          new Paragraph({
+            spacing: { before: 400, after: 0 },
+            children: [text(letterhead[0], { bold: true, size: 22, color: brand.navy })]
+          }),
+          ...letterhead.slice(1).map((line) =>
+            new Paragraph({ spacing: { after: 0 }, children: [text(line, { size: 18, color: HEX.inkMuted })] })
+          )
+        ]
+      : []),
+
+    new Paragraph({ spacing: { before: letterhead.length ? 700 : 1200, after: 0 }, children: [text('Statement of Work', { bold: true, size: 56, color: brand.navy })] }),
+    new Paragraph({ spacing: { after: 480 }, children: [text(quote.project_name, { size: 32, color: brand.blue })] }),
 
     table(
       [{ label: 'Prepared for' }, { label: '' }],
@@ -145,10 +168,10 @@ function coverSection(quote, estimate) {
         ['Date', formatDate(quote.created_at)],
         ['Estimate basis', `catalogue ${quote.catalogue_version}`]
       ],
-      { widths: [30, 70] }
+      { widths: [30, 70], brand }
     ),
 
-    new Paragraph({ spacing: { before: 480 }, children: [text('Summary', { bold: true, size: 24, color: HEX.navy })] }),
+    new Paragraph({ spacing: { before: 480 }, children: [text('Summary', { bold: true, size: 24, color: brand.navy })] }),
     table(
       [{ label: 'Measure' }, { label: 'Value', align: RIGHT }],
       [
@@ -160,7 +183,7 @@ function coverSection(quote, estimate) {
           : []),
         ['Blended day rate', formatMoney(estimate.averageDailyRate, estimate.currency)]
       ],
-      { widths: [55, 45], footer: ['Total', formatMoney(estimate.totalBudget, estimate.currency)] }
+      { widths: [55, 45], brand, footer: ['Total', formatMoney(estimate.totalBudget, estimate.currency)] }
     ),
 
     new Paragraph({ children: [new PageBreak()] })
@@ -178,13 +201,13 @@ function coverSection(quote, estimate) {
  * The text is rendered as PLAIN paragraphs. No markdown interpretation, no rich text: what
  * the author accepted is what appears, character for character.
  */
-function narrativeSection(quote, sectionKey, headingText) {
+function narrativeSection(quote, sectionKey, headingText, brand) {
   const narrative = (quote.narrative || {})[sectionKey];
   const body = narrative && String(narrative.body || '').trim();
   if (!body) return [];
 
   return [
-    heading(headingText, HeadingLevel.HEADING_2),
+    heading(headingText, HeadingLevel.HEADING_2, brand),
     ...body
       .split(/\n{2,}/)
       .map((block) => block.trim())
@@ -193,8 +216,8 @@ function narrativeSection(quote, sectionKey, headingText) {
   ];
 }
 
-function scopeSection(quote, estimate) {
-  const children = [heading('1. Scope')];
+function scopeSection(quote, estimate, brand) {
+  const children = [heading('1. Scope', HeadingLevel.HEADING_1, brand)];
 
   if (quote.project_summary) {
     children.push(para(String(quote.project_summary).replace(/<[^>]*>/g, '').trim(), { size: 22 }));
@@ -215,7 +238,7 @@ function scopeSection(quote, estimate) {
           `${formatNumber(family.effectiveDays)} d`
         ];
       }),
-      { widths: [25, 55, 20] }
+      { widths: [25, 55, 20], brand }
     )
   );
 
@@ -228,18 +251,18 @@ function scopeSection(quote, estimate) {
   );
 
   if (estimate.isvBreakdown.length) {
-    children.push(heading('1.1 Add-on products', HeadingLevel.HEADING_2));
+    children.push(heading('1.1 Add-on products', HeadingLevel.HEADING_2, brand));
     children.push(
       table(
         [{ label: 'Product' }, { label: 'Category' }, { label: 'Effort', align: RIGHT }],
         estimate.isvBreakdown.map((isv) => [isv.name, isv.category, `${formatNumber(isv.days)} d`]),
-        { widths: [55, 25, 20] }
+        { widths: [55, 25, 20], brand }
       )
     );
   }
 
   if (estimate.multipliers.integrations.count > 0) {
-    children.push(heading('1.2 Integrations', HeadingLevel.HEADING_2));
+    children.push(heading('1.2 Integrations', HeadingLevel.HEADING_2, brand));
     children.push(
       para(
         `${estimate.multipliers.integrations.count} integration(s) at ${estimate.multipliers.integrations.complexity} ` +
@@ -250,7 +273,7 @@ function scopeSection(quote, estimate) {
   }
 
   if (estimate.unmapped.days > 0) {
-    children.push(heading('1.3 Scope described in free text', HeadingLevel.HEADING_2));
+    children.push(heading('1.3 Scope described in free text', HeadingLevel.HEADING_2, brand));
     children.push(
       para(
         `${estimate.unmapped.modules + estimate.unmapped.isvs + estimate.unmapped.integrations} item(s) were ` +
@@ -264,11 +287,11 @@ function scopeSection(quote, estimate) {
   return children;
 }
 
-function approachSection(estimate) {
+function approachSection(estimate, brand) {
   const phases = estimate.phaseBreakdown.filter((p) => p.days > 0);
 
   return [
-    heading('2. Approach'),
+    heading('2. Approach', HeadingLevel.HEADING_1, brand),
     para('Delivery runs in the phases below. Phases are largely sequential; the team works in parallel within each.', {
       size: 22,
       color: HEX.inkMuted
@@ -278,23 +301,25 @@ function approachSection(estimate) {
       phases.map((p) => [p.name, p.description, `${p.percentage}%`, formatNumber(p.days)]),
       {
         widths: [22, 53, 10, 15],
+        brand,
         footer: ['Total', '', '100%', formatNumber(phases.reduce((sum, p) => sum + p.days, 0))]
       }
     ),
 
-    heading('2.1 Timeline', HeadingLevel.HEADING_2),
+    heading('2.1 Timeline', HeadingLevel.HEADING_2, brand),
     table(
       [{ label: 'Phase' }, { label: 'Weeks', align: RIGHT }, { label: 'Duration', align: RIGHT }, { label: 'Milestone' }],
       estimate.timeline.map((t) => [t.phase, `${t.startWeek}–${t.endWeek}`, `${t.durationWeeks} wk`, t.milestone]),
       {
         widths: [30, 15, 15, 40],
+        brand,
         footer: ['Total', '', `${estimate.projectDurationWeeks} wk`, '']
       }
     )
   ];
 }
 
-function commercialsSection(estimate) {
+function commercialsSection(estimate, brand) {
   const rows = estimate.resourceAllocation.map((r) => [
     r.name,
     `${r.percentage}%`,
@@ -304,7 +329,7 @@ function commercialsSection(estimate) {
   ]);
 
   const children = [
-    heading('3. Team and commercials'),
+    heading('3. Team and commercials', HeadingLevel.HEADING_1, brand),
     table(
       [
         { label: 'Role' },
@@ -316,6 +341,7 @@ function commercialsSection(estimate) {
       rows,
       {
         widths: [34, 12, 12, 20, 22],
+        brand,
         footer: [
           'Implementation',
           '100%',
@@ -342,7 +368,7 @@ function commercialsSection(estimate) {
   }
 
   children.push(
-    heading('3.1 How the effort was derived', HeadingLevel.HEADING_2),
+    heading('3.1 How the effort was derived', HeadingLevel.HEADING_2, brand),
     table(
       [{ label: 'Factor' }, { label: 'Applied' }],
       [
@@ -355,7 +381,7 @@ function commercialsSection(estimate) {
         ['Company size', `×${estimate.multipliers.companySize.value} — ${estimate.multipliers.companySize.name}`],
         ['Contingency', `${estimate.contingencyPercentage}% — ${formatNumber(estimate.contingencyDays)} days`]
       ],
-      { widths: [30, 70], footer: ['Total effort', `${formatNumber(estimate.totalManDays)} days`] }
+      { widths: [30, 70], brand, footer: ['Total effort', `${formatNumber(estimate.totalManDays)} days`] }
     )
   );
 
@@ -368,7 +394,7 @@ function commercialsSection(estimate) {
  * Stated plainly and always present. An estimate without them reads as a fixed price, and
  * the first change request then becomes an argument about what was promised.
  */
-function assumptionsSection(estimate) {
+function assumptionsSection(estimate, brand, branding) {
   const assumptions = [
     'Figures are an estimate based on the scope stated in section 1, not a fixed price.',
     `A contingency of ${estimate.contingencyPercentage}% is included and is intended to absorb normal discovery findings, not scope additions.`,
@@ -398,12 +424,25 @@ function assumptionsSection(estimate) {
         })
     );
 
+  /*
+   * The company's own clauses are APPENDED to the Hub's, never substituted for them.
+   * The standard assumptions are what make the estimate mean anything — a company that
+   * could replace them could ship a figure with its basis quietly removed.
+   */
+  const clauses = (branding && branding.clauses) || {};
+  const companyAssumptions = (clauses.assumption || []).map((c) => c.body);
+  const companyExclusions = (clauses.exclusion || []).map((c) => c.body);
+  const companyTerms = (clauses.term || []).map((c) => c.body);
+
   return [
-    heading('4. Assumptions'),
-    ...bullets(assumptions),
-    heading('5. Exclusions'),
-    ...bullets(exclusions),
-    heading('6. Validity'),
+    heading('4. Assumptions', HeadingLevel.HEADING_1, brand),
+    ...bullets([...assumptions, ...companyAssumptions]),
+    heading('5. Exclusions', HeadingLevel.HEADING_1, brand),
+    ...bullets([...exclusions, ...companyExclusions]),
+    ...(companyTerms.length
+      ? [heading('6. Terms', HeadingLevel.HEADING_1, brand), ...bullets(companyTerms)]
+      : []),
+    heading(companyTerms.length ? '7. Validity' : '6. Validity', HeadingLevel.HEADING_1, brand),
     para(
       'This estimate is valid for 30 days from the date on the cover. It was produced from ' +
         `catalogue ${estimate.catalogueVersion || 'as recorded on the cover'}; rates and effort baselines are reviewed periodically.`,
@@ -419,8 +458,18 @@ function assumptionsSection(estimate) {
  * @param {Object} options `{ preparedBy }`
  * @returns {Promise<Buffer>} a validated DOCX
  */
-async function generateSowDocx(quote, { preparedBy = '' } = {}) {
+async function generateSowDocx(quote, { preparedBy = '', branding = null } = {}) {
   const estimate = quote.estimate;
+
+  /*
+   * Resolved ONCE, here, and passed down. A module-level mutable palette would be a race
+   * between two documents generating at the same time — there are await points inside
+   * this function, so "the current company's colours" is not a thing a module can hold.
+   *
+   * `paletteFor` accepts only the two accent keys and ignores everything else, so a
+   * malformed or over-reaching branding row cannot change body text or rules.
+   */
+  const brand = paletteFor(branding);
 
   const doc = new Document({
     creator: preparedBy || 'Salesforce Hub',
@@ -439,7 +488,15 @@ async function generateSowDocx(quote, { preparedBy = '' } = {}) {
             children: [
               new Paragraph({
                 alignment: AlignmentType.RIGHT,
-                children: [text(`${quote.client_company} · ${quote.reference}`, { size: 16, color: HEX.inkMuted })]
+                children: [
+                  text(
+                    [(branding && branding.letterhead && branding.letterhead.footer_note) || null,
+                      `${quote.client_company} · ${quote.reference}`]
+                      .filter(Boolean)
+                      .join('  ·  '),
+                    { size: 16, color: HEX.inkMuted }
+                  )
+                ]
               })
             ]
           })
@@ -460,18 +517,18 @@ async function generateSowDocx(quote, { preparedBy = '' } = {}) {
           })
         },
         children: [
-          ...coverSection(quote, estimate),
+          ...coverSection(quote, estimate, brand, branding),
           // The summary sits before the scope tables, where an executive reads it first.
-          ...narrativeSection(quote, 'executive_summary', 'Executive summary'),
-          ...scopeSection(quote, estimate),
-          ...approachSection(estimate),
+          ...narrativeSection(quote, 'executive_summary', 'Executive summary', brand),
+          ...scopeSection(quote, estimate, brand),
+          ...approachSection(estimate, brand),
           // Narrative goes AFTER the figures it describes, never before: the tables are
           // the statement, the prose is the explanation of it.
-          ...narrativeSection(quote, 'approach', 'How we will run it'),
-          ...commercialsSection(estimate),
-          ...assumptionsSection({ ...estimate, catalogueVersion: quote.catalogue_version }),
-          ...narrativeSection(quote, 'assumptions', 'Assumptions specific to this engagement'),
-          ...narrativeSection(quote, 'risks', 'What could move this estimate')
+          ...narrativeSection(quote, 'approach', 'How we will run it', brand),
+          ...commercialsSection(estimate, brand),
+          ...assumptionsSection({ ...estimate, catalogueVersion: quote.catalogue_version }, brand, branding),
+          ...narrativeSection(quote, 'assumptions', 'Assumptions specific to this engagement', brand),
+          ...narrativeSection(quote, 'risks', 'What could move this estimate', brand)
         ]
       }
     ]

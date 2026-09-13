@@ -51,6 +51,7 @@ An account can hold both roles at once.
 | `/dashboard` | Your home: applications, roles, saved jobs, activity. |
 | `/profile/consultant` | Build or edit your consultant profile. |
 | `/profile/company` | Build or edit your company profile. |
+| `/profile/company/template` | Document branding: your colours, letterhead and standard clauses. |
 | `/profile/settings` | Account settings, roles, password, LinkedIn verification. |
 | `/payments` | What the two paid things cost. |
 | `/payments/history` | Your payments and invoices. |
@@ -102,6 +103,13 @@ automatically.
   estimate does not is discarded before the author sees it. Nothing reaches a document until
   the author reads it and accepts it, and they can edit every word first. It does not and
   will not write scope, effort, rates, timeline or price.
+- **Company branding is configured, never uploaded.** A company sets its colours, its
+  letterhead and its own standard clauses, and the Hub's own generators produce the
+  documents. There is no "upload your Word template" — we never serve back a file we did
+  not build, and an uploaded sample usually means storing somebody's real CV. A brand
+  colour is refused if it falls below 4.5:1 against white, with the measurement shown.
+  Company clauses are added to the standard assumptions and exclusions, never instead of
+  them.
 - **A saved quote is never recomputed.** It keeps the catalogue version it was priced
   under, so editing a rate later does not rewrite what a client was already told.
 - **There is no open direct-message inbox.** Every conversation is anchored — to an

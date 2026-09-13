@@ -30,18 +30,19 @@ handlers cover a feature that is better here than there.
 | Referrals & commissions | 9 | 6 | Link, append-only ledger, admin payouts. One payee type, not three |
 | LinkedIn verification | 9 | 3 | Link-only identity confirmation. No posting, no token stored |
 | AI drafting | part of 17 | 3 | Narrative sections only, every draft verified against the figures |
+| Company document templates | 16 | 5 | Branding and clauses, configured rather than uploaded |
 | Design system | — | — | Glassmorphism ported, palette re-based on Salesforce blue |
 
 ## Next, in order
 
-1. **Company document templates** (16).
-2. **Search across everything** (1) — one box spanning jobs, consultants and companies,
-   behind the existing filter builders.
+1. **Search across everything** (1) — one box spanning jobs, consultants and companies,
+   behind the existing filter builders. No second filter builder: the existing ones answer
+   the question, a search page just asks all three.
+2. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
+   games (13).
 3. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
    are an internal sales tool and an accounting system that happen to live in the same
-   repository.
-4. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
-    games (13).
+   repository as a marketplace.
 
 ## Done since this plan was written
 
@@ -159,6 +160,27 @@ paragraph is allowed to say next to figures that reconcile exactly, and then che
 Still not built, deliberately: AI-written CVs and cover letters. `utils/documents/cvDocx.js`
 renders what the consultant wrote and should keep doing so — the reasoning is in the
 consultant-tooling entry above and has not changed.
+
+**Company document templates.** Five handlers of the reference's sixteen, and the
+difference is that nothing is uploaded.
+
+The reference asks a company to upload a sample document — in practice a real person's CV —
+runs a model over it to extract `samplePersonInfo` and a replacement mapping, writes the
+file to the host filesystem, and later serves it back. Here a company configures its
+colours, its letterhead and its own standard clauses, and the Hub's generators render with
+them. Every file served is still one we built and parsed.
+
+Two things that fell out of doing it this way:
+
+- The contrast rule in `DESIGN.md` became enforceable. A brand colour below 4.5:1 on white
+  is refused with its measurement, and the Hub's own colours are held to the same check.
+- A real bug surfaced: `pptxgenjs` does not escape the `author` and `company` document
+  properties, so a company named "Smith & Jones Ltd" produced a deck that would not open.
+  The validator caught it; a regression test now pins both under- and double-escaping.
+
+Deliberately not built: agency-branded CVs for consultants a company submits. It takes one
+person's data and puts another party's brand on it, which needs the consultant's consent
+and a sharing model that does not exist here.
 
 ## Excluded
 

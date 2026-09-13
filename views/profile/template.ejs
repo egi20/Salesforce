@@ -1,0 +1,180 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', {
+  icon: 'bi-palette',
+  heading: 'Document branding',
+  sub: 'Your colours, your letterhead and your own clauses, on the documents this Hub produces.'
+}) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <div class="glass-card mb-4">
+    <div class="card-body">
+      <h2 class="h6">Why there is no "upload your template" button</h2>
+      <%
+        /*
+         * Said on the page, because the absence is the design and a company arriving
+         * expecting an upload box deserves the reason rather than a missing feature.
+         */
+      %>
+      <p class="small text-muted-2 mb-0">
+        Uploading a Word file means we serve back a document we did not build — one that can
+        carry macros and remote references — and it usually means uploading a real person's CV
+        as the "sample", which we would then be storing. Instead, you set your brand here and
+        our own generators produce the documents. Every file is opened and parsed before it is
+        served, which is only possible for files we made.
+      </p>
+    </div>
+  </div>
+
+  <form method="post" action="/profile/company/template">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-1">Colours</h2>
+            <p class="small text-muted-2">
+              Headings and accents only. Body text, rules and table shading stay as they are —
+              a document nobody can read is not branding.
+            </p>
+
+            <div class="mb-3">
+              <label class="form-label" for="brand_navy">Heading colour</label>
+              <div class="input-group">
+                <input class="form-control form-control-color flex-grow-0" type="color" id="brand_navy_picker"
+                       value="#<%= template.brand_navy || '032D60' %>" aria-label="Pick a heading colour"
+                       data-mirror="brand_navy" style="width: 3rem;">
+                <input class="form-control" type="text" id="brand_navy" name="brand_navy"
+                       value="<%= template.brand_navy ? '#' + template.brand_navy : '' %>"
+                       placeholder="#032D60 — leave empty for the default" maxlength="7">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="brand_blue">Accent colour</label>
+              <div class="input-group">
+                <input class="form-control form-control-color flex-grow-0" type="color" id="brand_blue_picker"
+                       value="#<%= template.brand_blue || '0B5CAB' %>" aria-label="Pick an accent colour"
+                       data-mirror="brand_blue" style="width: 3rem;">
+                <input class="form-control" type="text" id="brand_blue" name="brand_blue"
+                       value="<%= template.brand_blue ? '#' + template.brand_blue : '' %>"
+                       placeholder="#0B5CAB — leave empty for the default" maxlength="7">
+              </div>
+            </div>
+
+            <p class="small text-muted-2 mb-0">
+              A colour is refused if it falls below 4.5:1 against white, with the measurement shown.
+              Salesforce cyan <code>#00A1E0</code> sits at 2.93:1 and is refused here for the same
+              reason it is never used behind white text on this site.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-7">
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-1">Letterhead</h2>
+            <p class="small text-muted-2">
+              Printed above the title on a statement of work, and on the deck's cover. Plain text —
+              it is escaped, not rendered as markup.
+            </p>
+
+            <div class="row g-3">
+              <% letterheadFields.forEach(function (field) { %>
+                <div class="col-md-<%= field.multiline ? 12 : 6 %>">
+                  <label class="form-label" for="<%= field.key %>"><%= field.label %></label>
+                  <% if (field.multiline) { %>
+                    <textarea class="form-control" id="<%= field.key %>" name="<%= field.key %>"
+                              rows="2" maxlength="<%= field.maxLength %>"><%= template[field.key] || '' %></textarea>
+                  <% } else { %>
+                    <input class="form-control" id="<%= field.key %>" name="<%= field.key %>" type="text"
+                           value="<%= template[field.key] || '' %>" maxlength="<%= field.maxLength %>">
+                  <% } %>
+                  <% if (field.help) { %><div class="form-text"><%= field.help %></div><% } %>
+                </div>
+              <% }); %>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" type="submit">Save branding</button>
+      </div>
+    </div>
+  </form>
+
+  <hr class="my-5">
+
+  <h2 class="h5 mb-1">Your standard clauses</h2>
+  <p class="small text-muted-2 mb-4">
+    Added to what a statement of work already prints — never instead of it. The standard
+    assumptions are what make the estimate mean anything, so they stay. Up to
+    <%= maxClauses %> of each kind.
+  </p>
+
+  <div class="row g-4">
+    <% Object.values(clauseKinds).forEach(function (kind) { %>
+      <div class="col-lg-4">
+        <div class="glass-card h-100">
+          <div class="card-body">
+            <h3 class="h6 mb-1"><%= kind.label %>s</h3>
+            <p class="small text-muted-2"><%= kind.help %></p>
+
+            <% if (clauses[kind.key].length) { %>
+              <ul class="list-unstyled small mb-3">
+                <% clauses[kind.key].forEach(function (c, i) { %>
+                  <li class="border-top py-2">
+                    <div class="mb-1"><%= c.body %></div>
+                    <div class="d-flex gap-1">
+                      <% if (i > 0) { %>
+                        <form method="post" action="/profile/company/template/clauses/<%= c.id %>/move">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                          <input type="hidden" name="direction" value="up">
+                          <button class="btn btn-sm btn-link p-0 text-decoration-none" type="submit" aria-label="Move up">↑</button>
+                        </form>
+                      <% } %>
+                      <% if (i < clauses[kind.key].length - 1) { %>
+                        <form method="post" action="/profile/company/template/clauses/<%= c.id %>/move">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                          <input type="hidden" name="direction" value="down">
+                          <button class="btn btn-sm btn-link p-0 text-decoration-none" type="submit" aria-label="Move down">↓</button>
+                        </form>
+                      <% } %>
+                      <form method="post" action="/profile/company/template/clauses/<%= c.id %>/delete" class="ms-auto">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <button class="btn btn-sm btn-link text-danger p-0" type="submit" aria-label="Remove">&times;</button>
+                      </form>
+                    </div>
+                  </li>
+                <% }); %>
+              </ul>
+            <% } %>
+
+            <% if (clauses[kind.key].length < maxClauses) { %>
+              <form method="post" action="/profile/company/template/clauses">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="kind" value="<%= kind.key %>">
+                <label class="visually-hidden" for="clause-<%= kind.key %>">New <%= kind.label.toLowerCase() %></label>
+                <textarea class="form-control form-control-sm mb-2" id="clause-<%= kind.key %>" name="body"
+                          rows="3" maxlength="<%= kind.maxLength %>"
+                          placeholder="One <%= kind.label.toLowerCase() %>, in a sentence or two."></textarea>
+                <button class="btn btn-sm btn-outline-primary" type="submit">Add</button>
+              </form>
+            <% } else { %>
+              <p class="small text-muted-2 mb-0">
+                That is the limit. A quote that grows a page of clauses stops being read at all.
+              </p>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

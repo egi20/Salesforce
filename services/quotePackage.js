@@ -84,6 +84,20 @@ async function withNarrative(quote) {
   }
 }
 
+/**
+ * The owning company's branding, read once per document.
+ *
+ * Read HERE rather than inside a generator, for the same reason the narrative is: there
+ * is exactly one place where a company's configuration enters a document, which is the
+ * place to look when asking whether it can. `brandingFor` never throws and returns an
+ * empty shape when nothing is configured, so a generator renders the Hub's defaults
+ * without branching on whether a template exists.
+ */
+async function brandingForQuote(quote) {
+  const CompanyTemplate = require('../models/CompanyTemplate');
+  return CompanyTemplate.brandingFor(quote.owner_user_id);
+}
+
 async function generateDocument(quote, kind, options = {}) {
   if (!isDocumentKind(kind)) {
     const err = new Error(`Unknown document kind: ${kind}`);
@@ -92,7 +106,10 @@ async function generateDocument(quote, kind, options = {}) {
   }
 
   const spec = DOCUMENT_KINDS[kind];
-  const buffer = await spec.generate(await withNarrative(quote), options);
+  const buffer = await spec.generate(await withNarrative(quote), {
+    ...options,
+    branding: await brandingForQuote(quote)
+  });
 
   return { buffer, filename: filenameFor(quote, kind), contentType: spec.contentType };
 }

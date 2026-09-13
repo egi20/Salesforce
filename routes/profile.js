@@ -20,6 +20,12 @@ const countries = require('../config/all-countries.json');
 const { ALL_MODULES } = require('../config/cloudFamilies');
 const { build: buildDossier } = require('../services/consultantDossier');
 const ExternalIdentity = require('../models/ExternalIdentity');
+const CompanyTemplate = require('../models/CompanyTemplate');
+const {
+  LETTERHEAD_FIELDS,
+  CLAUSE_KINDS,
+  MAX_CLAUSES_PER_KIND
+} = require('../config/companyTemplates');
 const {
   isDocumentKind,
   PACKAGE_KIND,
@@ -397,6 +403,94 @@ router.get(
     // Somebody's CV is private and must not sit in a shared cache.
     res.set('Cache-Control', 'private, no-store');
     return res.send(result.buffer);
+  })
+);
+
+/**
+ * GET /profile/company/template — branding and standard wording.
+ *
+ * Nothing here uploads a document. A company supplies its colours, its letterhead and its
+ * own clauses; the Hub's validated generators render with them. See
+ * `config/companyTemplates.js` for what the alternative costs.
+ */
+router.get(
+  '/company/template',
+  isCompany,
+  asyncHandler(async (req, res) => {
+    const [template, clauses] = await Promise.all([
+      CompanyTemplate.findByUserId(req.session.user.id),
+      CompanyTemplate.clausesFor(req.session.user.id)
+    ]);
+
+    res.render('profile/template', {
+      title: 'Document branding',
+      template: template || {},
+      clauses,
+      letterheadFields: LETTERHEAD_FIELDS,
+      clauseKinds: CLAUSE_KINDS,
+      maxClauses: MAX_CLAUSES_PER_KIND
+    });
+  })
+);
+
+/**
+ * A rejected colour is REPORTED with its measured ratio, never silently replaced: a
+ * company that picked a colour and got a different one has been lied to about what it
+ * configured.
+ */
+router.post(
+  '/company/template',
+  isCompany,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const result = await CompanyTemplate.save(req.session.user.id, req.body);
+    if (!result.saved) {
+      req.flash('error', result.reason);
+    } else {
+      req.flash('success', 'Saved. New documents will carry this.');
+    }
+    return res.redirect('/profile/company/template');
+  })
+);
+
+router.post(
+  '/company/template/clauses',
+  isCompany,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    try {
+      await CompanyTemplate.addClause(req.session.user.id, { kind: req.body.kind, body: req.body.body });
+      req.flash('success', 'Clause added.');
+    } catch (err) {
+      if (!['UNKNOWN_KIND', 'TOO_SHORT', 'TOO_MANY'].includes(err.code)) throw err;
+      req.flash('error', err.message);
+    }
+    return res.redirect('/profile/company/template');
+  })
+);
+
+router.post(
+  '/company/template/clauses/:id/delete',
+  isCompany,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    await CompanyTemplate.removeClause(req.session.user.id, req.params.id);
+    req.flash('success', 'Clause removed.');
+    return res.redirect('/profile/company/template');
+  })
+);
+
+router.post(
+  '/company/template/clauses/:id/move',
+  isCompany,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    // Already at the end is not an error — a person pressing "up" on the first item has
+    // not done anything wrong — so there is nothing to report either way.
+    await CompanyTemplate.moveClause(req.session.user.id, req.params.id, req.body.direction === 'up' ? 'up' : 'down');
+    return res.redirect('/profile/company/template');
   })
 );
 

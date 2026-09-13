@@ -2,8 +2,8 @@
 
 const PptxGenJS = require('pptxgenjs');
 
-const { HEX, FONT, formatNumber, formatMoney, formatDate } = require('./brand');
-const { assertDocumentOpens } = require('./validate');
+const { HEX, FONT, formatNumber, formatMoney, formatDate, paletteFor } = require('./brand');
+const { assertDocumentOpens, escapeXml } = require('./validate');
 const { familyLabel, moduleLabel } = require('./../../config/cloudFamilies');
 
 /**
@@ -21,7 +21,7 @@ const LAYOUT = { name: 'HUB16x9', width: 13.333, height: 7.5 };
 const MARGIN = 0.6;
 const CONTENT_WIDTH = LAYOUT.width - MARGIN * 2;
 
-function addSlide(pptx, title, subtitle) {
+function addSlide(pptx, title, subtitle, brand) {
   const slide = pptx.addSlide();
   slide.background = { color: 'FFFFFF' };
 
@@ -35,7 +35,7 @@ function addSlide(pptx, title, subtitle) {
     fontFace: FONT,
     fontSize: 26,
     bold: true,
-    color: HEX.navy
+    color: brand.navy
   });
 
   if (subtitle) {
@@ -53,7 +53,7 @@ function addSlide(pptx, title, subtitle) {
   return slide;
 }
 
-function tile(slide, { x, y, w, h, value, label }) {
+function tile(slide, { x, y, w, h, value, label, brand }) {
   slide.addShape('rect', { x, y, w, h, fill: { color: HEX.wash }, line: { color: HEX.rule, width: 0.75 } });
   slide.addText(String(value), {
     x: x + 0.15,
@@ -63,7 +63,7 @@ function tile(slide, { x, y, w, h, value, label }) {
     fontFace: FONT,
     fontSize: 30,
     bold: true,
-    color: HEX.navy
+    color: brand.navy
   });
   slide.addText(label, {
     x: x + 0.15,
@@ -78,9 +78,10 @@ function tile(slide, { x, y, w, h, value, label }) {
 
 /** A table styled once, so every table in the deck matches. */
 function styledTable(slide, headers, rows, options = {}) {
+  const brand = options.brand || HEX;
   const head = headers.map((h) => ({
     text: h.label,
-    options: { bold: true, color: 'FFFFFF', fill: { color: HEX.navy }, align: h.align || 'left' }
+    options: { bold: true, color: 'FFFFFF', fill: { color: brand.navy }, align: h.align || 'left' }
   }));
 
   const body = rows.map((row) =>
@@ -104,12 +105,35 @@ function styledTable(slide, headers, rows, options = {}) {
   });
 }
 
-function titleSlide(pptx, quote, estimate) {
+/**
+ * The opening slide, on the brand colour.
+ *
+ * The company's legal name replaces the Hub's where one is configured — this is the deck
+ * a consultancy presents, and its own name belongs on the cover. Plain text, escaped by
+ * pptxgenjs, and nothing here is derived from anything a client can influence.
+ */
+function titleSlide(pptx, quote, estimate, brand, branding) {
   const slide = pptx.addSlide();
-  slide.background = { color: HEX.navy };
+  slide.background = { color: brand.navy };
+
+  const legalName = (branding && branding.letterhead && branding.letterhead.legal_name) || null;
+  if (legalName) {
+    slide.addText(legalName, {
+      x: MARGIN, y: 1.55, w: CONTENT_WIDTH, h: 0.4, fontFace: FONT, fontSize: 14, bold: true, color: 'FFFFFF'
+    });
+  }
 
   slide.addText('Statement of Work', { x: MARGIN, y: 2.2, w: CONTENT_WIDTH, h: 0.7, fontFace: FONT, fontSize: 36, bold: true, color: 'FFFFFF' });
-  slide.addText(quote.project_name, { x: MARGIN, y: 2.95, w: CONTENT_WIDTH, h: 0.6, fontFace: FONT, fontSize: 22, color: HEX.cyan });
+  /*
+   * White, not cyan.
+   *
+   * The background is now whatever the company chose, and a colour only reaches this
+   * function after passing a 4.5:1 check against WHITE — which is precisely the ratio for
+   * white text ON that colour. So white is guaranteed readable on any permitted brand;
+   * cyan is guaranteed nothing, and would vanish against a brand near it. The accent bar
+   * below stays cyan because it is decoration, not text.
+   */
+  slide.addText(quote.project_name, { x: MARGIN, y: 2.95, w: CONTENT_WIDTH, h: 0.6, fontFace: FONT, fontSize: 22, color: 'FFFFFF' });
   slide.addText(
     `Prepared for ${quote.client_company}${quote.client_name ? ` · ${quote.client_name}` : ''}`,
     { x: MARGIN, y: 3.7, w: CONTENT_WIDTH, h: 0.4, fontFace: FONT, fontSize: 14, color: 'FFFFFF' }
@@ -131,8 +155,8 @@ function titleSlide(pptx, quote, estimate) {
   );
 }
 
-function summarySlide(pptx, estimate) {
-  const slide = addSlide(pptx, 'At a glance', 'Effort, duration and cost for the scope agreed');
+function summarySlide(pptx, estimate, brand) {
+  const slide = addSlide(pptx, 'At a glance', 'Effort, duration and cost for the scope agreed', brand);
 
   const tileWidth = (CONTENT_WIDTH - 0.45) / 4;
   const tiles = [
@@ -143,7 +167,7 @@ function summarySlide(pptx, estimate) {
   ];
 
   tiles.forEach((t, i) => {
-    tile(slide, { x: MARGIN + i * (tileWidth + 0.15), y: 1.7, w: tileWidth, h: 1.35, ...t });
+    tile(slide, { x: MARGIN + i * (tileWidth + 0.15), y: 1.7, w: tileWidth, h: 1.35, brand, ...t });
   });
 
   const rows = [
@@ -159,13 +183,14 @@ function summarySlide(pptx, estimate) {
   rows.push([`Total (${estimate.currency})`, formatNumber(estimate.totalBudget)]);
 
   styledTable(slide, [{ label: 'Basis' }, { label: 'Value', align: 'right' }], rows, {
+    brand,
     y: 3.35,
     colW: [CONTENT_WIDTH * 0.7, CONTENT_WIDTH * 0.3]
   });
 }
 
-function scopeSlide(pptx, estimate) {
-  const slide = addSlide(pptx, 'Scope', 'What is being implemented');
+function scopeSlide(pptx, estimate, brand) {
+  const slide = addSlide(pptx, 'Scope', 'What is being implemented', brand);
 
   const rows = estimate.familyBreakdown.map((family) => {
     const modules = estimate.moduleBreakdown.filter((m) => m.family === family.id).map((m) => moduleLabel(m.id));
@@ -184,14 +209,15 @@ function scopeSlide(pptx, estimate) {
   }
 
   styledTable(slide, [{ label: 'Cloud' }, { label: 'Included' }, { label: 'Effort', align: 'right' }], rows, {
+    brand,
     colW: [CONTENT_WIDTH * 0.24, CONTENT_WIDTH * 0.61, CONTENT_WIDTH * 0.15],
     fontSize: 11
   });
 }
 
 /** Phases as proportional bars: the shape of the project in one look. */
-function approachSlide(pptx, estimate) {
-  const slide = addSlide(pptx, 'Approach', 'Phases run largely in sequence; the team works in parallel within each');
+function approachSlide(pptx, estimate, brand) {
+  const slide = addSlide(pptx, 'Approach', 'Phases run largely in sequence; the team works in parallel within each', brand);
 
   const phases = estimate.phaseBreakdown.filter((p) => p.days > 0);
   const maxDays = Math.max(...phases.map((p) => p.days));
@@ -208,7 +234,7 @@ function approachSlide(pptx, estimate) {
       y: y + rowHeight * 0.22,
       w: Math.max(0.06, (phase.days / maxDays) * barArea),
       h: rowHeight * 0.5,
-      fill: { color: i % 2 === 0 ? HEX.blue : HEX.cyan }
+      fill: { color: i % 2 === 0 ? brand.blue : HEX.cyan }
     });
 
     slide.addText(`${formatNumber(phase.days)} d · ${phase.percentage}%`, {
@@ -231,8 +257,8 @@ function approachSlide(pptx, estimate) {
 }
 
 /** The same timeline the SOW and the workbook print, drawn as a Gantt. */
-function timelineSlide(pptx, estimate) {
-  const slide = addSlide(pptx, 'Timeline', `${estimate.projectDurationWeeks} weeks from kick-off to hypercare exit`);
+function timelineSlide(pptx, estimate, brand) {
+  const slide = addSlide(pptx, 'Timeline', `${estimate.projectDurationWeeks} weeks from kick-off to hypercare exit`, brand);
 
   const totalWeeks = estimate.projectDurationWeeks;
   const rowHeight = Math.min(0.5, 4.4 / Math.max(1, estimate.timeline.length));
@@ -249,8 +275,8 @@ function timelineSlide(pptx, estimate) {
       y: y + rowHeight * 0.22,
       w: Math.max(0.08, (slot.durationWeeks / totalWeeks) * trackWidth),
       h: rowHeight * 0.5,
-      fill: { color: HEX.blue },
-      line: { color: HEX.navy, width: 0.5 }
+      fill: { color: brand.blue },
+      line: { color: brand.navy, width: 0.5 }
     });
   });
 
@@ -261,8 +287,8 @@ function timelineSlide(pptx, estimate) {
   );
 }
 
-function commercialsSlide(pptx, estimate) {
-  const slide = addSlide(pptx, 'Team and commercials', `All figures in ${estimate.currency}, exclusive of VAT and expenses`);
+function commercialsSlide(pptx, estimate, brand) {
+  const slide = addSlide(pptx, 'Team and commercials', `All figures in ${estimate.currency}, exclusive of VAT and expenses`, brand);
 
   const rows = estimate.resourceAllocation.map((r) => [
     r.name,
@@ -295,12 +321,12 @@ function commercialsSlide(pptx, estimate) {
       { label: 'Cost', align: 'right' }
     ],
     rows,
-    { colW: [CONTENT_WIDTH * 0.36, CONTENT_WIDTH * 0.12, CONTENT_WIDTH * 0.12, CONTENT_WIDTH * 0.18, CONTENT_WIDTH * 0.22], fontSize: 11 }
+    { colW: [CONTENT_WIDTH * 0.36, CONTENT_WIDTH * 0.12, CONTENT_WIDTH * 0.12, CONTENT_WIDTH * 0.18, CONTENT_WIDTH * 0.22], fontSize: 11, brand }
   );
 }
 
-function nextStepsSlide(pptx, quote, estimate) {
-  const slide = addSlide(pptx, 'Assumptions and next steps', 'What this estimate rests on');
+function nextStepsSlide(pptx, quote, estimate, brand) {
+  const slide = addSlide(pptx, 'Assumptions and next steps', 'What this estimate rests on', brand);
 
   const assumptions = [
     `An estimate, not a fixed price. Contingency of ${estimate.contingencyPercentage}% covers normal discovery findings, not scope additions.`,
@@ -322,7 +348,7 @@ function nextStepsSlide(pptx, quote, estimate) {
   );
 
   slide.addShape('rect', { x: MARGIN, y: 5.2, w: CONTENT_WIDTH, h: 1.4, fill: { color: HEX.wash }, line: { color: HEX.rule, width: 0.75 } });
-  slide.addText('Next steps', { x: MARGIN + 0.25, y: 5.35, w: CONTENT_WIDTH - 0.5, h: 0.3, fontFace: FONT, fontSize: 13, bold: true, color: HEX.navy });
+  slide.addText('Next steps', { x: MARGIN + 0.25, y: 5.35, w: CONTENT_WIDTH - 0.5, h: 0.3, fontFace: FONT, fontSize: 13, bold: true, color: brand.navy });
   slide.addText(
     `Confirm the scope in section 1, then we schedule discovery. This estimate (${quote.reference}) is valid for 30 days from ${formatDate(quote.created_at)}.`,
     { x: MARGIN + 0.25, y: 5.7, w: CONTENT_WIDTH - 0.5, h: 0.7, fontFace: FONT, fontSize: 12, color: HEX.ink }
@@ -333,24 +359,42 @@ function nextStepsSlide(pptx, quote, estimate) {
  * @param {Object} quote stored row with `estimate` parsed
  * @returns {Promise<Buffer>} a validated PPTX
  */
-async function generateSummaryPptx(quote, { preparedBy = '' } = {}) {
+async function generateSummaryPptx(quote, { preparedBy = '', branding = null } = {}) {
+  // Resolved once per deck, threaded down. See the note in sowDocx on why this cannot be
+  // a module-level value.
+  const brand = paletteFor(branding);
   const estimate = quote.estimate;
 
   const pptx = new PptxGenJS();
   pptx.defineLayout(LAYOUT);
   pptx.layout = LAYOUT.name;
-  pptx.author = preparedBy || 'Salesforce Hub';
-  pptx.company = preparedBy || 'Salesforce Hub';
+  /*
+   * The company's own legal name where it configured one: this is their deck, presented
+   * under their name, and the Hub is the tool that built it rather than the sender.
+   *
+   * ESCAPED, and this is a real bug rather than a precaution. `pptxgenjs` escapes slide
+   * body text but writes `author` and `company` straight into `docProps/app.xml`. A
+   * company called "Smith & Jones Ltd" — about as ordinary as a name gets — produced a
+   * package whose app.xml would not parse, and `assertDocumentOpens` refused to serve it.
+   * The feature would have been broken for a large share of its users.
+   *
+   * A test reads app.xml back and asserts the name appears escaped exactly once, so a
+   * future version of the library that starts escaping this field is caught too: a
+   * double-escaped name is still valid XML and a parse check alone would miss it.
+   */
+  const author = (branding && branding.letterhead && branding.letterhead.legal_name) || preparedBy || 'Salesforce Hub';
+  pptx.author = escapeXml(author);
+  pptx.company = escapeXml(author);
   pptx.title = `Statement of Work — ${quote.project_name}`;
   pptx.subject = `Prepared for ${quote.client_company}`;
 
-  titleSlide(pptx, quote, estimate);
-  summarySlide(pptx, estimate);
-  scopeSlide(pptx, estimate);
-  approachSlide(pptx, estimate);
-  timelineSlide(pptx, estimate);
-  commercialsSlide(pptx, estimate);
-  nextStepsSlide(pptx, quote, estimate);
+  titleSlide(pptx, quote, estimate, brand, branding);
+  summarySlide(pptx, estimate, brand);
+  scopeSlide(pptx, estimate, brand);
+  approachSlide(pptx, estimate, brand);
+  timelineSlide(pptx, estimate, brand);
+  commercialsSlide(pptx, estimate, brand);
+  nextStepsSlide(pptx, quote, estimate, brand);
 
   const buffer = await pptx.write({ outputType: 'nodebuffer' });
   assertDocumentOpens(buffer, 'pptx', 'summary deck');

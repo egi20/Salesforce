@@ -30,6 +30,7 @@ Server-rendered Express + EJS on MySQL 8. No SPA, no ORM, no build step for serv
 | Referrals: shareable link, append-only commission ledger, admin payouts | built |
 | LinkedIn: confirm control of an account, link-only, no token stored | built |
 | AI drafting of quote narratives, with every draft checked against the figures | built |
+| Company document branding: colours, letterhead and standard clauses — no uploads | built |
 | Moderation: hide and restore community content, void a bad rate submission, audit log | built |
 | Admin: users, jobs, moderation, analytics, settings, error log, payments, AI spend | built |
 | SEO: canonicals, JobPosting JSON-LD, sitemap generated from the robots allowlist | built |
@@ -209,6 +210,13 @@ drift, and the whole projection is reconciled before it renders.
 no invented profile statement. The reference implementation put a language model here; what
 that buys is fluent text about a career the model does not know, and what it costs is a
 sentence the consultant never wrote in a document they send to a client.
+
+**Company branding is configured, never uploaded.** A company sets its colours, letterhead
+and standard clauses; the Hub's own validated generators render with them. Accepting a Word
+template would mean serving back a file we did not build — one that can carry macros and
+remote references — and usually storing a real person's CV as the "sample". A brand colour
+must clear 4.5:1 against white or it is refused with its measured ratio, which is
+`DESIGN.md`'s contrast rule enforced rather than remembered.
 
 **A generated narrative may not contain a figure the estimate does not.** AI drafting
 writes the prose sections of a quote — summary, approach, assumptions, risks — and every

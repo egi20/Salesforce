@@ -59,6 +59,8 @@ An account can hold both roles at once.
 | `/notifications` | Your notifications. |
 | `/auth/register` | Create a free account. |
 | `/auth/login` | Sign in. |
+| `/tax-advisory` | What the tax advisory service is: an introduction to a specialist who works in your country. It does not calculate anything. |
+| `/tax-advisory/enquire` | Describe your situation and ask to be introduced. Open to anyone, signed in or not. Six questions, none about pay. |
 | `/search` | One box across jobs, consultants, companies and the community. |
 | `/faq` | Frequently asked questions. |
 | `/legal/privacy`, `/legal/terms` | The policies. |
@@ -121,6 +123,18 @@ automatically.
   depends on country, company structure, VAT registration and how someone pays themselves,
   and a figure that looked like tax advice but was a guess would be worse than none. Every
   figure it shows is before tax and labelled so.
+- **Nothing on this site calculates tax, a take-home figure or a saving — including the
+  tax advisory service.** `/tax-advisory` is an INTRODUCTION: somebody describes their
+  situation and a specialist who works in their jurisdiction gets in touch. The Hub is not
+  an accountant, gives no advice, and shows no before-and-after. If somebody asks "how much
+  would I save", say plainly that the site will not answer that and cannot honestly — and
+  point them at `/tax-advisory/enquire`, or at `/rates/calculator` for the part that does
+  not depend on jurisdiction. Never estimate a figure yourself.
+- **The advisory form asks for six things and none of them is money.** Name, email, an
+  optional phone number, country of tax residence, how the person works today, and their
+  question. It does not ask for salary, employer, notice period, day rate or VAT status. If
+  somebody is worried about what they are handing over, that is the answer. The enquiry is
+  kept for 180 days and then deleted.
 - **Generated CVs are rendered, not written.** The CV and rate card format exactly what the
   consultant put on their profile — nothing is summarised, rephrased or invented — so they
   are a starting point to edit, not a finished document. If someone asks for an AI-written

@@ -17,6 +17,8 @@ const AppSetting = require('../models/AppSetting');
 const { DEFINITIONS: SETTING_DEFINITIONS } = require('../config/settings');
 const { returnTo } = require('../utils/returnTo');
 const Referral = require('../models/Referral');
+const TaxEnquiry = require('../models/TaxEnquiry');
+const { TOPICS: ADVISORY_TOPICS, ARRANGEMENTS: ADVISORY_ARRANGEMENTS, STATUSES: ADVISORY_STATUSES, TRANSITIONS: ADVISORY_TRANSITIONS, RETENTION_DAYS: ADVISORY_RETENTION_DAYS } = require('../config/taxAdvisory');
 const { PAYOUT_METHODS, MIN_PAYOUT_MINOR, DEFAULT_RATE_BPS } = require('../config/referrals');
 const { promisePool } = require('../config/database');
 const { isAuthenticated, isAdmin, isSuperadmin } = require('../middleware/auth');
@@ -598,6 +600,100 @@ router.post(
     // force when the introduction was made, so nobody is repriced retroactively.
     req.flash('success', `Rate set to ${rate / 100}% for introductions made from now on.`);
     return res.redirect('/admin/referrals');
+  })
+);
+
+/**
+ * GET /admin/tax-advisory — the enquiry queue.
+ *
+ * Superadmin-gated, and for the same reason `/admin/rates` is: it is a screen that shows
+ * individual people's private circumstances next to their names. A general admin
+ * moderating a forum has no business reading somebody's question about how they are paid.
+ *
+ * The count next to a filter comes from `TaxEnquiry.buildFilter`, which is also what the
+ * list runs — one builder, so the two cannot describe different rows.
+ */
+router.get(
+  '/tax-advisory',
+  isSuperadmin,
+  asyncHandler(async (req, res) => {
+    const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 25 });
+    const filters = {
+      status: req.query.status || '',
+      country: req.query.country || '',
+      topic: req.query.topic || '',
+      q: req.query.q || ''
+    };
+
+    const [{ rows, total }, duePurge] = await Promise.all([
+      TaxEnquiry.list(filters, { limit, offset }),
+      TaxEnquiry.dueForPurge()
+    ]);
+
+    res.render('admin/taxAdvisory', {
+      title: 'Tax advisory enquiries',
+      enquiries: rows,
+      filters,
+      statuses: ADVISORY_STATUSES,
+      transitions: ADVISORY_TRANSITIONS,
+      topics: ADVISORY_TOPICS,
+      arrangements: ADVISORY_ARRANGEMENTS,
+      retentionDays: ADVISORY_RETENTION_DAYS,
+      duePurge,
+      pagination: paginationMeta({ page, perPage, total }),
+      pageUrl: (p) => pageUrl('/admin/tax-advisory', req.query, p)
+    });
+  })
+);
+
+/**
+ * POST /admin/tax-advisory/:id/status — move one enquiry along.
+ *
+ * The transition is checked in the model against the declared machine, so an undeclared
+ * move is refused rather than written. Closing is what releases the one-open-enquiry-per-
+ * address reservation, which is why it is a status change and not a delete.
+ */
+router.post(
+  '/tax-advisory/:id/status',
+  isSuperadmin,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    try {
+      const result = await TaxEnquiry.setStatus(req.params.id, req.body.status, {
+        actorUserId: req.session.user.id,
+        note: req.body.note || null
+      });
+      req.flash('success', `Enquiry #${result.id} moved from ${result.from} to ${result.to}.`);
+    } catch (err) {
+      if (!['NOT_FOUND', 'BAD_STATUS', 'BAD_TRANSITION'].includes(err.code)) throw err;
+      req.flash('error', err.message);
+    }
+    return res.redirect(returnTo(req, '/admin/tax-advisory'));
+  })
+);
+
+/**
+ * POST /admin/tax-advisory/purge — delete everything past the retention period.
+ *
+ * Deliberately a button rather than a background job on a timer. The retention promise is
+ * made on a public form, so somebody should be able to see the number of rows due and
+ * watch it go to zero; a cron nobody watches is how a promise quietly stops being kept.
+ * `npm run purge:enquiries` does the same thing from a scheduler when there is one.
+ */
+router.post(
+  '/tax-advisory/purge',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const deleted = await TaxEnquiry.purgeExpired();
+    req.flash(
+      'success',
+      deleted === 0
+        ? `Nothing was older than ${ADVISORY_RETENTION_DAYS} days.`
+        : `Deleted ${deleted} enquir${deleted === 1 ? 'y' : 'ies'} older than ${ADVISORY_RETENTION_DAYS} days, with their history.`
+    );
+    return res.redirect('/admin/tax-advisory');
   })
 );
 

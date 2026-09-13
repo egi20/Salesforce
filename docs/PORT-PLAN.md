@@ -32,12 +32,12 @@ handlers cover a feature that is better here than there.
 | AI drafting | part of 17 | 3 | Narrative sections only, every draft verified against the figures |
 | Company document templates | 16 | 5 | Branding and clauses, configured rather than uploaded |
 | Search | 1 | 1 | One box, four sources, through the existing builders |
+| Tax advisory | 4 | 5 | An introduction, with consent and retention. The calculator is refused |
 | Design system | — | — | Glassmorphism ported, palette re-based on Salesforce blue |
 
 ## Next, in order
 
-1. **Smaller pieces**: tax service (4), recruiters (3), success stories (2), reviews (1),
-   games (13).
+1. **Smaller pieces**: recruiters (3), success stories (2), reviews (1), games (13).
 2. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
    are an internal sales tool and an accounting system that happen to live in the same
    repository as a marketplace.
@@ -212,3 +212,30 @@ risk while porting:
 - Consent is stamped only by the public registration route.
 - Notifications are fire-and-forget with a stable dedupe key.
 - Anything user-facing follows `DESIGN.md`, including the contrast floor.
+
+**Tax advisory.** The reference has four handlers: a landing page with before-and-after
+testimonials, a savings calculator, and a forty-field application form. Three of the four
+are ported; the calculator is not, and refusing it is the point rather than a gap.
+
+- `POST /tax-optimization/calculate` computes
+  `newNet = gross - (gross * percentRate / 100 + fixedFee)` — `percentRate` defaulting to
+  5 and editable from Admin > Settings > Tax Calculator — and returns a monthly saving, an
+  annual saving and a percentage increase. It is the same finding as the reference's
+  `calculateTaxSavings`, which `utils/contractorEconomics.js` already refuses, in route
+  form: a number that looks like tax advice but is a guess, presented to people who act
+  on it. A test scans this feature for anything saving-shaped so the refusal cannot move
+  here later.
+- Its application form takes forty fields from an anonymous visitor with no rate limit and
+  no consent record — employer, notice period, gross and net pay, current tax rate, VAT
+  status — and stores `estimated_monthly_savings` posted back from the browser. Ours takes
+  six, none about money, with a required consent checkbox, a stamped consent version, a
+  declared 180-day retention and a per-IP limit.
+- `TaxApplication.initializeTable()` runs `CREATE TABLE IF NOT EXISTS` at module load.
+  Here the schema is `scripts/migrations/017_tax_advisory.sql`, like everything else.
+- Dropped without replacement: `assigned_to`, `priority`, `internal_notes` and a six-state
+  enum — a CRM grown inside four handlers. The state machine has four states and the one
+  that matters is `introduced`, because it is where the Hub's involvement ends.
+- Not ported yet: the success-story testimonials the landing page carries. They are a
+  separate feature (2 handlers) and still on the list above; the tax page's versions also
+  render before-and-after pay figures, which is the calculator's output wearing a
+  different hat.

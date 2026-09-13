@@ -66,6 +66,14 @@ const config = {
     resendApiKey: process.env.RESEND_API_KEY || '',
     from: process.env.EMAIL_FROM || 'Salesforce Hub <noreply@example.com>'
   },
+  taxAdvisory: {
+    // Where a new enquiry is announced. Unset means nobody is emailed and the enquiry
+    // waits in /admin/tax-advisory — degraded, not broken, the same way email and
+    // payments degrade without credentials. It is a plain address rather than a settings
+    // row because a lead nobody reads is the failure mode, and that should be a
+    // deployment decision with a diff behind it.
+    notifyEmail: process.env.TAX_ADVISORY_NOTIFY || ''
+  },
   uploads: {
     // Durable bytes live in MySQL. This directory is a scratch cache only and is
     // assumed to be wiped on every deploy.

@@ -14,6 +14,7 @@
     "migrate": "node scripts/migrate.js up",
     "migrate:status": "node scripts/migrate.js status",
     "sync:categories": "node scripts/sync-categories.js",
+    "purge:expired": "node scripts/purge-expired.js",
     "seed": "node scripts/seed-data.js",
     "wait-for-db": "node scripts/wait-for-db.js",
     "validate-boot": "node scripts/validate-boot.js",

@@ -20,7 +20,8 @@
          */
         const path = currentPath;
         const startsWith = (p) => path === p || path.startsWith(p + '/');
-        const isConsultantArea = startsWith('/jobs') || startsWith('/rates') || (currentUser && startsWith('/profile/consultant'));
+        const isConsultantArea = startsWith('/jobs') || startsWith('/rates') || startsWith('/tax-advisory')
+          || (currentUser && startsWith('/profile/consultant'));
         const isCompanyArea = startsWith('/consultants') || startsWith('/companies') || (currentUser && startsWith('/quotes'));
       %>
 
@@ -43,6 +44,7 @@
             <li><a class="dropdown-item" href="/jobs"><i class="bi bi-briefcase"></i> Find work</a></li>
             <li><a class="dropdown-item" href="/rates"><i class="bi bi-graph-up"></i> Rate index</a></li>
             <li><a class="dropdown-item" href="/rates/calculator"><i class="bi bi-calculator"></i> Rate calculator</a></li>
+            <li><a class="dropdown-item" href="/tax-advisory"><i class="bi bi-signpost-split"></i> Tax advisory</a></li>
             <% if (currentUser && currentUser.isConsultant) { %>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="/profile/consultant"><i class="bi bi-person-gear"></i> Build your profile</a></li>

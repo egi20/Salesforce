@@ -1,0 +1,101 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', {
+  icon: 'bi-signpost-split',
+  heading: 'Tax advisory',
+  sub: 'We introduce you to somebody who knows your jurisdiction. We do not calculate anything.'
+}) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="glass-card h-100"><div class="card-body p-4">
+        <h2 class="h5 mb-3">What this is</h2>
+        <p>
+          Consultants who work across borders, or who have just gone contracting, usually
+          have the same first question: how should I actually be set up? It is a good
+          question and it does not have a general answer — it depends on where you are
+          tax-resident, what kind of entity you work through, your VAT position, and how
+          you pay yourself.
+        </p>
+        <p class="mb-0">
+          So we do the one useful thing a marketplace can do here. You describe your
+          situation, we tell you who we think should read it, and if you agree we put you
+          in touch. Everything after that is between you and them.
+        </p>
+      </div></div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="glass-card h-100"><div class="card-body p-4">
+        <h2 class="h6 text-uppercase text-muted-2 mb-3">What we do</h2>
+        <ul class="list-unstyled mb-4">
+          <% promise.does.forEach(function (line) { %>
+            <li class="d-flex gap-2 mb-2">
+              <i class="bi bi-check-circle-fill text-success flex-shrink-0 mt-1"></i>
+              <span><%= line %></span>
+            </li>
+          <% }); %>
+        </ul>
+
+        <h2 class="h6 text-uppercase text-muted-2 mb-3">What we do not do</h2>
+        <ul class="list-unstyled mb-0">
+          <% promise.doesNot.forEach(function (line) { %>
+            <li class="d-flex gap-2 mb-2">
+              <i class="bi bi-x-circle-fill text-danger flex-shrink-0 mt-1"></i>
+              <span><%= line %></span>
+            </li>
+          <% }); %>
+        </ul>
+      </div></div>
+    </div>
+  </div>
+
+  <%
+    /*
+     * The honest replacement for the reference implementation's savings calculator.
+     *
+     * That calculator asked for your gross and net, assumed your entire burden becomes a
+     * flat percentage of gross after restructuring, and printed the difference as a
+     * monthly and annual saving. The percentage was an admin setting. A number that looks
+     * like tax advice but is a guess is worse than no number, because people act on it.
+     *
+     * What is offered instead is a calculator that computes what it can actually know:
+     * days, costs and a net BEFORE tax, with every non-billable day named. It says
+     * plainly that tax is not in it.
+     */
+  %>
+  <div class="glass-card mt-4"><div class="card-body p-4">
+    <div class="row align-items-center g-3">
+      <div class="col-md-8">
+        <h2 class="h5 mb-2">Looking for a number?</h2>
+        <p class="mb-0 text-muted-2">
+          We will not show you a saving. What we can show you is the arithmetic that does
+          not depend on your jurisdiction: billable days after holiday, illness, bench and
+          admin, your costs, and what is left before tax. The rate calculator does that,
+          it is public, and it keeps nothing.
+        </p>
+      </div>
+      <div class="col-md-4 text-md-end">
+        <a class="btn btn-outline-primary" href="/rates/calculator">
+          <i class="bi bi-calculator"></i> Open the rate calculator
+        </a>
+      </div>
+    </div>
+  </div></div>
+
+  <div class="text-center mt-5">
+    <a class="btn btn-primary btn-lg" href="/tax-advisory/enquire">
+      <i class="bi bi-envelope"></i> Ask about your setup
+    </a>
+    <p class="small text-muted-2 mt-3 mb-0">
+      Six questions. We keep your enquiry for <%= retentionDays %> days and then delete it.
+    </p>
+  </div>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

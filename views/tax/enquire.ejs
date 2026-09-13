@@ -1,0 +1,119 @@
+<%- include('../partials/layout-start') %>
+
+<section class="glass-section pb-5">
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <%- include('../partials/flash') %>
+
+      <div class="glass-card">
+        <div class="card-body p-4">
+          <h1 class="h4 mb-2">Ask about your setup</h1>
+          <p class="text-muted-2">
+            Six questions, and none of them is about your pay. Whoever we introduce you to
+            will ask what they need in the conversation, under their own terms — which is
+            the only place a duty of confidentiality actually applies.
+          </p>
+
+          <% if (typeof error !== 'undefined' && error) { %>
+            <div class="alert alert-danger"><%= error %></div>
+          <% } %>
+
+          <form method="post" action="/tax-advisory/enquire">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label" for="full_name">Your name</label>
+                <input class="form-control" id="full_name" name="full_name" type="text" required
+                       maxlength="<%= limits.name %>" value="<%= form.fullName %>">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="email">Email</label>
+                <input class="form-control" id="email" name="email" type="email" required
+                       maxlength="<%= limits.email %>" value="<%= form.email %>">
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label" for="phone">Phone <span class="text-muted-2">(optional)</span></label>
+                <input class="form-control" id="phone" name="phone" type="tel"
+                       maxlength="<%= limits.phone %>" value="<%= form.phone %>">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="country">Where you are tax-resident</label>
+                <select class="form-select" id="country" name="country" required>
+                  <option value="">Choose</option>
+                  <% countries.forEach(function (c) { %>
+                    <option value="<%= c.code %>" <%= form.country === c.code ? 'selected' : '' %>><%= c.name %></option>
+                  <% }); %>
+                </select>
+                <div class="form-text">It decides who can help you, and it is the only location we ask for.</div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="arrangement">How you work at the moment</label>
+              <select class="form-select" id="arrangement" name="arrangement" required>
+                <option value="">Choose</option>
+                <% arrangements.forEach(function (a) { %>
+                  <option value="<%= a.value %>" <%= form.arrangement === a.value ? 'selected' : '' %>><%= a.label %></option>
+                <% }); %>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="topic">What you want to ask about</label>
+              <select class="form-select" id="topic" name="topic" required>
+                <option value="">Choose</option>
+                <% topics.forEach(function (t) { %>
+                  <option value="<%= t.value %>" <%= form.topic === t.value ? 'selected' : '' %>><%= t.label %></option>
+                <% }); %>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="question">Your situation, in your own words</label>
+              <textarea class="form-control" id="question" name="question" rows="6" required
+                        minlength="<%= limits.questionMin %>" maxlength="<%= limits.question %>"
+                        placeholder="What you do, who your clients are, and what you are trying to work out."><%= form.question %></textarea>
+              <div class="form-text">
+                Please do not paste bank details, tax reference numbers or identity documents here.
+                Nothing in this form needs them.
+              </div>
+            </div>
+
+            <%
+              /*
+               * Consent is a real checkbox with a named purpose, not a line of small print
+               * under a button. The reference collects somebody's salary, employer and
+               * notice period with no consent record at all.
+               *
+               * Unticked posts nothing, so the server treats absence as refusal rather
+               * than defaulting it — the same trap AppSetting.setMany avoids by iterating
+               * declared keys instead of the submitted body.
+               */
+            %>
+            <div class="form-check mb-4">
+              <input class="form-check-input" type="checkbox" id="consent" name="consent" value="on" required>
+              <label class="form-check-label small" for="consent">
+                I agree that Salesforce Hub may pass what I have written here to a tax
+                specialist in order to answer it, and may keep it for
+                <%= retentionDays %> days. I understand Salesforce Hub is not giving me
+                advice and is not an accountant.
+                <a href="/legal/privacy" target="_blank" rel="noopener">Privacy notice</a>.
+              </label>
+            </div>
+
+            <button class="btn btn-primary" type="submit">Send my enquiry</button>
+            <a class="btn btn-link" href="/tax-advisory">Back</a>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

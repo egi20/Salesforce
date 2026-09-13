@@ -676,6 +676,64 @@ queried at all until there is something to query for. `/search` is deliberately 
 `PUBLIC_PATHS`, so `seo.indexable` is false: a results page is infinite crawl space and
 every query string would be a separate URL.
 
+## Tax advisory
+
+**This feature exists because the reference's version of it cannot be ported.** Its
+`POST /tax-optimization/calculate` takes the gross and net a visitor types, computes
+`newNet = gross - (gross * percentRate / 100 + fixedFee)` with `percentRate` defaulting to
+5, and returns a monthly saving, an annual saving and a percentage increase. That
+arithmetic asserts somebody's ENTIRE burden becomes five per cent of gross — no
+jurisdiction, no entity type, no VAT position, no social security floor, no accountant's
+fee — and `percentRate` is an admin-editable setting, so the saving on the screen is a
+marketing dial. `utils/contractorEconomics.js` already refuses to compute tax; a
+calculator in `routes/tax.js` would have moved that refusal one directory to the left, so
+a test scans this feature's source and its exported surface for anything
+saving- or tax-computation-shaped.
+
+What is real underneath it is the INTRODUCTION. So `/tax-advisory` explains the service,
+says in the same breath that the Hub calculates nothing, and offers a form. Nothing else.
+
+**Six fields, and none of them is money.** The reference's form collects forty from an
+anonymous visitor with no rate limit and no consent record: current employer, contract end
+date, notice period, gross and net monthly pay, current tax rate, VAT registration,
+desired and current day rate. It also stores `estimated_monthly_savings` POSTED BACK FROM
+THE BROWSER, so the figure on the record is one the client chose. Here it is name, email,
+optional phone, country of tax residence, how you work today, and your question. The
+specialist asks the rest in the conversation, under their own engagement terms — which is
+the only place a professional duty of confidentiality actually attaches. It does not
+attach in a marketplace's database. The route reads named fields rather than spreading
+the body, and a test asserts the exact shape of the call, so a field added to the form
+cannot reach the model unnoticed.
+
+**Consent is a real checkbox with a named purpose**, and `consent_version` is stamped on
+the row the way registration stamps it. An unticked box posts nothing, so absence is
+refusal and is never defaulted — the same trap `AppSetting.setMany` avoids by iterating
+declared keys rather than the submitted body.
+
+**Retention is declared and observable.** `RETENTION_DAYS` is in `config/taxAdvisory.js`,
+the form states it, `/admin/tax-advisory` shows how many rows are past it, and the button
+beside that number deletes them. `npm run purge:expired` does the same from a scheduler.
+Unlike moderation, this DELETES: a hidden post still has counters and a ledger pointing at
+it, an enquiry has neither, and the promise made on the form was deletion. The events
+cascade with it, because keeping an audit trail of a record we said we would delete is
+keeping the record.
+
+**`open_key` is the idempotency, and it lives in the schema.** It holds the lower-cased
+email while the enquiry is open and is NULLed on the move to `closed`; the unique index on
+it therefore means "one OPEN enquiry per address". A double-submitted form updates one
+row, and somebody helped in March can ask again in September. MySQL not colliding NULLs in
+a unique index is the whole mechanism.
+
+**The country is refused, never truncated.** `trimmed(input.country, 2)` made `ALB` arrive
+as `AL` — a test caught it. It is the one fact that decides who can help, and `AUT`
+silently becoming Australia is wrong forever rather than wrong visibly. The same value in
+`buildFilter` IS clamped, deliberately: a wrong filter shows the wrong rows to an
+administrator who fixes it in a second.
+
+`/admin/tax-advisory` is superadmin-gated for the same reason `/admin/rates` is — it shows
+individual people's private circumstances next to their names, and a general admin
+moderating a forum has no business reading them.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

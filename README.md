@@ -33,15 +33,20 @@ Server-rendered Express + EJS on MySQL 8. No SPA, no ORM, no build step for serv
 | Company document branding: colours, letterhead and standard clauses — no uploads | built |
 | Search across jobs, consultants, companies and the community, through the same builders | built |
 | Tax advisory: an introduction to a specialist, with consent and a retention period. No calculator | built |
+| Daily challenge: five questions a day, graded on the server, with streaks and leaderboards | built |
+| Recruitment agencies: a third account role, agency profiles and a public directory | built |
+| Success stories and member reviews, moderated and never deleted | built |
+| Sales CRM: leads with a required source, a permanent do-not-contact list, drafted outreach | built |
 | Moderation: hide and restore community content, void a bad rate submission, audit log | built |
 | Admin: users, jobs, moderation, analytics, settings, error log, payments, AI spend | built |
 | SEO: canonicals, JobPosting JSON-LD, sitemap generated from the robots allowlist | built |
 
 Deliberately not built yet, and listed so nobody mistakes the scope: record
-deduplication, finance/P&L reporting, a certification practice bank, a sales CRM, and a
-Salesforce org integration. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+deduplication, finance/P&L reporting, a certification practice bank, and a Salesforce org
+integration. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
-Deliberately not built at all: a tax savings calculator. The tax advisory pages introduce
+Deliberately not built at all: a tax savings calculator, and any path that sends a message
+to a sales lead on its own. The CRM drafts; a person sends. The tax advisory pages introduce
 people to a specialist and say so; they compute nothing. See **Tax advisory** in
 [`CLAUDE.md`](CLAUDE.md) for why a number that looks like tax advice but is a guess is
 worse than no number.

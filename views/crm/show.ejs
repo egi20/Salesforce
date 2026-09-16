@@ -1,0 +1,194 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', {
+  icon: 'bi-person-lines-fill',
+  heading: lead.company,
+  sub: [lead.contact_name, lead.job_title].filter(Boolean).join(' · ') || null
+}) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <% if (suppressed) { %>
+    <div class="alert alert-danger">
+      <strong>This address is on the do-not-contact list.</strong>
+      Nothing may be drafted or sent to it. The entry stays even if this lead is deleted.
+    </div>
+  <% } %>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="glass-card mb-3"><div class="card-body">
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+          <h2 class="h6 mb-0">Details <span class="badge-hub ms-1"><%= lead.status %></span></h2>
+          <a class="btn btn-outline-primary btn-sm" href="/crm/new">Add another</a>
+        </div>
+        <dl class="row small mb-0">
+          <dt class="col-4 text-muted-2">Email</dt>
+          <dd class="col-8"><%= lead.contact_email || '—' %></dd>
+          <dt class="col-4 text-muted-2">Phone</dt>
+          <dd class="col-8"><%= lead.contact_phone || '—' %></dd>
+          <dt class="col-4 text-muted-2">Country</dt>
+          <dd class="col-8"><%= lead.country || '—' %></dd>
+          <dt class="col-4 text-muted-2">Source</dt>
+          <dd class="col-8">
+            <%= lead.source.replace(/_/g, ' ') %>
+            <% if (lead.source_detail) { %><span class="d-block text-muted-2"><%= lead.source_detail %></span><% } %>
+          </dd>
+          <% if (lead.website) { %>
+            <dt class="col-4 text-muted-2">Website</dt>
+            <dd class="col-8"><a href="<%= lead.website %>" rel="nofollow noopener" target="_blank">open</a></dd>
+          <% } %>
+          <% if (lead.linkedin_url) { %>
+            <dt class="col-4 text-muted-2">LinkedIn</dt>
+            <dd class="col-8"><a href="<%= lead.linkedin_url %>" rel="nofollow noopener" target="_blank">open</a></dd>
+          <% } %>
+        </dl>
+      </div></div>
+
+      <div class="glass-card mb-3"><div class="card-body">
+        <h2 class="h6 mb-3">Outreach drafts</h2>
+
+        <% if (!draftingEnabled) { %>
+          <p class="small text-muted-2 mb-3">Drafting is not switched on — no API key is configured.</p>
+        <% } else if (!suppressed && ['new','contacted','replied','parked'].includes(lead.status)) { %>
+          <form method="post" action="/crm/<%= lead.id %>/draft" class="mb-3">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="channel" value="email">
+            <button class="btn btn-outline-primary btn-sm" type="submit">Draft a first message</button>
+            <span class="small text-muted-2 ms-2">
+              The model is given the company, the country and the job title. Not the name,
+              not the address.
+            </span>
+          </form>
+        <% } %>
+
+        <% if (!drafts.length) { %>
+          <p class="small text-muted-2 mb-0">Nothing drafted.</p>
+        <% } %>
+
+        <% drafts.forEach(function (d) { %>
+          <div class="border-top pt-3 mt-3">
+            <p class="small text-muted-2 mb-2">
+              <%= new Date(d.created_at).toISOString().slice(0, 10) %> · <%= d.channel %> · <%= d.author_name %>
+              <% if (d.marked_sent_at) { %><span class="badge-hub ok ms-1">recorded as sent</span>
+              <% } else if (d.superseded_at) { %><span class="badge-hub muted ms-1">superseded</span><% } %>
+            </p>
+
+            <form method="post" action="/crm/<%= lead.id %>/draft/<%= d.id %>">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <label class="visually-hidden" for="ed-<%= d.id %>">Message</label>
+              <textarea class="form-control form-control-sm mb-2" id="ed-<%= d.id %>" name="edited_body"
+                        rows="6" maxlength="<%= limits.draft %>"><%= d.edited_body || d.body %></textarea>
+              <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-sm btn-outline-secondary" type="submit" name="action" value="save">Save my edit</button>
+                <% if (!d.marked_sent_at) { %>
+                  <button class="btn btn-sm btn-outline-primary" type="submit" name="action" value="sent">
+                    I sent this
+                  </button>
+                <% } %>
+              </div>
+            </form>
+
+            <% if (d.edited_body) { %>
+              <details class="mt-2">
+                <summary class="small text-muted-2">What the model originally wrote</summary>
+                <p class="small text-muted-2 mt-2 mb-0" style="white-space:pre-wrap"><%= d.body %></p>
+              </details>
+            <% } %>
+          </div>
+        <% }); %>
+
+        <p class="small text-muted-2 mt-3 mb-0">
+          "I sent this" records a note somebody made. It is not a delivery receipt —
+          nothing in this application sends anything.
+        </p>
+      </div></div>
+
+      <div class="glass-card"><div class="card-body">
+        <h2 class="h6 mb-3">History</h2>
+        <% if (!activities.length) { %>
+          <p class="small text-muted-2 mb-0">Nothing recorded yet.</p>
+        <% } %>
+        <ul class="list-unstyled mb-0">
+          <% activities.forEach(function (a) { %>
+            <li class="border-top py-2 small">
+              <span class="text-muted-2"><%= new Date(a.created_at).toISOString().slice(0, 16).replace('T', ' ') %></span>
+              · <strong><%= a.outcome.replace(/_/g, ' ') %></strong>
+              <% if (a.channel) { %> · <%= a.channel %><% } %>
+              <% if (a.from_status && a.to_status) { %> · <%= a.from_status %> → <%= a.to_status %><% } %>
+              · <%= a.actor_name %>
+              <% if (a.note) { %><div class="text-muted-2" style="white-space:pre-wrap"><%= a.note %></div><% } %>
+            </li>
+          <% }); %>
+        </ul>
+        <p class="small text-muted-2 mt-3 mb-0">Append-only. Nothing here can be edited or removed.</p>
+      </div></div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="glass-card mb-3"><div class="card-body">
+        <h2 class="h6 mb-3">Move it along</h2>
+        <% if (!transitions.length) { %>
+          <p class="small text-muted-2 mb-0">This lead is <%= lead.status %>. Nothing follows.</p>
+        <% } else { %>
+          <form method="post" action="/crm/<%= lead.id %>/status">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div class="mb-2">
+              <label class="form-label small" for="status">New status</label>
+              <select class="form-select form-select-sm" id="status" name="status" required>
+                <% transitions.forEach(function (t) { %>
+                  <option value="<%= t %>"><%= t %></option>
+                <% }); %>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small" for="status-note">Note</label>
+              <input class="form-control form-control-sm" id="status-note" name="note" maxlength="2000">
+            </div>
+            <button class="btn btn-primary btn-sm" type="submit">Record</button>
+            <p class="small text-muted-2 mt-2 mb-0">
+              <strong>unsubscribed</strong> also adds the address to the do-not-contact list,
+              in the same transaction, permanently.
+            </p>
+          </form>
+        <% } %>
+      </div></div>
+
+      <div class="glass-card"><div class="card-body">
+        <h2 class="h6 mb-3">Record what happened</h2>
+        <form method="post" action="/crm/<%= lead.id %>/activity">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <div class="row g-2 mb-2">
+            <div class="col-6">
+              <label class="form-label small" for="outcome">Outcome</label>
+              <select class="form-select form-select-sm" id="outcome" name="outcome" required>
+                <% outcomes.forEach(function (o) { %>
+                  <option value="<%= o.value %>"><%= o.label %></option>
+                <% }); %>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small" for="channel">Channel</label>
+              <select class="form-select form-select-sm" id="channel" name="channel">
+                <option value="">None</option>
+                <% channels.forEach(function (c) { %>
+                  <option value="<%= c.value %>"><%= c.label %></option>
+                <% }); %>
+              </select>
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small" for="act-note">Note</label>
+            <textarea class="form-control form-control-sm" id="act-note" name="note" rows="3" maxlength="2000"></textarea>
+          </div>
+          <button class="btn btn-outline-primary btn-sm" type="submit">Add to history</button>
+        </form>
+      </div></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

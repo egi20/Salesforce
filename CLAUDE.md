@@ -734,6 +734,150 @@ administrator who fixes it in a second.
 individual people's private circumstances next to their names, and a general admin
 moderating a forum has no business reading them.
 
+## The daily challenge
+
+**The reference's game system is client-authoritative from end to end**, and that one fact
+decides everything here. `routes/games.js:41` reads `const { score, gameDate } = req.body`
+and inserts both, so the browser says what it scored and which day it scored it on. It does
+not matter anyway, because all 2467 lines of `views/partials/games-section.ejs` ship every
+question together with the index of its correct answer. One fetch posts a perfect score on
+any date, as often as you like — and that output feeds the points summary, so a browser can
+mint points against a ledger whose entire value is that a total can be explained.
+
+So the answers live in `config/challenges.js` and never leave the process. The page gets
+questions through `publicFormOf`, which strips the answer AND the explanation — the
+explanation names the right option in prose, so it is as good as the key. The browser posts
+the options it chose; `gradeAnswers` decides the score; the date comes from the server
+clock. `UNIQUE (user_id, challenge_date)` gives one attempt a day and is checked by
+ATTEMPTING THE INSERT, because a select-then-insert has a window where two submissions both
+see nothing and both write.
+
+ONE game, not the reference's nine. The other eight are the same shape wearing different UI.
+The streak is kept but DERIVED from attempt dates, never posted by a `/streak/checkin` the
+browser can call at will; `streakFromDates` is pure so month, year and leap-day boundaries
+are testable.
+
+Three things the design turns on:
+
+- The daily set is **seeded by the date**, so everybody answers the same five and a
+  disputed score can be reconstructed later. A random shuffle makes both impossible.
+- Answers are **keyed by question id, not position**. `qs` compacts a sparse numeric
+  object, so a partial submission would otherwise be graded against the wrong questions.
+- A correct answer pays **the smallest award on the site**. A quiz is the cheapest volume
+  here, and the scheme's own rule is that one which pays for volume gets volume.
+
+`duration_ms` is stored and never ranked on — ties break on who answered earlier, because a
+number the browser chose must not decide a position. The leaderboards select no email
+address.
+
+## Recruiters
+
+`is_recruiter` has been on `users` since migration 001; the profile, dashboard and public
+agency directory sit behind it.
+
+**`recruiter` is in `PUBLIC_ROLES` and `partner` is not, and the line is MONEY.** A recruiter
+account can do what a company account can already do. A partner account carries a commission
+rate, which is what made the reference's `user_types[]=partner` POST a real escalation rather
+than a missing checkbox. Anyone adding a role to that list: ask whether it grants access
+somebody else pays for.
+
+Three corrections, each small and each real:
+
+1. **The guard is the shared one.** The reference defines its own `isRecruiter` inside its
+   route file, so a failed check redirects a background fetch to a login page instead of
+   answering JSON — it does not know about `Sec-Fetch-Dest`.
+2. **No GET writes.** Both of the reference's page handlers self-heal with
+   `if (!recruiter) createForUser(...)`, so opening a dashboard inserts a row. A read that
+   writes cannot be retried safely and creates rows for anyone who only looked.
+3. **Validation is applied.** The reference declares express-validator rules and never calls
+   `validationResult`, so they are decorative and an unbounded name reaches the column.
+
+Specialisms are cloud FAMILIES, derived from `config/cloudFamilies.js`, so adding a cloud
+adds a specialism. The directory filters on them with `JSON_CONTAINS`, not a LIKE over the
+serialised array — `LIKE '%sales-cloud%'` would also match a future `sales-cloud-einstein`.
+
+Not built, deliberately: candidate shortlists and placement tracking. The reference promises
+both in a route comment and ships neither. A shortlist holds other people's profiles, and
+who may see that a consultant is on one is not an obvious question.
+
+## Success stories and reviews
+
+**A story carries no pay figures.** The reference's stories store `gross_before`,
+`net_before`, `gross_after` and `net_after`, and its tax page renders the difference as a
+monthly saving — the savings calculator this codebase refuses, wearing a different hat and
+attached to a named person. A test scans the model and the migration for anything
+money-shaped.
+
+**`utils/videoEmbed.js` is the reference's best code**, ported almost unchanged, and that is
+worth saying because most of what this repo takes from there it takes as a correction. Only
+recognised URL shapes produce an embed, everything else is null, and YouTube goes through
+the no-cookie host — an `<iframe src>` built from a typed value is third-party script inside
+this origin's page. Two things are tightened: the conversion runs at RENDER time from the
+raw stored value, so today's rules apply to every row; and every query parameter is dropped,
+so an embed cannot inherit `?autoplay=1` or a tracking id. `EMBED_HOSTS` is shared into the
+CSP's `frame-src`, so the policy and the allowlist cannot drift apart — the same reason
+`WEBHOOK_PATH` is shared.
+
+**A review needs an account.** The reference takes a name and a role from the form, which is
+a testimonial farm with a text box. An account gives the review a subject and makes
+`UNIQUE (user_id)` mean one voice, one review. The role shown is derived from the flags the
+account holds, so "Salesforce MVP" cannot be typed into a field the page renders as fact.
+
+**Neither has a delete.** `SiteReview.delete` there is a hard DELETE reachable from a bulk
+action; afterwards nobody can say what was removed or by whom. Publish and hide are separate
+nullable timestamps: unpublished means "not finished", hidden means "was live and should not
+be", and the retraction is the one somebody asks about later. Editing a review clears its
+approval and deliberately does NOT clear a hide.
+
+`ImageBlob` now carries an owner column per table rather than assuming `user_id`, because a
+story photo belongs to a story with no account behind it. The lookup uses `hasOwnProperty` —
+`ALLOWED_TABLES['__proto__']` is `Object.prototype`, which is truthy.
+
+## The sales CRM
+
+**This table is different from every other one here.** Everything else holds data somebody
+gave us. This holds the names, addresses, phone numbers and job titles of people who never
+asked to be contacted, so that somebody can contact them. Three rules make that defensible,
+and each is enforced in the schema or a pure function rather than left to a handler:
+
+1. **A lead cannot exist without a source.** `source` is `NOT NULL` and validated against
+   `config/crm.js`; most sources also require `source_detail`. "Where did you get this
+   address" is the first question anybody asks, and it is recorded at import rather than
+   reconstructed later. There is deliberately no free-text option: a free-text source field
+   fills up with "web".
+2. **Suppression outlives deletion.** `crm_suppressions` is keyed on a SHA-256 of the
+   address, holds no address, and has NO foreign key to `crm_leads`. That absence is the
+   design — deleting a lead is exactly how the reference would lose the fact that its
+   subject asked to be left alone, and the next quarterly import would write them straight
+   back in. Nothing in this application deletes from that table. Moving a lead to
+   `unsubscribed` writes the suppression in the SAME transaction as the status, because two
+   calls leave a window where the status says "leave them alone" and the list does not.
+   Every non-terminal status reaches `unsubscribed` in one step, asserted at boot.
+3. **Nothing sends.** A draft is written, a person sends it from their own mail client, and
+   a person records that they did. `marked_sent_at` is named for what it is: a note somebody
+   made, not a delivery receipt. The reference has `/outreach/generate` feeding an
+   `/outreach/queue`, which is one scheduler away from a different product.
+
+**The model is handed no personal detail** — company, country and job title, never the name,
+the address or the phone number. None of it improves a first paragraph and all of it would
+be somebody's contact details leaving for a third party. `utils/outreachDrafting.js` rejects
+a claimed familiarity ("I saw your recent post" is a lie in a first line and the one that
+gets an address blocked), any figure at all, and the same commitment terms
+`utils/draftVerification.js` exports. Spend goes to the shared `ai_usage` ledger and cap.
+
+**CSV only, previewed before it is written.** The reference sniffs every sheet of an .xlsx
+by its headers; its own comment records what that produced — hundreds of rows silently
+skipped from one export. Here the source is chosen on the import screen and stamped on every
+row (a source column inside the file is a source nobody checked), every row comes back with
+its own named problems, and the write step RE-PARSES rather than trusting a posted row set.
+
+**The bulk interlock is ported from the reference deliberately** — it takes an
+`expectedCount` and refuses on a mismatch, and it got that right. The export escapes a cell
+beginning `=`, `+`, `-` or `@`, which the reference does not: that is a real injection path
+out of a CSV.
+
+`/crm` is superadmin-gated for the same reason `/admin/rates` is.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

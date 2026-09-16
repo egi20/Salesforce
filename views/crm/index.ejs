@@ -1,0 +1,152 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', {
+  icon: 'bi-kanban',
+  heading: 'Sales leads',
+  sub: 'Contact details of people who did not ask to be contacted. Treat the screen accordingly.'
+}) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <div class="glass-card mb-4"><div class="card-body">
+    <h2 class="h6">Three rules this screen runs on</h2>
+    <ul class="small text-muted-2 mb-0">
+      <li><strong>Every lead has a source.</strong> A lead cannot be saved without an answer
+          to "where did you get this address". It is recorded at import, not reconstructed later.</li>
+      <li><strong>The do-not-contact list outlives the lead.</strong> Deleting a lead does not
+          remove its suppression, so a re-import next quarter cannot write somebody back in.</li>
+      <li><strong>Nothing here sends anything.</strong> A draft is written, you send it from
+          your own mail client, and you record that you did.</li>
+    </ul>
+  </div></div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="stat-tile"><div class="value"><%= total %></div><div class="label">Matching this filter</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-tile"><div class="value"><%= counts.new || 0 %></div><div class="label">Not yet contacted</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-tile"><div class="value"><%= stale %></div><div class="label">Stale (<%= staleAfterDays %>d)</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-tile"><div class="value"><%= suppressed %></div><div class="label">
+        <a href="/crm/suppressions">Do not contact</a></div></div>
+    </div>
+  </div>
+
+  <form class="glass-card mb-4" method="get" action="/crm">
+    <div class="card-body">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label" for="f-q">Company, name or email</label>
+          <input class="form-control form-control-sm" id="f-q" name="q" value="<%= filters.q %>" maxlength="120">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="f-status">Status</label>
+          <select class="form-select form-select-sm" id="f-status" name="status">
+            <option value="">Any</option>
+            <% statuses.forEach(function (s) { %>
+              <option value="<%= s %>" <%= filters.status === s ? 'selected' : '' %>><%= s %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="f-source">Source</label>
+          <select class="form-select form-select-sm" id="f-source" name="source">
+            <option value="">Any</option>
+            <% sources.forEach(function (s) { %>
+              <option value="<%= s.value %>" <%= filters.source === s.value ? 'selected' : '' %>><%= s.label %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="f-country">Country</label>
+          <input class="form-control form-control-sm" id="f-country" name="country" maxlength="2" value="<%= filters.country %>">
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-primary btn-sm w-100" type="submit">Filter</button>
+        </div>
+      </div>
+      <div class="d-flex flex-wrap gap-3 mt-2">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="stale" value="1" id="f-stale" <%= filters.stale ? 'checked' : '' %>>
+          <label class="form-check-label small" for="f-stale">Only stale</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="unowned" value="1" id="f-unowned" <%= filters.unowned ? 'checked' : '' %>>
+          <label class="form-check-label small" for="f-unowned">Only unassigned</label>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-primary btn-sm" href="/crm/new"><i class="bi bi-plus"></i> Add a lead</a>
+    <a class="btn btn-outline-primary btn-sm" href="/crm/import"><i class="bi bi-upload"></i> Import</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/crm/export.csv?<%= new URLSearchParams(filters).toString() %>">
+      <i class="bi bi-download"></i> Export what this filter matches
+    </a>
+  </div>
+
+  <% if (!leads.length) { %>
+    <div class="glass-card"><div class="card-body"><p class="text-muted-2 mb-0">Nothing matches.</p></div></div>
+  <% } else { %>
+    <div class="glass-card"><div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead>
+            <tr>
+              <th scope="col">Company</th><th scope="col">Contact</th><th scope="col">Source</th>
+              <th scope="col">Status</th><th scope="col">Last activity</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% leads.forEach(function (l) { %>
+              <tr>
+                <td><a href="/crm/<%= l.id %>"><%= l.company %></a>
+                  <% if (l.country) { %><span class="small text-muted-2"> <%= l.country %></span><% } %></td>
+                <td class="small">
+                  <%= l.contact_name || '—' %>
+                  <% if (l.job_title) { %><div class="text-muted-2"><%= l.job_title %></div><% } %>
+                </td>
+                <td class="small text-muted-2"><%= l.source.replace(/_/g, ' ') %></td>
+                <td><span class="badge-hub"><%= l.status %></span></td>
+                <td class="small text-muted-2">
+                  <%= l.last_activity_at ? new Date(l.last_activity_at).toISOString().slice(0, 10) : 'never' %>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </div></div>
+
+    <%- include('../partials/pagination', { pagination, pageUrl }) %>
+
+    <div class="glass-card mt-4 border-danger"><div class="card-body">
+      <h2 class="h6 text-danger mb-2">Delete everything this filter matches</h2>
+      <p class="small text-muted-2 mb-3">
+        The form carries the count the screen showed (<strong><%= total %></strong>). If the
+        filtered set has changed since this page loaded, nothing is deleted and you are told
+        the real number. Suppressions are not removed by this.
+      </p>
+      <form method="post" action="/crm/bulk" class="d-flex flex-wrap gap-2 align-items-center">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="expected_count" value="<%= total %>">
+        <% Object.entries(filters).forEach(function (pair) { %>
+          <% if (pair[1] !== '' && pair[1] !== false) { %>
+            <input type="hidden" name="<%= pair[0] %>" value="<%= pair[1] === true ? '1' : pair[1] %>">
+          <% } %>
+        <% }); %>
+        <button class="btn btn-outline-danger btn-sm" type="submit">Delete <%= total %> leads</button>
+      </form>
+    </div></div>
+  <% } %>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

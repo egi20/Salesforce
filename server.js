@@ -14,6 +14,7 @@ const { pool } = require('./config/database');
 const { assertTaxonomyIntegrity } = require('./config/roleTaxonomy');
 const { assertAdvisoryIntegrity } = require('./config/taxAdvisory');
 const { assertChallengeIntegrity } = require('./config/challenges');
+const { assertCrmIntegrity } = require('./config/crm');
 const { EMBED_HOSTS } = require('./utils/videoEmbed');
 const { assertEstimationIntegrity } = require('./config/estimation');
 const { assertCommunityIntegrity } = require('./config/community');
@@ -41,6 +42,9 @@ assertAdvisoryIntegrity();
 // And for the challenge bank: a question whose answer index is outside its options is a
 // question nobody can get right, and it would only show up as a puzzled member.
 assertChallengeIntegrity();
+// And the CRM pipeline: every non-terminal status must reach `unsubscribed` in one step,
+// because somebody asking to be left alone should never depend on where the board is.
+assertCrmIntegrity();
 // Same reasoning: phase and resource percentages that do not sum to 100 shift every
 // estimate by a silent few per cent rather than failing visibly.
 assertEstimationIntegrity();
@@ -272,6 +276,7 @@ app.use('/recruiters', require('./routes/recruiters'));
 app.use('/success-stories', require('./routes/stories'));
 app.use('/messages', require('./routes/messages'));
 app.use('/notifications', require('./routes/notifications'));
+app.use('/crm', require('./routes/crm'));
 app.use('/admin', require('./routes/admin'));
 
 app.use(notFound);

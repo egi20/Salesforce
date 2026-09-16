@@ -61,7 +61,13 @@ An account can hold both roles at once.
 | `/auth/login` | Sign in. |
 | `/tax-advisory` | What the tax advisory service is: an introduction to a specialist who works in your country. It does not calculate anything. |
 | `/tax-advisory/enquire` | Describe your situation and ask to be introduced. Open to anyone, signed in or not. Six questions, none about pay. |
-| `/search` | One box across jobs, consultants, companies and the community. |
+| `/success-stories` | Case studies from real projects, plus reviews members have left. |
+| `/success-stories/reviews` | Read member reviews, or leave one. You need an account to leave one. |
+| `/recruiters` | The directory of recruitment agencies and headhunters. |
+| `/recruiters/dashboard` | An agency's own home. Recruiter accounts only. |
+| `/challenges` | The daily challenge: five Salesforce questions, one attempt a day. Signed in. |
+| `/challenges/leaderboard` | Who scored what today and over the last thirty days. |
+| `/search` | One box across jobs, consultants, companies, agencies and the community. |
 | `/faq` | Frequently asked questions. |
 | `/legal/privacy`, `/legal/terms` | The policies. |
 
@@ -146,6 +152,21 @@ automatically.
   available to the site, so nothing could check them. If someone asks what the badge means,
   say this plainly. LinkedIn is not a way to sign in here; it only links to an account
   someone is already signed in to, and no access token is kept.
+- **The daily challenge is graded on the server.** Everybody gets the same five questions,
+  chosen by the date, and the page you are answering on does not know which option is
+  correct — it posts what you chose and the server marks it. One attempt a day, and the
+  streak is counted from your attempts rather than from a button. A correct answer is worth
+  the smallest award on the site on purpose: a quiz should nudge a standing, not build one.
+- **Anyone can leave a review, but only with an account**, and a moderator approves it
+  before it appears. Editing a review sends it back for approval. The role shown beside a
+  review comes from the account's own roles, so nobody can type a title into it.
+- **Success stories never quote anybody's pay.** They describe what was delivered. If
+  somebody asks what they might earn or save, the answer is that the Hub does not publish
+  that — point them at `/rates` for contributed day rates and `/rates/calculator` for the
+  part that does not depend on tax.
+- **Recruitment agencies are a third kind of account.** A recruiter can post roles and read
+  the consultant directory, the same as a company. Adding the role to your own account is
+  self-service, like consultant and company.
 - **Roles only escalate one way through self-service.** Adding the consultant or company
   role to your own account is possible; removing one, or granting anything privileged,
   is an administrator action.

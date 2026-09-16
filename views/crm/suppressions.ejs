@@ -1,0 +1,73 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', {
+  icon: 'bi-slash-circle',
+  heading: 'Do not contact',
+  sub: 'Permanent. Nothing in this application removes an entry.'
+}) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="glass-card"><div class="card-body">
+        <h2 class="h6 mb-1"><%= total %> address<%= total === 1 ? '' : 'es' %></h2>
+        <p class="small text-muted-2 mb-3">
+          The list holds a SHA-256 of each address and no address, so a copy of this table
+          is not a copy of the addresses — and the screen cannot show them because it does
+          not have them. It answers one question: is this address on the list.
+        </p>
+
+        <% if (!entries.length) { %>
+          <p class="text-muted-2 mb-0">Nothing on it yet.</p>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead><tr><th scope="col">Added</th><th scope="col">Reason</th><th scope="col">By</th><th scope="col">Note</th></tr></thead>
+              <tbody>
+                <% entries.forEach(function (e) { %>
+                  <tr>
+                    <td class="small text-muted-2"><%= new Date(e.created_at).toISOString().slice(0, 10) %></td>
+                    <td class="small"><%= e.reason %></td>
+                    <td class="small text-muted-2"><%= e.actor_name %></td>
+                    <td class="small"><%= e.note || '' %></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div></div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="glass-card"><div class="card-body p-4">
+        <h2 class="h6 mb-3">Add an address</h2>
+        <form method="post" action="/crm/suppressions">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <div class="mb-3">
+            <label class="form-label" for="email">Email address</label>
+            <input class="form-control" id="email" name="email" type="email" required>
+            <div class="form-text">It is hashed on the way in. Nothing stores what you type here.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="note">Note</label>
+            <input class="form-control" id="note" name="note" maxlength="500">
+          </div>
+          <button class="btn btn-primary" type="submit">Add permanently</button>
+        </form>
+
+        <p class="small text-muted-2 mt-3 mb-0">
+          Marking a lead <strong>unsubscribed</strong> adds its address here automatically,
+          in the same transaction as the status change — two separate steps would leave a
+          window where the status says "leave them alone" and the list does not.
+        </p>
+      </div></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

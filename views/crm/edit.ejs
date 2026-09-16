@@ -1,0 +1,107 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', { icon: 'bi-person-plus', heading: lead ? 'Edit lead' : 'Add a lead' }) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <%- include('../partials/flash') %>
+
+      <div class="glass-card"><div class="card-body p-4">
+        <form method="post" action="<%= lead ? '/crm/' + lead.id : '/crm' %>">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+          <div class="mb-3">
+            <label class="form-label" for="company">Company</label>
+            <input class="form-control" id="company" name="company" required maxlength="<%= limits.company %>"
+                   value="<%= lead ? lead.company : '' %>">
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label" for="contact_name">Contact name</label>
+              <input class="form-control" id="contact_name" name="contact_name" maxlength="<%= limits.contactName %>"
+                     value="<%= lead && lead.contact_name ? lead.contact_name : '' %>">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="job_title">Job title</label>
+              <input class="form-control" id="job_title" name="job_title" maxlength="<%= limits.jobTitle %>"
+                     value="<%= lead && lead.job_title ? lead.job_title : '' %>">
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label" for="contact_email">Email</label>
+              <input class="form-control" id="contact_email" name="contact_email" type="email" maxlength="<%= limits.email %>"
+                     value="<%= lead && lead.contact_email ? lead.contact_email : '' %>">
+              <div class="form-text">Checked against the do-not-contact list before anything is saved.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="contact_phone">Phone</label>
+              <input class="form-control" id="contact_phone" name="contact_phone" type="tel" maxlength="<%= limits.phone %>"
+                     value="<%= lead && lead.contact_phone ? lead.contact_phone : '' %>">
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label" for="country">Country</label>
+              <select class="form-select" id="country" name="country">
+                <option value="">Unknown</option>
+                <% countries.forEach(function (c) { %>
+                  <option value="<%= c.code %>" <%= lead && lead.country === c.code ? 'selected' : '' %>><%= c.name %></option>
+                <% }); %>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="website">Website</label>
+              <input class="form-control" id="website" name="website" maxlength="<%= limits.url %>"
+                     value="<%= lead && lead.website ? lead.website : '' %>">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="linkedin_url">LinkedIn</label>
+              <input class="form-control" id="linkedin_url" name="linkedin_url" maxlength="<%= limits.url %>"
+                     value="<%= lead && lead.linkedin_url ? lead.linkedin_url : '' %>">
+            </div>
+          </div>
+
+          <%
+            /*
+             * The source is required and there is no "other, free text" option. A free-text
+             * source field fills up with "web" and tells nobody anything a year later, which
+             * is exactly when somebody asks.
+             */
+          %>
+          <fieldset class="mb-3">
+            <legend class="form-label">Where did this contact come from?</legend>
+            <% sources.forEach(function (s) { %>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="source" value="<%= s.value %>" id="src-<%= s.value %>"
+                       required <%= lead && lead.source === s.value ? 'checked' : '' %>>
+                <label class="form-check-label" for="src-<%= s.value %>">
+                  <%= s.label %>
+                  <span class="d-block small text-muted-2"><%= s.help %></span>
+                </label>
+              </div>
+            <% }); %>
+          </fieldset>
+
+          <div class="mb-4">
+            <label class="form-label" for="source_detail">Specifically where</label>
+            <input class="form-control" id="source_detail" name="source_detail" maxlength="<%= limits.sourceDetail %>"
+                   value="<%= lead && lead.source_detail ? lead.source_detail : '' %>">
+            <div class="form-text">Required for most sources. This is the answer to the first question anybody will ask.</div>
+          </div>
+
+          <button class="btn btn-primary" type="submit">Save</button>
+          <a class="btn btn-link" href="<%= lead ? '/crm/' + lead.id : '/crm' %>">Cancel</a>
+        </form>
+      </div></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

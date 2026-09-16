@@ -33,14 +33,24 @@ handlers cover a feature that is better here than there.
 | Company document templates | 16 | 5 | Branding and clauses, configured rather than uploaded |
 | Search | 1 | 1 | One box, four sources, through the existing builders |
 | Tax advisory | 4 | 5 | An introduction, with consent and retention. The calculator is refused |
+| Games & challenges | 13 | 3 | One game, graded on the server. The other eight were the same bug |
+| Recruiters | 3 | 6 | **Ahead** — a public directory, a real guard, validation that runs |
+| Success stories | 2 | 3 | No pay figures. The video allowlist is ported almost unchanged |
+| Site reviews | 3 | 4 | Signed-in only, hidden never deleted |
+| Sales CRM | 22 | 16 | Required source, permanent suppression list, drafts that nothing sends |
 | Design system | — | — | Glassmorphism ported, palette re-based on Salesforce blue |
 
 ## Next, in order
 
-1. **Smaller pieces**: recruiters (3), success stories (2), reviews (1), games (13).
-2. **Sales CRM** (22) and **superadmin finance** (41) — only with a concrete reason. These
-   are an internal sales tool and an accounting system that happen to live in the same
-   repository as a marketplace.
+1. **Superadmin finance** (41) — invoices, recurring costs, revenue reporting. An
+   accounting system that happens to live in the same repository as a marketplace, and the
+   last untouched area of the reference apart from dedupe.
+2. **Nothing else from the reference.** What remains after that is dedupe (65 handlers, 12
+   tables), which is excluded.
+
+The real next work is not a feature. Twenty-one migrations have never been executed against
+a MySQL server, and every one of the 744 tests mocks the database. That gap does not close
+by adding anything.
 
 ## Done since this plan was written
 
@@ -239,3 +249,22 @@ are ported; the calculator is not, and refusing it is the point rather than a ga
   separate feature (2 handlers) and still on the list above; the tax page's versions also
   render before-and-after pay figures, which is the calculator's output wearing a
   different hat.
+
+**Games, recruiters, stories, reviews and the sales CRM.** Five areas in one pass, and the
+findings that shaped each:
+
+- **Games.** `routes/games.js:41` reads `{ score, gameDate }` out of `req.body`, and the
+  2467-line client partial ships every question with `correct: 0` beside it. The
+  leaderboard is whatever the browser claims, and it feeds the points ledger. One game is
+  ported, graded server-side; the other eight are the same shape wearing different UI.
+- **Recruiters.** The route defines its own `isRecruiter` (so it mishandles a background
+  fetch), self-heals a profile row on every GET, and declares express-validator rules it
+  never checks with `validationResult`.
+- **Success stories.** Four pay columns feeding a before-and-after figure — the savings
+  calculator again. Its video-embed allowlist, on the other hand, is the best code in the
+  reference and is ported almost unchanged.
+- **Site reviews.** Guest-submitted with a typed name and a typed role, and
+  `SiteReview.delete` is a hard DELETE reachable from a bulk action.
+- **Sales CRM.** No source column worth the name, no suppression list at all, an
+  `/outreach/queue` a scheduler away from bulk sending, and an .xlsx importer that guesses
+  at sheets. Its bulk-delete interlock, though, is right, and is ported as-is.

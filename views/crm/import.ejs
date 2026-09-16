@@ -1,0 +1,127 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', {
+  icon: 'bi-upload',
+  heading: 'Import leads',
+  sub: 'Paste a CSV. Nothing is written until you have seen exactly what would be.'
+}) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <div class="glass-card mb-4"><div class="card-body">
+    <h2 class="h6">How this works, and why it is CSV only</h2>
+    <ul class="small text-muted-2 mb-0">
+      <li>One format and named columns. The reference sniffs every sheet of an .xlsx by its
+          headers, guessing which tabs are leads — its own comment records the failure that
+          produced: hundreds of rows silently skipped from one export.</li>
+      <li>The source is chosen HERE and stamped on every row. A source column inside the file
+          is a source nobody checked.</li>
+      <li>Recognised column names: company, contact name, email, phone, job title, country,
+          website, linkedin. Case and spacing do not matter.</li>
+      <li>At most <%= maxRows %> rows a time, because the point is that somebody reads the preview.</li>
+    </ul>
+  </div></div>
+
+  <div class="glass-card mb-4"><div class="card-body p-4">
+    <form method="post" action="/crm/import/preview">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+      <fieldset class="mb-3">
+        <legend class="form-label">Where did this file come from?</legend>
+        <% sources.forEach(function (s) { %>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="source" value="<%= s.value %>" id="isrc-<%= s.value %>"
+                   required <%= typeof source !== 'undefined' && source === s.value ? 'checked' : '' %>>
+            <label class="form-check-label" for="isrc-<%= s.value %>">
+              <%= s.label %><span class="d-block small text-muted-2"><%= s.help %></span>
+            </label>
+          </div>
+        <% }); %>
+      </fieldset>
+
+      <div class="mb-3">
+        <label class="form-label" for="source_detail">Specifically where</label>
+        <input class="form-control" id="source_detail" name="source_detail" maxlength="300"
+               value="<%= typeof sourceDetail !== 'undefined' ? sourceDetail : '' %>">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="csv">The CSV</label>
+        <textarea class="form-control font-monospace" id="csv" name="csv" rows="10"
+                  placeholder="Company,Contact Name,Email,Job Title&#10;Acme,Jane Roe,jane@acme.com,Head of IT"><%= csv %></textarea>
+        <div class="form-text">Pasted rather than uploaded — this host's disk is ephemeral and a file of contact details should not touch it.</div>
+      </div>
+
+      <button class="btn btn-primary" type="submit">Preview</button>
+    </form>
+  </div></div>
+
+  <% if (preview) { %>
+    <%
+      const usable = preview.candidates.filter(function (c) { return c.problems.length === 0; });
+      const skipped = preview.candidates.length - usable.length;
+    %>
+    <div class="glass-card mb-3"><div class="card-body">
+      <h2 class="h6 mb-2">What would be written</h2>
+      <p class="small mb-2">
+        <strong><%= usable.length %></strong> row<%= usable.length === 1 ? '' : 's' %> would be written,
+        <strong><%= skipped %></strong> skipped, out of <%= preview.totalInFile %> in the file.
+        <% if (preview.truncated) { %>
+          <span class="text-danger">Only the first <%= maxRows %> rows were read.</span>
+        <% } %>
+      </p>
+      <p class="small text-muted-2 mb-0">
+        Columns found: <%= preview.columns.join(', ') || 'none' %>.
+        <% if (preview.missingColumns.length) { %>
+          Not present: <%= preview.missingColumns.join(', ') %>.
+        <% } %>
+      </p>
+    </div></div>
+
+    <div class="glass-card mb-3"><div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr><th scope="col">Line</th><th scope="col">Company</th><th scope="col">Contact</th>
+                <th scope="col">Email</th><th scope="col">Problems</th></tr>
+          </thead>
+          <tbody>
+            <% preview.candidates.forEach(function (c) { %>
+              <tr class="<%= c.problems.length ? 'text-muted-2' : '' %>">
+                <td class="small"><%= c.line %></td>
+                <td class="small"><%= c.lead.company || '—' %></td>
+                <td class="small"><%= c.lead.contact_name || '—' %></td>
+                <td class="small"><%= c.lead.contact_email || '—' %></td>
+                <td class="small"><%= c.problems.join('; ') || '' %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </div></div>
+
+    <% if (usable.length) { %>
+      <form method="post" action="/crm/import">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <%
+          /*
+           * The CSV and the source are re-posted and RE-PARSED server-side rather than a
+           * hidden field carrying the rows the preview produced. Otherwise the browser
+           * would be choosing what gets written — including the source, which is the one
+           * field this whole feature turns on.
+           */
+        %>
+        <input type="hidden" name="source" value="<%= source %>">
+        <input type="hidden" name="source_detail" value="<%= sourceDetail %>">
+        <textarea class="d-none" name="csv"><%= csv %></textarea>
+        <button class="btn btn-primary" type="submit">Write <%= usable.length %> lead<%= usable.length === 1 ? '' : 's' %></button>
+        <a class="btn btn-link" href="/crm">Cancel</a>
+      </form>
+    <% } %>
+  <% } %>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

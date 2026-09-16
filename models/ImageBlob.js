@@ -15,10 +15,32 @@ const { promisePool } = require('../config/database');
  * The owning row stores only a pointer URL carrying a cache-busting `?v=<timestamp>`,
  * and the serving route is ETag-cached.
  */
-const ALLOWED_TABLES = new Set(['consultant_photos', 'company_logos']);
+/**
+ * The blob tables, and the column each keys on.
+ *
+ * A map rather than a set because not every owner is a user: a success story's photo
+ * belongs to the story, which has no account behind it. The column name is taken from
+ * here and interpolated into the SQL, which is safe precisely BECAUSE it comes from this
+ * frozen list and never from a caller — every VALUE is still parameterised.
+ */
+const ALLOWED_TABLES = Object.freeze({
+  consultant_photos: 'user_id',
+  company_logos: 'user_id',
+  recruiter_logos: 'user_id',
+  story_photos: 'story_id'
+});
+
+function ownerColumn(table) {
+  // hasOwnProperty, not a truthiness check: `ALLOWED_TABLES['__proto__']` is
+  // `Object.prototype`, which is truthy — the same trap `config/settings.js` documents.
+  if (!Object.prototype.hasOwnProperty.call(ALLOWED_TABLES, table)) {
+    throw new Error(`Unknown blob table: ${table}`);
+  }
+  return ALLOWED_TABLES[table];
+}
 
 function assertTable(table) {
-  if (!ALLOWED_TABLES.has(table)) throw new Error(`Unknown blob table: ${table}`);
+  ownerColumn(table);
   return table;
 }
 
@@ -40,7 +62,7 @@ class ImageBlob {
     const etag = crypto.createHash('md5').update(bytes).digest('hex');
 
     await promisePool.query(
-      `INSERT INTO ${table} (user_id, content_type, bytes, byte_size, etag)
+      `INSERT INTO ${table} (${ownerColumn(table)}, content_type, bytes, byte_size, etag)
        VALUES (?, 'image/webp', ?, ?, ?)
        ON DUPLICATE KEY UPDATE bytes = VALUES(bytes), byte_size = VALUES(byte_size),
                                etag = VALUES(etag), content_type = VALUES(content_type)`,
@@ -53,7 +75,7 @@ class ImageBlob {
   static async get(table, ownerId) {
     assertTable(table);
     const [rows] = await promisePool.query(
-      `SELECT content_type, bytes, etag, updated_at FROM ${table} WHERE user_id = ? LIMIT 1`,
+      `SELECT content_type, bytes, etag, updated_at FROM ${table} WHERE ${ownerColumn(table)} = ? LIMIT 1`,
       [ownerId]
     );
     return rows[0] || null;
@@ -62,13 +84,16 @@ class ImageBlob {
   /** ETag only, for a cheap conditional-request answer without loading the bytes. */
   static async getEtag(table, ownerId) {
     assertTable(table);
-    const [rows] = await promisePool.query(`SELECT etag FROM ${table} WHERE user_id = ? LIMIT 1`, [ownerId]);
+    const [rows] = await promisePool.query(
+      `SELECT etag FROM ${table} WHERE ${ownerColumn(table)} = ? LIMIT 1`,
+      [ownerId]
+    );
     return rows.length ? rows[0].etag : null;
   }
 
   static async remove(table, ownerId) {
     assertTable(table);
-    await promisePool.query(`DELETE FROM ${table} WHERE user_id = ?`, [ownerId]);
+    await promisePool.query(`DELETE FROM ${table} WHERE ${ownerColumn(table)} = ?`, [ownerId]);
   }
 
   /** Pointer URL with a cache buster, stored on the owning profile row. */

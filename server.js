@@ -14,6 +14,7 @@ const { pool } = require('./config/database');
 const { assertTaxonomyIntegrity } = require('./config/roleTaxonomy');
 const { assertAdvisoryIntegrity } = require('./config/taxAdvisory');
 const { assertChallengeIntegrity } = require('./config/challenges');
+const { EMBED_HOSTS } = require('./utils/videoEmbed');
 const { assertEstimationIntegrity } = require('./config/estimation');
 const { assertCommunityIntegrity } = require('./config/community');
 const { seoLocals } = require('./config/seoMeta');
@@ -93,6 +94,14 @@ app.use(
         imgSrc: ["'self'", 'data:', 'https:'],
         connectSrc: ["'self'"],
         formAction: ["'self'"],
+        // Video embeds on success stories, and NOTHING else. The two hosts are shared from
+        // `utils/videoEmbed.js`, which is also the only thing that can produce an embed
+        // URL — so the policy and the allowlist can never drift apart, the same way
+        // WEBHOOK_PATH is shared between server.js and config/payments.js.
+        //
+        // Without this the iframe is silently blocked by `default-src 'self'`, which looks
+        // like a broken story rather than a policy decision.
+        frameSrc: ["'self'", ...EMBED_HOSTS],
         frameAncestors: ["'none'"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"]
@@ -260,6 +269,7 @@ app.use('/search', require('./routes/search'));
 app.use('/tax-advisory', require('./routes/tax'));
 app.use('/challenges', require('./routes/challenges'));
 app.use('/recruiters', require('./routes/recruiters'));
+app.use('/success-stories', require('./routes/stories'));
 app.use('/messages', require('./routes/messages'));
 app.use('/notifications', require('./routes/notifications'));
 app.use('/admin', require('./routes/admin'));

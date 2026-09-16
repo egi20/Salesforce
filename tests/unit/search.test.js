@@ -130,7 +130,11 @@ describe('the sources', () => {
   });
 
   it('covers each public area exactly once', () => {
-    expect(search.SOURCES.map((s) => s.key)).toEqual(['jobs', 'consultants', 'companies', 'community']);
+    // `recruiters` joined when the agency directory was built. Every entry here is a
+    // browsable area with its own list view, and each calls that view's own builder.
+    expect(search.SOURCES.map((s) => s.key)).toEqual([
+      'jobs', 'consultants', 'companies', 'recruiters', 'community'
+    ]);
   });
 
   it('points "see all" at the same filter, expressed in that page\'s own query string', () => {

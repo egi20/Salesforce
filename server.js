@@ -259,6 +259,7 @@ app.use('/linkedin', require('./routes/linkedin'));
 app.use('/search', require('./routes/search'));
 app.use('/tax-advisory', require('./routes/tax'));
 app.use('/challenges', require('./routes/challenges'));
+app.use('/recruiters', require('./routes/recruiters'));
 app.use('/messages', require('./routes/messages'));
 app.use('/notifications', require('./routes/notifications'));
 app.use('/admin', require('./routes/admin'));

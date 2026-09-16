@@ -13,7 +13,18 @@ const config = require('../config/config');
  * working partner account with a commission rate and no approval step. Every other
  * role is admin-onboarded.
  */
-const PUBLIC_ROLES = Object.freeze(['consultant', 'company']);
+/*
+ * `recruiter` IS self-service; `partner` is NOT, and the line between them is money.
+ *
+ * A recruiter account can do what a company account can already do — advertise roles and
+ * read the consultant directory — so gating it behind support would make the role dead on
+ * arrival without protecting anything. A partner account carries a commission rate, which
+ * is why the reference's `user_types[]=partner` POST was a real escalation: it created a
+ * working account that could be owed money, with no approval step.
+ *
+ * Anyone adding a role here: ask whether it grants access somebody else pays for.
+ */
+const PUBLIC_ROLES = Object.freeze(['consultant', 'company', 'recruiter']);
 const ALL_ROLES = Object.freeze(['consultant', 'company', 'recruiter', 'partner', 'admin']);
 
 const ROLE_FLAG_COLUMN = Object.freeze({

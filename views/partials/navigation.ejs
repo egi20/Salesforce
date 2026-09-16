@@ -22,7 +22,8 @@
         const startsWith = (p) => path === p || path.startsWith(p + '/');
         const isConsultantArea = startsWith('/jobs') || startsWith('/rates') || startsWith('/tax-advisory')
           || (currentUser && startsWith('/profile/consultant'));
-        const isCompanyArea = startsWith('/consultants') || startsWith('/companies') || (currentUser && startsWith('/quotes'));
+        const isCompanyArea = startsWith('/consultants') || startsWith('/companies') || startsWith('/recruiters')
+          || (currentUser && startsWith('/quotes'));
       %>
 
       <ul class="navbar-nav me-auto align-items-lg-center">
@@ -74,11 +75,18 @@
           <ul class="dropdown-menu shadow-sm">
             <li><a class="dropdown-item" href="/consultants"><i class="bi bi-people"></i> Find consultants</a></li>
             <li><a class="dropdown-item" href="/companies"><i class="bi bi-buildings"></i> Companies</a></li>
-            <% if (currentUser && currentUser.isCompany) { %>
+            <li><a class="dropdown-item" href="/recruiters"><i class="bi bi-person-rolodex"></i> Recruitment agencies</a></li>
+            <% if (currentUser && (currentUser.isCompany || currentUser.isRecruiter)) { %>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="/jobs/new"><i class="bi bi-plus-square"></i> Post a role</a></li>
               <li><a class="dropdown-item" href="/dashboard/jobs"><i class="bi bi-briefcase"></i> Your roles</a></li>
-              <li><a class="dropdown-item" href="/profile/company"><i class="bi bi-building-gear"></i> Company profile</a></li>
+              <% if (currentUser.isCompany) { %>
+                <li><a class="dropdown-item" href="/profile/company"><i class="bi bi-building-gear"></i> Company profile</a></li>
+              <% } %>
+              <% if (currentUser.isRecruiter) { %>
+                <li><a class="dropdown-item" href="/recruiters/dashboard"><i class="bi bi-speedometer2"></i> Recruiter dashboard</a></li>
+                <li><a class="dropdown-item" href="/recruiters/profile"><i class="bi bi-building-gear"></i> Agency profile</a></li>
+              <% } %>
             <% } %>
           </ul>
         </li>

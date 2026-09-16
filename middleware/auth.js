@@ -71,6 +71,19 @@ function isCompany(req, res, next) {
   return denyRole(req, res, 'That area is for company accounts.');
 }
 
+/**
+ * A recruiter is an agency or headhunter placing candidates, and the guard checks the flag
+ * like every other role. The reference wrote its own copy of this check inside
+ * `routes/recruiters.js` — which meant it redirected a background fetch to a login page
+ * instead of answering 401/403 JSON, because it did not know about `Sec-Fetch-Dest`.
+ */
+function isRecruiter(req, res, next) {
+  const user = req.session && req.session.user;
+  if (!user) return denyAuth(req, res, 'Please sign in to continue.');
+  if (user.isRecruiter) return next();
+  return denyRole(req, res, 'That area is for recruiter accounts.');
+}
+
 function isAdmin(req, res, next) {
   const user = req.session && req.session.user;
   if (!user) return denyAuth(req, res, 'Please sign in to continue.');
@@ -139,6 +152,7 @@ module.exports = {
   isGuest,
   isConsultant,
   isCompany,
+  isRecruiter,
   isAdmin,
   isSuperadmin,
   isEmailVerified,

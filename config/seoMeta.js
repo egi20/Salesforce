@@ -33,6 +33,11 @@ const PAGE_META = {
     description:
       'Aggregated day rates for Salesforce roles, contributed anonymously by the community. Aggregates below three contributors are suppressed.'
   },
+  '/recruiters': {
+    title: 'Salesforce recruitment agencies',
+    description:
+      'Agencies and headhunters placing Salesforce consultants, by cloud specialism and country.'
+  },
   '/tax-advisory': {
     title: 'Tax advisory for Salesforce contractors',
     description:
@@ -46,7 +51,7 @@ const PAGE_META = {
 // `/tax-advisory` is indexable; `/tax-advisory/enquire` deliberately is not. A form page
 // carries no content a search result can usefully show, and the page above it already
 // links to it.
-const PUBLIC_PATHS = ['/', '/jobs', '/consultants', '/companies', '/rates', '/tax-advisory', '/faq', '/contact', '/legal/privacy', '/legal/terms'];
+const PUBLIC_PATHS = ['/', '/jobs', '/consultants', '/companies', '/rates', '/recruiters', '/tax-advisory', '/faq', '/contact', '/legal/privacy', '/legal/terms'];
 
 function canonicalUrl(path) {
   const clean = String(path || '/').split('?')[0];

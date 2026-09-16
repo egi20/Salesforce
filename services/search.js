@@ -3,10 +3,11 @@
 const Job = require('../models/Job');
 const ConsultantProfile = require('../models/ConsultantProfile');
 const CompanyProfile = require('../models/CompanyProfile');
+const RecruiterProfile = require('../models/RecruiterProfile');
 const Post = require('../models/Post');
 
 /**
- * One box, four sources.
+ * One box, five sources.
  *
  * THE RULE, and it is the security argument as much as a tidiness one: **search adds no
  * filter builder of its own.** It calls the same `browse` each list view calls, with the
@@ -75,6 +76,18 @@ const SOURCES = Object.freeze([
     }
   },
   {
+    key: 'recruiters',
+    label: 'Agencies',
+    icon: 'bi-person-rolodex',
+    href: (q) => `/recruiters?q=${encodeURIComponent(q)}`,
+    empty: 'No agencies mention that.',
+    async search(q, limit) {
+      // Same as every other source: the builder pins `is_public = 1` and `u.is_active = 1`
+      // as fixed fragments, so an unpublished agency cannot be reached from here.
+      return RecruiterProfile.browse({ q }, { limit, offset: 0 });
+    }
+  },
+  {
     key: 'community',
     label: 'Community',
     icon: 'bi-chat-square-text',
@@ -102,7 +115,7 @@ function isUsableQuery(q) {
  * Search everything the visitor is allowed to see.
  *
  * Sources are queried in PARALLEL and each is allowed to fail on its own. One source
- * erroring is a missing section with a note, not a failed page — the other three answers
+ * erroring is a missing section with a note, not a failed page — the other answers
  * are still worth having, and a search box that goes down entirely because the community
  * table is locked is a worse outcome than an incomplete answer honestly labelled.
  *

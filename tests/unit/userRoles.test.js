@@ -3,13 +3,18 @@
 const User = require('../../models/User');
 
 describe('role escalation boundary', () => {
-  it('public registration can only ever produce the two marketplace roles', () => {
+  it('public registration can only ever produce the marketplace roles', () => {
     // The hand-crafted POST that created a working privileged account before this
     // filter existed.
+    //
+    // `recruiter` joined the allowed set when the agency directory was built, and the
+    // line it sits on the right side of is MONEY: a recruiter account can do what a
+    // company account can already do, while a partner account carries a commission rate.
+    // That is what made `user_types[]=partner` a real escalation in the reference.
     const roles = User.unionRoles([], ['consultant', 'partner', 'admin', 'recruiter'], {
       allowed: User.PUBLIC_ROLES
     });
-    expect(roles).toEqual(['consultant']);
+    expect(roles).toEqual(['consultant', 'recruiter']);
     expect(roles).not.toContain('partner');
     expect(roles).not.toContain('admin');
   });

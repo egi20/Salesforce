@@ -107,7 +107,15 @@ const POINT_AWARDS = {
   post_upvoted: { points: 2, label: 'Post upvoted' },
   reply_upvoted: { points: 1, label: 'Reply upvoted' },
   profile_completed: { points: 20, label: 'Profile completed' },
-  rate_contributed: { points: 10, label: 'Contributed a rate' }
+  rate_contributed: { points: 10, label: 'Contributed a rate' },
+  // One entry per CORRECT ANSWER rather than one worth the whole score, so the ledger
+  // reads as evidence: five entries on a date means five questions answered correctly
+  // that day, and each one can be checked against the attempt that produced it.
+  //
+  // Deliberately the smallest award on the list. The scheme's own rule is that one which
+  // pays for volume gets volume, and a daily quiz is the cheapest volume on the site — a
+  // challenge should nudge a standing, never build one.
+  challenge_correct: { points: 1, label: 'Challenge answer correct' }
 };
 
 /**

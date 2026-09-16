@@ -30,6 +30,7 @@ check('config loads', () => require('../config/config'));
 check('role taxonomy is consistent', () => require('../config/roleTaxonomy').assertTaxonomyIntegrity());
 check('cloud families load', () => require('../config/cloudFamilies'));
 check('tax advisory options are consistent', () => require('../config/taxAdvisory').assertAdvisoryIntegrity());
+check('challenge question bank is consistent', () => require('../config/challenges').assertChallengeIntegrity());
 check('country list is non-empty', () => {
   const countries = require('../config/all-countries.json');
   if (!Array.isArray(countries) || countries.length < 100) throw new Error(`only ${countries.length} countries`);

@@ -13,6 +13,7 @@ const config = require('./config/config');
 const { pool } = require('./config/database');
 const { assertTaxonomyIntegrity } = require('./config/roleTaxonomy');
 const { assertAdvisoryIntegrity } = require('./config/taxAdvisory');
+const { assertChallengeIntegrity } = require('./config/challenges');
 const { assertEstimationIntegrity } = require('./config/estimation');
 const { assertCommunityIntegrity } = require('./config/community');
 const { seoLocals } = require('./config/seoMeta');
@@ -36,6 +37,9 @@ const { moduleLabel, familyLabel } = require('./config/cloudFamilies');
 // or no label produces a UI that half-works and rate buckets that quietly flatten.
 assertTaxonomyIntegrity();
 assertAdvisoryIntegrity();
+// And for the challenge bank: a question whose answer index is outside its options is a
+// question nobody can get right, and it would only show up as a puzzled member.
+assertChallengeIntegrity();
 // Same reasoning: phase and resource percentages that do not sum to 100 shift every
 // estimate by a silent few per cent rather than failing visibly.
 assertEstimationIntegrity();
@@ -254,6 +258,7 @@ app.use('/referrals', require('./routes/referrals'));
 app.use('/linkedin', require('./routes/linkedin'));
 app.use('/search', require('./routes/search'));
 app.use('/tax-advisory', require('./routes/tax'));
+app.use('/challenges', require('./routes/challenges'));
 app.use('/messages', require('./routes/messages'));
 app.use('/notifications', require('./routes/notifications'));
 app.use('/admin', require('./routes/admin'));

@@ -447,11 +447,26 @@ router.get(
 
     // One shape for every series, so the view has one loop rather than five.
     const series = async (label, table, column = 'created_at', extraWhere = '1 = 1') => {
+      /*
+       * GROUP BY the EXPRESSION, not the alias.
+       *
+       * `GROUP BY period` looks equivalent and is not: MySQL resolves the name against the
+       * table's real columns first, and `rate_submissions.period` exists — it holds the
+       * rate's own period (`2026-09`), nothing to do with this grouping. So that one series
+       * silently grouped by the wrong column and then failed `only_full_group_by`, which is
+       * on by default in MySQL 8. The other five worked, which is what made it a 500 on one
+       * page rather than an obviously broken query.
+       *
+       * Found by running the app against a real database for the first time. No mocked test
+       * could have caught it: it needs MySQL's name resolution and a table that happens to
+       * carry a column called `period`.
+       */
       const [rows] = await promisePool.query(
         `SELECT DATE_FORMAT(${column}, '%Y-%m') AS period, COUNT(*) AS count
            FROM ${table}
           WHERE ${extraWhere} AND ${column} >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL ? MONTH)
-          GROUP BY period ORDER BY period`,
+          GROUP BY DATE_FORMAT(${column}, '%Y-%m')
+          ORDER BY DATE_FORMAT(${column}, '%Y-%m')`,
         [MONTHS - 1]
       );
       return { label, rows };

@@ -180,7 +180,24 @@ describe('when a source fails', () => {
   it('reports a failure rather than showing it as "no results"', async () => {
     // Those are different claims, and quietly showing the second is a lie.
     jest.spyOn(console, 'error').mockImplementation(() => {});
-    for (const model of [Job, ConsultantProfile, require('../../models/CompanyProfile'), Post]) {
+    /*
+     * EVERY source must be mocked, not most of them.
+     *
+     * `RecruiterProfile` was missing here after the agency directory was added, and the
+     * test still passed — because this container had no database, so the unmocked source
+     * threw a connection error and counted as failed. It started failing the first time
+     * the suite ran beside a real MySQL. A test that passes only while the database is
+     * unreachable is a test whose meaning changes the moment somebody runs it properly.
+     */
+    const sources = [
+      Job,
+      ConsultantProfile,
+      require('../../models/CompanyProfile'),
+      require('../../models/RecruiterProfile'),
+      Post
+    ];
+    expect(sources).toHaveLength(search.SOURCES.length);
+    for (const model of sources) {
       jest.spyOn(model, 'browse').mockRejectedValue(new Error('down'));
     }
 

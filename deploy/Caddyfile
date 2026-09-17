@@ -1,0 +1,25 @@
+# Automatic HTTPS. Caddy requests the certificate on first start and renews it itself —
+# there is no cron job and nothing to forget.
+#
+# THE TWO LINES THAT MATTER are the ones you do not see: `reverse_proxy` sends
+# `X-Forwarded-Proto: https` and `X-Forwarded-For` by default, and the app is configured
+# with `trust proxy` in production. Without that pair Express decides the connection is
+# insecure, refuses to set the `Secure` session cookie, and every sign-in silently fails
+# while every page still loads — the most confusing way this can break.
+
+{
+	email {$TLS_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# The app sets its own security headers (helmet): CSP, HSTS, referrer policy,
+	# frame-ancestors. Nothing is added here, so there is one place they are decided.
+	reverse_proxy app:3000
+
+	log {
+		output stdout
+		format console
+	}
+}

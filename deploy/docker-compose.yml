@@ -1,0 +1,97 @@
+# Salesforce Hub on one server: the app, its database, and a reverse proxy that gets a
+# TLS certificate by itself.
+#
+# WHY CADDY AND NOT NGINX. This application cannot work over plain HTTP in production —
+# the session cookie is `Secure`, so a browser never sends it back and every sign-in
+# silently fails. That makes the certificate load-bearing rather than a nicety, and Caddy
+# obtains and renews it with no cron job, no certbot, and nothing to forget. It also sends
+# `X-Forwarded-Proto: https` by default, which is the other half Express needs.
+#
+#   docker compose up -d
+#   docker compose logs -f app
+#
+# Everything it needs is in `.env` beside this file. Nothing is written to the host disk
+# except the two named volumes below.
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: ${DB_NAME:-salesforce_hub}
+      MYSQL_USER: ${DB_USER:-sfhub}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      # Left at MySQL 8's default (ON). A query that needs it off is a query with a bug —
+      # that is how the /admin/analytics GROUP BY was found.
+      - --sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      # The app's own migrations run on start, so it must not start before MySQL accepts
+      # connections — otherwise the first deploy of the day fails on a race.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  app:
+    build: ..
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      APP_NAME: ${APP_NAME:-Salesforce Hub}
+      APP_BASE_URL: https://${DOMAIN:?set DOMAIN in .env}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-support@example.com}
+
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-sfhub}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-salesforce_hub}
+
+      SESSION_SECRET: ${SESSION_SECRET:?generate one with: openssl rand -hex 32}
+
+      # Every one of these may be left empty. Each feature switches itself off rather than
+      # failing — see docs/DEPLOYING.md.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Salesforce Hub <noreply@example.com>}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LINKEDIN_CLIENT_ID: ${LINKEDIN_CLIENT_ID:-}
+      LINKEDIN_CLIENT_SECRET: ${LINKEDIN_CLIENT_SECRET:-}
+      TAX_ADVISORY_NOTIFY: ${TAX_ADVISORY_NOTIFY:-}
+      RATE_MIN_SAMPLE: ${RATE_MIN_SAMPLE:-3}
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      TLS_EMAIL: ${TLS_EMAIL:?an address Let's Encrypt can warn about expiry}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

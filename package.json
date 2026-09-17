@@ -16,6 +16,7 @@
     "sync:categories": "node scripts/sync-categories.js",
     "purge:expired": "node scripts/purge-expired.js",
     "seed": "node scripts/seed-data.js",
+    "create-admin": "node scripts/create-admin.js",
     "wait-for-db": "node scripts/wait-for-db.js",
     "validate-boot": "node scripts/validate-boot.js",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",

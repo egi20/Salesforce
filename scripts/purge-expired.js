@@ -11,7 +11,7 @@
  */
 const TaxEnquiry = require('../models/TaxEnquiry');
 const { RETENTION_DAYS } = require('../config/taxAdvisory');
-const { pool } = require('../config/database');
+const { promisePool } = require('../config/database');
 
 (async () => {
   try {
@@ -23,6 +23,10 @@ const { pool } = require('../config/database');
     console.error(`Purge failed: ${err.message}`);
     process.exitCode = 1;
   } finally {
-    await pool.end().catch(() => {});
+    // `promisePool.end()`, not `pool.end()`. The callback-style pool's `end` takes a
+    // callback and returns undefined, so `await pool.end().catch(...)` throws a TypeError
+    // AFTER the work is done — a script that succeeds and then reports failure, which on a
+    // nightly cron is an alert every morning about nothing.
+    await promisePool.end().catch(() => {});
   }
 })();

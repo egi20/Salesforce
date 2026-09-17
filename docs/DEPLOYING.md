@@ -64,35 +64,35 @@ it just cannot be the database.
 the certificate on first start and renews it with no cron job, which matters precisely
 because the certificate is load-bearing.
 
-On a fresh Ubuntu 22.04 or 24.04 server:
+On a fresh Ubuntu 22.04 or 24.04 server, after the A record points here:
 
 ```bash
-# 1. Docker
-curl -fsSL https://get.docker.com | sh
-
-# 2. The code
 git clone https://github.com/egi20/Salesforce.git
 cd Salesforce
-git checkout claude/dynamichub-webapp-clone-4cmj1w
-
-# 3. Configure
-cp deploy/.env.example deploy/.env
-openssl rand -hex 32   # -> SESSION_SECRET
-openssl rand -hex 24   # -> DB_PASSWORD
-openssl rand -hex 24   # -> DB_ROOT_PASSWORD
-nano deploy/.env       # set those, DOMAIN and TLS_EMAIL
-
-# 4. Up
-cd deploy
-docker compose up -d --build
-docker compose logs -f app       # watch the 21 migrations apply
-
-# 5. An administrator to sign in with
-docker compose exec app npm run seed      # development data + admin@example.com
+sudo bash deploy/setup.sh yourdomain.com you@example.com
 ```
 
-Point the domain at the server's IP first, or Caddy cannot prove ownership and will keep
-retrying.
+That installs Docker if it is missing, generates the three secrets, checks DNS and the
+ports BEFORE starting anything, brings the stack up and waits for the app to answer. It is
+idempotent: a second run reuses the existing `deploy/.env` rather than generating new
+secrets, so it cannot lock you out of your own database.
+
+The DNS check is first on purpose. Pointing the name after starting Caddy produces a
+certificate retry loop whose message talks about ACME and never mentions DNS, and that is
+the failure that costs an afternoon.
+
+Then make yourself an account:
+
+```bash
+cd deploy
+docker compose exec app npm run create-admin -- you@yourdomain.com "Your Name"
+```
+
+**Use `create-admin`, not `npm run seed`.** The seed is development data: 30 jobs, 24
+consultant profiles, 6 companies — and 24 rate submissions. That last one is not cosmetic.
+The rate index publishes percentiles from what it holds, so seeding it puts a real-looking
+benchmark in front of visitors that nobody contributed to, and the seeded profiles are a
+public directory of people who do not exist.
 
 ## The DNS half, at GoDaddy
 
@@ -114,6 +114,9 @@ give it up to an hour before deciding something is wrong.
 cd Salesforce && git pull
 cd deploy && docker compose up -d --build
 ```
+
+Or re-run `sudo bash deploy/setup.sh yourdomain.com you@example.com`, which does the same
+and keeps your secrets.
 
 `npm start` applies pending migrations before it serves, so a deploy carries its own schema
 change. The runner takes an advisory lock, so two instances starting together cannot both

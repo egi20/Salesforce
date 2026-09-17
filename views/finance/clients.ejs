@@ -1,0 +1,92 @@
+<%- include('../partials/layout-start') %>
+<%- include('../partials/page-header', { icon: 'bi-people', heading: 'Clients', sub: 'Who gets invoiced. Archived, never deleted.' }) %>
+<section class="glass-section pb-5"><div class="container">
+  <%- include('../partials/flash') %>
+
+  <div class="glass-card mb-4"><div class="card-body p-4">
+    <h2 class="h6 mb-3"><%= editing ? 'Edit client' : 'New client' %></h2>
+    <form method="post" action="<%= editing ? '/admin/finance/clients/' + editing.id : '/admin/finance/clients' %>">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label" for="name">Name on the invoice</label>
+          <input class="form-control" id="name" name="name" required maxlength="<%= limits.clientName %>"
+                 value="<%= editing ? editing.name : '' %>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="contact_name">Contact</label>
+          <input class="form-control" id="contact_name" name="contact_name" maxlength="<%= limits.clientName %>"
+                 value="<%= editing && editing.contact_name ? editing.contact_name : '' %>">
+        </div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label" for="email">Email</label>
+          <input class="form-control" id="email" name="email" type="email" maxlength="<%= limits.email %>"
+                 value="<%= editing && editing.email ? editing.email : '' %>">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="country">Country</label>
+          <select class="form-select" id="country" name="country">
+            <option value="">—</option>
+            <% countries.forEach(function (c) { %>
+              <option value="<%= c.code %>" <%= editing && editing.country === c.code ? 'selected' : '' %>><%= c.name %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="tax_id">VAT / Tax ID</label>
+          <input class="form-control" id="tax_id" name="tax_id" maxlength="<%= limits.taxId %>"
+                 value="<%= editing && editing.tax_id ? editing.tax_id : '' %>">
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="address">Invoice address</label>
+        <textarea class="form-control" id="address" name="address" rows="3" maxlength="<%= limits.address %>"><%= editing && editing.address ? editing.address : '' %></textarea>
+        <div class="form-text">Kept as one block: an invoice address has no reliable shape across jurisdictions.</div>
+      </div>
+      <button class="btn btn-primary" type="submit"><%= editing ? 'Save' : 'Add client' %></button>
+      <% if (editing) { %><a class="btn btn-link" href="/admin/finance/clients">Cancel</a><% } %>
+    </form>
+  </div></div>
+
+  <form class="d-flex gap-2 mb-3" method="get" action="/admin/finance/clients">
+    <input class="form-control form-control-sm" name="q" value="<%= filters.q %>" placeholder="Search" maxlength="120">
+    <div class="form-check form-check-inline text-nowrap">
+      <input class="form-check-input" type="checkbox" name="archived" value="1" id="arch" <%= filters.include_archived ? 'checked' : '' %>>
+      <label class="form-check-label small" for="arch">Show archived</label>
+    </div>
+    <button class="btn btn-primary btn-sm" type="submit">Filter</button>
+  </form>
+
+  <% if (!clients.length) { %>
+    <div class="glass-card"><div class="card-body"><p class="text-muted-2 mb-0">No clients yet.</p></div></div>
+  <% } else { %>
+    <div class="glass-card"><div class="card-body p-0"><div class="table-responsive">
+      <table class="table table-sm mb-0 align-middle">
+        <thead><tr><th scope="col">Name</th><th scope="col">Tax ID</th><th scope="col" class="text-end">Invoices</th><th scope="col" class="text-end">Outstanding</th><th scope="col"></th></tr></thead>
+        <tbody>
+          <% clients.forEach(function (c) { %>
+            <tr class="<%= c.is_archived ? 'text-muted-2' : '' %>">
+              <td><%= c.name %><% if (c.is_archived) { %> <span class="badge-hub muted">archived</span><% } %>
+                <% if (c.country) { %><span class="small text-muted-2"> <%= c.country %></span><% } %></td>
+              <td class="small text-muted-2"><%= c.tax_id || '—' %></td>
+              <td class="text-end small"><%= c.invoice_count %></td>
+              <td class="text-end small"><%= (c.outstanding_minor / 100).toFixed(2) %></td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-primary" href="/admin/finance/clients?edit=<%= c.id %>">Edit</a>
+                <form method="post" action="/admin/finance/clients/<%= c.id %>/archive" class="d-inline">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="archived" value="<%= c.is_archived ? 'false' : 'true' %>">
+                  <button class="btn btn-sm btn-outline-secondary" type="submit"><%= c.is_archived ? 'Restore' : 'Archive' %></button>
+                </form>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div></div></div>
+    <%- include('../partials/pagination', { pagination, pageUrl }) %>
+  <% } %>
+</div></section>
+<%- include('../partials/layout-end') %>

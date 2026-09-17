@@ -26,6 +26,7 @@ const { assertReferralIntegrity } = require('./config/referrals');
 const { assertLinkedInIntegrity, isConfigured: linkedInConfigured } = require('./config/linkedin');
 const { assertDraftingIntegrity } = require('./config/drafting');
 const { assertCompanyTemplateIntegrity } = require('./config/companyTemplates');
+const { assertFinanceIntegrity } = require('./config/finance');
 const AppSetting = require('./models/AppSetting');
 const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
@@ -69,6 +70,10 @@ assertDraftingIntegrity();
 // can set and no document reads — and the Hub's own defaults must pass the contrast rule
 // a company's colour has to pass.
 assertCompanyTemplateIntegrity();
+// The invoice lifecycle, and the line arithmetic with it. A status nothing can reach is a
+// dead branch; a rounding change is an invoice whose printed total stops equalling the sum
+// of its printed lines, which is the one figure a customer actually checks.
+assertFinanceIntegrity();
 
 const app = express();
 
@@ -277,6 +282,9 @@ app.use('/success-stories', require('./routes/stories'));
 app.use('/messages', require('./routes/messages'));
 app.use('/notifications', require('./routes/notifications'));
 app.use('/crm', require('./routes/crm'));
+// Before `/admin`, so this router answers its own paths rather than falling through to the
+// admin router's 404.
+app.use('/admin/finance', require('./routes/finance'));
 app.use('/admin', require('./routes/admin'));
 
 app.use(notFound);

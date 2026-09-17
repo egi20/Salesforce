@@ -66,6 +66,23 @@ const config = {
     resendApiKey: process.env.RESEND_API_KEY || '',
     from: process.env.EMAIL_FROM || 'Salesforce Hub <noreply@example.com>'
   },
+  finance: {
+    /*
+     * The legal entity that ISSUES the invoices.
+     *
+     * Environment variables rather than an editable settings row, and the line is the one
+     * `config/settings.js` already draws: a setting is an operational switch you change at
+     * 2am, and this is not that. An invoice carries a legal entity and a tax number, and a
+     * change to either is a deployment-level event that should have an author and a diff —
+     * not a form somebody can retype on a screen that also prints the number onto documents
+     * already going to customers.
+     */
+    sellerName: process.env.FINANCE_SELLER_NAME || '',
+    sellerAddress: process.env.FINANCE_SELLER_ADDRESS || '',
+    sellerTaxId: process.env.FINANCE_SELLER_TAX_ID || '',
+    sellerEmail: process.env.FINANCE_SELLER_EMAIL || '',
+    sellerIban: process.env.FINANCE_SELLER_IBAN || ''
+  },
   taxAdvisory: {
     // Where a new enquiry is announced. Unset means nobody is emailed and the enquiry
     // waits in /admin/tax-advisory — degraded, not broken, the same way email and

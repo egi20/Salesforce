@@ -171,6 +171,13 @@ automatically.
   role to your own account is possible; removing one, or granting anything privileged,
   is an administrator action.
 
+- **The Hub's own invoicing is internal and has no public page.** There is no self-service
+  invoice download: what a customer paid for is a receipt sent by email, and a VAT invoice
+  is something the operator issues. If somebody asks for one, the answer is to contact
+  support by email rather than to point at a URL — the finance area is not a page a member
+  can open. And it computes no tax: a VAT rate on an invoice is one the issuer stated, not
+  one the Hub worked out, which is the same refusal `/rates/calculator` carries.
+
 ## Things the assistant genuinely cannot do
 
 It cannot see or change anyone's account, applications, messages, payments or profile. It

@@ -1,0 +1,112 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', {
+  icon: 'bi-cash-stack',
+  heading: 'Finance',
+  sub: 'Invoices, costs and what is left. Nothing here is stored twice.'
+}) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <% if (!sellerConfigured) { %>
+    <div class="alert alert-warning">
+      <strong>No invoicing entity is configured.</strong>
+      Set <code>FINANCE_SELLER_NAME</code> and the other <code>FINANCE_SELLER_*</code> variables
+      before issuing anything — an invoice with the wrong legal entity on it is worse than
+      no invoice.
+    </div>
+  <% } %>
+
+  <%
+    const fmt = (minor, cur) => (minor / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + cur;
+  %>
+
+  <% statement.byCurrency.forEach(function (block) { %>
+    <div class="glass-card mb-3"><div class="card-body">
+      <h2 class="h6 mb-3">Last 12 months &middot; <%= block.currency %></h2>
+      <div class="row g-3">
+        <div class="col-6 col-lg-3">
+          <div class="stat-tile"><div class="value"><%= fmt(block.totals.revenueMinor, block.currency) %></div><div class="label">Invoiced, net of VAT</div></div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="stat-tile"><div class="value"><%= fmt(block.totals.receivedMinor, block.currency) %></div><div class="label">Actually received</div></div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="stat-tile"><div class="value"><%= fmt(block.totals.costMinor, block.currency) %></div><div class="label">Costs</div></div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="stat-tile"><div class="value"><%= fmt(block.totals.resultMinor, block.currency) %></div><div class="label">Before tax</div></div>
+        </div>
+      </div>
+    </div></div>
+  <% }); %>
+
+  <% if (!statement.byCurrency.length) { %>
+    <div class="glass-card mb-3"><div class="card-body">
+      <p class="text-muted-2 mb-0">Nothing invoiced and no costs recorded yet.</p>
+    </div></div>
+  <% } %>
+
+  <div class="d-flex flex-wrap gap-2 mb-4">
+    <a class="btn btn-primary btn-sm" href="/admin/finance/invoices/new">New invoice</a>
+    <a class="btn btn-outline-primary btn-sm" href="/admin/finance/invoices">Invoices</a>
+    <a class="btn btn-outline-primary btn-sm" href="/admin/finance/clients">Clients</a>
+    <a class="btn btn-outline-primary btn-sm" href="/admin/finance/costs">Costs</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/admin/finance/pl">Profit and loss</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/admin/finance/sequence">Numbering check</a>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="glass-card h-100"><div class="card-body">
+        <h2 class="h6 mb-3">Issued and unpaid</h2>
+        <% if (!outstanding.length) { %>
+          <p class="small text-muted-2 mb-0">Nothing outstanding.</p>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead><tr><th scope="col">No.</th><th scope="col">Client</th><th scope="col">Due</th><th scope="col" class="text-end">Amount</th></tr></thead>
+              <tbody>
+                <% outstanding.forEach(function (i) { %>
+                  <tr class="<%= i.is_overdue ? 'table-warning' : '' %>">
+                    <td><a href="/admin/finance/invoices/<%= i.id %>"><%= i.label %></a></td>
+                    <td class="small"><%= i.client_name %></td>
+                    <td class="small text-muted-2">
+                      <%= i.due_date ? new Date(i.due_date).toISOString().slice(0,10) : '—' %>
+                      <% if (i.is_overdue) { %><span class="badge-hub">overdue</span><% } %>
+                    </td>
+                    <td class="text-end"><%= fmt(i.gross_minor, i.currency) %></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div></div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="glass-card h-100"><div class="card-body">
+        <h2 class="h6 mb-3">Running costs</h2>
+        <% if (!costs.length) { %>
+          <p class="small text-muted-2 mb-0">None recorded.</p>
+        <% } else { %>
+          <ul class="list-unstyled small mb-0">
+            <% costs.forEach(function (c) { %>
+              <li class="d-flex justify-content-between border-top py-2">
+                <span class="text-truncate me-2"><%= c.description %>
+                  <span class="text-muted-2"><%= c.recur_every || 'one-off' %></span></span>
+                <span class="text-nowrap"><%= fmt(c.amount_minor, c.currency) %></span>
+              </li>
+            <% }); %>
+          </ul>
+        <% } %>
+      </div></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

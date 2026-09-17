@@ -1,0 +1,205 @@
+<%- include('../partials/layout-start') %>
+<%- include('../partials/page-header', {
+  icon: 'bi-wallet2',
+  heading: 'Costs',
+  sub: 'One table for a subscription and a one-off purchase. They differ by whether they repeat, not by what they store.'
+}) %>
+<section class="glass-section pb-5"><div class="container">
+  <%- include('../partials/flash') %>
+
+  <%
+    const fmt = (minor, cur) => (minor / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + cur;
+    // Through a Date, never String(d).slice(0, 10): mysql2 hands a DATE column back as a
+    // JS Date, and stringifying that gives 'Thu Jan 01 2026 ...' — which lands in a
+    // type="date" input the browser then renders empty, silently losing the value on save.
+    const day = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
+    const amountOf = (c) => (c ? (c.amount_minor / 100).toFixed(2) : '');
+    const labelOf = (value) => (categories.find((c) => c.value === value) || {}).label || value;
+  %>
+
+  <div class="glass-card mb-4"><div class="card-body p-4">
+    <h2 class="h6 mb-3"><%= editing ? 'Edit cost' : 'Record a cost' %></h2>
+    <form method="post" action="<%= editing ? '/admin/finance/costs/' + editing.id : '/admin/finance/costs' %>">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <% if (editing) { %><input type="hidden" name="redirectTo" value="/admin/finance/costs"><% } %>
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label" for="description">What is it</label>
+          <input class="form-control" id="description" name="description" required maxlength="<%= limits.description %>"
+                 value="<%= editing ? editing.description : '' %>">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="category">Category</label>
+          <select class="form-select" id="category" name="category" required>
+            <% categories.forEach(function (c) { %>
+              <option value="<%= c.value %>" <%= editing && editing.category === c.value ? 'selected' : '' %>><%= c.label %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="vendor">Paid to</label>
+          <input class="form-control" id="vendor" name="vendor" maxlength="<%= limits.clientName %>"
+                 value="<%= editing && editing.vendor ? editing.vendor : '' %>">
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="amount">Amount</label>
+          <input class="form-control" id="amount" name="amount" required inputmode="decimal"
+                 value="<%= amountOf(editing) %>">
+          <div class="form-text">Net of VAT. VAT you paid is reclaimed, not spent.</div>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label" for="currency">Currency</label>
+          <select class="form-select" id="currency" name="currency">
+            <% currencies.forEach(function (cur) { %>
+              <option value="<%= cur %>" <%= editing && editing.currency === cur ? 'selected' : '' %>><%= cur %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="recur_every">How often</label>
+          <select class="form-select" id="recur_every" name="recur_every">
+            <option value="once" <%= editing && !editing.recur_every ? 'selected' : '' %>>Once</option>
+            <% intervals.forEach(function (i) { %>
+              <option value="<%= i.value %>" <%= editing && editing.recur_every === i.value ? 'selected' : '' %>><%= i.label %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label" for="starts_on">Starts</label>
+          <input class="form-control" id="starts_on" name="starts_on" type="date" required
+                 value="<%= day(editing && editing.starts_on) %>">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label" for="ends_on">Ends</label>
+          <input class="form-control" id="ends_on" name="ends_on" type="date"
+                 value="<%= day(editing && editing.ends_on) %>">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="notes">Notes</label>
+        <textarea class="form-control" id="notes" name="notes" rows="2" maxlength="<%= limits.note %>"><%= editing && editing.notes ? editing.notes : '' %></textarea>
+      </div>
+
+      <button class="btn btn-primary" type="submit"><%= editing ? 'Save' : 'Add cost' %></button>
+      <% if (editing) { %><a class="btn btn-link" href="/admin/finance/costs">Cancel</a><% } %>
+    </form>
+
+    <p class="small text-muted-2 mt-3 mb-0">
+      A yearly cost lands on its anniversary month rather than being spread over twelve —
+      that is what the bank statement shows, and a profit and loss that disagrees with the
+      bank is one nobody trusts.
+    </p>
+  </div></div>
+
+  <form class="row g-2 align-items-end mb-3" method="get" action="/admin/finance/costs">
+    <div class="col-md-4">
+      <label class="form-label small" for="q">Search</label>
+      <input class="form-control form-control-sm" id="q" name="q" value="<%= filters.q %>" maxlength="120">
+    </div>
+    <div class="col-6 col-md-3">
+      <label class="form-label small" for="fcat">Category</label>
+      <select class="form-select form-select-sm" id="fcat" name="category">
+        <option value="">Any</option>
+        <% categories.forEach(function (c) { %>
+          <option value="<%= c.value %>" <%= filters.category === c.value ? 'selected' : '' %>><%= c.label %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small" for="frec">Repeats</label>
+      <select class="form-select form-select-sm" id="frec" name="recurring">
+        <option value="">Any</option>
+        <option value="yes" <%= filters.recurring === 'yes' ? 'selected' : '' %>>Recurring</option>
+        <option value="no" <%= filters.recurring === 'no' ? 'selected' : '' %>>One-off</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="active" value="1" id="active" <%= filters.active ? 'checked' : '' %>>
+        <label class="form-check-label small" for="active">Still running</label>
+      </div>
+    </div>
+    <div class="col-6 col-md-1">
+      <button class="btn btn-primary btn-sm w-100" type="submit">Filter</button>
+    </div>
+  </form>
+
+  <% if (!costs.length) { %>
+    <div class="glass-card"><div class="card-body"><p class="text-muted-2 mb-0">Nothing recorded yet.</p></div></div>
+  <% } else { %>
+    <div class="glass-card"><div class="card-body p-0"><div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th scope="col">What</th>
+            <th scope="col">Category</th>
+            <th scope="col">Repeats</th>
+            <th scope="col">Window</th>
+            <th scope="col" class="text-end">Amount</th>
+            <th scope="col" class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% costs.forEach(function (c) { %>
+            <%
+              const ended = c.ends_on && day(c.ends_on) < new Date().toISOString().slice(0, 10);
+              const started = day(c.starts_on);
+              const startedThisMonth = started.slice(0, 7) >= new Date().toISOString().slice(0, 7);
+            %>
+            <tr class="<%= ended ? 'text-muted-2' : '' %>">
+              <td>
+                <%= c.description %>
+                <% if (c.vendor) { %><div class="small text-muted-2"><%= c.vendor %></div><% } %>
+              </td>
+              <td class="small"><%= labelOf(c.category) %></td>
+              <td>
+                <% if (c.recur_every) { %>
+                  <span class="badge-hub cloud"><%= c.recur_every %></span>
+                <% } else { %>
+                  <span class="badge-hub muted">once</span>
+                <% } %>
+              </td>
+              <td class="small text-muted-2">
+                <%= started %><% if (c.ends_on) { %> &rarr; <%= day(c.ends_on) %><% } else if (c.recur_every) { %> &rarr; running<% } %>
+              </td>
+              <td class="text-end"><%= fmt(c.amount_minor, c.currency) %></td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-primary" href="/admin/finance/costs?edit=<%= c.id %>">Edit</a>
+                <% if (c.recur_every && !c.ends_on) { %>
+                  <form method="post" action="/admin/finance/costs/<%= c.id %>/end" class="d-inline">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="redirectTo" value="/admin/finance/costs">
+                    <input type="hidden" name="ends_on" value="<%= new Date().toISOString().slice(0, 10) %>">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">End today</button>
+                  </form>
+                <% } %>
+                <% if (startedThisMonth) { %>
+                  <form method="post" action="/admin/finance/costs/<%= c.id %>/end" class="d-inline"
+                        onsubmit="return confirm('Remove this cost entirely? Only possible because it has not reached a past month.');">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="redirectTo" value="/admin/finance/costs">
+                    <input type="hidden" name="action" value="delete">
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Remove</button>
+                  </form>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div></div></div>
+    <%- include('../partials/pagination', { pagination, pageUrl }) %>
+  <% } %>
+
+  <p class="small text-muted-2 mt-3 mb-0">
+    Ending a cost is the normal operation. Deleting a subscription that was paid for eleven
+    months would remove eleven months of real expense from every past profit and loss, so
+    removal is refused once a cost has reached a month that is already closed.
+  </p>
+</div></section>
+<%- include('../partials/layout-end') %>

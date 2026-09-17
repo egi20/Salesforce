@@ -878,6 +878,92 @@ out of a CSV.
 
 `/crm` is superadmin-gated for the same reason `/admin/rates` is.
 
+## Finance: invoices, costs and a profit and loss
+
+The only area here that holds figures somebody has already sent to a customer, and it has
+one rule the rest of the codebase does not need:
+
+**AN ISSUED INVOICE IS IMMUTABLE, AND ITS NUMBER IS NEVER REUSED OR FREED.**
+
+The reference implementation breaks both halves. `CompanyInvoice.remove(id)` is a hard
+`DELETE FROM finance_invoices WHERE id = ?` reachable from a list button at any status, and
+deleting an issued invoice leaves a gap in the sequence — the specific thing an auditor looks
+for, and not undoable. And the number comes from `SELECT COALESCE(MAX(invoice_seq), 0) + 1`
+read outside any transaction, so two invoices issued in the same second get the same number.
+
+Here the number is allocated from a counter row locked `FOR UPDATE` inside the transaction
+that writes the invoice, with `UNIQUE (invoice_year, invoice_seq)` behind it. Drafts hold no
+number, and NULLs do not collide in a MySQL unique index, so a draft is free to discard. A
+draft is the only editable state; anything after it is CANCELLED, which keeps the row and
+keeps the number used. `/admin/finance/sequence` exists so the no-gaps claim is checkable
+rather than asserted in a comment.
+
+**VAT here is not the tax refusal.** `utils/contractorEconomics.js` refuses to compute tax
+because it would be guessing at a jurisdiction. On an invoice nothing is guessed: the issuer
+types the rate that applies and `config/finance.js` multiplies. Stating a rate you chose is
+bookkeeping; inferring one you did not is advice. There is no default rate anywhere, and no
+`STANDARD_VAT` constant — a test asserts that.
+
+**Rounding happens once per line, and the invoice total is the sum of the rounded lines** —
+never the rounding of a summed float. That is what makes the printed total equal the sum of
+the printed lines, which is the only figure a customer actually checks. The stored totals are
+re-checked by `reconciliationProblems` before an invoice is shown, stored or downloaded, and
+`utils/documents/invoiceDocx.js` throws rather than produce a file that does not reconcile —
+the same standing `routes/quotes.js` gives an estimate.
+
+**The customer's details are COPIED onto the invoice at issue**, not joined from the client
+row. A customer moving office next year must not rewrite an invoice already sent and filed.
+The FK to `finance_clients` has no cascade and no `SET NULL`: a client with invoices cannot
+be deleted at all, and archiving is the operation.
+
+**`utils/decimalInput.js` is the one parser for every typed decimal**, and it exists because
+this had two. `models/FinanceCost.js` carried its own copy under a comment saying "same rule
+as the invoice lines" while the two had already drifted on negatives and on blanks. A blank
+or absent field returns NaN and is refused by name — it must never read as a zero, because a
+line whose `vat_percent` never arrived was being invoiced at 0% VAT without a word.
+
+**`isoDate()` normalises a stored DATE before any comparison**, and that is a real bug, not a
+precaution. `mysql2` returns a DATE as a JS `Date`, so `String(cost.starts_on).slice(0, 10)`
+is `'Thu Jan 01'` — which sorts after `'2026-02-01'` as a string and put every recurring cost
+outside every window. The profit and loss showed zero costs beside real invoices with nothing
+in the log, and the unit tests stayed green throughout, because a unit test passes strings.
+
+`services/profitAndLoss.js` is derived at read time and never stored, and it refuses two
+things: it converts no currency (a P&L per currency, because merging two would make the
+bottom line depend on the day the page was opened) and it computes no tax. Revenue is counted
+on the ISSUE date with cash received shown beside it rather than blended in. A requested
+window is validated and capped — `monthsBetween` walks month by month and each month walks
+every cost row, so an unclamped `?from=0001-01&to=9999-12` is a cheap way to make a page
+expensive. Arithmetic faults are `problems`; a month where more was received than invoiced is
+a `note`, because a January invoice paid in March is ordinary and a banner that cries wolf is
+a banner people stop reading.
+
+Costs are ONE table for recurring and one-off — they differ by whether `recur_every` is set,
+not by what they store. A yearly cost lands on its anniversary month rather than being spread
+over twelve, because that is what the bank statement shows. Ending a cost is the operation;
+`remove` refuses anything that has already reached a past month, since deleting a
+subscription paid for eleven months would take eleven months of real expense out of
+statements that were already filed.
+
+The seller's own details are `FINANCE_SELLER_*` environment variables rather than settings
+rows: an invoice with the wrong legal entity on it is worse than no invoice, and that is a
+deployment decision with an author, not a checkbox.
+
+**Deliberately not ported from the reference's superadmin area:**
+
+- **Uploaded .docx invoice templates.** It takes a file an administrator uploads, writes it
+  to the host disk and later fills and serves it. Credit where due — it checks the file
+  actually contains the placeholder tags, which is a genuinely good guard. But three standing
+  rules land on it at once: durable bytes never live on disk, a .docx can carry macros and
+  remote template references, and serving a file we did not build breaks "open it before
+  anyone else has to" completely. The layout lives in code instead, under version control.
+- **`/documents/extract`** — an LLM reading supplier invoices uploaded as files. Same
+  objection plus a second: it puts a third party's document, with their bank details on it,
+  through a model.
+- **`/employees` and `/business-units`**, and `/employees/import-consultants` with them.
+  That is an HR system inside a marketplace, and the import path copies consultants who
+  signed up to a directory into a staff table they never joined.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

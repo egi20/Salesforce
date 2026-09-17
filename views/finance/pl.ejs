@@ -1,0 +1,154 @@
+<%- include('../partials/layout-start') %>
+<%- include('../partials/page-header', {
+  icon: 'bi-graph-up',
+  heading: 'Profit and loss',
+  sub: 'Derived at read time from invoices and costs. Nothing on this page is stored.'
+}) %>
+<section class="glass-section pb-5"><div class="container">
+  <%- include('../partials/flash') %>
+
+  <%
+    const fmt = (minor, cur) => (minor / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + cur;
+    const monthName = (m) => {
+      const [y, mm] = m.split('-');
+      return new Date(Date.UTC(Number(y), Number(mm) - 1, 1)).toLocaleDateString('en-GB', { month: 'short', year: '2-digit', timeZone: 'UTC' });
+    };
+  %>
+
+  <% if (statement.problems && statement.problems.length) { %>
+    <div class="alert alert-danger">
+      <strong>This statement does not reconcile.</strong>
+      <ul class="mb-0 small">
+        <% statement.problems.forEach(function (p) { %><li><%= p %></li><% }); %>
+      </ul>
+      <p class="small mb-0 mt-2">That combination can only mean a bug in this application. Do not file these figures.</p>
+    </div>
+  <% } %>
+
+  <% if (statement.notes && statement.notes.length) { %>
+    <div class="alert alert-info">
+      <strong>Worth knowing.</strong> These are observations about the figures, not faults.
+      <ul class="mb-0 small">
+        <% statement.notes.forEach(function (n) { %><li><%= n %></li><% }); %>
+      </ul>
+    </div>
+  <% } %>
+
+  <form class="row g-2 align-items-end mb-4" method="get" action="/admin/finance/pl">
+    <div class="col-6 col-md-3">
+      <label class="form-label small" for="from">From</label>
+      <input class="form-control form-control-sm" id="from" name="from" type="month" value="<%= statement.window.from %>">
+    </div>
+    <div class="col-6 col-md-3">
+      <label class="form-label small" for="to">To</label>
+      <input class="form-control form-control-sm" id="to" name="to" type="month" value="<%= statement.window.to %>">
+    </div>
+    <div class="col-6 col-md-2">
+      <button class="btn btn-primary btn-sm w-100" type="submit">Show</button>
+    </div>
+    <div class="col-6 col-md-4 text-md-end">
+      <a class="btn btn-outline-secondary btn-sm" href="/admin/finance">Back to finance</a>
+    </div>
+  </form>
+
+  <% if (!statement.byCurrency.length) { %>
+    <div class="glass-card"><div class="card-body">
+      <p class="text-muted-2 mb-0">Nothing invoiced and no costs recorded in this window.</p>
+    </div></div>
+  <% } %>
+
+  <% statement.byCurrency.forEach(function (block) { %>
+    <div class="glass-card mb-4"><div class="card-body p-4">
+      <h2 class="h6 mb-3"><%= block.currency %></h2>
+
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+          <div class="stat-tile"><div class="value"><%= fmt(block.totals.revenueMinor, block.currency) %></div><div class="label">Invoiced, net of VAT</div></div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="stat-tile"><div class="value"><%= fmt(block.totals.receivedMinor, block.currency) %></div><div class="label">Of which received</div></div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="stat-tile"><div class="value"><%= fmt(block.totals.costMinor, block.currency) %></div><div class="label">Costs</div></div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="stat-tile"><div class="value"><%= fmt(block.totals.resultMinor, block.currency) %></div><div class="label">Before tax</div></div>
+        </div>
+      </div>
+
+      <div class="table-responsive mb-4">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th scope="col">Month</th>
+              <th scope="col" class="text-end">Invoices</th>
+              <th scope="col" class="text-end">Revenue</th>
+              <th scope="col" class="text-end">Received</th>
+              <th scope="col" class="text-end">Costs</th>
+              <th scope="col" class="text-end">Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% block.rows.forEach(function (row) { %>
+              <tr>
+                <td class="small"><%= monthName(row.month) %></td>
+                <td class="text-end small text-muted-2"><%= row.invoices || '—' %></td>
+                <td class="text-end small"><%= fmt(row.revenueMinor, block.currency) %></td>
+                <td class="text-end small text-muted-2"><%= fmt(row.receivedMinor, block.currency) %></td>
+                <td class="text-end small"><%= fmt(row.costMinor, block.currency) %></td>
+                <td class="text-end <%= row.resultMinor < 0 ? 'text-danger' : '' %>"><%= fmt(row.resultMinor, block.currency) %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+          <tfoot>
+            <tr class="fw-semibold border-top">
+              <td>Total</td>
+              <td></td>
+              <td class="text-end"><%= fmt(block.totals.revenueMinor, block.currency) %></td>
+              <td class="text-end"><%= fmt(block.totals.receivedMinor, block.currency) %></td>
+              <td class="text-end"><%= fmt(block.totals.costMinor, block.currency) %></td>
+              <td class="text-end"><%= fmt(block.totals.resultMinor, block.currency) %></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <% if (block.categoryTotals.length) { %>
+        <h3 class="h6 mb-2">Where the money went</h3>
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <tbody>
+              <% block.categoryTotals.forEach(function (c) { %>
+                <tr>
+                  <td class="small"><%= c.label %></td>
+                  <td class="text-end small"><%= fmt(c.minor, block.currency) %></td>
+                  <td class="text-end small text-muted-2">
+                    <%= block.totals.costMinor ? Math.round((c.minor / block.totals.costMinor) * 100) : 0 %>%
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div></div>
+  <% }); %>
+
+  <div class="glass-card"><div class="card-body p-4">
+    <h2 class="h6 mb-2">What this is not</h2>
+    <ul class="small text-muted-2 mb-0">
+      <li><strong>It is not converted.</strong> Each currency gets its own statement. A
+        business invoicing in two currencies has two answers, and inventing a rate to merge
+        them would make the bottom line depend on the day this page was opened.</li>
+      <li><strong>It is not after tax.</strong> Nothing here computes a tax charge — that
+        depends on jurisdiction, entity type and a position this application does not know.
+        The same refusal the rate calculator carries.</li>
+      <li><strong>Revenue is counted on the issue date</strong>, not the day the money
+        landed. Cash received is shown beside it so the difference is visible rather than
+        blended away.</li>
+      <li><strong>Cancelled invoices are excluded and drafts never counted.</strong> A
+        draft is not revenue, and a cancelled invoice is revenue that did not happen.</li>
+    </ul>
+  </div></div>
+</div></section>
+<%- include('../partials/layout-end') %>

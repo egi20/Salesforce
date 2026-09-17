@@ -1,0 +1,80 @@
+<%- include('../partials/layout-start') %>
+<%- include('../partials/page-header', {
+  icon: 'bi-123',
+  heading: 'Invoice numbering',
+  sub: 'The claim that there are no gaps, checked rather than asserted.'
+}) %>
+<section class="glass-section pb-5"><div class="container">
+  <%- include('../partials/flash') %>
+
+  <% const anyGaps = checks.some(function (c) { return c.gaps.length; }); %>
+
+  <% if (!checks.length) { %>
+    <div class="glass-card mb-4"><div class="card-body">
+      <p class="text-muted-2 mb-0">Nothing has been issued yet, so there is no sequence to check.</p>
+    </div></div>
+  <% } else if (anyGaps) { %>
+    <div class="alert alert-danger">
+      <strong>There is a gap in the sequence.</strong>
+      Numbers are allocated under a lock and an issued invoice is cancelled rather than
+      deleted, so this should not be possible. A missing number is the first thing an
+      auditor asks about — find out what removed it before issuing anything else.
+    </div>
+  <% } else { %>
+    <div class="alert alert-success">
+      <strong>No gaps.</strong> Every number from 1 to the highest issued exists in every year.
+    </div>
+  <% } %>
+
+  <% if (checks.length) { %>
+    <div class="glass-card mb-4"><div class="card-body p-0"><div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th scope="col">Year</th>
+            <th scope="col" class="text-end">Issued</th>
+            <th scope="col" class="text-end">Highest number</th>
+            <th scope="col">Missing</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% checks.forEach(function (check) { %>
+            <tr class="<%= check.gaps.length ? 'table-danger' : '' %>">
+              <td><%= check.year %></td>
+              <td class="text-end"><%= check.used %></td>
+              <td class="text-end"><%= check.highest %></td>
+              <td class="small">
+                <% if (!check.gaps.length) { %>
+                  <span class="text-muted-2">none</span>
+                <% } else { %>
+                  <%= check.gaps.join(', ') %>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div></div></div>
+  <% } %>
+
+  <div class="glass-card"><div class="card-body p-4">
+    <h2 class="h6 mb-2">Why this page exists</h2>
+    <p class="small text-muted-2 mb-2">
+      An invoice number is allocated from a counter row locked inside the same transaction
+      that writes the invoice, with a unique key on the year and the number behind it. A
+      draft holds no number at all, which is what makes discarding one harmless.
+    </p>
+    <p class="small text-muted-2 mb-0">
+      Both halves of that are worth checking rather than trusting. Reading the highest
+      existing number and adding one — the obvious implementation — hands the same number to
+      two invoices issued in the same second, and deleting an issued invoice leaves a hole
+      nothing can fill, because the number is never reused.
+    </p>
+  </div></div>
+
+  <div class="mt-3">
+    <a class="btn btn-outline-secondary btn-sm" href="/admin/finance">Back to finance</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/admin/finance/invoices">Invoices</a>
+  </div>
+</div></section>
+<%- include('../partials/layout-end') %>

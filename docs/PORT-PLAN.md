@@ -38,19 +38,25 @@ handlers cover a feature that is better here than there.
 | Success stories | 2 | 3 | No pay figures. The video allowlist is ported almost unchanged |
 | Site reviews | 3 | 4 | Signed-in only, hidden never deleted |
 | Sales CRM | 22 | 16 | Required source, permanent suppression list, drafts that nothing sends |
+| Superadmin finance | 41 | 15 | Invoices, costs, P&L. Numbers allocated under a lock, nothing deleted |
 | Design system | — | — | Glassmorphism ported, palette re-based on Salesforce blue |
 
 ## Next, in order
 
-1. **Superadmin finance** (41) — invoices, recurring costs, revenue reporting. An
-   accounting system that happens to live in the same repository as a marketplace, and the
-   last untouched area of the reference apart from dedupe.
-2. **Nothing else from the reference.** What remains after that is dedupe (65 handlers, 12
-   tables), which is excluded.
+**Nothing else from the reference.** Superadmin finance was the last untouched area and it
+is done. What remains is dedupe (65 handlers, 12 tables), which is permanently excluded.
 
-The real next work is not a feature. Twenty-one migrations have never been executed against
-a MySQL server, and every one of the 744 tests mocks the database. That gap does not close
-by adding anything.
+The real next work is not a feature. It is a deployment: the application now runs against a
+real MySQL 8, all twenty-two migrations apply from empty, and the finance flow has been
+exercised end to end against it — but nothing is serving traffic anywhere. See
+`docs/DEPLOYING.md`.
+
+Three bugs that only a real database could find, kept here because they are the argument for
+running one: `/admin/analytics` grouped by an alias that collided with a real column and
+failed `only_full_group_by`; a search test passed because its source was unmocked and
+unreachable; and every recurring cost contributed zero to the profit and loss because
+`mysql2` returns a DATE as a JS `Date` and the apportionment compared `String(date)` against
+a `YYYY-MM-DD` string. All three were green under mocks.
 
 ## Done since this plan was written
 

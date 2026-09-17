@@ -1,0 +1,170 @@
+<%- include('../partials/layout-start') %>
+<%
+  const fmt = (m) => (m / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + invoice.currency;
+  const d = (v) => v ? new Date(v).toISOString().slice(0, 10) : '—';
+%>
+<%- include('../partials/page-header', {
+  icon: 'bi-receipt',
+  heading: invoice.label ? 'Invoice ' + invoice.label : 'Draft invoice',
+  sub: invoice.bill_to_name || invoice.client_name
+}) %>
+<section class="glass-section pb-5"><div class="container">
+  <%- include('../partials/flash') %>
+
+  <% if (problems.length) { %>
+    <%
+      /*
+       * This can only mean a bug in the arithmetic. The download refuses too — a document
+       * whose total disagrees with its lines must never leave the building.
+       */
+    %>
+    <div class="alert alert-danger">
+      <strong>This invoice does not reconcile.</strong>
+      <ul class="mb-0"><% problems.forEach(function (p) { %><li><%= p %></li><% }); %></ul>
+    </div>
+  <% } %>
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="glass-card mb-3"><div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <span class="badge-hub <%= invoice.status === 'paid' ? 'ok' : invoice.status === 'cancelled' ? 'muted' : '' %>"><%= invoice.status %></span>
+            <% if (invoice.label) { %><span class="ms-2 text-muted-2">No. <%= invoice.label %></span><% } %>
+          </div>
+          <div class="text-end small text-muted-2">
+            Issued <%= d(invoice.issue_date) %><br>Due <%= d(invoice.due_date) %>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead><tr><th scope="col">Description</th><th scope="col" class="text-end">Qty</th><th scope="col" class="text-end">Unit</th><th scope="col" class="text-end">VAT</th><th scope="col" class="text-end">Net</th></tr></thead>
+            <tbody>
+              <% invoice.lines.forEach(function (l) { %>
+                <tr>
+                  <td><%= l.description %><% if (l.unit) { %><span class="small text-muted-2"> (<%= l.unit %>)</span><% } %></td>
+                  <td class="text-end"><%= l.quantity_milli / 1000 %></td>
+                  <td class="text-end"><%= fmt(l.unit_price_minor) %></td>
+                  <td class="text-end"><%= l.vat_bps / 100 %>%</td>
+                  <td class="text-end"><%= fmt(l.net_minor) %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+            <tfoot>
+              <tr><td colspan="4" class="text-end text-muted-2">Net</td><td class="text-end"><%= fmt(invoice.net_minor) %></td></tr>
+              <tr><td colspan="4" class="text-end text-muted-2">VAT</td><td class="text-end"><%= fmt(invoice.vat_minor) %></td></tr>
+              <tr class="fw-semibold"><td colspan="4" class="text-end">Total</td><td class="text-end"><%= fmt(invoice.gross_minor) %></td></tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <% if (invoice.notes) { %><p class="small text-muted-2 mt-3 mb-0" style="white-space:pre-wrap"><%= invoice.notes %></p><% } %>
+        <% if (invoice.cancel_reason) { %>
+          <p class="small text-danger mt-3 mb-0">Cancelled: <%= invoice.cancel_reason %></p>
+        <% } %>
+      </div></div>
+
+      <% if (invoice.status === 'draft') { %>
+        <div class="glass-card"><div class="card-body p-4">
+          <h2 class="h6 mb-3">Edit the draft</h2>
+          <form method="post" action="/admin/finance/invoices/<%= invoice.id %>">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div class="row g-3 mb-3">
+              <div class="col-md-5">
+                <label class="form-label" for="client_id">Client</label>
+                <select class="form-select" id="client_id" name="client_id" required>
+                  <% clients.forEach(function (c) { %>
+                    <option value="<%= c.id %>" <%= invoice.client_id === c.id ? 'selected' : '' %>><%= c.name %></option>
+                  <% }); %>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label" for="currency">Currency</label>
+                <select class="form-select" id="currency" name="currency">
+                  <% currencies.forEach(function (c) { %>
+                    <option value="<%= c %>" <%= invoice.currency === c ? 'selected' : '' %>><%= c %></option>
+                  <% }); %>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label" for="due_date">Due</label>
+                <input class="form-control" id="due_date" name="due_date" type="date"
+                       value="<%= invoice.due_date ? d(invoice.due_date) : '' %>">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label" for="reference">Reference</label>
+                <input class="form-control" id="reference" name="reference" maxlength="<%= limits.reference %>"
+                       value="<%= invoice.reference || '' %>">
+              </div>
+            </div>
+            <%- include('_lineFields', { lines: invoice.lines }) %>
+            <div class="mb-3">
+              <label class="form-label" for="notes">Notes</label>
+              <textarea class="form-control" id="notes" name="notes" rows="3" maxlength="<%= limits.note %>"><%= invoice.notes || '' %></textarea>
+            </div>
+            <button class="btn btn-primary" type="submit">Save draft</button>
+          </form>
+        </div></div>
+      <% } %>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="glass-card mb-3"><div class="card-body">
+        <h2 class="h6 mb-3">Bill to</h2>
+        <p class="small mb-0" style="white-space:pre-wrap"><strong><%= invoice.bill_to_name || invoice.client_name %></strong><% if (invoice.bill_to_address) { %>
+<%= invoice.bill_to_address %><% } %><% if (invoice.bill_to_tax_id) { %>
+<%= invoice.bill_to_tax_id %><% } %></p>
+        <% if (invoice.status !== 'draft') { %>
+          <p class="small text-muted-2 mt-2 mb-0">
+            Frozen at issue. Editing the client record does not change this.
+          </p>
+        <% } %>
+      </div></div>
+
+      <div class="glass-card mb-3"><div class="card-body">
+        <h2 class="h6 mb-3">Actions</h2>
+
+        <% if (invoice.status === 'draft') { %>
+          <% if (!sellerConfigured) { %>
+            <p class="small text-danger">Set the FINANCE_SELLER_* variables before issuing.</p>
+          <% } %>
+          <form method="post" action="/admin/finance/invoices/<%= invoice.id %>/issue" class="mb-2">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label class="form-label small" for="issue_date">Issue date</label>
+            <input class="form-control form-control-sm mb-2" id="issue_date" name="issue_date" type="date">
+            <button class="btn btn-primary btn-sm w-100" type="submit" <%= problems.length ? 'disabled' : '' %>>Issue it</button>
+          </form>
+          <p class="small text-muted-2">It gets the next number for the year and becomes uneditable.</p>
+
+          <form method="post" action="/admin/finance/invoices/<%= invoice.id %>/discard">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="btn btn-outline-danger btn-sm w-100" type="submit">Discard the draft</button>
+          </form>
+        <% } else { %>
+          <a class="btn btn-outline-primary btn-sm w-100 mb-2" href="/admin/finance/invoices/<%= invoice.id %>/download">Download .docx</a>
+
+          <% transitions.forEach(function (t) { %>
+            <form method="post" action="/admin/finance/invoices/<%= invoice.id %>/status" class="mb-2">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="status" value="<%= t %>">
+              <% if (t === 'cancelled') { %>
+                <label class="form-label small" for="reason">Why cancel it?</label>
+                <input class="form-control form-control-sm mb-1" id="reason" name="reason" required maxlength="300">
+              <% } %>
+              <button class="btn btn-sm w-100 <%= t === 'paid' ? 'btn-primary' : 'btn-outline-secondary' %>" type="submit">
+                Mark <%= t %>
+              </button>
+            </form>
+          <% }); %>
+
+          <p class="small text-muted-2 mb-0">
+            An issued invoice is never deleted. Cancelling keeps the row and keeps the number
+            used — a gap in the sequence is the thing an auditor looks for.
+          </p>
+        <% } %>
+      </div></div>
+    </div>
+  </div>
+</div></section>
+<%- include('../partials/layout-end') %>

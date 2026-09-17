@@ -1,0 +1,48 @@
+<%
+  /*
+   * The editable line table, shared by the new-invoice form and the draft editor so the
+   * two cannot drift. Inputs are named `lines[N][field]`, which `qs` parses into an array
+   * of objects — and `normaliseLines` drops any row with no description, so the blank
+   * rows rendered for convenience cost nothing.
+   */
+  const rows = (typeof lines !== 'undefined' && lines && lines.length) ? lines : [];
+  const blanks = Math.max(3, 8 - rows.length);
+%>
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th scope="col" style="width:40%">Description</th>
+        <th scope="col">Qty</th>
+        <th scope="col">Unit</th>
+        <th scope="col">Unit price</th>
+        <th scope="col">VAT %</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% rows.forEach(function (l, i) { %>
+        <tr>
+          <td><input class="form-control form-control-sm" name="lines[<%= i %>][description]" maxlength="300" value="<%= l.description %>"></td>
+          <td><input class="form-control form-control-sm" name="lines[<%= i %>][quantity]" value="<%= (l.quantity_milli / 1000) %>"></td>
+          <td><input class="form-control form-control-sm" name="lines[<%= i %>][unit]" maxlength="32" value="<%= l.unit || '' %>"></td>
+          <td><input class="form-control form-control-sm" name="lines[<%= i %>][unit_price]" value="<%= (l.unit_price_minor / 100).toFixed(2) %>"></td>
+          <td><input class="form-control form-control-sm" name="lines[<%= i %>][vat_percent]" value="<%= (l.vat_bps / 100) %>"></td>
+        </tr>
+      <% }); %>
+      <% for (var b = 0; b < blanks; b++) { var idx = rows.length + b; %>
+        <tr>
+          <td><input class="form-control form-control-sm" name="lines[<%= idx %>][description]" maxlength="300" placeholder="Leave blank to skip"></td>
+          <td><input class="form-control form-control-sm" name="lines[<%= idx %>][quantity]" value="1"></td>
+          <td><input class="form-control form-control-sm" name="lines[<%= idx %>][unit]" maxlength="32"></td>
+          <td><input class="form-control form-control-sm" name="lines[<%= idx %>][unit_price]" value="0.00"></td>
+          <td><input class="form-control form-control-sm" name="lines[<%= idx %>][vat_percent]" value="0"></td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<p class="small text-muted-2">
+  Quantities take three decimals, prices two. A comma works as a decimal separator. A third
+  decimal on a price is cut, not rounded — it is a typo, and rounding it silently produces an
+  amount you did not type.
+</p>

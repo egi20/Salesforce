@@ -1211,3 +1211,12 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 @media print {
   .sf-assistant { display: none !important; }
 }
+
+/* The hub mark beside the wordmark. Fixed box so the navbar cannot reflow while the SVG
+   loads — a brand that jumps on every page load is the first thing people notice. */
+.navbar-hub .navbar-brand .brand-mark {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  display: block;
+}

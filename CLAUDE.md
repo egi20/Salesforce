@@ -1015,10 +1015,25 @@ throwing, because every call site is a side effect of an action that must succee
 `DESIGN.md` is the authority for anything user-facing, and it is short — read it before
 adding a page. The two rules most often broken while moving fast:
 
-- **Bootstrap is served from this origin**, not a CDN (`/vendor/bootstrap`,
-  `/vendor/bootstrap-icons`, from `node_modules`). The CSP allows no CDN at all. A CDN
-  puts a third party on every page load, breaks behind a proxy that blocks it, and forces
-  the policy to trust a host that also serves everybody else's code.
+- **Bootstrap AND Inter are served from this origin**, not a CDN (`/vendor/bootstrap`,
+  `/vendor/bootstrap-icons`, `/vendor/inter`, all from `node_modules`). The CSP allows no
+  CDN at all. A CDN puts a third party on every page load, breaks behind a proxy that
+  blocks it, and forces the policy to trust a host that also serves everybody else's code.
+
+  This rule was written before it was true. Inter came from `fonts.googleapis.com` via two
+  `<link>` tags, and `styleSrc`/`fontSrc` named two Google hosts to permit them — so the
+  documentation said one thing and the policy did another, and nothing checked. Driving the
+  running site through a real browser is what found it: the stylesheet request failed with
+  `ERR_CERT_AUTHORITY_INVALID` behind a proxy, which is the exact failure this rule
+  predicts, and the page had been silently falling back to system fonts.
+  `tests/unit/brandAssets.test.js` now asserts both halves — no template fetches from
+  another host, and no CSP directive names one. `frameSrc` is the single exception and
+  carries `EMBED_HOSTS`, shared from `utils/videoEmbed.js` so the two cannot drift.
+
+  `public/css/inter.css` declares the four weights the design uses, with an explicit
+  `unicode-range` and the `latin-ext` subset: Albanian ë and ç live there, as do the
+  diacritics in most European names this site will hold, and the range is what stops a page
+  that shows none of them from downloading the file.
 - **Never inline a brand colour.** There is a token or a class. `views/email/` is the one
   exception, because email clients strip `<style>` and do not support custom properties.
 - **`#00A1E0` never sits behind white text** (2.93:1). Cyan is an accent and a gradient

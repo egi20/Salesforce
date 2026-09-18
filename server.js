@@ -98,8 +98,10 @@ app.use(
         // No CDN is allowed at all: every script, style and font is served from this
         // origin. Adding a host back here means adding a third party to every page.
         scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        // No third-party host. DESIGN.md and CLAUDE.md both say the CSP allows no CDN,
+        // and until Inter was self-hosted these two lines made that untrue.
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        fontSrc: ["'self'"],
         imgSrc: ["'self'", 'data:', 'https:'],
         connectSrc: ["'self'"],
         formAction: ["'self'"],
@@ -159,6 +161,15 @@ app.use(bodyParser.json({ limit: '5mb' }));
 app.use(
   '/vendor/bootstrap',
   express.static(path.join(__dirname, 'node_modules', 'bootstrap', 'dist'), {
+    maxAge: '30d',
+    immutable: config.isProduction
+  })
+);
+// Inter, for the same reason and in the same way as Bootstrap. See public/css/inter.css:
+// this used to come from fonts.googleapis.com, and the request failed behind a proxy.
+app.use(
+  '/vendor/inter',
+  express.static(path.join(__dirname, 'node_modules', '@fontsource', 'inter'), {
     maxAge: '30d',
     immutable: config.isProduction
   })

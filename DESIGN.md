@@ -53,7 +53,9 @@ Rules:
 
 ## Typography
 
-- **Inter** only, weights 400/500/600/700/800.
+- **Inter** only, weights 400/500/600/700/800 — all five self-hosted from `/vendor/inter`
+  and all five actually downloaded. A weight a stylesheet sets but the page never loads is
+  a faux bold, which is what every h1 here was until it was checked in a real browser.
 - Headings are navy, 700 (h1 is 800), `letter-spacing: -0.02em`.
 - Desktop scale: h1 `clamp(2rem, 5vw, 3rem)`, h2 `clamp(1.75rem, 4vw, 2.5rem)`,
   h3 `clamp(1.5rem, 3vw, 1.875rem)`, h4 `1.5rem`, h5 `1.25rem`, h6 `1rem`.

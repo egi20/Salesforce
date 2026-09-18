@@ -108,3 +108,86 @@ describe('brand assets', () => {
     }
   });
 });
+
+describe('nothing is loaded from another origin', () => {
+  /*
+   * DESIGN.md and CLAUDE.md both state that the CSP allows no CDN at all, and until Inter
+   * was self-hosted that was not true: the head carried two <link> tags to Google and the
+   * policy carried two Google hosts to permit them. The documentation and the policy
+   * disagreed, and nothing noticed because nothing checked.
+   *
+   * It was not theoretical. Driving the running site through a real browser, the Google
+   * stylesheet request FAILED with ERR_CERT_AUTHORITY_INVALID behind a proxy — the exact
+   * failure the rule predicts — and the page had been quietly falling back to system fonts.
+   */
+  const EXTERNAL = /(?:src|href)\s*=\s*["']https?:\/\//i;
+
+  it('no template pulls a stylesheet, script or font from another host', () => {
+    const offenders = [];
+    for (const file of viewFiles) {
+      for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
+        // Only the tags that FETCH into the page. An <a href="https://..."> is a link
+        // somebody clicks, which is an entirely different thing.
+        if (/<(?:link|script|img|iframe|source)\b/i.test(line) && EXTERNAL.test(line)) {
+          // The video embed allowlist is the one deliberate exception and lives in
+          // utils/videoEmbed.js, built at render time — never hardcoded into a template.
+          offenders.push(`${path.relative(VIEWS, file)}: ${line.trim().slice(0, 100)}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('the CSP names no third-party host for styles, scripts or fonts', () => {
+    const server = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8');
+    const csp = server.slice(server.indexOf('contentSecurityPolicy'), server.indexOf('contentSecurityPolicy') + 2000);
+
+    for (const directive of ['styleSrc', 'scriptSrc', 'fontSrc', 'connectSrc']) {
+      const line = (csp.match(new RegExp(`${directive}:\\s*\\[[^\\]]*\\]`)) || [''])[0];
+      expect(line).not.toMatch(/https?:\/\//);
+    }
+    // frameSrc is the exception: it carries EMBED_HOSTS, shared from utils/videoEmbed.js so
+    // the policy and the allowlist cannot drift apart.
+    expect(csp).toMatch(/frameSrc/);
+  });
+
+  it('Inter is served from this origin and the stylesheet asks for files that exist', () => {
+    const css = fs.readFileSync(path.join(PUBLIC, 'css', 'inter.css'), 'utf8');
+    const urls = [...css.matchAll(/url\('([^']+)'\)/g)].map((m) => m[1]);
+    expect(urls.length).toBeGreaterThan(0);
+
+    for (const url of urls) {
+      expect(url.startsWith('/vendor/inter/')).toBe(true);
+      const onDisk = path.join(ROOT, 'node_modules', '@fontsource', 'inter', url.replace('/vendor/inter/', ''));
+      expect(fs.existsSync(onDisk)).toBe(true);
+    }
+  });
+
+  it('every weight the stylesheets actually set is a weight that gets downloaded', () => {
+    /*
+     * 800 was listed in DESIGN.md and set in five rules in style.css — including every h1,
+     * the largest text on every page — and was in neither the old Google Fonts request nor
+     * the first self-hosted version. So every heading on this site was a FAUX bold: the
+     * browser smearing the 700 face instead of drawing the real one. Documented, used, and
+     * never loaded, which is the combination nothing catches by reading.
+     */
+    const site = fs.readFileSync(path.join(PUBLIC, 'css', 'style.css'), 'utf8');
+    const inter = fs.readFileSync(path.join(PUBLIC, 'css', 'inter.css'), 'utf8');
+
+    const declared = new Set((inter.match(/font-weight:\s*(\d+)/g) || []).map((m) => m.match(/\d+/)[0]));
+    const used = new Set((site.match(/font-weight:\s*(\d{3})/g) || []).map((m) => m.match(/\d+/)[0]));
+
+    expect(declared.size).toBeGreaterThan(0);
+    const synthesised = [...used].filter((w) => !declared.has(w));
+    expect(synthesised).toEqual([]);
+  });
+
+  it('latin-ext is included, because Albanian ë and ç live there', () => {
+    // Not cosmetic: without it every consultant and company name carrying a diacritic
+    // renders in a fallback face, and the explicit unicode-range is what keeps the file
+    // from being downloaded by pages that never show one.
+    const css = fs.readFileSync(path.join(PUBLIC, 'css', 'inter.css'), 'utf8');
+    expect(css).toMatch(/latin-ext/);
+    expect((css.match(/unicode-range:/g) || []).length).toBe((css.match(/@font-face/g) || []).length);
+  });
+});

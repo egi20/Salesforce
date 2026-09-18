@@ -32,8 +32,18 @@ const ROLE_CATEGORIES = [
       { value: 'health-cloud', label: 'Health Cloud Consultant' },
       { value: 'financial-services-cloud', label: 'Financial Services Cloud Consultant' },
       { value: 'psa-consultant', label: 'PSA / Professional Services Consultant' },
-      { value: 'smb-erp-isv', label: 'SMB / ERP ISV Consultant' },
-      { value: 'hcm-isv', label: 'HCM ISV Consultant' }
+      /*
+       * These two replace `smb-erp-isv` and `hcm-isv`, which were carried over from the
+       * Dynamics reference and named nothing that exists in the Salesforce ecosystem —
+       * "SMB ERP" is Business Central and "HCM ISV" is a Dynamics HR partner. Neither had
+       * a single entry in ROLE_ALIASES, which is what gave them away: they were two of the
+       * only three roles nobody could map a real search term onto, because there was no
+       * real term to map. Renaming was free here because nothing stored them — no seed row,
+       * no other module, and nothing deployed. Once this application holds data, changing a
+       * slug is a migration, not an edit.
+       */
+      { value: 'appexchange-isv', label: 'AppExchange / ISV Consultant' },
+      { value: 'manufacturing-cloud', label: 'Manufacturing / Consumer Goods Cloud Consultant' }
     ]
   },
   {
@@ -43,6 +53,10 @@ const ROLE_CATEGORIES = [
       { value: 'lwc-developer', label: 'LWC Developer' },
       { value: 'platform-developer', label: 'Platform Developer' },
       { value: 'flow-specialist', label: 'Flow / Automation Specialist' },
+      // OmniStudio is a module in `config/cloudFamilies.js` and a certification in
+      // `config/certifications.js`, and had no role. A catalogue that names a product in
+      // two places and offers no way to say you work on it is a gap, not a decision.
+      { value: 'omnistudio-developer', label: 'OmniStudio / Vlocity Developer' },
       { value: 'mulesoft-developer', label: 'MuleSoft Developer' },
       { value: 'integration-architect', label: 'Integration Architect' },
       { value: 'crm-analytics', label: 'CRM Analytics Consultant' },
@@ -115,12 +129,13 @@ const BASE_DAY_RATES = {
   'health-cloud': 720,
   'financial-services-cloud': 760,
   'psa-consultant': 700,
-  'smb-erp-isv': 600,
-  'hcm-isv': 600,
+  'appexchange-isv': 720,
+  'manufacturing-cloud': 700,
   'apex-developer': 680,
   'lwc-developer': 660,
   'platform-developer': 650,
   'flow-specialist': 600,
+  'omnistudio-developer': 760,
   'mulesoft-developer': 800,
   'integration-architect': 900,
   'crm-analytics': 720,
@@ -165,10 +180,14 @@ const ROLE_ALIASES = {
   'health-cloud': ['health'],
   'financial-services-cloud': ['fsc', 'banking', 'insurance'],
   'psa-consultant': ['certinia', 'financialforce', 'professional services automation'],
+  'nonprofit-cloud': ['npsp', 'nonprofit success pack', 'education cloud', 'eda'],
+  'appexchange-isv': ['appexchange', 'isv', 'managed package', '2gp', 'packaging'],
+  'manufacturing-cloud': ['manufacturing cloud', 'consumer goods cloud', 'sales agreements', 'rebate management'],
   'apex-developer': ['apex', 'soql', 'triggers', 'batch apex'],
   'lwc-developer': ['lightning web components', 'lwc', 'aura', 'lightning'],
   'platform-developer': ['platform app builder', 'declarative', 'admin developer'],
   'flow-specialist': ['flow', 'flow orchestration', 'process builder', 'automation'],
+  'omnistudio-developer': ['omnistudio', 'vlocity', 'omniscript', 'flexcard', 'dataraptor'],
   'mulesoft-developer': ['mulesoft', 'anypoint', 'dataweave'],
   'integration-architect': ['integration', 'api', 'platform events', 'change data capture'],
   'crm-analytics': ['tableau crm', 'einstein analytics', 'saql'],

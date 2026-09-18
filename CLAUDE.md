@@ -986,6 +986,24 @@ One edit each:
 
 Nothing else hardcodes a slug list. Keep it that way.
 
+**Every role needs at least one entry in `ROLE_ALIASES`, and a test enforces it.** That is
+not tidiness. This application is ported from a Dynamics 365 marketplace, and two roles
+survived the port untranslated — `smb-erp-isv` ("SMB / ERP ISV Consultant") and `hcm-isv`,
+which name Business Central and a Dynamics HR partner and mean nothing here. What exposed
+them was that they were two of the only three roles with no aliases at all: nobody could
+write a search term for a product that is not in this ecosystem. Keeping the invariant keeps
+the signal. They are now `appexchange-isv` and `manufacturing-cloud`.
+
+`tests/unit/taxonomy.test.js` also scans every user-visible label in every catalogue that
+feeds a dropdown — roles, categories, seniorities, modules, families, certifications and ISV
+solutions — and fails on another vendor's product name. The scan asserts each list is
+non-empty first, because a catalogue read through the wrong key is an empty list, and an
+empty list passes every "nothing forbidden here" assertion silently. That guard caught a
+real mistake while the test was being written.
+
+Renaming a slug was free while nothing stored one — no seed row, no other module, nothing
+deployed. Once this application holds data, changing a slug is a migration, not an edit.
+
 ## Email
 
 With no `RESEND_API_KEY`, `utils/email.js` logs instead of sending, which is what makes

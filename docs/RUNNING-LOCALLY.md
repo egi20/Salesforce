@@ -1,6 +1,6 @@
 # Running it on your own machine
 
-Verified end to end on 2026-09-17 against MySQL 8.0.46: all 21 migrations applied, seed
+Verified end to end on 2026-09-17 against MySQL 8.0.46: all 22 migrations applied, seed
 data loaded, every page rendered, and a challenge submission was graded and written.
 
 ## What you need

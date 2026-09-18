@@ -43,8 +43,8 @@ Server-rendered Express + EJS on MySQL 8. No SPA, no ORM, no build step for serv
 | SEO: canonicals, JobPosting JSON-LD, sitemap generated from the robots allowlist | built |
 
 Deliberately not built yet, and listed so nobody mistakes the scope: record
-deduplication, a certification practice bank, and a Salesforce org integration. See
-[`docs/ROADMAP.md`](docs/ROADMAP.md).
+deduplication, email digests, a certification practice bank, and a Salesforce org
+integration. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 Deliberately not built at all: a tax savings calculator, an invoice template anybody can
 upload, and any path that sends a message to a sales lead on its own. The CRM drafts; a

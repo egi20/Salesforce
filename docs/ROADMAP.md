@@ -3,39 +3,34 @@
 What exists today is the marketplace core. This file is the honest list of what is not
 built, roughly in the order it would earn its place.
 
-## Near term
+## Built since this file was written
 
-**Search across everything.** One search box that spans jobs, consultants and companies,
-with the same filter builders behind it. Today each directory has its own search.
+Search across everything, LinkedIn verification, AI drafting for quote narratives, payments,
+community, the tax advisory introduction, the daily challenge, recruiters, success stories
+and reviews, the sales CRM, and the finance area. Each is described in `CLAUDE.md` under its
+own heading, with what was deliberately left out and why. They are listed here only so this
+file stops promising things that already exist — a roadmap nobody trims is a roadmap that
+reads as a list of missing features when it is really a changelog in the wrong tense.
+
+## Near term
 
 **Email digests.** A weekly "roles that match you" using `utils/jobMatcher.js`, and a
 "new applicants" digest for employers. The matcher is already shared and pure, so the
-digest and the on-page score cannot disagree.
+digest and the on-page score cannot disagree. Nothing of this is built: there is no
+scheduler, no unsubscribe preference and no send. Three things it needs before a single
+message goes out, and none is optional:
 
-**LinkedIn verification.** OAuth used only to prove identity, not as a sign-in method,
-setting `consultant_profiles.linkedin_verified`. Note that LinkedIn has no API for sending
-connection requests or DMs — any feature that implies automated outreach would be a lie.
+- **A per-digest unsubscribe that is honoured before the query, not after.** The CRM already
+  has the shape — a suppression that outlives the row it came from.
+- **A record of what was sent.** A digest that cannot say which roles it listed is a digest
+  nobody can debug when somebody says they were not told about a job.
+- **An idempotency key per recipient per period.** A scheduler that runs twice must not mail
+  twice, for the same reason `points_ledger` carries a `dedupe_key`.
 
-## Medium term
-
-**AI drafting.** The deterministic half is done: `/quotes` produces a validated SOW,
-work-breakdown workbook and summary deck from the stored estimate. What is missing is the
-prose: narrative scope, assumptions, risks and commercial framing drafted around the
-deterministic numbers rather than replacing them.
-
-Three constraints before anyone starts:
-
-- Required sections are guaranteed structurally, not by re-prompting until they appear.
-- No AI-supplied figure enters the budget without going back through the estimator.
-- The reconciliation check still runs afterwards. A drafting step that changes a number is
-  a bug, and it should fail loudly rather than ship a document that disagrees with itself.
-
-**Payments.** Featured job posts and placement fees. Two rules: put idempotency in the
-webhook handler itself (an invoice row means fulfilled) rather than gating on payment
-status, and add a second guard for two checkout sessions against the same quote.
-
-**Community.** Questions, answers and articles per cloud, reusing the module taxonomy as
-the category tree.
+**A deployment.** The application runs against a real MySQL 8, every migration applies from
+empty and the finance flow has been exercised end to end — but nothing is serving traffic.
+See `docs/DEPLOYING.md`. This is the only item here that blocks everything else being
+useful to anybody.
 
 ## Longer term
 

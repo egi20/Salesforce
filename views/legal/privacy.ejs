@@ -6,31 +6,111 @@
     <div class="glass-card"><div class="card-body">
       <p class="text-muted-2">Version <%= version %></p>
 
-      <h2 class="h6">What we store</h2>
-      <p>Your account details, the profile you choose to publish, the applications you send, and the
-         rate figures you contribute. We record the country your sign-up came from, derived offline
-         from your IP address; the address itself is stored only in binary form on your account row
-         and is not used for anything else.</p>
+      <% if (!legal.isConfigured()) { %>
+        <div class="alert alert-warning">
+          <strong>This policy does not yet name who is responsible for your data.</strong>
+          Whoever runs this site must set <code>LEGAL_CONTROLLER_NAME</code> and
+          <code>LEGAL_CONTROLLER_ADDRESS</code>. Until they do, treat this site as one that
+          has not finished its setup — and be careful what you give it.
+        </div>
+      <% } %>
 
-      <h2 class="h6">Visitor analytics</h2>
-      <p>We count page views per country per day. No path, identifier or address is kept alongside
-         that count, so it cannot be traced back to a person.</p>
+      <h2 class="h6">Who is responsible</h2>
+      <% if (legal.isConfigured()) { %>
+        <p class="mb-1"><strong><%= legal.controller.name %></strong></p>
+        <p class="text-muted-2 mb-1" style="white-space: pre-line"><%= legal.controller.address %></p>
+        <% if (legal.controller.registration) { %>
+          <p class="text-muted-2">Registration: <%= legal.controller.registration %></p>
+        <% } %>
+      <% } else { %>
+        <p class="text-muted-2">Not published yet — see the notice above.</p>
+      <% } %>
+      <p>This site is independent and is not affiliated with, endorsed by, or sponsored by
+         Salesforce, Inc.</p>
+
+      <h2 class="h6">What we store, and why we are allowed to</h2>
+      <ul>
+        <li><strong>Your account</strong> — email, name, password (stored only as a hash
+            nobody can read back), and the roles you hold. Needed to give you an account at
+            all: without it there is no service to provide.</li>
+        <li><strong>Your profile, and anything you publish</strong> — a consultant profile, a
+            job posting, a community post, a review. Published because you chose to publish
+            it, and removed when you remove it.</li>
+        <li><strong>Applications and messages</strong> — needed to connect the two sides of
+            an application, which is what the site is for.</li>
+        <li><strong>Rate figures you contribute</strong> — see below.</li>
+        <li><strong>Payments</strong> — kept because tax law requires records of them to be
+            kept, and for as long as it requires.</li>
+        <li><strong>Where your sign-up came from</strong> — the country, derived offline from
+            your IP address. The address itself is stored in binary form on your account row
+            and is used for nothing else. It is destroyed when you close your account.</li>
+        <li><strong>Gender and date of birth</strong> — optional, used only in aggregate,
+            never shown on your profile and never shared with employers. Leaving them blank
+            has no effect on anything.</li>
+      </ul>
+
+      <h2 class="h6">How long it is kept</h2>
+      <p>Your account and everything on it, for as long as the account exists — you can end
+         that yourself at any time. Payment records for as long as tax law requires,
+         regardless of the account. Tax-advisory enquiries are deleted on a stated schedule
+         shown on that form. Nothing else is kept "just in case".</p>
 
       <h2 class="h6">Your rate contributions</h2>
-      <p>Contributions are never displayed individually. They are aggregated with other people's, and
-         no aggregate is published until at least three different people have contributed to it.</p>
+      <p>Contributions are never displayed individually. They are aggregated with other
+         people's, and no aggregate is published until at least three different people have
+         contributed to it. <strong>They survive closing your account</strong>, with the link
+         to you destroyed: a published benchmark that changed every time somebody left would
+         be a benchmark nobody could trust, and once the link is gone the figure identifies
+         nobody.</p>
 
-      <h2 class="h6">Demographic questions</h2>
-      <p>Gender and date of birth are optional, used only in aggregate, never shown on your profile
-         and never shared with employers. Leaving them blank has no effect on anything.</p>
+      <h2 class="h6">Visitor analytics</h2>
+      <p>We count page views per country per day. No path, identifier or address is kept
+         alongside that count, so it cannot be traced back to a person. There is no
+         third-party analytics on this site and no advertising or tracking cookie — the only
+         cookie is the one that keeps you signed in.</p>
+
+      <h2 class="h6">Who else receives it</h2>
+      <% if (processors.length) { %>
+        <ul>
+          <% processors.forEach(function (p) { %>
+            <li><strong><%= p.name %></strong> — <%= p.purpose %></li>
+          <% }); %>
+        </ul>
+      <% } else { %>
+        <p>Nobody. This deployment has no payment, email or AI service connected.</p>
+      <% } %>
+      <p class="text-muted-2 small">This list describes this site as it is actually running,
+         not every service the software can use.</p>
+
+      <h2 class="h6">Your rights</h2>
+      <p>Two of these you can exercise yourself, immediately, without asking anybody:</p>
+      <ul>
+        <li><strong>See it and take it</strong> — <a href="/profile/data">download everything
+            held about your account</a> as a JSON file.</li>
+        <li><strong>Erasure</strong> — <a href="/profile/close">close your account</a>. That
+            page lists exactly what is destroyed and the few things that stay, with the reason
+            for each.</li>
+      </ul>
+      <p>You also have the right to have inaccurate data corrected, to object to processing,
+         and to ask for it to be restricted. Most corrections you can make on your profile;
+         for anything else, <a href="/contact">write to us</a>. You are entitled to an answer
+         within one month.</p>
+      <p>If you think we have handled your data badly you can complain to a data protection
+         authority<% if (legal.controller.supervisoryAuthority) { %> —
+         <%= legal.controller.supervisoryAuthority %><% } %>. You do not have to raise it with
+         us first, though we would rather you did.</p>
 
       <h2 class="h6">Consent record</h2>
-      <p>When you register we store the exact versions of these documents you accepted, and when. We
-         do not record consent on your behalf for accounts created by an administrator.</p>
+      <p>When you register we store the exact versions of these documents you accepted, and
+         when. We do not record consent on your behalf for accounts created by an
+         administrator. If this policy changes materially its version changes too, so your
+         record says what you were actually shown rather than what is on this page today.</p>
 
-      <h2 class="h6">Deletion</h2>
-      <p>Ask us and your account and its data are removed. Aggregate figures already published cannot
-         single you out and are not recomputed.</p>
+      <h2 class="h6">Security</h2>
+      <p>Passwords are hashed, never stored. The site is served over HTTPS and the session
+         cookie cannot be sent over plain HTTP. Uploaded images are re-encoded rather than
+         stored as you sent them, which is also what stops anything that is not an image from
+         being stored at all.</p>
     </div></div>
   </div></div>
 </div>

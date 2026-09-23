@@ -1,0 +1,70 @@
+<%- include('partials/layout-start') %>
+<%- include('partials/page-header', {
+  icon: 'bi-envelope',
+  heading: 'Contact',
+  sub: 'One address, read by a person.'
+}) %>
+<section class="glass-section pb-5"><div class="container">
+  <div class="row justify-content-center"><div class="col-lg-8">
+
+    <div class="glass-card mb-4"><div class="card-body p-4">
+      <% if (supportConfigured) { %>
+        <p class="mb-2">Write to <a href="mailto:<%= supportEmail %>"><strong><%= supportEmail %></strong></a>.</p>
+      <% } else { %>
+        <div class="alert alert-warning mb-3">
+          <strong>No contact address is configured yet.</strong>
+          Whoever runs this site needs to set <code>SUPPORT_EMAIL</code>. Until then there is
+          no address here, because printing the placeholder would invite people to write
+          somewhere nobody reads.
+        </div>
+      <% } %>
+
+      <p class="small text-muted-2 mb-0">
+        There is deliberately no form on this page. A contact form is a spam sink that needs
+        storage, moderation and a retention rule of its own; an address needs none of that,
+        and you keep a copy of what you sent.
+      </p>
+    </div></div>
+
+    <div class="glass-card mb-4"><div class="card-body p-4">
+      <h2 class="h6 mb-3">If it is about your data</h2>
+      <p class="small text-muted-2">
+        Two of these you can do yourself, right now, without asking anybody:
+      </p>
+      <ul class="small mb-3">
+        <li><a href="/profile/data">Download everything held about your account</a> as a JSON file.</li>
+        <li><a href="/profile/close">Close your account</a> — the page explains exactly what is destroyed and what is not.</li>
+      </ul>
+      <p class="small text-muted-2 mb-0">
+        For anything else — a correction, an objection, a question about why something is
+        held — write to
+        <% if (legal.controller.privacyEmail) { %>
+          <a href="mailto:<%= legal.controller.privacyEmail %>"><%= legal.controller.privacyEmail %></a>
+        <% } else if (supportConfigured) { %>
+          <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>
+        <% } else { %>
+          the address above, once it is set
+        <% } %>.
+        You are entitled to an answer within one month.
+        See the <a href="/legal/privacy">privacy policy</a> for what those rights are.
+      </p>
+    </div></div>
+
+    <div class="glass-card"><div class="card-body p-4">
+      <h2 class="h6 mb-3">Who runs this site</h2>
+      <% if (legal.isConfigured()) { %>
+        <p class="small mb-1"><strong><%= legal.controller.name %></strong></p>
+        <p class="small text-muted-2 mb-1" style="white-space: pre-line"><%= legal.controller.address %></p>
+        <% if (legal.controller.registration) { %>
+          <p class="small text-muted-2 mb-0">Registration: <%= legal.controller.registration %></p>
+        <% } %>
+      <% } else { %>
+        <p class="small text-muted-2 mb-0">
+          Not published yet. This site is not affiliated with Salesforce, Inc.
+        </p>
+      <% } %>
+    </div></div>
+
+  </div></div>
+</div></section>
+<%- include('partials/layout-end') %>

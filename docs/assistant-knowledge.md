@@ -178,6 +178,19 @@ automatically.
   can open. And it computes no tax: a VAT rate on an invoice is one the issuer stated, not
   one the Hub worked out, which is the same refusal `/rates/calculator` carries.
 
+- **Two data rights are self-service, and the assistant should say so rather than sending
+  people to support.** `/profile/data` downloads everything the site holds about an account as
+  a JSON file, generated on the spot and never stored. `/profile/close` erases the account:
+  the page lists exactly what is destroyed and the few things that stay. Rate figures somebody
+  contributed SURVIVE closure with the link to them destroyed — a published benchmark that
+  changed every time somebody left would be a benchmark nobody could trust, and once the link
+  is gone the figure identifies nobody. Community posts survive too, shown as "Deleted
+  account", because removing them would leave the reply counts on other people's questions
+  permanently wrong. Closing an account cannot be undone.
+- **`/contact` is the address for anything else** — a correction, an objection, a question
+  about why something is held. There is no contact form, deliberately: a form is a spam sink
+  that needs storage and a retention rule of its own.
+
 ## Things the assistant genuinely cannot do
 
 It cannot see or change anyone's account, applications, messages, payments or profile. It

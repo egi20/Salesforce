@@ -964,6 +964,66 @@ deployment decision with an author, not a checkbox.
   That is an HR system inside a marketplace, and the import path copies consultants who
   signed up to a directory into a staff table they never joined.
 
+## Privacy rights, and erasing an account
+
+The privacy policy promised **"ask us and your account and its data are removed"** and there
+was no route, no form and no address to ask at. `/contact` had been in `PUBLIC_PATHS` since
+the beginning — robots.txt allowed it, the sitemap handed it to search engines — and it
+404'd, because no route or view had ever been written. That is the page that would have said
+how to ask.
+
+**Erasure ANONYMISES. It is never `DELETE FROM users`.** Thirty-two foreign keys cascade off
+that row, and letting them is wrong three ways, each one a rule stated elsewhere here:
+
+1. `rate_submissions` cascades, so deleting somebody's figures silently moves a PUBLISHED
+   percentile for everybody. The rate index deliberately has no path to correct or remove a
+   figure; erasure must not become that path by the back door.
+2. `posts` and `post_replies` cascade. `posts.reply_count` is written in the same transaction
+   as the row it counts and nothing recomputes it, so a reply vanishing leaves somebody
+   else's question permanently wrong and an accepted answer pointing at nothing.
+3. `payments` and `invoices` cascade — financial records under a statutory retention period.
+   The right to erasure does not override a legal obligation to keep them.
+
+So `models/AccountErasure.js` destroys every field and table that identifies a person and
+keeps what belongs to somebody else's record, an aggregate, or the law — with nothing left
+tying it to a human being. Once the link is severed a day rate in a percentile is not
+personal data, which is exactly why the aggregate can stay honest and the promise can still
+be kept. **It is the only module that erases an account**, for the same reason
+`models/Moderation.js` is the only one that touches the hidden flags: a second eraser is a
+second place that can forget a table, and that failure is silent — a name left in a row
+nobody thought about. A test asserts no other file contains `DELETE FROM users`.
+
+The photo and logo tables are in the purge list in their own right: they hold the BYTES keyed
+by `user_id`, so deleting the profile row does not reach them. A superadmin is refused —
+an erased account cannot sign in, and erasing the only administrator leaves no way into the
+site at all. Confirmation is a TYPED word, not a checkbox: an account erased by accident
+cannot be handed back, because the whole point is that the data is gone.
+
+`services/dataExport.js` answers Article 15 and Article 20 with one JSON file, and carries
+the rule that keeps it from becoming a breach with a download button: every query is scoped
+to the one account, the `users` column list is written out EXPLICITLY rather than `SELECT *`
+(which would export `password_hash` the moment somebody adds a column and forgets this file),
+and only the person's OWN messages are included — the other party's words are the other
+party's personal data, and their right does not weaken because somebody they once messaged
+asked for a download.
+
+`config/legal.js` names the controller, and **invents nothing**. A policy has to name a real
+person or company with an address; that is not something an application can fill in for
+itself, so they are environment variables, the pages say plainly when they are unset, and the
+boot warns rather than throws — a missing controller is a legal problem, not a broken
+application, and refusing to start would take a running site down over a text field. The
+processor list is filtered by which API keys are actually set, because a policy naming Stripe
+on a site with no Stripe key is inaccurate in the direction that matters.
+
+**`npm run seed` refuses to run when `NODE_ENV=production`.** It creates 24 consultant
+profiles, 6 companies, 30 jobs and 24 rate submissions — on a live site that is a public
+directory of people who do not exist, and a published benchmark that sails past the
+three-contributor privacy floor built from invented figures. `scripts/create-admin.js` exists
+for the production case; until this guard, the only thing between a live site and a directory
+of invented people was somebody remembering which command to type. `SEED_ALLOW_PRODUCTION=yes`
+is the override, spelled out rather than any truthy value so an orchestrator exporting `0`
+cannot switch it on.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

@@ -4,6 +4,7 @@ const express = require('express');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
 const { PUBLIC_PATHS, canonicalUrl } = require('../config/seoMeta');
+const legal = require('../config/legal');
 const { ROLE_CATEGORIES } = require('../config/roleTaxonomy');
 const { CLOUD_FAMILIES } = require('../config/cloudFamilies');
 const Job = require('../models/Job');
@@ -124,7 +125,16 @@ router.get('/faq', (req, res) => {
 });
 
 router.get('/legal/privacy', (req, res) => {
-  res.render('legal/privacy', { title: 'Privacy policy', version: legalVersions.PRIVACY_VERSION });
+  res.render('legal/privacy', {
+    title: 'Privacy policy',
+    version: legalVersions.PRIVACY_VERSION,
+    legal,
+    // Only the processors THIS deployment actually uses — a policy that names Stripe on a
+    // site with no Stripe key is inaccurate in the direction that matters.
+    processors: legal.activeProcessors(),
+    supportEmail: config.app.supportEmail,
+    supportConfigured: config.app.supportEmail !== 'support@example.com'
+  });
 });
 
 router.get('/legal/terms', (req, res) => {
@@ -139,6 +149,28 @@ router.get('/robots.txt', (req, res) => {
   const lines = ['User-agent: *', 'Disallow: /admin', 'Disallow: /dashboard', 'Disallow: /profile', 'Disallow: /auth', ''];
   lines.push(`Sitemap: ${config.app.baseUrl}/sitemap.xml`);
   res.type('text/plain').send(lines.join('\n'));
+});
+
+/**
+ * Contact.
+ *
+ * This path was already in `PUBLIC_PATHS`, so robots.txt allowed it and the sitemap handed
+ * it to search engines — and it 404'd, because no route or view had ever been written. That
+ * mattered more than a dead link: the privacy policy said "ask us and your account and its
+ * data are removed", and this was the page that would have said how to ask.
+ *
+ * No form and no table. A contact form on a public page is a spam sink that needs storage,
+ * moderation and a retention rule of its own; an address somebody reads needs none of that.
+ */
+router.get('/contact', (req, res) => {
+  res.render('contact', {
+    title: 'Contact',
+    legal,
+    supportEmail: config.app.supportEmail,
+    // The shipped default is a placeholder. Printing it as though it were real would invite
+    // people to write to an address nobody has ever opened.
+    supportConfigured: config.app.supportEmail !== 'support@example.com'
+  });
 });
 
 router.get(

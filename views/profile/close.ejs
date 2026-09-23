@@ -1,0 +1,62 @@
+<%- include('../partials/layout-start') %>
+<%- include('../partials/page-header', {
+  icon: 'bi-person-x',
+  heading: 'Close your account',
+  sub: 'What happens, said plainly, before you do it.'
+}) %>
+<section class="glass-section pb-5"><div class="container">
+  <div class="row justify-content-center"><div class="col-lg-8">
+    <%- include('../partials/flash') %>
+
+    <div class="glass-card mb-4"><div class="card-body p-4">
+      <h2 class="h6 mb-3">What is destroyed</h2>
+      <p class="small text-muted-2">
+        Your name, your email address, your password, the country and address your sign-up
+        came from, and any answers you gave about gender or date of birth. Your profile goes
+        with it: your photo, your CV, your work history, your projects, your certifications
+        and your skills. Saved jobs, votes and quiz attempts go too. None of it is recoverable
+        and none of it is kept in a backup copy this site can read back.
+      </p>
+
+      <h2 class="h6 mb-3 mt-4">What stays, and why</h2>
+      <p class="small text-muted-2">
+        Some records are not only yours. They stay, with nothing left in them that points at a
+        person — your account carries no name or address afterwards, so nothing here can
+        identify you.
+      </p>
+      <ul class="list-unstyled small mb-0">
+        <% retained.forEach(function (row) { %>
+          <li class="border-top py-2">
+            <strong><%= row[0] %></strong>
+            <div class="text-muted-2"><%= row[1] %></div>
+          </li>
+        <% }); %>
+      </ul>
+    </div></div>
+
+    <div class="glass-card border-danger"><div class="card-body p-4">
+      <h2 class="h6 mb-3">This cannot be undone</h2>
+      <p class="small text-muted-2">
+        There is no route that reverses it and no copy held back. If you want your data first,
+        <a href="/profile/data">download it</a> before you continue — afterwards there will be
+        nothing to download.
+      </p>
+
+      <form method="post" action="/profile/close" class="mt-3">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label class="form-label" for="confirm">Type <strong>ERASE</strong> to confirm</label>
+        <div class="d-flex flex-wrap gap-2">
+          <input class="form-control" id="confirm" name="confirm" autocomplete="off"
+                 spellcheck="false" style="max-width: 200px" required>
+          <button class="btn btn-danger" type="submit">Erase my account</button>
+          <a class="btn btn-link" href="/profile/settings">Cancel</a>
+        </div>
+        <div class="form-text">
+          Typed rather than ticked on purpose: a checkbox beside a red button gets clicked by
+          habit, and this is the one action nobody can hand back to you.
+        </div>
+      </form>
+    </div></div>
+  </div></div>
+</div></section>
+<%- include('../partials/layout-end') %>

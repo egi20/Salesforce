@@ -2,7 +2,7 @@
 'use strict';
 
 /**
- * Development seed data.
+ * Development seed data. REFUSES TO RUN IN PRODUCTION.
  *
  * NOTE on consent: `User.create` is called here WITHOUT a consent argument, so seeded
  * accounts carry no accepted-terms stamp. That is deliberate and must stay that way —
@@ -12,6 +12,44 @@
  */
 /* eslint-disable no-await-in-loop -- seeding is intentionally sequential: each step uses ids created by the previous one. */
 const { pool } = require('../config/database');
+const config = require('../config/config');
+/*
+ * THE GUARD.
+ *
+ * This script creates 24 consultant profiles, 6 companies, 30 jobs — and 24 rate
+ * submissions. On a development machine that is convenient. On a live site it is three
+ * separate lies told to real visitors:
+ *
+ * 1. A PUBLIC DIRECTORY OF PEOPLE WHO DO NOT EXIST, with skills, day rates and work
+ *    histories that employers would contact.
+ * 2. A PUBLISHED RATE INDEX built from invented figures. The privacy floor counts PEOPLE and
+ *    suppresses anything under three contributors precisely so that a published benchmark
+ *    means something; twenty-four fabricated rows sail past it and produce a real-looking
+ *    percentile nobody contributed to.
+ * 3. Job postings nobody is hiring for.
+ *
+ * `scripts/create-admin.js` exists for the production case and says so at the top. Nothing
+ * enforced the difference until now: the only thing standing between a live site and a
+ * directory of invented people was somebody remembering which command to type.
+ *
+ * SEED_ALLOW_PRODUCTION=yes is the override, spelled out rather than a bare truthy value,
+ * for the one legitimate case: a staging deployment that runs with NODE_ENV=production
+ * because it must behave like the real thing.
+ */
+if (config.isProduction && process.env.SEED_ALLOW_PRODUCTION !== 'yes') {
+  console.error('');
+  console.error('  Refusing to seed: NODE_ENV is production.');
+  console.error('');
+  console.error('  This would publish 24 consultant profiles for people who do not exist and');
+  console.error('  24 invented rate figures into an index that is presented as contributed by');
+  console.error('  real consultants.');
+  console.error('');
+  console.error('  For a live site use:  npm run create-admin -- you@example.com "Your Name"');
+  console.error('  If this really is a staging box: SEED_ALLOW_PRODUCTION=yes npm run seed');
+  console.error('');
+  process.exit(1);
+}
+
 const User = require('../models/User');
 const ConsultantProfile = require('../models/ConsultantProfile');
 const CompanyProfile = require('../models/CompanyProfile');

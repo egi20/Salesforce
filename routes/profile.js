@@ -20,6 +20,9 @@ const countries = require('../config/all-countries.json');
 const { ALL_MODULES } = require('../config/cloudFamilies');
 const { build: buildDossier } = require('../services/consultantDossier');
 const ExternalIdentity = require('../models/ExternalIdentity');
+const AccountErasure = require('../models/AccountErasure');
+const { buildExport, filenameFor: exportFilename } = require('../services/dataExport');
+const config = require('../config/config');
 const CompanyTemplate = require('../models/CompanyTemplate');
 const {
   LETTERHEAD_FIELDS,
@@ -554,6 +557,84 @@ router.post(
       req.flash('error', 'That file could not be read as an image.');
     }
     return res.redirect('/profile/company');
+  })
+);
+
+/* ------------------------------------------------- your data, and getting rid of it */
+
+/**
+ * The two rights the privacy policy has to be able to honour.
+ *
+ * Before this existed the policy said "ask us and your account and its data are removed"
+ * and there was no route, no form and no address to ask at. A promise a system cannot keep
+ * is worse than one it does not make: it is the sentence somebody relies on.
+ */
+
+/**
+ * Article 15 and Article 20 in one file: see everything, and take it elsewhere.
+ *
+ * Rate-limited like any other write even though it reads, because it is an expensive query
+ * fan-out behind a session and there is no reason to let it be held open in a loop.
+ */
+router.get(
+  '/data',
+  isAuthenticated,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const data = await buildExport(req.session.user.id);
+
+    res.set('Content-Type', 'application/json; charset=utf-8');
+    res.set('Content-Disposition', `attachment; filename="${exportFilename(config.app.name)}"`);
+    // Generated on demand and never stored. A second copy of somebody's personal data,
+    // sitting on disk waiting to be asked for, is the thing the feature exists to reduce.
+    return res.send(JSON.stringify(data, null, 2));
+  })
+);
+
+router.get(
+  '/close',
+  isAuthenticated,
+  asyncHandler(async (req, res) => {
+    res.render('profile/close', {
+      title: 'Close your account',
+      retained: AccountErasure.RETAINED,
+      purged: AccountErasure.PURGE
+    });
+  })
+);
+
+/**
+ * Erasure. Irreversible, and confirmed by TYPING rather than by clicking.
+ *
+ * A checkbox next to a red button is dismissed by muscle memory; an account somebody erased
+ * by accident cannot be handed back, because the point of the feature is that the data is
+ * gone. The typed word is the one interaction that cannot happen without reading.
+ */
+router.post(
+  '/close',
+  isAuthenticated,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    if (String(req.body.confirm || '').trim().toUpperCase() !== 'ERASE') {
+      req.flash('error', 'Type ERASE to confirm. Nothing has been changed.');
+      return res.redirect('/profile/close');
+    }
+
+    try {
+      await AccountErasure.erase(req.session.user.id, { reason: 'self-service' });
+    } catch (err) {
+      if (!['NOT_FOUND', 'ALREADY_ERASED', 'SUPERADMIN'].includes(err.code)) throw err;
+      req.flash('error', err.message);
+      return res.redirect('/profile/close');
+    }
+
+    // Destroy the session rather than clearing a field on it: `validateActiveAccount`
+    // rebuilds req.session.user from the database on every request, and the row it would
+    // rebuild from no longer describes anybody.
+    return req.session.destroy(() => {
+      res.clearCookie('connect.sid');
+      return res.redirect('/?erased=1');
+    });
   })
 );
 

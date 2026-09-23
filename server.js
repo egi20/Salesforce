@@ -27,6 +27,7 @@ const { assertLinkedInIntegrity, isConfigured: linkedInConfigured } = require('.
 const { assertDraftingIntegrity } = require('./config/drafting');
 const { assertCompanyTemplateIntegrity } = require('./config/companyTemplates');
 const { assertFinanceIntegrity } = require('./config/finance');
+const legal = require('./config/legal');
 const AppSetting = require('./models/AppSetting');
 const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
@@ -74,6 +75,10 @@ assertCompanyTemplateIntegrity();
 // dead branch; a rounding change is an invoice whose printed total stops equalling the sum
 // of its printed lines, which is the one figure a customer actually checks.
 assertFinanceIntegrity();
+// Warned about, never thrown: a privacy policy that cannot name who is responsible for
+// personal data is a legal problem, not a broken application, and refusing to boot would
+// take a running site down over a text field. It is loud here and repeated on the page.
+legal.warnIfUnconfigured();
 
 const app = express();
 

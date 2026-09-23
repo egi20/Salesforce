@@ -122,6 +122,25 @@ and keeps your secrets.
 change. The runner takes an advisory lock, so two instances starting together cannot both
 migrate.
 
+## Before real people use it
+
+Three things this application cannot decide for you, and will warn about until you do:
+
+- **`LEGAL_CONTROLLER_NAME` and `LEGAL_CONTROLLER_ADDRESS`.** The privacy policy must name
+  who is responsible for personal data. Unset, the policy and `/contact` say so in a warning
+  box and the boot logs it. Set `LEGAL_SUPERVISORY_AUTHORITY` too — which one depends on
+  where you are.
+- **`SUPPORT_EMAIL`.** It ships as `support@example.com` and `/contact` refuses to print that
+  rather than invite people to write to an address nobody opens.
+- **`RESEND_API_KEY`.** Without it, email is only logged — and login refuses unverified
+  accounts, so **nobody except an administrator can sign in at all**. The site looks live
+  and no real person can finish registering.
+
+And one thing not to do: **never run `npm run seed` on a live site.** It refuses when
+`NODE_ENV=production`, because it would publish 24 consultant profiles for people who do not
+exist and 24 invented figures into a rate index presented as contributed by real consultants.
+Use `npm run create-admin` instead.
+
 ## Backups
 
 Nothing here does them for you, and everything is in one database — including every

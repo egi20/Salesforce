@@ -1,0 +1,109 @@
+<%- include('../partials/layout-start') %>
+<%- include('../partials/page-header', {
+  icon: 'bi-exclamation-triangle',
+  heading: 'Reported problems',
+  sub: 'What people noticed. The error log is what the server noticed; these barely overlap.'
+}) %>
+<section class="glass-section pb-5"><div class="container">
+  <%- include('../partials/flash') %>
+
+  <% const tone = { new: 'cloud', open: 'warn', closed: 'muted' }; %>
+
+  <div class="row g-3 mb-4">
+    <% ['new', 'open', 'closed'].forEach(function (s) { %>
+      <div class="col-6 col-lg-3">
+        <div class="stat-tile">
+          <div class="value"><%= counts[s] || 0 %></div>
+          <div class="label"><%= s %></div>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+
+  <form class="row g-2 align-items-end mb-3" method="get" action="/admin/issues">
+    <div class="col-md-4">
+      <label class="form-label small" for="q">Search</label>
+      <input class="form-control form-control-sm" id="q" name="q" value="<%= filters.q %>" maxlength="120">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small" for="status">Status</label>
+      <select class="form-select form-select-sm" id="status" name="status">
+        <option value="">Any</option>
+        <% statuses.forEach(function (s) { %>
+          <option value="<%= s %>" <%= filters.status === s ? 'selected' : '' %>><%= s %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div class="col-6 col-md-3">
+      <label class="form-label small" for="kind">Kind</label>
+      <select class="form-select form-select-sm" id="kind" name="kind">
+        <option value="">Any</option>
+        <% kinds.forEach(function (k) { %>
+          <option value="<%= k.value %>" <%= filters.kind === k.value ? 'selected' : '' %>><%= k.label %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div class="col-6 col-md-2">
+      <button class="btn btn-primary btn-sm w-100" type="submit">Filter</button>
+    </div>
+  </form>
+
+  <% if (!issues.length) { %>
+    <div class="glass-card"><div class="card-body"><p class="text-muted-2 mb-0">Nothing matches.</p></div></div>
+  <% } else { %>
+    <% issues.forEach(function (i) { %>
+      <div class="glass-card mb-3"><div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h2 class="h6 mb-0">#<%= i.id %> · <%= i.summary %></h2>
+          <span class="badge-hub <%= tone[i.status] || '' %>"><%= i.status %></span>
+        </div>
+
+        <p class="small text-muted-2 mb-2">
+          <%= i.kind %> ·
+          <%= new Date(i.created_at).toISOString().slice(0, 16).replace('T', ' ') %> ·
+          <% if (i.reporter_name) { %>
+            <%= i.reporter_name %> (<%= i.reporter_email %>)
+          <% } else if (i.contact_email) { %>
+            anonymous, replies to <%= i.contact_email %>
+          <% } else { %>
+            anonymous, no reply address
+          <% } %>
+          <%# Rendered as TEXT, never as a link: the path is something a stranger typed. %>
+          <% if (i.page_path) { %> · <code><%= i.page_path %></code><% } %>
+        </p>
+
+        <p class="small mb-3" style="white-space: pre-line"><%= i.detail %></p>
+
+        <% if (i.response) { %>
+          <div class="mb-3 p-3 glass-bg-tinted rounded">
+            <strong class="small">Replied</strong>
+            <p class="small mb-0" style="white-space: pre-line"><%= i.response %></p>
+          </div>
+        <% } %>
+
+        <% if (i.status !== 'closed') { %>
+          <form method="post" action="/admin/issues/<%= i.id %>">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="redirectTo" value="/admin/issues">
+            <textarea class="form-control form-control-sm mb-2" name="response" rows="2"
+                      placeholder="Reply — the reporter sees this on their reports page"></textarea>
+            <div class="d-flex flex-wrap gap-2">
+              <% if (i.status === 'new') { %>
+                <button class="btn btn-sm btn-outline-primary" name="status" value="open" type="submit">Working on it</button>
+              <% } %>
+              <button class="btn btn-sm btn-outline-secondary" name="status" value="closed" type="submit">Close</button>
+            </div>
+          </form>
+        <% } %>
+      </div></div>
+    <% }); %>
+    <%- include('../partials/pagination', { pagination, pageUrl }) %>
+  <% } %>
+
+  <p class="small text-muted-2 mt-3 mb-0">
+    There is no delete. A report somebody dismissed is evidence that a person complained and
+    nothing happened — which is the most useful row here the fourth time the same thing
+    arrives.
+  </p>
+</div></section>
+<%- include('../partials/layout-end') %>

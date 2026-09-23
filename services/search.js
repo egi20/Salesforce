@@ -58,11 +58,17 @@ const SOURCES = Object.freeze([
     icon: 'bi-people',
     href: (q) => `/consultants?q=${encodeURIComponent(q)}`,
     empty: 'No public profiles mention that.',
-    async search(q, limit) {
+    async search(q, limit, viewer) {
       // `ConsultantProfile.buildFilter` pins `is_public = 1` and `u.is_active = 1` as
       // fixed fragments, not options — a profile its owner has not published cannot be
       // reached from here.
-      return ConsultantProfile.browse({ q }, { limit, offset: 0, sort: 'relevance' });
+      //
+      // `viewer` carries the hidden-company block and arrives as an ARGUMENT, not a closure:
+      // SOURCES is a frozen module-level constant, and a source that captured per-request
+      // state would be one request's viewer answering another's search. This file still
+      // assembles no clause of its own — it hands the builder one more filter and the builder
+      // decides, which is the whole point of there being one builder.
+      return ConsultantProfile.browse({ q, viewer }, { limit, offset: 0, sort: 'relevance' });
     }
   },
   {
@@ -121,7 +127,7 @@ function isUsableQuery(q) {
  *
  * @returns {Promise<{query:string, usable:boolean, groups:Array, total:number}>}
  */
-async function searchEverything(rawQuery, { limit = PREVIEW_LIMIT } = {}) {
+async function searchEverything(rawQuery, { limit = PREVIEW_LIMIT, viewer = null } = {}) {
   const query = normaliseQuery(rawQuery);
 
   if (!isUsableQuery(query)) {
@@ -131,7 +137,7 @@ async function searchEverything(rawQuery, { limit = PREVIEW_LIMIT } = {}) {
   const groups = await Promise.all(
     SOURCES.map(async (source) => {
       try {
-        const { rows, total } = await source.search(query, limit);
+        const { rows, total } = await source.search(query, limit, viewer);
         return {
           key: source.key,
           label: source.label,

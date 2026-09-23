@@ -3,6 +3,7 @@
 const express = require('express');
 
 const { searchEverything, MIN_QUERY_LENGTH } = require('../services/search');
+const ConsultantHiddenCompany = require('../models/ConsultantHiddenCompany');
 const { ipLimiter } = require('../middleware/rateLimit');
 const { asyncHandler } = require('../middleware/errorHandler');
 
@@ -33,7 +34,13 @@ router.get(
   '/',
   searchLimiter,
   asyncHandler(async (req, res) => {
-    const results = await searchEverything(req.query.q);
+    /*
+     * The same viewer the directory resolves. Without this a company blocked from /consultants
+     * would find the profile through the search box instead — which is what happens when a
+     * privacy rule is applied per page rather than in the builder every page shares.
+     */
+    const viewer = await ConsultantHiddenCompany.viewerFor(req.session.user);
+    const results = await searchEverything(req.query.q, { viewer });
 
     return res.render('search/index', {
       title: results.usable ? `Search — ${results.query}` : 'Search',

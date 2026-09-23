@@ -1,0 +1,75 @@
+<%- include('partials/layout-start') %>
+<%- include('partials/page-header', {
+  icon: 'bi-exclamation-triangle',
+  heading: 'Report a problem',
+  sub: 'Something broken, wrong, or that does not do what it says.'
+}) %>
+<section class="glass-section pb-5"><div class="container">
+  <div class="row justify-content-center"><div class="col-lg-8">
+    <%- include('partials/flash') %>
+
+    <div class="glass-card mb-4"><div class="card-body p-4">
+      <form method="post" action="/report-issue">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+        <div class="mb-3">
+          <label class="form-label" for="kind">What kind of problem</label>
+          <select class="form-select" id="kind" name="kind">
+            <% kinds.forEach(function (k) { %>
+              <option value="<%= k.value %>"><%= k.label %></option>
+            <% }); %>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="summary">In one line</label>
+          <input class="form-control" id="summary" name="summary" required
+                 maxlength="<%= limits.summary %>" placeholder="What went wrong">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="detail">What you did, and what happened</label>
+          <textarea class="form-control" id="detail" name="detail" rows="6" required
+                    maxlength="<%= limits.detail %>"></textarea>
+          <div class="form-text">
+            What you expected instead is the most useful sentence you can write.
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="page_path">Which page</label>
+          <input class="form-control" id="page_path" name="page_path"
+                 maxlength="<%= limits.pagePath %>" value="<%= pagePath %>" placeholder="/jobs">
+          <div class="form-text">Optional. A path on this site, like <code>/jobs</code>.</div>
+        </div>
+
+        <% if (!currentUser) { %>
+          <div class="mb-3">
+            <label class="form-label" for="contact_email">Your email</label>
+            <input class="form-control" id="contact_email" name="contact_email" type="email"
+                   maxlength="<%= limits.email %>">
+            <div class="form-text">
+              Optional, and the only way we can answer you. Leave it blank to report anonymously.
+            </div>
+          </div>
+        <% } %>
+
+        <button class="btn btn-primary" type="submit">Send the report</button>
+        <% if (currentUser) { %>
+          <a class="btn btn-link" href="/my-issues">Your reports</a>
+        <% } %>
+      </form>
+    </div></div>
+
+    <div class="glass-card"><div class="card-body p-4">
+      <h2 class="h6 mb-2">What this collects</h2>
+      <p class="small text-muted-2 mb-0">
+        Exactly what you typed above, and your account if you are signed in. No address, no
+        browser details, nothing captured automatically — a bug report is not a reason to
+        start logging visitors. You can report without an account: the most useful report we
+        can get is from somebody who could not finish signing up.
+      </p>
+    </div></div>
+  </div></div>
+</div></section>
+<%- include('partials/layout-end') %>

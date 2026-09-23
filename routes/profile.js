@@ -21,6 +21,7 @@ const { ALL_MODULES } = require('../config/cloudFamilies');
 const { build: buildDossier } = require('../services/consultantDossier');
 const ExternalIdentity = require('../models/ExternalIdentity');
 const AccountErasure = require('../models/AccountErasure');
+const ConsultantHiddenCompany = require('../models/ConsultantHiddenCompany');
 const { buildExport, filenameFor: exportFilename } = require('../services/dataExport');
 const config = require('../config/config');
 const CompanyTemplate = require('../models/CompanyTemplate');
@@ -557,6 +558,75 @@ router.post(
       req.flash('error', 'That file could not be read as an image.');
     }
     return res.redirect('/profile/company');
+  })
+);
+
+/* --------------------------------------------------- hiding from named companies */
+
+/**
+ * "Hide my profile from these companies."
+ *
+ * For the consultant looking for their next contract while still in their current one. The
+ * page is careful about what it promises: see `models/ConsultantHiddenCompany.js` on why a
+ * signed-out visitor cannot be filtered, and why saying so plainly is the difference between
+ * a privacy feature and a false one.
+ */
+router.get(
+  '/hidden-companies',
+  isAuthenticated,
+  isConsultant,
+  asyncHandler(async (req, res) => {
+    const [blocks, companies] = await Promise.all([
+      ConsultantHiddenCompany.listFor(req.session.user.id),
+      CompanyProfile.browse({}, { limit: 500, offset: 0 })
+    ]);
+
+    res.render('profile/hiddenCompanies', {
+      title: 'Hide from companies',
+      blocks,
+      companies: companies.rows,
+      maxBlocks: ConsultantHiddenCompany.MAX_BLOCKS
+    });
+  })
+);
+
+router.post(
+  '/hidden-companies',
+  isAuthenticated,
+  isConsultant,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    try {
+      const { kind } = await ConsultantHiddenCompany.add(req.session.user.id, {
+        companyUserId: req.body.company_user_id,
+        companyName: req.body.company_name
+      });
+      req.flash(
+        'success',
+        kind === 'registered'
+          ? 'Hidden. That company will not see your profile while they are signed in.'
+          : 'Saved. If that employer signs up under this name, your profile will be hidden from them.'
+      );
+    } catch (err) {
+      if (!['TOO_MANY', 'SELF', 'NOT_FOUND', 'NAME_REQUIRED'].includes(err.code)) throw err;
+      req.flash('error', err.message);
+    }
+    return res.redirect('/profile/hidden-companies');
+  })
+);
+
+router.post(
+  '/hidden-companies/:id/remove',
+  isAuthenticated,
+  isConsultant,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    // Scoped to the owner inside the model, so an id from somebody else's list removes
+    // nothing rather than removing their block.
+    const removed = await ConsultantHiddenCompany.remove(req.session.user.id, req.params.id);
+    req.flash(removed ? 'success' : 'error', removed ? 'Removed. That company can see your profile again.' : 'Nothing to remove.');
+    return res.redirect('/profile/hidden-companies');
   })
 );
 

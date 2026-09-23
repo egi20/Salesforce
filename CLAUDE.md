@@ -796,9 +796,31 @@ Specialisms are cloud FAMILIES, derived from `config/cloudFamilies.js`, so addin
 adds a specialism. The directory filters on them with `JSON_CONTAINS`, not a LIKE over the
 serialised array — `LIKE '%sales-cloud%'` would also match a future `sales-cloud-einstein`.
 
-Not built, deliberately: candidate shortlists and placement tracking. The reference promises
-both in a route comment and ships neither. A shortlist holds other people's profiles, and
-who may see that a consultant is on one is not an obvious question.
+Not built: candidate shortlists. **A shortlist** holds other people's profiles, and who may
+see that a consultant is on one is not an obvious question. The reference promises it in a
+route comment and ships nothing — `routes/recruiters.js` says "Phase 3 adds placement &
+commission tracking" and `models/RecruiterProfile.js` says counters will "later" be computed
+"from shortlists/placements tables". Verified: no shortlist table, model or route exists there.
+
+**PLACEMENT TRACKING IS A DIFFERENT MATTER, AND THIS FILE WAS WRONG ABOUT IT.** It previously
+said the reference "promises both in a route comment and ships neither". Half of that is
+true. Placements are fully built there: a `PlacementQuote` model, `placement_quotes` and
+`placement_fees` tables, a validated `POST /admin/placements`, and a
+`POST /payments/checkout/placement` product whose fee is derived server-side from the agreed
+quote rather than taken from the request — the same price-tampering defence
+`config/payments.js` implements here.
+
+That error is recorded rather than quietly fixed, because of what it cost: a placement fee is
+REVENUE, and this feature was skipped on the strength of a sentence in this file rather than
+on a decision anybody made. Documentation that is wrong is more dangerous than documentation
+that is missing, because people build on it. Three other claims in this file were checked
+against the reference at the same time and all three held exactly; this is the one that did
+not.
+
+Whether to build it is an open decision, not a refusal. If it is built, the shape is already
+settled by `config/payments.js`: a payment names a PRODUCT and a SUBJECT, the subject is a row
+the payer demonstrably owns, and a resolver re-checks ownership and answers with the amount.
+A route asks; a route never decides.
 
 ## Success stories and reviews
 
@@ -1023,6 +1045,78 @@ for the production case; until this guard, the only thing between a live site an
 of invented people was somebody remembering which command to type. `SEED_ALLOW_PRODUCTION=yes`
 is the override, spelled out rather than any truthy value so an orchestrator exporting `0`
 cannot switch it on.
+
+## Hiding a profile from named companies
+
+For the consultant looking for their next contract while still in their current one. A public
+profile is how they get found; their present employer seeing it is why a lot of people never
+publish one.
+
+**The exclusion is a clause in `ConsultantProfile.buildFilter` and nowhere else.** The
+reference implementation has this feature and put its equivalent clause inline in ONE query
+out of the fourteen that read `consultant_profiles` — so its browse list honoured the block
+and its search, its featured-talent panel and its profile page did not. That is the
+one-builder rule wearing the most expensive shape available: a privacy promise that holds on
+one page. A test asserts the string `consultant_hidden_companies` appears exactly once in
+that model.
+
+The rule is stated **twice in total**, and the second place is named rather than discovered:
+a list is SQL, and a single profile page is a row already fetched that cannot use a WHERE
+clause, so `ConsultantHiddenCompany.blocks()` answers for the detail route. A test pins the
+set of files allowed to mention the table to exactly those two. The detail route answers
+**404, never 403** — "you may not see this consultant" tells the company that a consultant
+they can name has blocked them, which is the thing being hidden.
+
+`viewer` is resolved once per request by `viewerFor()` and passed IN. The builder stays a pure
+function over its filters and never reaches into the database, which is what keeps it testable
+and what stops a list and its count disagreeing. In `services/search.js` it arrives as an
+ARGUMENT to each source's `search`, not a closure: `SOURCES` is a frozen module-level constant,
+and a source capturing per-request state would be one request's viewer answering another's.
+
+**What it cannot do is said on the page.** A signed-out visitor cannot be filtered — the
+directory is public and no clause can ask who an anonymous browser works for. The consultant
+is told that plainly and pointed at the switch that does answer it: making the profile
+non-public. A free-text employer name is matched against a registered company's profile name
+and only bites if that employer later signs up under a matching name; the page says that too.
+A privacy feature described as stronger than it is, is worse than no feature.
+
+The schema enforces that exactly one kind of block is set per row with a `CHECK`, and one
+block per company per consultant with two unique keys, so adding the same block twice is a
+duplicate-key no-op rather than a second row to remove twice.
+
+## Issue reports
+
+`/admin/errors` records what the SERVER noticed. `/report-issue` records what a PERSON
+noticed, and the two barely overlap: a button that does nothing, a figure that looks wrong, a
+rule that behaves differently from what the page says. None of those raise an exception, so
+without this they arrive as nothing at all and the first sign is somebody leaving.
+
+**Open to anonymous visitors on purpose.** The most valuable report a marketplace can get
+comes from somebody who could not finish signing up, and requiring an account to say
+"registration is broken" loses exactly the report you most need. `user_id` is nullable and
+`contact_email` exists only so an anonymous reporter can be answered — it is stored ONLY when
+there is no account, because keeping a typed address beside a signed-in report is a second
+copy of something already held.
+
+**Nothing is captured automatically** — no IP, no user agent, no referrer. A bug report is not
+a reason to start logging visitors, and each of those fields would need a retention rule and a
+line in the privacy policy. A test strips the migration's comments and asserts none of those
+columns exists.
+
+`page_path` must be a path on this site: a full URL, a protocol-relative `//host` or a
+`javascript:` scheme is refused and stored as NULL. It is typed by a stranger and lands on an
+administrator's screen, and an administrator clicking a link somebody else supplied is the
+oldest trick there is. It is rendered with `<%= %>` as text as well — this is the second
+guard, not the only one.
+
+**There is no delete.** A report somebody dismissed is evidence that a person complained and
+nothing happened, which is the most useful row in the table the fourth time the same thing
+arrives. Same reasoning as moderation hiding rather than deleting. Every non-terminal status
+reaches `closed` in ONE step, asserted at boot — the same rule `config/crm.js` holds for
+`unsubscribed`, because the step somebody skips is the one that closes it.
+
+An answer written by an administrator is shown to the reporter on `/my-issues`. A queue that
+never replies teaches people not to send the next report.
 
 ## Notifications
 

@@ -51,6 +51,39 @@ function buildFilter(filters = {}) {
   const where = ['cp.is_public = 1', 'u.is_active = 1'];
   const params = [];
 
+  /*
+   * "Hide my profile from these companies."
+   *
+   * HERE, and nowhere else. Every list, count and search of consultants goes through this
+   * builder, so a profile hidden from the viewing company is hidden from all of them by
+   * construction — including any query somebody adds next year without knowing this feature
+   * exists.
+   *
+   * The reference implementation put its equivalent clause inline in ONE query out of the
+   * fourteen that read `consultant_profiles`. Its browse list honoured the block and its
+   * search, its featured-talent panel and everything else did not: a privacy promise that
+   * holds on one page. That is what the one-builder rule in CLAUDE.md is for, and this is
+   * the most expensive shape the failure takes.
+   *
+   * `viewer` is resolved once per request by `ConsultantHiddenCompany.viewerFor` and passed
+   * in. The builder stays a pure function over its filters — it does not reach into the
+   * database — which is what keeps it testable and what stops a list and its count
+   * disagreeing about what is in scope.
+   *
+   * A signed-out visitor has no viewer and is filtered by nothing. That is not an oversight:
+   * the directory is public and no clause can ask who an anonymous browser works for. The
+   * page tells the consultant exactly that rather than implying protection it cannot give.
+   */
+  if (filters.viewer && filters.viewer.companyUserId) {
+    where.push(`NOT EXISTS (
+      SELECT 1 FROM consultant_hidden_companies h
+       WHERE h.consultant_user_id = cp.user_id
+         AND ( h.company_user_id = ?
+            OR (h.company_name_key IS NOT NULL AND h.company_name_key = ?) )
+    )`);
+    params.push(filters.viewer.companyUserId, filters.viewer.companyNameKey || '\u0000');
+  }
+
   if (filters.role && isValidRole(filters.role)) {
     where.push('cp.primary_role = ?');
     params.push(filters.role);

@@ -28,6 +28,7 @@ const { assertDraftingIntegrity } = require('./config/drafting');
 const { assertCompanyTemplateIntegrity } = require('./config/companyTemplates');
 const { assertFinanceIntegrity } = require('./config/finance');
 const legal = require('./config/legal');
+const { assertIssueIntegrity } = require('./config/issues');
 const AppSetting = require('./models/AppSetting');
 const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
@@ -78,6 +79,9 @@ assertFinanceIntegrity();
 // Warned about, never thrown: a privacy policy that cannot name who is responsible for
 // personal data is a legal problem, not a broken application, and refusing to boot would
 // take a running site down over a text field. It is loud here and repeated on the page.
+// Same rule the CRM pipeline is asserted under: every non-terminal status must reach the
+// terminal one in ONE step, because the step somebody skips is the one that closes it.
+assertIssueIntegrity();
 legal.warnIfUnconfigured();
 
 const app = express();

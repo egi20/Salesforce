@@ -159,14 +159,29 @@ describe('the search page', () => {
     expect(Job.browse.mock.calls[0][0].q.length).toBe(120);
   });
 
-  it('passes ONLY the query to each source — no status or visibility override', async () => {
-    // The defaults are what make the results safe. Anything else passed here would be the
-    // leak, so the shape of the call is the assertion.
+  it('passes the query and nothing that widens what is visible', async () => {
+    /*
+     * The defaults are what make the results safe. Anything passed here that WIDENS them
+     * would be the leak, so the shape of the call is the assertion.
+     *
+     * `viewer` is the one addition, and it narrows: it carries the hidden-company block, so a
+     * company excluded from /consultants is excluded here too. Without it a blocked company
+     * would find the profile through the search box instead — which is what happens whenever
+     * a visibility rule is applied per page rather than in the builder every page shares. It
+     * is null for an anonymous request, which is this one.
+     */
     stubAll({ jobs: 1 });
     await request(app).get('/search?q=apex&status=draft&include_hidden=1&is_public=0');
 
     expect(Job.browse.mock.calls[0][0]).toEqual({ q: 'apex' });
     expect(Post.browse.mock.calls[0][0]).toEqual({ q: 'apex' });
-    expect(ConsultantProfile.browse.mock.calls[0][0]).toEqual({ q: 'apex' });
+    expect(ConsultantProfile.browse.mock.calls[0][0]).toEqual({ q: 'apex', viewer: null });
+
+    // The thing the original assertion was really guarding: nothing a visitor typed into the
+    // query string reaches a builder as a filter.
+    for (const spy of [Job.browse, Post.browse, ConsultantProfile.browse]) {
+      const passed = Object.keys(spy.mock.calls[0][0]);
+      expect(passed.filter((k) => !['q', 'viewer'].includes(k))).toEqual([]);
+    }
   });
 });

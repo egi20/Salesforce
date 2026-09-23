@@ -2,9 +2,13 @@
 
 const express = require('express');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { writeLimiter } = require('../middleware/rateLimit');
+const { isAuthenticated } = require('../middleware/auth');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
 const { PUBLIC_PATHS, canonicalUrl } = require('../config/seoMeta');
 const legal = require('../config/legal');
+const IssueReport = require('../models/IssueReport');
+const { ISSUE_KINDS, LIMITS: ISSUE_LIMITS } = require('../config/issues');
 const { ROLE_CATEGORIES } = require('../config/roleTaxonomy');
 const { CLOUD_FAMILIES } = require('../config/cloudFamilies');
 const Job = require('../models/Job');
@@ -34,6 +38,9 @@ router.get(
 
     const [latestJobs, featuredConsultants, contributors] = await Promise.all([
       Job.browse({}, { limit: 6, sort: 'newest' }),
+      // No viewer: this branch runs only when nobody is signed in, so there is no company
+      // identity to filter against. A hidden-company block cannot apply to an anonymous
+      // visitor and the consultant is told exactly that on the page that sets one.
       ConsultantProfile.browse({}, { limit: 6 }),
       RateSubmission.totalContributors()
     ]);
@@ -150,6 +157,60 @@ router.get('/robots.txt', (req, res) => {
   lines.push(`Sitemap: ${config.app.baseUrl}/sitemap.xml`);
   res.type('text/plain').send(lines.join('\n'));
 });
+
+/**
+ * Reporting that something is wrong.
+ *
+ * OPEN TO ANONYMOUS VISITORS on purpose. The most valuable report a marketplace can get comes
+ * from somebody who could not finish signing up, and requiring an account to say
+ * "registration is broken" loses exactly the report you most need. `/admin/errors` already
+ * records what the server noticed; this records what a person noticed, which is a different
+ * and mostly disjoint set.
+ */
+router.get('/report-issue', (req, res) => {
+  res.render('reportIssue', {
+    title: 'Report a problem',
+    kinds: ISSUE_KINDS,
+    limits: ISSUE_LIMITS,
+    // Pre-filled from where they came from, and shown so they can see and change it. Never
+    // taken from the Referer header — this app sends `Referrer-Policy: no-referrer`, so it
+    // would be empty on a real browser anyway.
+    pagePath: IssueReport.pagePath(req.query.from) || ''
+  });
+});
+
+router.post(
+  '/report-issue',
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    try {
+      await IssueReport.create(req.body, { userId: req.session.user ? req.session.user.id : null });
+      req.flash(
+        'success',
+        req.session.user
+          ? 'Thank you. You can follow it on your reports page.'
+          : 'Thank you. If you left an address we will use it to reply.'
+      );
+    } catch (err) {
+      if (!['SUMMARY_REQUIRED', 'DETAIL_REQUIRED', 'BAD_EMAIL'].includes(err.code)) throw err;
+      req.flash('error', err.message);
+      return res.redirect('/report-issue');
+    }
+    return res.redirect(req.session.user ? '/my-issues' : '/report-issue');
+  })
+);
+
+/** What somebody reported, and what was said back. A queue that never answers teaches people not to write to it. */
+router.get(
+  '/my-issues',
+  isAuthenticated,
+  asyncHandler(async (req, res) => {
+    res.render('myIssues', {
+      title: 'Your reports',
+      issues: await IssueReport.listForUser(req.session.user.id)
+    });
+  })
+);
 
 /**
  * Contact.

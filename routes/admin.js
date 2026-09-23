@@ -2,6 +2,8 @@
 
 const express = require('express');
 
+const IssueReport = require('../models/IssueReport');
+const { ISSUE_KINDS, ISSUE_STATUSES } = require('../config/issues');
 const User = require('../models/User');
 const Job = require('../models/Job');
 const ErrorLog = require('../models/ErrorLog');
@@ -873,6 +875,54 @@ router.post(
       req.flash('error', 'Unknown field.');
     }
     return res.redirect(returnTo(req, '/admin/reviews'));
+  })
+);
+
+/* --------------------------------------------------------------- issue reports */
+
+/**
+ * What people reported. `/admin/errors` is what the server noticed; this is what a person
+ * noticed, and the two barely overlap — a button that does nothing raises no exception.
+ */
+router.get(
+  '/issues',
+  asyncHandler(async (req, res) => {
+    const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 30 });
+    const filters = { status: req.query.status || '', kind: req.query.kind || '', q: req.query.q || '' };
+    const [{ rows, total }, counts] = await Promise.all([
+      IssueReport.list(filters, { limit, offset }),
+      IssueReport.counts()
+    ]);
+
+    res.render('admin/issues', {
+      title: 'Reported problems',
+      issues: rows,
+      counts,
+      filters,
+      kinds: ISSUE_KINDS,
+      statuses: ISSUE_STATUSES,
+      pagination: paginationMeta({ page, perPage, total }),
+      pageUrl: (p) => pageUrl('/admin/issues', req.query, p)
+    });
+  })
+);
+
+router.post(
+  '/issues/:id',
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    try {
+      await IssueReport.setStatus(req.params.id, req.body.status, {
+        response: req.body.response,
+        actorUserId: req.session.user.id
+      });
+      req.flash('success', 'Updated.');
+    } catch (err) {
+      if (!['NOT_FOUND', 'BAD_TRANSITION'].includes(err.code)) throw err;
+      req.flash('error', err.message);
+    }
+    return res.redirect(returnTo(req, '/admin/issues'));
   })
 );
 

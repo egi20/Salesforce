@@ -3,6 +3,7 @@
 const express = require('express');
 
 const ConsultantProfile = require('../models/ConsultantProfile');
+const ConsultantHiddenCompany = require('../models/ConsultantHiddenCompany');
 const ImageBlob = require('../models/ImageBlob');
 const Skill = require('../models/Skill');
 const Job = require('../models/Job');
@@ -33,6 +34,11 @@ router.get(
     const { page, perPage, limit, offset } = paginationFrom(req.query);
     const sort = ['relevance', 'newest', 'rate_asc', 'rate_desc'].includes(req.query.sort) ? req.query.sort : 'relevance';
 
+    /*
+     * The viewer, resolved once and handed to the builder. Everything else about who can see
+     * what lives inside `buildFilter`; this line is the only thing the route decides.
+     */
+    filters.viewer = await ConsultantHiddenCompany.viewerFor(req.session.user);
     const { rows, total } = await ConsultantProfile.browse(filters, { limit, offset, sort });
 
     res.render('consultants/index', {
@@ -84,6 +90,25 @@ router.get(
     // A profile that is not public is visible to its owner and to admins only.
     if (!profile || (!profile.is_public && !isSelf && !(viewer && viewer.isAdmin))) {
       return res.status(404).render('errors/404', { title: 'Not found' });
+    }
+
+    /*
+     * The same block the directory applies, applied to the page itself.
+     *
+     * A company excluded from every list could otherwise still open the profile by its URL —
+     * which is exactly where a link from a colleague or a search result puts them, so
+     * filtering only the lists would protect the consultant from browsing and from nothing
+     * else. The owner and an admin are exempt for the same reason they are above.
+     *
+     * Answered as 404, not 403: "you are not allowed to see this consultant" tells the
+     * company that a consultant they can name has blocked them, which is information the
+     * consultant was trying not to give them.
+     */
+    if (!isSelf && !(viewer && viewer.isAdmin)) {
+      const hiddenFrom = await ConsultantHiddenCompany.viewerFor(viewer);
+      if (await ConsultantHiddenCompany.blocks(profile.user_id, hiddenFrom)) {
+        return res.status(404).render('errors/404', { title: 'Not found' });
+      }
     }
 
     const [skills, certifications, experiences] = await Promise.all([

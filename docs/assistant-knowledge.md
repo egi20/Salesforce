@@ -191,6 +191,17 @@ automatically.
   about why something is held. There is no contact form, deliberately: a form is a spam sink
   that needs storage and a retention rule of its own.
 
+- **A consultant can hide their profile from named companies** at `/profile/hidden-companies`
+  — for looking while still employed. It is enforced against a company that is signed in: the
+  profile is not in their directory, not in their search results, and its page answers "not
+  found". It CANNOT hide anything from somebody browsing signed out, because the directory is
+  public; say that plainly rather than implying more, and point at making the profile
+  non-public instead. An employer with no account can be saved by name and the block applies
+  if they later sign up under it.
+- **Anyone can report a problem at `/report-issue`, with or without an account.** Signed in,
+  the reply appears on `/my-issues`. It collects only what is typed — no address, no browser
+  details, nothing automatic.
+
 ## Things the assistant genuinely cannot do
 
 It cannot see or change anyone's account, applications, messages, payments or profile. It

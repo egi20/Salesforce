@@ -34,6 +34,7 @@ check('challenge question bank is consistent', () => require('../config/challeng
 check('CRM pipeline is consistent', () => require('../config/crm').assertCrmIntegrity());
 check('invoice lifecycle and line arithmetic are consistent', () => require('../config/finance').assertFinanceIntegrity());
 check('legal controller config loads', () => require('../config/legal'));
+check('issue lifecycle is consistent', () => require('../config/issues').assertIssueIntegrity());
 check('country list is non-empty', () => {
   const countries = require('../config/all-countries.json');
   if (!Array.isArray(countries) || countries.length < 100) throw new Error(`only ${countries.length} countries`);

@@ -202,6 +202,12 @@ automatically.
   the reply appears on `/my-issues`. It collects only what is typed — no address, no browser
   details, nothing automatic.
 
+- **A placement fee is agreed with a person, never raised automatically.** A company sees
+  what was agreed at `/payments/placements` — the contract value, the rate, and the fee — and
+  pays it there. The fee is derived once from the agreed contract value and the rate as it
+  stood on that day, and stored: changing the standard rate later does not reprice a
+  placement already agreed. Nothing the browser sends can change the amount.
+
 ## Things the assistant genuinely cannot do
 
 It cannot see or change anyone's account, applications, messages, payments or profile. It

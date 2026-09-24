@@ -111,6 +111,72 @@ const PRODUCTS = Object.freeze({
     }
   }),
 
+  /**
+   * The fee on an agreed placement.
+   *
+   * The amount comes from `placement_quotes.fee_minor` — a figure an administrator agreed
+   * with the company and that was derived once, on integers, from the stored contract value
+   * and the rate snapshot beside it. Nothing here recomputes it and nothing the browser
+   * sends can move it.
+   *
+   * The reference derives the fee at checkout from the LIVE pricing config, so renegotiating
+   * the standard rate silently reprices every placement already agreed. And it computes that
+   * fee in whole currency units before converting to cents, which charges a €47,350 contract
+   * €7,103.00 where 15% is €7,102.50. See `config/placements.js`.
+   */
+  placement_fee: Object.freeze({
+    key: 'placement_fee',
+    label: 'Placement fee',
+    subjectType: 'placement',
+    /** One fee per placement, enforced by the unique key on `placement_fees.placement_quote_id`. */
+    exclusive: true,
+    description: 'The agreed fee on a completed placement',
+    async resolve(userId, subjectId) {
+      const [rows] = await promisePool.query(
+        `SELECT p.id, p.reference, p.company_user_id, p.status, p.consultant_name, p.job_title,
+                p.placement_kind, p.contract_value_minor, p.currency, p.rate_bps, p.fee_minor,
+                f.id AS fee_id
+           FROM placement_quotes p
+           LEFT JOIN placement_fees f ON f.placement_quote_id = p.id
+          WHERE p.id = ? LIMIT 1`,
+        [subjectId]
+      );
+      const placement = rows[0];
+      if (!placement) return { ok: false, reason: 'That placement no longer exists.' };
+      if (placement.company_user_id !== userId) {
+        return { ok: false, reason: 'This placement fee is owed by a different account.' };
+      }
+      if (placement.status === 'cancelled') {
+        return { ok: false, reason: 'That placement was cancelled.' };
+      }
+      if (placement.status !== 'agreed' || placement.fee_id) {
+        return { ok: false, reason: 'This placement fee has already been paid.' };
+      }
+      if (placement.currency !== CURRENCY) {
+        return { ok: false, reason: `Placement fees are taken in ${CURRENCY} only.` };
+      }
+      // Stored, not derived here. If it is not a usable integer that is a bug in the agreeing
+      // path, and a checkout is the last place to paper over one.
+      if (!Number.isInteger(placement.fee_minor) || placement.fee_minor <= 0) {
+        return { ok: false, reason: 'This placement has no payable fee.' };
+      }
+
+      return {
+        ok: true,
+        subject: placement,
+        amountMinor: placement.fee_minor,
+        currency: CURRENCY,
+        description: `Placement fee — ${placement.consultant_name}, ${placement.job_title} (${placement.reference})`,
+        priceBasis: {
+          rateBps: placement.rate_bps,
+          contractValueMinor: placement.contract_value_minor,
+          placementKind: placement.placement_kind,
+          reference: placement.reference
+        }
+      };
+    }
+  }),
+
   quote_deposit: Object.freeze({
     key: 'quote_deposit',
     label: 'Project deposit',

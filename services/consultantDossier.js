@@ -41,8 +41,11 @@ function period(startedOn, endedOn, isCurrent = false) {
  * email prefix on a document its owner sends to clients.
  */
 function displayName(user, profile) {
-  const parts = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
-  if (parts) return parts;
+  // `users` has one name column. This read `user.first_name` and `user.last_name`, which no
+  // migration has ever created — always undefined, so it always fell through to `user.name`.
+  // Harmless, and removed anyway: code that reads as though a column exists is how somebody
+  // later writes a query against it, which is exactly what had happened in
+  // `services/paymentFulfilment.js`.
   if (user.name) return user.name;
   if (profile && profile.headline) return profile.headline;
   return 'Salesforce consultant';

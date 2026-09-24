@@ -162,6 +162,34 @@ describe('dossier formatting', () => {
   });
 
   it('prefers the real name when there is one', () => {
-    expect(displayName({ first_name: 'Ana', last_name: 'Pjetri', email: 'a@b.c' }, null)).toBe('Ana Pjetri');
+    /*
+     * `users.name`, because that is the only name column the schema has ever had.
+     *
+     * This test used to pass `{ first_name, last_name }` and assert they were joined — and it
+     * was GREEN, because the function read two undefined properties and fell through to a
+     * branch that happened to produce the expected string for a different reason. A test
+     * asserting behaviour over a column the database does not have is what kept the real
+     * version of this mistake invisible: `services/paymentFulfilment.js` was SELECTing those
+     * same two columns, which MySQL answers with ER_BAD_FIELD_ERROR, inside the transaction
+     * every payment's invoice is raised in.
+     */
+    expect(displayName({ name: 'Ana Pjetri', email: 'a@b.c' }, null)).toBe('Ana Pjetri');
+  });
+
+  it('no module selects a name column that does not exist', () => {
+    // The guard that would have caught the payment-path bug. `users` has one name column.
+    const fs = require('fs');
+    const path = require('path');
+    const root = path.join(__dirname, '..', '..');
+    const offenders = [];
+    for (const dir of ['models', 'services', 'routes']) {
+      for (const file of fs.readdirSync(path.join(root, dir))) {
+        const body = fs.readFileSync(path.join(root, dir, file), 'utf8')
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .replace(/(^|[^:])\/\/.*$/gm, '$1');
+        if (/\b(first_name|last_name)\b/.test(body)) offenders.push(`${dir}/${file}`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

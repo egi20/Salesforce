@@ -1,6 +1,7 @@
 'use strict';
 
 const { promisePool, withTransaction } = require('../config/database');
+const PlacementQuote = require('../models/PlacementQuote');
 const Payment = require('../models/Payment');
 const Invoice = require('../models/Invoice');
 const Notification = require('../models/Notification');
@@ -60,6 +61,53 @@ const HANDLERS = {
    * payment having settled this quote first — so the existing row is read to tell them
    * apart. Only the second is a collision, and only a collision needs a refund.
    */
+  /**
+   * The fee on an agreed placement. EXCLUSIVE: `placement_fees.placement_quote_id` is unique.
+   *
+   * The insert decides, and the status follows it — never the other way round. The reference
+   * asks its `markPaid` whether the quote moved from pending to paid and gates the fee record
+   * on that answer, which is the right SHAPE; what it then does with a "no" is log a line and
+   * return, so the losing tab's money is captured, no fee is recorded, no invoice is raised
+   * and nobody is told. Here the unique key makes the second insert a no-op, this handler
+   * reports the collision, and `fulfil()` above rolls the transaction back and flags the
+   * payment `needs_refund` so a person decides about it in /admin/payments.
+   *
+   * `claimPaid` runs on the same connection, inside the same transaction, so a fee row and an
+   * unpaid status cannot exist together.
+   */
+  async placement_fee(conn, payment) {
+    const basis = payment.price_basis || {};
+    const [result] = await conn.query(
+      `INSERT IGNORE INTO placement_fees
+         (placement_quote_id, payment_id, contract_value_minor, rate_bps, amount_minor, currency)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        payment.subject_id,
+        payment.id,
+        Number.isInteger(basis.contractValueMinor) ? basis.contractValueMinor : 0,
+        Number.isInteger(basis.rateBps) ? basis.rateBps : 0,
+        payment.amount_minor,
+        payment.currency
+      ]
+    );
+
+    if (result.affectedRows === 1) {
+      await PlacementQuote.claimPaid(conn, payment.subject_id);
+      return { fulfilled: true, collided: false };
+    }
+
+    // A zero-row insert is ambiguous — our own second attempt, or a different payment having
+    // settled this placement first. Read the holder to tell them apart; only the second is a
+    // collision, and only a collision needs a refund.
+    const [rows] = await conn.query(
+      'SELECT payment_id FROM placement_fees WHERE placement_quote_id = ? LIMIT 1',
+      [payment.subject_id]
+    );
+    const holder = rows[0] && rows[0].payment_id;
+    if (holder === payment.id) return { fulfilled: false, collided: false };
+    return { fulfilled: false, collided: true, holderPaymentId: holder || null };
+  },
+
   async quote_deposit(conn, payment) {
     const basis = payment.price_basis || {};
     const [result] = await conn.query(
@@ -87,19 +135,34 @@ const HANDLERS = {
   }
 };
 
-/** Who the invoice is made out to, snapshot at the moment it is raised. */
+/**
+ * Who the invoice is made out to, snapshot at the moment it is raised.
+ *
+ * `users` has ONE name column, and this query used to select `u.first_name, u.last_name` —
+ * columns that have never existed in any migration. MySQL answers that with
+ * ER_BAD_FIELD_ERROR, inside the fulfilment transaction, so EVERY payment would have failed
+ * at the invoice step the first time one was taken for real.
+ *
+ * Nothing caught it: the suite mocks the database, so the query never ran, and no live
+ * payment has ever been taken because Stripe is not configured. It surfaced the first time a
+ * fulfilment was driven end to end against a real MySQL — which is the third bug found that
+ * way after the P&L's dropped costs and /admin/analytics, and the reason that exercise keeps
+ * earning its place.
+ */
 async function billingDetailsFor(userId) {
   const [rows] = await promisePool.query(
-    `SELECT u.email, u.first_name, u.last_name, cp.company_name
+    `SELECT u.name, u.email, cp.company_name
        FROM users u
        LEFT JOIN company_profiles cp ON cp.user_id = u.id
       WHERE u.id = ? LIMIT 1`,
     [userId]
   );
   const row = rows[0] || {};
-  const name = [row.first_name, row.last_name].filter(Boolean).join(' ').trim();
   return {
-    name: name || row.company_name || 'Customer',
+    // The company name first for a company account: an invoice addressed to the person who
+    // happens to hold the login, rather than to the business that owes the money, is the one
+    // their accounts department sends back.
+    name: row.company_name || row.name || 'Customer',
     email: row.email || '',
     company: row.company_name || null
   };

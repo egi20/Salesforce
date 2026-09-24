@@ -247,6 +247,15 @@ So:
   (`quote_deposits.quote_id`). That is the guard the per-payment key cannot give: two
   checkout tabs against one quote are two DIFFERENT payments, and only one may settle it.
 
+**`billingDetailsFor` selected two columns that have never existed.** It asked for
+`u.first_name, u.last_name` when `users` has one `name` column, which MySQL answers with
+ER_BAD_FIELD_ERROR — inside the transaction every invoice is raised in. Every payment would
+have failed at the invoice step the first time one was taken for real. Nothing caught it: the
+suite mocks the database so the query never ran, no live payment has been taken because
+Stripe is not configured, and a unit test asserted `displayName({first_name, last_name})` and
+passed for an unrelated reason. It surfaced the first time a fulfilment was driven end to end
+against a real MySQL. A test now scans `models/`, `services/` and `routes/` for either column.
+
 `Payment.markPaid` is a CLAIM, not a setter: a conditional UPDATE that reports whether
 this call moved the row. It decides who sends the receipt and nothing else. **Never gate
 fulfilment on a payment's status** — that was the reference's worst payment bug, where the
@@ -985,6 +994,55 @@ deployment decision with an author, not a checkbox.
 - **`/employees` and `/business-units`**, and `/employees/import-consultants` with them.
   That is an HR system inside a marketplace, and the import path copies consultants who
   signed up to a directory into a staff table they never joined.
+
+## Placement fees
+
+Ported from the reference as a CORRECTION, which is what porting a feature from there has
+meant every other time. **What it gets right, and it is the important half:** the contract
+value is agreed by a person and stored SERVER-SIDE, and the fee is derived from that stored
+row — nothing the browser sends reaches the amount. Its own audit calls that the C3
+price-tampering finding, and it is the same structural answer `config/payments.js` gives
+every product here.
+
+Five things are fixed, each one a rule already stated somewhere in this file:
+
+1. **THE CUSTOMER WAS OVERCHARGED.** It computes
+   `Math.round((contractValue * feePercentage) / 100)` on a `parseFloat` of a
+   `DECIMAL(12,2)` — a fee rounded to WHOLE currency units and only then multiplied by 100
+   to reach cents. A €47,350 contract at 15% is €7,102.50 and that charges €7,103.00, with
+   `Math.round` sending every half-unit upward. Here the value is minor units, the rate is
+   basis points, and the fee is `value * bps / 10000` rounded DOWN — the direction
+   `Referral.commissionMinor` rounds, because rounding a charge up bills more than the
+   agreement says. The boot assertion carries that exact case.
+2. **`?.percentage || 15`** has two faults in one line: an unrecognised placement kind bills
+   at 15%, and a rate deliberately set to 0 is falsy and also bills at 15%. `rateBpsFor`
+   returns null and the caller refuses. A price nobody chose is the one thing a pricing table
+   must not produce.
+3. **The rate is SNAPSHOT on the row.** It reads the live pricing config at checkout, so
+   renegotiating the standard rate silently reprices every placement already agreed with a
+   client — the fault `referral_attributions` avoids by snapshotting and a stored quote
+   avoids by keeping its catalogue version.
+4. **`DATETIME`, not `TIMESTAMP`.** Its `created_at` is the table's first TIMESTAMP column,
+   so with `explicit_defaults_for_timestamp` off it carries an implicit
+   `ON UPDATE CURRENT_TIMESTAMP` and marking a placement paid re-dates when it was agreed.
+5. **The schema is a migration**, not `PlacementQuote.initializeTables()` running
+   `CREATE TABLE IF NOT EXISTS` on boot.
+
+**The losing tab gets its money back.** `placement_fees` has a unique key on its SUBJECT as
+well as on the payment — the guard the per-payment key cannot give, since two checkout tabs
+against one placement are two DIFFERENT payments. The reference has no such key: its webhook
+asks `markPaid` whether the row moved and, on "no", logs a line and returns, so the second
+payment is captured, no fee is recorded, no invoice is raised and nobody is told. Here the
+insert decides, the handler reports the collision, and `fulfil()` rolls back and flags
+`needs_refund` for `/admin/payments`. Verified against MySQL: two payments, one fee row, one
+`needs_refund`.
+
+`claimPaid` is a CLAIM, not a setter, and runs on the same connection inside the same
+transaction as the fee insert. **The insert decides and the status follows** — never the
+other way round. Gating fulfilment on reading a status first is the reference's worst payment
+bug, and keeping the two apart matters even here where the same person wrote both.
+
+`/admin/placements` is superadmin-gated: it sets a figure a company will be charged.
 
 ## Privacy rights, and erasing an account
 

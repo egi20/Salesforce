@@ -131,7 +131,8 @@ router.get(
     }
 
     const user = await User.findById(req.session.user.id);
-    const hubName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || user.name || '';
+    // One name column on `users` — see services/consultantDossier.js.
+    const hubName = user.name || '';
     const nameMatched = linkedin.namesAgree(hubName, identity.name);
 
     const result = await ExternalIdentity.linkLinkedIn(req.session.user.id, {

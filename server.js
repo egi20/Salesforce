@@ -29,6 +29,7 @@ const { assertCompanyTemplateIntegrity } = require('./config/companyTemplates');
 const { assertFinanceIntegrity } = require('./config/finance');
 const legal = require('./config/legal');
 const { assertIssueIntegrity } = require('./config/issues');
+const { assertPlacementIntegrity } = require('./config/placements');
 const AppSetting = require('./models/AppSetting');
 const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
@@ -82,6 +83,9 @@ assertFinanceIntegrity();
 // Same rule the CRM pipeline is asserted under: every non-terminal status must reach the
 // terminal one in ONE step, because the step somebody skips is the one that closes it.
 assertIssueIntegrity();
+// The placement fee arithmetic, with the case that exposes the reference's rounding bug:
+// €47,350.00 at 15.00% is €7,102.50, and their checkout charges €7,103.00.
+assertPlacementIntegrity();
 legal.warnIfUnconfigured();
 
 const app = express();

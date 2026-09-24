@@ -3,6 +3,8 @@
 const express = require('express');
 
 const config = require('../config/config');
+const PlacementQuote = require('../models/PlacementQuote');
+const { kindLabel } = require('../config/placements');
 const Payment = require('../models/Payment');
 const Invoice = require('../models/Invoice');
 const ErrorLog = require('../models/ErrorLog');
@@ -292,6 +294,32 @@ router.get(
  * Every figure comes from the catalogue. A price typed into a template is a price that
  * disagrees with the checkout the first time one of them is edited.
  */
+/**
+ * What this company has been asked to pay for a placement.
+ *
+ * The page carries no amount of its own — it renders `fee_minor` from the agreed row, the
+ * same figure the resolver will answer with at checkout and the same one the invoice will
+ * carry. "Render, never recompute" is not only a rule for documents; a number that differs
+ * between the page and the charge is the one people write in about.
+ */
+router.get(
+  '/placements',
+  isAuthenticated,
+  asyncHandler(async (req, res) => {
+    const { rows } = await PlacementQuote.list(
+      { company_user_id: req.session.user.id },
+      { limit: 100, offset: 0 }
+    );
+    res.render('payments/placements', {
+      title: 'Placement fees',
+      placements: rows,
+      kindLabel,
+      stripeReady: stripe.isConfigured(),
+      formatMinor
+    });
+  })
+);
+
 router.get('/', (req, res) => {
   res.render('payments/pricing', {
     title: 'Pricing',

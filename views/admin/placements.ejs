@@ -1,0 +1,149 @@
+<%- include('../partials/layout-start') %>
+<%- include('../partials/page-header', {
+  icon: 'bi-person-check',
+  heading: 'Placements',
+  sub: 'Agreeing a fee. The figure typed here is the figure charged — nothing recomputes it later.'
+}) %>
+<section class="glass-section pb-5"><div class="container">
+  <%- include('../partials/flash') %>
+
+  <% const tone = { agreed: 'cloud', paid: 'ok', cancelled: 'muted' }; %>
+  <% const money = (m, c) => (m / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + c; %>
+
+  <div class="glass-card mb-4"><div class="card-body p-4">
+    <h2 class="h6 mb-3">Agree a placement</h2>
+
+    <form method="post" action="/admin/placements">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-5">
+          <label class="form-label" for="company_user_id">Company that owes the fee</label>
+          <select class="form-select" id="company_user_id" name="company_user_id" required>
+            <option value="">Choose…</option>
+            <% companies.forEach(function (c) { %>
+              <option value="<%= c.user_id %>"><%= c.company_name %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="consultant_name">Consultant placed</label>
+          <input class="form-control" id="consultant_name" name="consultant_name" required maxlength="200">
+          <div class="form-text">As typed — they may have no account here.</div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="job_title">Role</label>
+          <input class="form-control" id="job_title" name="job_title" required maxlength="200">
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
+          <label class="form-label" for="placement_kind">Kind</label>
+          <select class="form-select" id="placement_kind" name="placement_kind" required>
+            <% kinds.forEach(function (k) { %>
+              <option value="<%= k.value %>"><%= k.label %> — <%= (k.rateBps / 100).toFixed(2) %>%</option>
+            <% }); %>
+          </select>
+          <div class="form-text">
+            <% kinds.forEach(function (k) { %><%= k.label %>: <%= k.basis %>.<br><% }); %>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="contract_value">Agreed contract value</label>
+          <input class="form-control" id="contract_value" name="contract_value" required inputmode="decimal">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label" for="currency">Currency</label>
+          <select class="form-select" id="currency" name="currency">
+            <% currencies.forEach(function (c) { %><option value="<%= c %>"><%= c %></option><% }); %>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="note">Note</label>
+          <input class="form-control" id="note" name="note" maxlength="500">
+        </div>
+      </div>
+
+      <button class="btn btn-primary" type="submit">Agree it</button>
+      <div class="form-text mt-2">
+        The fee is derived from these two figures, on integers, and stored. The company is
+        shown and charged that stored number — changing the standard rate later does not
+        reprice a placement already agreed.
+      </div>
+    </form>
+  </div></div>
+
+  <form class="row g-2 align-items-end mb-3" method="get" action="/admin/placements">
+    <div class="col-md-4">
+      <label class="form-label small" for="q">Search</label>
+      <input class="form-control form-control-sm" id="q" name="q" value="<%= filters.q %>" maxlength="120">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small" for="status">Status</label>
+      <select class="form-select form-select-sm" id="status" name="status">
+        <option value="">Any</option>
+        <% statuses.forEach(function (s) { %>
+          <option value="<%= s %>" <%= filters.status === s ? 'selected' : '' %>><%= s %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div class="col-6 col-md-2"><button class="btn btn-primary btn-sm w-100" type="submit">Filter</button></div>
+  </form>
+
+  <% if (!placements.length) { %>
+    <div class="glass-card"><div class="card-body"><p class="text-muted-2 mb-0">Nothing matches.</p></div></div>
+  <% } else { %>
+    <div class="glass-card"><div class="card-body p-0"><div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th scope="col">Reference</th>
+            <th scope="col">Company</th>
+            <th scope="col">Placed</th>
+            <th scope="col" class="text-end">Contract</th>
+            <th scope="col" class="text-end">Rate</th>
+            <th scope="col" class="text-end">Fee</th>
+            <th scope="col">Status</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% placements.forEach(function (p) { %>
+            <tr>
+              <td class="small"><%= p.reference %></td>
+              <td class="small"><%= p.company_profile_name || p.company_name %></td>
+              <td class="small">
+                <%= p.consultant_name %>
+                <div class="text-muted-2"><%= p.job_title %> · <%= kindLabel(p.placement_kind) %></div>
+              </td>
+              <td class="text-end small"><%= money(p.contract_value_minor, p.currency) %></td>
+              <td class="text-end small"><%= (p.rate_bps / 100).toFixed(2) %>%</td>
+              <td class="text-end"><%= money(p.fee_minor, p.currency) %></td>
+              <td><span class="badge-hub <%= tone[p.status] || '' %>"><%= p.status %></span></td>
+              <td class="text-end">
+                <% if (p.status === 'agreed') { %>
+                  <form method="post" action="/admin/placements/<%= p.id %>/cancel" class="d-flex gap-1">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="redirectTo" value="/admin/placements">
+                    <input class="form-control form-control-sm" name="reason" placeholder="Why" maxlength="300" style="width: 140px">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">Cancel</button>
+                  </form>
+                <% } else if (p.cancel_reason) { %>
+                  <span class="small text-muted-2"><%= p.cancel_reason %></span>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div></div></div>
+    <%- include('../partials/pagination', { pagination, pageUrl }) %>
+  <% } %>
+
+  <p class="small text-muted-2 mt-3 mb-0">
+    There is no delete. A cancelled placement is the record that a fee was agreed and did not
+    complete, which is the row somebody asks about later.
+  </p>
+</div></section>
+<%- include('../partials/layout-end') %>

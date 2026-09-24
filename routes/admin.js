@@ -3,6 +3,10 @@
 const express = require('express');
 
 const IssueReport = require('../models/IssueReport');
+const PlacementQuote = require('../models/PlacementQuote');
+const CompanyProfile = require('../models/CompanyProfile');
+const { PLACEMENT_KINDS, PLACEMENT_STATUSES, kindLabel } = require('../config/placements');
+const { CURRENCIES } = require('../config/finance');
 const { ISSUE_KINDS, ISSUE_STATUSES } = require('../config/issues');
 const User = require('../models/User');
 const Job = require('../models/Job');
@@ -875,6 +879,74 @@ router.post(
       req.flash('error', 'Unknown field.');
     }
     return res.redirect(returnTo(req, '/admin/reviews'));
+  })
+);
+
+/* ------------------------------------------------------------------- placements */
+
+/**
+ * Agreeing a placement fee.
+ *
+ * SUPERADMIN ONLY. This screen sets a figure a company will be charged, so it sits behind
+ * the same gate as /admin/rates and /crm rather than the general admin one — a moderator
+ * running a forum has no business agreeing somebody's invoice.
+ */
+router.get(
+  '/placements',
+  isSuperadmin,
+  asyncHandler(async (req, res) => {
+    const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 30 });
+    const filters = { status: req.query.status || '', q: req.query.q || '' };
+    const [{ rows, total }, companies] = await Promise.all([
+      PlacementQuote.list(filters, { limit, offset }),
+      CompanyProfile.browse({}, { limit: 500, offset: 0 })
+    ]);
+
+    res.render('admin/placements', {
+      title: 'Placements',
+      placements: rows,
+      companies: companies.rows,
+      kinds: PLACEMENT_KINDS,
+      statuses: PLACEMENT_STATUSES,
+      currencies: CURRENCIES,
+      kindLabel,
+      filters,
+      pagination: paginationMeta({ page, perPage, total }),
+      pageUrl: (p) => pageUrl('/admin/placements', req.query, p)
+    });
+  })
+);
+
+router.post(
+  '/placements',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    try {
+      await PlacementQuote.agree(req.body, { actorUserId: req.session.user.id });
+      req.flash('success', 'Agreed. The company can pay it from their placements page.');
+    } catch (err) {
+      if (!['NO_COMPANY', 'NO_CONSULTANT', 'NO_TITLE', 'BAD_KIND', 'BAD_CURRENCY', 'BAD_VALUE'].includes(err.code)) throw err;
+      req.flash('error', err.message);
+    }
+    return res.redirect('/admin/placements');
+  })
+);
+
+router.post(
+  '/placements/:id/cancel',
+  isSuperadmin,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    try {
+      await PlacementQuote.cancel(req.params.id, req.body.reason, { actorUserId: req.session.user.id });
+      req.flash('success', 'Cancelled. The row stays, with the reason on it.');
+    } catch (err) {
+      if (!['NOT_FOUND', 'BAD_TRANSITION', 'REASON_REQUIRED'].includes(err.code)) throw err;
+      req.flash('error', err.message);
+    }
+    return res.redirect(returnTo(req, '/admin/placements'));
   })
 );
 

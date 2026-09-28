@@ -379,41 +379,54 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
    ========================================================================== */
 
 .navbar-hub {
-  background: rgba(255, 255, 255, 0.82);
+  /*
+   * Scoped to this bar only, on request: everything else on the site keeps the navy/blue
+   * palette in DESIGN.md. Teal tokens live here rather than in :root so a future page never
+   * picks them up by accident.
+   */
+  --nav-accent: #0d9488;
+  --nav-accent-dark: #0f766e;
+  --nav-accent-light: #14b8a6;
+  --nav-accent-tint: rgba(13, 148, 136, 0.1);
+
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: var(--glass-blur-lg);
   -webkit-backdrop-filter: var(--glass-blur-lg);
   border-bottom: 1px solid var(--glass-border);
-  box-shadow: 0 2px 20px rgba(3, 45, 96, 0.06);
+  box-shadow: 0 2px 20px rgba(15, 118, 110, 0.06);
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
 }
 
 .navbar-hub .navbar-brand {
   font-weight: 800;
   font-size: 1.35rem;
   letter-spacing: -0.03em;
-  color: var(--primary-navy);
+  color: var(--text-dark);
 }
 .navbar-hub .navbar-brand .cloud {
-  background: var(--accent-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  -webkit-text-fill-color: currentColor;
+  color: var(--nav-accent-dark);
 }
 
 .navbar-hub .nav-link {
-  color: var(--text-medium);
+  color: var(--nav-accent-dark);
   font-weight: 500;
   border-radius: var(--radius-lg);
   padding: 0.45rem 0.8rem;
   transition: var(--transition-fast);
 }
 .navbar-hub .nav-link:hover {
-  background: rgba(1, 118, 211, 0.08);
-  color: var(--primary-blue);
+  background: var(--nav-accent-tint);
+  color: var(--nav-accent);
   text-decoration: none;
 }
 .navbar-hub .nav-link.active {
-  color: var(--primary-blue);
-  background: rgba(1, 118, 211, 0.1);
+  color: var(--nav-accent);
+  background: var(--nav-accent-tint);
 }
 
 .navbar-hub .dropdown-menu {
@@ -426,7 +439,22 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   padding: var(--space-2);
 }
 .navbar-hub .dropdown-item { border-radius: var(--radius-md); padding: 0.5rem 0.75rem; }
-.navbar-hub .dropdown-item:hover { background: rgba(1, 118, 211, 0.08); color: var(--primary-blue); }
+.navbar-hub .dropdown-item:hover { background: var(--nav-accent-tint); color: var(--nav-accent); }
+
+.navbar-hub .btn-primary {
+  background: var(--nav-accent);
+  border-color: var(--nav-accent);
+}
+.navbar-hub .btn-primary:hover {
+  background: var(--nav-accent-dark);
+  border-color: var(--nav-accent-dark);
+}
+
+.navbar-hub .avatar {
+  border: 2px solid var(--nav-accent);
+  border-radius: 50%;
+  object-fit: cover;
+}
 
 .notif-dot {
   display: inline-block;
@@ -1012,16 +1040,32 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
  */
 .nav-search .form-control {
   min-width: 9rem;
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.25);
-  color: #fff;
+  background: #fff;
+  border-color: rgba(15, 118, 110, 0.25);
+  color: var(--text-dark);
 }
-.nav-search .form-control::placeholder { color: rgba(255, 255, 255, 0.65); }
+.nav-search .form-control::placeholder { color: var(--text-light); }
 .nav-search .form-control:focus {
-  background: rgba(255, 255, 255, 0.18);
+  background: #fff;
+  color: var(--text-dark);
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+}
+.nav-search .btn-outline-light {
+  border: 1.5px solid #0d9488;
+  color: #0d9488;
+  border-radius: 50%;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+.nav-search .btn-outline-light:hover {
+  background: #0d9488;
+  border-color: #0d9488;
   color: #fff;
-  border-color: #fff;
-  box-shadow: none;
 }
 
 @media (max-width: 991.98px) {

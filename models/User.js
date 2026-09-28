@@ -169,6 +169,13 @@ class User {
     await promisePool.query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, userId]);
   }
 
+  /** Trimmed and capped to the column width — never blank, since `name` is NOT NULL. */
+  static async updateName(userId, name) {
+    const trimmed = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+    if (!trimmed) return;
+    await promisePool.query('UPDATE users SET name = ? WHERE id = ?', [trimmed, userId]);
+  }
+
   static async recordLogin(userId) {
     await promisePool.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [userId]);
   }

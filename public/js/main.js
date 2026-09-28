@@ -196,4 +196,108 @@
         });
     });
   }
+
+  /**
+   * Consultant profile: photo change/remove and "Import from CV" all go through fetch
+   * rather than a form submit, because a `<form>` cannot legally nest inside the profile
+   * form that already wraps this card. A photo change reloads the page afterwards — the
+   * server still sets the usual flash message, which the reload then shows, same as a
+   * normal form post would.
+   */
+  var changePhotoBtn = document.getElementById('changePhotoBtn');
+  var photoFile = document.getElementById('photoFile');
+  if (changePhotoBtn && photoFile) {
+    changePhotoBtn.addEventListener('click', function () { photoFile.click(); });
+    photoFile.addEventListener('change', function () {
+      if (!photoFile.files || !photoFile.files[0]) return;
+      var data = new FormData();
+      data.append('photo', photoFile.files[0]);
+      changePhotoBtn.disabled = true;
+      apiFetch('/profile/consultant/photo', { method: 'POST', body: data })
+        .then(function () { window.location.reload(); })
+        .catch(function () { changePhotoBtn.disabled = false; });
+    });
+  }
+
+  var removePhotoBtn = document.getElementById('removePhotoBtn');
+  if (removePhotoBtn) {
+    removePhotoBtn.addEventListener('click', function () {
+      removePhotoBtn.disabled = true;
+      apiFetch('/profile/consultant/photo/remove', { method: 'POST' })
+        .then(function () { window.location.reload(); })
+        .catch(function () { removePhotoBtn.disabled = false; });
+    });
+  }
+
+  var importCvBtn = document.getElementById('importCvBtn');
+  var cvImportFile = document.getElementById('cvImportFile');
+  var cvImportStatus = document.getElementById('cvImportStatus');
+  if (importCvBtn && cvImportFile) {
+    importCvBtn.addEventListener('click', function () { cvImportFile.click(); });
+    cvImportFile.addEventListener('change', function () {
+      if (!cvImportFile.files || !cvImportFile.files[0]) return;
+      var data = new FormData();
+      data.append('cv', cvImportFile.files[0]);
+      importCvBtn.disabled = true;
+      var originalLabel = importCvBtn.innerHTML;
+      importCvBtn.textContent = 'Reading…';
+
+      var setStatus = function (text, isError) {
+        if (!cvImportStatus) return;
+        cvImportStatus.textContent = text;
+        cvImportStatus.classList.remove('d-none');
+        cvImportStatus.classList.toggle('text-danger', Boolean(isError));
+      };
+      var setValue = function (id, value) {
+        var el = document.getElementById(id);
+        if (el && value) el.value = value;
+      };
+
+      apiFetch('/profile/consultant/import-cv', { method: 'POST', body: data })
+        .then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
+        .then(function (result) {
+          if (!result.ok || !result.body.success) {
+            setStatus((result.body && result.body.error) || 'That file could not be imported.', true);
+            return;
+          }
+          var f = result.body.fields;
+          setValue('given_name', f.given_name);
+          setValue('family_name', f.family_name);
+          setValue('phone', f.phone);
+          setValue('headline', f.headline);
+          setValue('city', f.city);
+          setValue('bio', f.bio);
+          if (f.years_experience) setValue('years_experience', f.years_experience);
+
+          var countrySelect = document.getElementById('country');
+          if (countrySelect && f.country) {
+            var wanted = f.country.trim().toLowerCase();
+            for (var i = 0; i < countrySelect.options.length; i += 1) {
+              if (countrySelect.options[i].text.trim().toLowerCase() === wanted) {
+                countrySelect.selectedIndex = i;
+                break;
+              }
+            }
+          }
+
+          var skillsInput = document.getElementById('skills');
+          if (skillsInput && f.skills && f.skills.length) {
+            var existing = skillsInput.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+            var merged = existing.slice();
+            f.skills.forEach(function (s) {
+              if (merged.indexOf(s) === -1) merged.push(s);
+            });
+            skillsInput.value = merged.join(', ');
+          }
+
+          setStatus('Imported. Review the fields below, then save.', false);
+        })
+        .catch(function () { setStatus('That file could not be imported.', true); })
+        .finally(function () {
+          importCvBtn.disabled = false;
+          importCvBtn.innerHTML = originalLabel;
+          cvImportFile.value = '';
+        });
+    });
+  }
 })();

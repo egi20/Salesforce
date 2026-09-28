@@ -97,6 +97,9 @@
             <hr>
             <h2 class="h6">Contact</h2>
             <p class="mb-1"><a href="mailto:<%= profile.email %>"><%= profile.email %></a></p>
+            <% if (profile.phone) { %>
+              <p class="mb-1"><%= profile.phone %></p>
+            <% } %>
             <% if (profile.linkedin_url) { %>
               <%
                 /* Labelled as a link the member gave us, because that is all it is —

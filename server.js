@@ -31,6 +31,7 @@ const legal = require('./config/legal');
 const { assertIssueIntegrity } = require('./config/issues');
 const { assertPlacementIntegrity } = require('./config/placements');
 const { assertTestSuiteIntegrity } = require('./config/adminTests');
+const { assertCvImportIntegrity } = require('./config/cvImport');
 const AppSetting = require('./models/AppSetting');
 const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
@@ -88,6 +89,7 @@ assertIssueIntegrity();
 // €47,350.00 at 15.00% is €7,102.50, and their checkout charges €7,103.00.
 assertPlacementIntegrity();
 assertTestSuiteIntegrity();
+assertCvImportIntegrity();
 legal.warnIfUnconfigured();
 
 const app = express();

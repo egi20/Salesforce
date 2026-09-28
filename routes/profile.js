@@ -11,7 +11,9 @@ const Skill = require('../models/Skill');
 const { isAuthenticated, isConsultant, isCompany } = require('../middleware/auth');
 const { writeLimiter, passwordLimiter } = require('../middleware/rateLimit');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { singleImage } = require('../middleware/fileUpload');
+const { singleImage, singleCv } = require('../middleware/fileUpload');
+const { extractText } = require('../utils/cvText');
+const { importFromText } = require('../utils/cvImport');
 const { requireIdParam } = require('../utils/ids');
 const { sanitizeRichText } = require('../utils/sanitize');
 const { ROLE_CATEGORIES, ROLE_SLUGS } = require('../config/roleTaxonomy');
@@ -145,13 +147,20 @@ router.post(
     body('headline').optional({ checkFalsy: true }).isLength({ max: 200 }),
     body('primary_role').optional({ checkFalsy: true }).isIn(ROLE_SLUGS),
     body('day_rate').optional({ checkFalsy: true }).isFloat({ min: 0, max: 100000 }),
-    body('years_experience').optional({ checkFalsy: true }).isInt({ min: 0, max: 60 })
+    body('years_experience').optional({ checkFalsy: true }).isInt({ min: 0, max: 60 }),
+    body('given_name').optional({ checkFalsy: true }).isLength({ max: 100 }),
+    body('family_name').optional({ checkFalsy: true }).isLength({ max: 100 }),
+    body('phone').optional({ checkFalsy: true }).isLength({ max: 40 })
   ],
   asyncHandler(async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       req.flash('error', errors.array()[0].msg || 'Please check the form.');
       return res.redirect('/profile/consultant');
+    }
+
+    if (req.body.given_name || req.body.family_name) {
+      await User.updateName(req.session.user.id, `${req.body.given_name || ''} ${req.body.family_name || ''}`);
     }
 
     await ConsultantProfile.update(req.session.user.id, {
@@ -162,6 +171,7 @@ router.post(
       years_experience: req.body.years_experience || null,
       country: /^[A-Z]{2}$/.test(req.body.country || '') ? req.body.country : null,
       city: req.body.city || null,
+      phone: req.body.phone || null,
       work_mode: req.body.work_mode || 'remote',
       willing_to_travel: req.body.willing_to_travel === 'on' ? 1 : 0,
       day_rate: req.body.day_rate || null,
@@ -230,6 +240,50 @@ router.post(
       req.flash('error', 'That file could not be read as an image.');
     }
     return res.redirect('/profile/consultant');
+  })
+);
+
+router.post(
+  '/consultant/photo/remove',
+  isConsultant,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    await ImageBlob.remove('consultant_photos', req.session.user.id);
+    await ConsultantProfile.setProfilePicture(req.session.user.id, null);
+    req.flash('success', 'Photo removed.');
+    return res.redirect('/profile/consultant');
+  })
+);
+
+/**
+ * "Import from CV": reads the upload, extracts plain text, hands it to the model, and
+ * returns the fields as JSON — it never writes to the profile itself. The browser fills
+ * the form with what comes back and the consultant saves (or edits, or discards) exactly
+ * like any other change on this page. Errors are JSON with a 4xx/5xx, since the caller is
+ * a fetch() from the page, not a full-page form post.
+ */
+router.post(
+  '/consultant/import-cv',
+  isConsultant,
+  writeLimiter,
+  singleCv('cv'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Please choose a .docx or .txt file.' });
+    }
+
+    let text;
+    try {
+      text = extractText(req.file.buffer, req.file.mimetype);
+    } catch (err) {
+      return res.status(400).json({ success: false, error: 'That file could not be read.' });
+    }
+
+    const result = await importFromText(text, { userId: req.session.user.id });
+    if (!result.ok) {
+      return res.status(422).json({ success: false, error: result.reason });
+    }
+    return res.json({ success: true, fields: result.fields });
   })
 );
 

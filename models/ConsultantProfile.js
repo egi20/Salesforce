@@ -178,7 +178,7 @@ class ConsultantProfile {
       'headline', 'bio', 'primary_role', 'seniority', 'years_experience',
       'country', 'city', 'timezone', 'work_mode', 'willing_to_travel',
       'day_rate', 'currency', 'availability', 'available_from',
-      'linkedin_url', 'website_url', 'trailblazer_url'
+      'linkedin_url', 'website_url', 'trailblazer_url', 'phone'
     ];
 
     const sets = [];

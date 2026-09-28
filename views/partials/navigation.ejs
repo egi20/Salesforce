@@ -113,6 +113,11 @@
 
       <ul class="navbar-nav align-items-lg-center">
         <% if (currentUser) { %>
+          <%
+            const profileHref = currentUser.isCompany ? '/profile/company'
+              : currentUser.isRecruiter ? '/recruiters/profile'
+              : '/profile/consultant';
+          %>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button"
                data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
@@ -120,28 +125,82 @@
                    src="<%= currentUser.profilePicture || '/images/avatar-placeholder-nav.svg' %>" alt="">
               <span class="d-none d-lg-inline"><%= currentUser.name %></span>
             </a>
-            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-              <li><a class="dropdown-item" href="/dashboard"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-              <li><a class="dropdown-item" href="/community/new"><i class="bi bi-pencil"></i> Write a post</a></li>
-              <li><a class="dropdown-item" href="/messages"><i class="bi bi-chat-dots"></i> Messages
-                <span class="notif-dot d-none" id="messageCount" aria-live="polite"></span></a></li>
-              <li><a class="dropdown-item" href="/notifications"><i class="bi bi-bell"></i> Notifications
-                <span class="notif-dot d-none" id="notifCount" aria-live="polite"></span></a></li>
-              <li><a class="dropdown-item" href="/payments/history"><i class="bi bi-receipt"></i> Payments &amp; invoices</a></li>
-              <li><a class="dropdown-item" href="/referrals"><i class="bi bi-people"></i> Refer someone</a></li>
-              <li><a class="dropdown-item" href="/profile/settings"><i class="bi bi-gear"></i> Settings</a></li>
-              <% if (currentUser.isAdmin) { %>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="/admin"><i class="bi bi-shield-lock"></i> Admin</a></li>
+            <div class="dropdown-menu dropdown-menu-end shadow-sm account-menu" id="accountMenu">
+              <div class="account-menu-header">
+                <img class="avatar" style="width:48px;height:48px"
+                     src="<%= currentUser.profilePicture || '/images/avatar-placeholder-nav.svg' %>" alt="">
+                <div class="account-menu-identity">
+                  <div class="account-menu-name"><%= currentUser.name %></div>
+                  <div class="account-menu-email"><%= currentUser.email %></div>
+                  <div class="account-menu-badges">
+                    <% if (currentUser.isConsultant) { %><span class="badge-hub cloud">CONSULTANT</span><% } %>
+                    <% if (currentUser.isCompany) { %><span class="badge-hub cloud">COMPANY</span><% } %>
+                    <% if (currentUser.isRecruiter) { %><span class="badge-hub cloud">RECRUITER</span><% } %>
+                    <% if (currentUser.isPartner) { %><span class="badge-hub cloud">PARTNER</span><% } %>
+                    <% if (currentUser.isAdmin) { %><span class="badge-hub cloud">ADMIN</span><% } %>
+                  </div>
+                </div>
+              </div>
+
+              <div class="account-menu-notifications">
+                <div class="account-menu-notif-head">
+                  <span><i class="bi bi-bell"></i> Notifications</span>
+                  <span class="account-menu-notif-actions">
+                    <a href="/notifications">Show all</a> ·
+                    <form method="post" action="/notifications/read-all" class="d-inline" data-no-guard="true">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <button type="submit" class="btn btn-link btn-sm p-0 align-baseline">Mark all read</button>
+                    </form>
+                  </span>
+                </div>
+                <div id="accountMenuNotifications">
+                  <p class="account-menu-notif-empty"><i class="bi bi-bell-slash"></i>No new notifications</p>
+                </div>
+              </div>
+
+              <div class="account-menu-quicklinks">
+                <a href="/dashboard"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+                <a href="<%= profileHref %>"><i class="bi bi-person"></i><span>Profile</span></a>
+                <a href="/messages"><i class="bi bi-chat-dots"></i><span>Messages
+                  <span class="notif-dot d-none" id="messageCount" aria-live="polite"></span></span></a>
+                <a href="/profile/settings"><i class="bi bi-gear"></i><span>Settings</span></a>
+              </div>
+
+              <% if (currentUser.isConsultant) { %>
+                <div class="account-menu-section-label">Consultant</div>
+                <a class="dropdown-item" href="/profile/consultant"><i class="bi bi-person-gear"></i> Build Profile</a>
+                <a class="dropdown-item" href="/dashboard/applications"><i class="bi bi-send"></i> My Applications</a>
+                <a class="dropdown-item" href="/dashboard/saved"><i class="bi bi-bookmark"></i> Saved Jobs</a>
+                <a class="dropdown-item" href="/profile/consultant/download/package"><i class="bi bi-file-earmark-arrow-down"></i> CV &amp; Rate Card</a>
               <% } %>
-              <li><hr class="dropdown-divider"></li>
-              <li>
-                <form method="post" action="/auth/logout" class="px-3 py-1">
+              <% if (currentUser.isCompany) { %>
+                <div class="account-menu-section-label">Company</div>
+                <a class="dropdown-item" href="/profile/company"><i class="bi bi-building-gear"></i> Company Profile</a>
+                <a class="dropdown-item" href="/dashboard/jobs"><i class="bi bi-briefcase"></i> Your Roles</a>
+                <a class="dropdown-item" href="/jobs/new"><i class="bi bi-plus-square"></i> Post a Role</a>
+              <% } %>
+              <% if (currentUser.isRecruiter) { %>
+                <div class="account-menu-section-label">Recruiter</div>
+                <a class="dropdown-item" href="/recruiters/dashboard"><i class="bi bi-speedometer2"></i> Recruiter Dashboard</a>
+                <a class="dropdown-item" href="/recruiters/profile"><i class="bi bi-building-gear"></i> Agency Profile</a>
+              <% } %>
+
+              <hr class="dropdown-divider">
+              <a class="dropdown-item" href="/community/new"><i class="bi bi-pencil"></i> Write a post</a>
+              <a class="dropdown-item" href="/payments/history"><i class="bi bi-receipt"></i> Payments &amp; invoices</a>
+              <a class="dropdown-item" href="/referrals"><i class="bi bi-people"></i> Refer someone</a>
+              <% if (currentUser.isAdmin) { %>
+                <a class="dropdown-item" href="/admin"><i class="bi bi-shield-lock"></i> Admin</a>
+              <% } %>
+
+              <div class="account-menu-footer">
+                <span class="badge-hub cloud" id="accountMenuLevel">Level —</span>
+                <form method="post" action="/auth/logout" class="mb-0">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <button class="btn btn-link p-0 text-decoration-none" type="submit">Sign out</button>
+                  <button class="btn btn-link btn-sm p-0 text-decoration-none" type="submit">Sign out</button>
                 </form>
-              </li>
-            </ul>
+              </div>
+            </div>
           </li>
         <% } else { %>
           <li class="nav-item"><a class="nav-link" href="/auth/login">Sign in</a></li>

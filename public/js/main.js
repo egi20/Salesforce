@@ -36,7 +36,6 @@
       .catch(function () { /* decorative only */ });
   }
 
-  fillBadge('notifCount', '/notifications/unread-count');
   fillBadge('messageCount', '/messages/unread-count');
 
   /**
@@ -159,6 +158,45 @@
     });
     document.addEventListener('click', function (event) {
       if (navSearch.open && !navSearch.contains(event.target)) navSearch.open = false;
+    });
+  }
+
+  /**
+   * Account menu: recent notifications and the points level are fetched once when the
+   * menu first opens, not on every page render — the same reasoning as the unread badge,
+   * just for a panel instead of a count. Notification titles can contain another
+   * account's chosen display name, so they are set with textContent, never innerHTML.
+   */
+  var accountMenuToggle = document.querySelector('#accountMenu')
+    ? document.querySelector('#accountMenu').closest('.dropdown')
+    : null;
+  if (accountMenuToggle) {
+    var summaryLoaded = false;
+    accountMenuToggle.addEventListener('show.bs.dropdown', function () {
+      if (summaryLoaded) return;
+      summaryLoaded = true;
+      apiFetch('/dashboard/nav-summary')
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (!data || !data.success) return;
+
+          var levelEl = document.getElementById('accountMenuLevel');
+          if (levelEl) levelEl.textContent = 'Level ' + data.level + ' · ' + data.levelTitle;
+
+          var list = document.getElementById('accountMenuNotifications');
+          if (!list || !data.notifications || data.notifications.length === 0) return;
+          list.textContent = '';
+          data.notifications.forEach(function (n) {
+            var item = document.createElement('a');
+            item.className = 'account-menu-notif-item' + (n.unread ? ' is-unread' : '');
+            item.href = typeof n.link === 'string' && n.link.charAt(0) === '/' ? n.link : '/notifications';
+            item.textContent = n.title;
+            list.appendChild(item);
+          });
+        })
+        .catch(function () {
+          summaryLoaded = false; /* decorative only, but allow a retry on next open */
+        });
     });
   }
 })();

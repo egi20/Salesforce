@@ -442,6 +442,106 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   object-fit: cover;
 }
 
+/*
+ * The account menu: a header card, a notifications preview, quick-link icons, a
+ * role-specific section and a footer — wider than a plain dropdown, so it gets its own
+ * width and internal spacing rather than stretching .dropdown-item everywhere.
+ */
+.account-menu {
+  width: 22rem;
+  max-width: calc(100vw - 2rem);
+  padding: var(--space-3) 0;
+}
+.account-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 var(--space-3) var(--space-3);
+}
+.account-menu-identity { min-width: 0; flex: 1 1 auto; }
+.account-menu-name { font-weight: 700; color: var(--primary-navy); }
+.account-menu-email {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-menu-badges { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.35rem; }
+.account-menu-badges .badge-hub { font-size: 0.65rem; letter-spacing: 0.02em; }
+
+.account-menu-notifications {
+  padding: var(--space-3);
+  border-top: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+}
+.account-menu-notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  color: var(--primary-navy);
+  margin-bottom: 0.5rem;
+}
+.account-menu-notif-actions { font-size: 0.75rem; font-weight: 400; }
+.account-menu-notif-actions a,
+.account-menu-notif-actions .btn-link { color: var(--primary-blue); text-decoration: underline; font-size: 0.75rem; }
+.account-menu-notif-empty {
+  text-align: center;
+  color: var(--text-light);
+  font-size: 0.85rem;
+  margin: 0.5rem 0;
+}
+.account-menu-notif-empty i { display: block; font-size: 1.4rem; margin-bottom: 0.25rem; }
+.account-menu-notif-item {
+  display: block;
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  color: var(--text-dark);
+}
+.account-menu-notif-item:hover { background: rgba(1, 118, 211, 0.08); text-decoration: none; }
+.account-menu-notif-item.is-unread { font-weight: 600; }
+
+.account-menu-quicklinks {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.25rem;
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--glass-border);
+}
+.account-menu-quicklinks a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.25rem;
+  border-radius: var(--radius-md);
+  color: var(--text-medium);
+  font-size: 0.75rem;
+  text-align: center;
+  position: relative;
+}
+.account-menu-quicklinks a i { font-size: 1.15rem; color: var(--primary-blue); }
+.account-menu-quicklinks a:hover { background: rgba(1, 118, 211, 0.08); color: var(--primary-blue); text-decoration: none; }
+
+.account-menu-section-label {
+  padding: 0.6rem var(--space-3) 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--primary-blue-dark);
+}
+
+.account-menu-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-3) 0;
+  margin-top: 0.25rem;
+}
+
 .notif-dot {
   display: inline-block;
   min-width: 18px;

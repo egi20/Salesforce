@@ -132,11 +132,16 @@ router.get('/faq', (req, res) => {
 });
 
 /**
- * Three explainer pages for the engagement models named in the Companies Hub menu.
- * Static content, one view, one data object — the same shape as PAGE_META, so a fourth
- * model is one entry rather than a fourth near-identical route and view.
+ * Explainer pages for items named in the Companies Hub and Services menus that don't map
+ * onto an existing route. Static content, one view, one data object — the same shape as
+ * PAGE_META, so a new entry is one object rather than a new route and view each time.
+ *
+ * 'dedupe' is honest rather than a stub pretending the feature exists: README already lists
+ * record deduplication under "deliberately not built yet", and a page that implied
+ * otherwise would be the exact kind of overclaim this codebase avoids everywhere else
+ * (see the tax-advisory and rate-index sections of CLAUDE.md).
  */
-const ENGAGEMENT_MODELS = {
+const SERVICE_PAGES = {
   'staff-augmentation': {
     heading: 'Staff augmentation',
     icon: 'bi-people',
@@ -169,11 +174,33 @@ const ENGAGEMENT_MODELS = {
       'A good fit once a build is live and needs someone to keep it running.'
     ],
     cta: { label: 'Browse consultants', href: '/consultants' }
+  },
+  'document-generator': {
+    heading: 'Document generator',
+    icon: 'bi-file-earmark-text',
+    intro: 'Every quote on the Hub can be turned into a matching SOW, work breakdown and summary deck — and every consultant profile into a CV and rate card.',
+    points: [
+      'A scope estimate becomes a downloadable SOW (.docx), work breakdown with Gantt (.xlsx) and summary deck (.pptx), zipped together — all three read the same stored figures, so they cannot contradict each other.',
+      'A consultant profile becomes a formatted CV and rate card on demand, rendered from the profile rather than written by anything else.',
+      'Nothing is generated until you ask for it, and nothing is stored afterwards — the source is always the quote or the profile, not the file.'
+    ],
+    cta: { label: 'Start a quote', href: '/quotes/new' }
+  },
+  dedupe: {
+    heading: 'Duplicate detection',
+    icon: 'bi-layers',
+    intro: 'Not built yet — listed here so nobody mistakes the scope.',
+    points: [
+      'Automatically catching duplicate leads, consultants or job posts is on the roadmap, not live today.',
+      'Nothing on the Hub currently merges or flags records as duplicates on its own.',
+      'If you’ve run into duplicate records, let us know — that shapes what gets built first.'
+    ],
+    cta: { label: 'Get in touch', href: '/contact' }
   }
 };
 
-router.get('/services/:model', (req, res, next) => {
-  const model = ENGAGEMENT_MODELS[req.params.model];
+router.get('/services/:page', (req, res, next) => {
+  const model = SERVICE_PAGES[req.params.page];
   if (!model) return next();
   res.render('services/engagement-model', { title: model.heading, model });
 });

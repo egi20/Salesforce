@@ -11,8 +11,8 @@
   -->
   <defs>
     <linearGradient id="hubGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#14b8a6"/>
-      <stop offset="1" stop-color="#0f766e"/>
+      <stop offset="0" stop-color="#0176d3"/>
+      <stop offset="1" stop-color="#032d60"/>
     </linearGradient>
   </defs>
 
@@ -24,7 +24,7 @@
     round a circle. "Connected" is the whole idea of the mark, so the connections have to
     survive the size it is actually used at.
   -->
-  <g stroke="#5eead4" stroke-width="5.5" stroke-linecap="round">
+  <g stroke="#7fb9e8" stroke-width="5.5" stroke-linecap="round">
     <line x1="32" y1="32" x2="32" y2="12"/>
     <line x1="32" y1="32" x2="49" y2="22"/>
     <line x1="32" y1="32" x2="49" y2="42"/>
@@ -42,6 +42,6 @@
     <circle cx="15" cy="22" r="6"/>
   </g>
 
-  <circle cx="32" cy="32" r="9.5" fill="#134e4a"/>
-  <circle cx="32" cy="32" r="4" fill="#2dd4bf"/>
+  <circle cx="32" cy="32" r="9.5" fill="#032d60"/>
+  <circle cx="32" cy="32" r="4" fill="#00a1e0"/>
 </svg>

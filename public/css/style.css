@@ -450,9 +450,20 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 .account-menu {
   width: 22rem;
   max-width: calc(100vw - 2rem);
-  max-height: calc(100vh - 6rem);
+  max-height: min(34rem, calc(100vh - 6rem));
   overflow-y: auto;
   padding: var(--space-3) 0;
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-blue) transparent;
+}
+/* Chrome/Edge/Safari — a visible right-hand scrollbar in the brand blue rather than the
+   browser's default grey, so the panel reads as deliberately scrollable, not just cut off. */
+.account-menu::-webkit-scrollbar { width: 8px; }
+.account-menu::-webkit-scrollbar-track { background: transparent; }
+.account-menu::-webkit-scrollbar-thumb {
+  background-color: var(--primary-blue);
+  border-radius: var(--radius-full);
 }
 .account-menu-header {
   display: flex;

@@ -1021,64 +1021,67 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
    NAVIGATION SEARCH
    ==========================================================================
 
-   A narrow box in the bar on large screens, full width once the menu collapses —
-   a search field squeezed to nothing on a phone is a field nobody uses.
+   A <details> disclosure: the browser owns the open/closed state, so a filled circular
+   toggle opens a small card underneath it with no JavaScript required. The old
+   inline-expanding input is gone — this is what actually matches the reference layout,
+   not an approximation of it.
  */
-.nav-search .form-control {
-  min-width: 9rem;
+.nav-search { position: relative; }
+.nav-search summary {
+  list-style: none;
+  cursor: pointer;
+}
+.nav-search summary::-webkit-details-marker { display: none; }
+.nav-search summary::marker { content: ''; }
+
+.nav-search-toggle {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--primary-blue);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-fast);
+}
+.nav-search-toggle:hover,
+.nav-search[open] .nav-search-toggle {
+  background: var(--primary-blue-dark);
+}
+
+.nav-search-panel {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  right: 0;
+  width: 18rem;
+  max-width: calc(100vw - 2rem);
+  background: var(--glass-bg-heavy);
+  backdrop-filter: var(--glass-blur-lg);
+  -webkit-backdrop-filter: var(--glass-blur-lg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--glass-shadow-lg);
+  padding: var(--space-3);
+  z-index: 1050;
+}
+.nav-search-panel .form-control {
   background: #fff;
   border-color: rgba(1, 118, 211, 0.25);
   color: var(--text-dark);
 }
-.nav-search .form-control::placeholder { color: var(--text-light); }
-.nav-search .form-control:focus {
-  background: #fff;
-  color: var(--text-dark);
+.nav-search-panel .form-control:focus {
   border-color: var(--primary-blue);
   box-shadow: 0 0 0 3px rgba(1, 118, 211, 0.15);
 }
-.nav-search .btn-outline-light {
-  border: 1.5px solid var(--primary-blue);
-  color: var(--primary-blue);
-  border-radius: 50%;
-  width: 2.25rem;
-  height: 2.25rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-}
-/*
- * Icon-only until clicked, on large screens. `.js-collapsible` is added by main.js, so
- * with scripting off the field stays visible and usable — the same progressive-
- * enhancement pattern head.ejs uses for `.js-reveal`.
- */
-@media (min-width: 992px) {
-  .nav-search.js-collapsible:not(.is-open) .nav-search-input {
-    width: 0;
-    min-width: 0;
-    opacity: 0;
-    padding: 0;
-    border: none;
-    margin: 0;
-    pointer-events: none;
-  }
-  .nav-search.js-collapsible.is-open .nav-search-input {
-    width: 10rem;
-    opacity: 1;
-    margin-right: 0.4rem;
-  }
-}
-
-.nav-search .btn-outline-light:hover {
-  background: var(--primary-blue);
-  border-color: var(--primary-blue);
-  color: #fff;
+.nav-search-hint {
+  margin: 0.6rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-light);
 }
 
 @media (max-width: 991.98px) {
-  .nav-search { width: 100%; }
-  .nav-search .form-control { min-width: 0; }
+  .nav-search-panel { position: static; width: 100%; margin-top: 0.5rem; box-shadow: none; }
 }
 
 /* ============================================================================

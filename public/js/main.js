@@ -147,26 +147,18 @@
   }
 
   /**
-   * Navbar search: icon-only until clicked, on large screens. The form still submits and
-   * still works with scripting off — `.js-collapsible` is only added here, so the CSS rule
-   * that hides the field never applies without this running.
+   * Navbar search: the <details> element already opens and closes the panel without any
+   * JavaScript. This only adds convenience on top — focus the field on open, and close on
+   * an outside click, so it behaves like the dropdowns next to it.
    */
   var navSearch = document.querySelector('.nav-search');
   if (navSearch) {
     var navSearchInput = navSearch.querySelector('.nav-search-input');
-    var navSearchBtn = navSearch.querySelector('button[type="submit"]');
-    if (navSearchInput && navSearchBtn) {
-      navSearch.classList.add('js-collapsible');
-      navSearchBtn.addEventListener('click', function (event) {
-        if (!navSearch.classList.contains('is-open')) {
-          event.preventDefault();
-          navSearch.classList.add('is-open');
-          navSearchInput.focus();
-        }
-      });
-      navSearchInput.addEventListener('blur', function () {
-        if (!navSearchInput.value) navSearch.classList.remove('is-open');
-      });
-    }
+    navSearch.addEventListener('toggle', function () {
+      if (navSearch.open && navSearchInput) navSearchInput.focus();
+    });
+    document.addEventListener('click', function (event) {
+      if (navSearch.open && !navSearch.contains(event.target)) navSearch.open = false;
+    });
   }
 })();

@@ -103,19 +103,22 @@
 
       <%
         /*
-         * A plain GET form. It works with scripting off, it is bookmarkable, and it
-         * carries no token because it changes nothing — a search is a read.
+         * <details>/<summary> rather than a JS-toggled dropdown: the browser opens and
+         * closes the panel natively, so with scripting off the search field is still one
+         * click away instead of permanently hidden. The form inside still just GETs
+         * /search — no token, because a search changes nothing.
          */
       %>
-      <form class="d-flex nav-search me-lg-3 my-2 my-lg-0" method="get" action="/search" role="search">
-        <label class="visually-hidden" for="navSearch">Search the Hub</label>
-        <input class="form-control form-control-sm nav-search-input" id="navSearch" name="q" type="search" maxlength="120"
-               value="<%= currentPath === '/search' && query && query.q ? query.q : '' %>"
-               placeholder="Search…" aria-label="Search the Hub">
-        <button class="btn btn-sm btn-outline-light ms-1" type="submit" aria-label="Search">
-          <i class="bi bi-search"></i>
-        </button>
-      </form>
+      <details class="nav-search me-lg-3 my-2 my-lg-0">
+        <summary class="nav-search-toggle" aria-label="Search"><i class="bi bi-search"></i></summary>
+        <form class="nav-search-panel shadow-sm" method="get" action="/search" role="search">
+          <label class="visually-hidden" for="navSearch">Search the Hub</label>
+          <input class="form-control nav-search-input" id="navSearch" name="q" type="search" maxlength="120"
+                 value="<%= currentPath === '/search' && query && query.q ? query.q : '' %>"
+                 placeholder="Search jobs, consultants, companies…" aria-label="Search the Hub">
+          <p class="nav-search-hint">Search jobs, consultants, companies and community posts</p>
+        </form>
+      </details>
 
       <ul class="navbar-nav align-items-lg-center">
         <% if (currentUser) { %>

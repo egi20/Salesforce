@@ -166,28 +166,27 @@
                 <a href="/profile/settings"><i class="bi bi-gear"></i><span>Settings</span></a>
               </div>
 
-              <% if (currentUser.isConsultant) { %>
-                <div class="account-menu-section-label">Consultant</div>
-                <a class="dropdown-item" href="/profile/consultant"><i class="bi bi-person-gear"></i> Build Profile</a>
-                <a class="dropdown-item" href="/dashboard/applications"><i class="bi bi-send"></i> My Applications</a>
-                <a class="dropdown-item" href="/profile/consultant/download/package"><i class="bi bi-file-earmark-arrow-down"></i> Documents</a>
-                <a class="dropdown-item" href="/services/document-generator"><i class="bi bi-file-earmark-text"></i> Document Templates</a>
-                <a class="dropdown-item" href="/dashboard/saved"><i class="bi bi-bookmark"></i> Saved Jobs</a>
-                <a class="dropdown-item" href="/challenges"><i class="bi bi-trophy"></i> Challenges</a>
-              <% } %>
+              <div class="account-menu-section-label"><i class="bi bi-person-badge"></i> Consultant</div>
+              <a class="dropdown-item" href="/profile/consultant"><i class="bi bi-person-gear"></i> Build Profile</a>
+              <a class="dropdown-item" href="/dashboard/applications"><i class="bi bi-send"></i> My Applications</a>
+              <a class="dropdown-item" href="/profile/consultant/download/package"><i class="bi bi-file-earmark-arrow-down"></i> Documents</a>
+              <a class="dropdown-item" href="/services/document-generator"><i class="bi bi-file-earmark-text"></i> Document Templates</a>
+              <a class="dropdown-item" href="/dashboard/saved"><i class="bi bi-bookmark"></i> Saved Jobs</a>
+              <a class="dropdown-item" href="/challenges"><i class="bi bi-trophy"></i> Challenges</a>
+
               <% if (currentUser.isCompany) { %>
-                <div class="account-menu-section-label">Company</div>
+                <div class="account-menu-section-label"><i class="bi bi-building"></i> Company</div>
                 <a class="dropdown-item" href="/profile/company"><i class="bi bi-building-gear"></i> Company Profile</a>
                 <a class="dropdown-item" href="/dashboard/jobs"><i class="bi bi-briefcase"></i> Your Roles</a>
                 <a class="dropdown-item" href="/jobs/new"><i class="bi bi-plus-square"></i> Post a Role</a>
               <% } %>
               <% if (currentUser.isRecruiter) { %>
-                <div class="account-menu-section-label">Recruiter</div>
+                <div class="account-menu-section-label"><i class="bi bi-person-rolodex"></i> Recruiter</div>
                 <a class="dropdown-item" href="/recruiters/dashboard"><i class="bi bi-speedometer2"></i> Recruiter Dashboard</a>
                 <a class="dropdown-item" href="/recruiters/profile"><i class="bi bi-building-gear"></i> Agency Profile</a>
               <% } %>
 
-              <div class="account-menu-section-label">Referrals</div>
+              <div class="account-menu-section-label"><i class="bi bi-graph-up-arrow"></i> Referrals</div>
               <a class="dropdown-item" href="/referrals"><i class="bi bi-speedometer2"></i> Agent Dashboard</a>
               <a class="dropdown-item" href="/referrals"><i class="bi bi-people"></i> My Leads</a>
 

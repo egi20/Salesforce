@@ -37,6 +37,9 @@ const { writeLimiter } = require('../middleware/rateLimit');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireIdParam } = require('../utils/ids');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
+const { TEST_SUITE, totalTestCount } = require('../config/adminTests');
+const AdminTestRun = require('../models/AdminTestRun');
+const { runSuite } = require('../utils/adminTestRunner');
 
 const router = express.Router();
 
@@ -995,6 +998,54 @@ router.post(
       req.flash('error', err.message);
     }
     return res.redirect(returnTo(req, '/admin/issues'));
+  })
+);
+
+/**
+ * The automated-testing panel. Test cases come from config/adminTests.js; this route only
+ * reads run history and, on POST, triggers a run — see migration 027 and
+ * utils/adminTestRunner.js for why results are the only thing this ever writes.
+ */
+router.get(
+  '/tests',
+  asyncHandler(async (req, res) => {
+    const [lastRun, totalRuns] = await Promise.all([AdminTestRun.lastRun(), AdminTestRun.totalRuns()]);
+    const lastResults = lastRun ? await AdminTestRun.resultsFor(lastRun.runBatch) : {};
+
+    res.render('admin/tests', {
+      title: 'Automated testing',
+      suite: TEST_SUITE,
+      totalTests: totalTestCount(),
+      categoryCount: TEST_SUITE.length,
+      lastRun,
+      totalRuns,
+      lastResults
+    });
+  })
+);
+
+router.post(
+  '/tests/run',
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const summary = await runSuite({ runBy: req.session.user.id });
+    req.flash('success', `${summary.passed}/${summary.total} tests passed.`);
+    return res.redirect('/admin/tests');
+  })
+);
+
+router.post(
+  '/tests/run-category',
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const category = TEST_SUITE.find((g) => g.category === req.body.category);
+    if (!category) {
+      req.flash('error', 'Unknown test category.');
+      return res.redirect('/admin/tests');
+    }
+    const summary = await runSuite({ category: category.category, runBy: req.session.user.id });
+    req.flash('success', `${category.category}: ${summary.passed}/${summary.total} tests passed.`);
+    return res.redirect('/admin/tests');
   })
 );
 

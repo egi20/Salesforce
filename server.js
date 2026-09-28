@@ -30,6 +30,7 @@ const { assertFinanceIntegrity } = require('./config/finance');
 const legal = require('./config/legal');
 const { assertIssueIntegrity } = require('./config/issues');
 const { assertPlacementIntegrity } = require('./config/placements');
+const { assertTestSuiteIntegrity } = require('./config/adminTests');
 const AppSetting = require('./models/AppSetting');
 const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
@@ -86,6 +87,7 @@ assertIssueIntegrity();
 // The placement fee arithmetic, with the case that exposes the reference's rounding bug:
 // €47,350.00 at 15.00% is €7,102.50, and their checkout charges €7,103.00.
 assertPlacementIntegrity();
+assertTestSuiteIntegrity();
 legal.warnIfUnconfigured();
 
 const app = express();

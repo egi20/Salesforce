@@ -36,6 +36,7 @@ check('invoice lifecycle and line arithmetic are consistent', () => require('../
 check('legal controller config loads', () => require('../config/legal'));
 check('issue lifecycle is consistent', () => require('../config/issues').assertIssueIntegrity());
 check('placement fee arithmetic is consistent', () => require('../config/placements').assertPlacementIntegrity());
+check('admin test suite is consistent', () => require('../config/adminTests').assertTestSuiteIntegrity());
 check('country list is non-empty', () => {
   const countries = require('../config/all-countries.json');
   if (!Array.isArray(countries) || countries.length < 100) throw new Error(`only ${countries.length} countries`);

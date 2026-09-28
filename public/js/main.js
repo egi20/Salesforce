@@ -145,4 +145,28 @@
     isCurrent.addEventListener('change', syncCurrent);
     syncCurrent();
   }
+
+  /**
+   * Navbar search: icon-only until clicked, on large screens. The form still submits and
+   * still works with scripting off — `.js-collapsible` is only added here, so the CSS rule
+   * that hides the field never applies without this running.
+   */
+  var navSearch = document.querySelector('.nav-search');
+  if (navSearch) {
+    var navSearchInput = navSearch.querySelector('.nav-search-input');
+    var navSearchBtn = navSearch.querySelector('button[type="submit"]');
+    if (navSearchInput && navSearchBtn) {
+      navSearch.classList.add('js-collapsible');
+      navSearchBtn.addEventListener('click', function (event) {
+        if (!navSearch.classList.contains('is-open')) {
+          event.preventDefault();
+          navSearch.classList.add('is-open');
+          navSearchInput.focus();
+        }
+      });
+      navSearchInput.addEventListener('blur', function () {
+        if (!navSearchInput.value) navSearch.classList.remove('is-open');
+      });
+    }
+  }
 })();

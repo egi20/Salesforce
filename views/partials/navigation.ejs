@@ -124,7 +124,7 @@
       %>
       <form class="d-flex nav-search me-lg-3 my-2 my-lg-0" method="get" action="/search" role="search">
         <label class="visually-hidden" for="navSearch">Search the Hub</label>
-        <input class="form-control form-control-sm" id="navSearch" name="q" type="search" maxlength="120"
+        <input class="form-control form-control-sm nav-search-input" id="navSearch" name="q" type="search" maxlength="120"
                value="<%= currentPath === '/search' && query && query.q ? query.q : '' %>"
                placeholder="Search…" aria-label="Search the Hub">
         <button class="btn btn-sm btn-outline-light ms-1" type="submit" aria-label="Search">
@@ -150,7 +150,7 @@
             <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button"
                data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
               <img class="avatar" style="width:30px;height:30px"
-                   src="<%= currentUser.profilePicture || '/images/avatar-placeholder.svg' %>" alt="">
+                   src="<%= currentUser.profilePicture || '/images/avatar-placeholder-nav.svg' %>" alt="">
               <span class="d-none d-lg-inline"><%= currentUser.name %></span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end shadow-sm">

@@ -190,6 +190,10 @@
               <a class="dropdown-item" href="/referrals"><i class="bi bi-speedometer2"></i> Agent Dashboard</a>
               <a class="dropdown-item" href="/referrals"><i class="bi bi-people"></i> My Leads</a>
 
+              <% if (currentUser.isAdmin) { %>
+                <a class="dropdown-item" href="/admin"><i class="bi bi-shield-lock"></i> Admin Panel</a>
+              <% } %>
+
               <form method="post" action="/auth/logout" data-no-guard="true">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <button class="dropdown-item account-menu-signout" type="submit">

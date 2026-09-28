@@ -190,20 +190,12 @@
               <a class="dropdown-item" href="/referrals"><i class="bi bi-speedometer2"></i> Agent Dashboard</a>
               <a class="dropdown-item" href="/referrals"><i class="bi bi-people"></i> My Leads</a>
 
-              <hr class="dropdown-divider">
-              <a class="dropdown-item" href="/community/new"><i class="bi bi-pencil"></i> Write a post</a>
-              <a class="dropdown-item" href="/payments/history"><i class="bi bi-receipt"></i> Payments &amp; invoices</a>
-              <% if (currentUser.isAdmin) { %>
-                <a class="dropdown-item" href="/admin"><i class="bi bi-shield-lock"></i> Admin</a>
-              <% } %>
-
-              <div class="account-menu-footer">
-                <span class="badge-hub cloud" id="accountMenuLevel">Level —</span>
-                <form method="post" action="/auth/logout" class="mb-0">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <button class="btn btn-link btn-sm p-0 text-decoration-none" type="submit">Sign out</button>
-                </form>
-              </div>
+              <form method="post" action="/auth/logout" data-no-guard="true">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="dropdown-item account-menu-signout" type="submit">
+                  <i class="bi bi-box-arrow-right"></i> Sign Out
+                </button>
+              </form>
             </div>
           </li>
         <% } else { %>

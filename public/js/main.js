@@ -162,10 +162,10 @@
   }
 
   /**
-   * Account menu: recent notifications and the points level are fetched once when the
-   * menu first opens, not on every page render — the same reasoning as the unread badge,
-   * just for a panel instead of a count. Notification titles can contain another
-   * account's chosen display name, so they are set with textContent, never innerHTML.
+   * Account menu: recent notifications are fetched once when the menu first opens, not on
+   * every page render — the same reasoning as the unread badge, just for a panel instead
+   * of a count. Notification titles can contain another account's chosen display name, so
+   * they are set with textContent, never innerHTML.
    */
   var accountMenuToggle = document.querySelector('#accountMenu')
     ? document.querySelector('#accountMenu').closest('.dropdown')
@@ -179,9 +179,6 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) {
           if (!data || !data.success) return;
-
-          var levelEl = document.getElementById('accountMenuLevel');
-          if (levelEl) levelEl.textContent = 'Level ' + data.level + ' · ' + data.levelTitle;
 
           var list = document.getElementById('accountMenuNotifications');
           if (!list || !data.notifications || data.notifications.length === 0) return;

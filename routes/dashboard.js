@@ -7,7 +7,6 @@ const Application = require('../models/Application');
 const ConsultantProfile = require('../models/ConsultantProfile');
 const Skill = require('../models/Skill');
 const Notification = require('../models/Notification');
-const Points = require('../models/Points');
 const User = require('../models/User');
 const { isAuthenticated, isCompany, isConsultant } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
@@ -69,18 +68,14 @@ router.get(
 );
 
 /**
- * One small JSON call for the account-menu panel: recent notifications plus the points
- * level, fetched lazily when the menu opens rather than on every page render — the same
- * reason the unread badge is a separate fetch instead of a server-side include.
+ * One small JSON call for the account-menu panel's notification preview, fetched lazily
+ * when the menu opens rather than on every page render — the same reason the unread badge
+ * is a separate fetch instead of a server-side include.
  */
 router.get(
   '/nav-summary',
   asyncHandler(async (req, res) => {
-    const userId = req.session.user.id;
-    const [notifications, standing] = await Promise.all([
-      Notification.listFor(userId, { limit: 4 }),
-      Points.standingFor(userId)
-    ]);
+    const notifications = await Notification.listFor(req.session.user.id, { limit: 4 });
     res.json({
       success: true,
       notifications: notifications.map((n) => ({
@@ -88,10 +83,7 @@ router.get(
         title: n.title,
         link: n.link,
         unread: !n.read_at
-      })),
-      level: standing.level,
-      levelTitle: standing.title,
-      points: standing.points
+      }))
     });
   })
 );

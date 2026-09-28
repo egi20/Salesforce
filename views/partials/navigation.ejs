@@ -170,8 +170,10 @@
                 <div class="account-menu-section-label">Consultant</div>
                 <a class="dropdown-item" href="/profile/consultant"><i class="bi bi-person-gear"></i> Build Profile</a>
                 <a class="dropdown-item" href="/dashboard/applications"><i class="bi bi-send"></i> My Applications</a>
+                <a class="dropdown-item" href="/profile/consultant/download/package"><i class="bi bi-file-earmark-arrow-down"></i> Documents</a>
+                <a class="dropdown-item" href="/services/document-generator"><i class="bi bi-file-earmark-text"></i> Document Templates</a>
                 <a class="dropdown-item" href="/dashboard/saved"><i class="bi bi-bookmark"></i> Saved Jobs</a>
-                <a class="dropdown-item" href="/profile/consultant/download/package"><i class="bi bi-file-earmark-arrow-down"></i> CV &amp; Rate Card</a>
+                <a class="dropdown-item" href="/challenges"><i class="bi bi-trophy"></i> Challenges</a>
               <% } %>
               <% if (currentUser.isCompany) { %>
                 <div class="account-menu-section-label">Company</div>
@@ -185,10 +187,13 @@
                 <a class="dropdown-item" href="/recruiters/profile"><i class="bi bi-building-gear"></i> Agency Profile</a>
               <% } %>
 
+              <div class="account-menu-section-label">Referrals</div>
+              <a class="dropdown-item" href="/referrals"><i class="bi bi-speedometer2"></i> Agent Dashboard</a>
+              <a class="dropdown-item" href="/referrals"><i class="bi bi-people"></i> My Leads</a>
+
               <hr class="dropdown-divider">
               <a class="dropdown-item" href="/community/new"><i class="bi bi-pencil"></i> Write a post</a>
               <a class="dropdown-item" href="/payments/history"><i class="bi bi-receipt"></i> Payments &amp; invoices</a>
-              <a class="dropdown-item" href="/referrals"><i class="bi bi-people"></i> Refer someone</a>
               <% if (currentUser.isAdmin) { %>
                 <a class="dropdown-item" href="/admin"><i class="bi bi-shield-lock"></i> Admin</a>
               <% } %>

@@ -405,7 +405,7 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   gap: 0.2rem;
 }
 @media (min-width: 992px) {
-  .navbar-hub .navbar-nav.me-auto { gap: 0.35rem; }
+  .navbar-hub .navbar-nav.mx-lg-auto { gap: 0.35rem; }
 }
 
 .navbar-hub .nav-link {

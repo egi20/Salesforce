@@ -131,6 +131,53 @@ router.get('/faq', (req, res) => {
   res.render('faq', { title: 'Frequently asked questions' });
 });
 
+/**
+ * Three explainer pages for the engagement models named in the Companies Hub menu.
+ * Static content, one view, one data object — the same shape as PAGE_META, so a fourth
+ * model is one entry rather than a fourth near-identical route and view.
+ */
+const ENGAGEMENT_MODELS = {
+  'staff-augmentation': {
+    heading: 'Staff augmentation',
+    icon: 'bi-people',
+    intro: 'Add certified Salesforce specialists to your existing team, working under your own delivery lead and your own backlog.',
+    points: [
+      'You keep the roadmap and the day-to-day work — the consultant reports into your team, not the other way round.',
+      'Engaged on a day rate, for as long as the work runs.',
+      'A good fit when you already have a delivery process and just need certified hands.'
+    ],
+    cta: { label: 'Browse consultants', href: '/consultants' }
+  },
+  'project-based': {
+    heading: 'Project-based delivery',
+    icon: 'bi-kanban',
+    intro: 'Scope a piece of work end to end — phases, team shape, timeline and budget — before anyone starts.',
+    points: [
+      'A phased plan with a fixed set of deliverables and a reconciled budget, not an open-ended day-rate clock.',
+      'Built from the same estimator that prices every quote on the Hub, so the figures reconcile line by line.',
+      'A good fit for a defined piece of work with a clear start and end.'
+    ],
+    cta: { label: 'Get a scope estimate', href: '/quotes/new' }
+  },
+  'managed-services': {
+    heading: 'Managed services',
+    icon: 'bi-gear',
+    intro: 'Ongoing support and enhancement of a live Salesforce org, without hiring a permanent admin.',
+    points: [
+      'A consultant or small team owns the org’s day-to-day health: fixes, small enhancements, release management.',
+      'Priced and agreed the same way as any other engagement on the Hub — nothing is billed that was not scoped first.',
+      'A good fit once a build is live and needs someone to keep it running.'
+    ],
+    cta: { label: 'Browse consultants', href: '/consultants' }
+  }
+};
+
+router.get('/services/:model', (req, res, next) => {
+  const model = ENGAGEMENT_MODELS[req.params.model];
+  if (!model) return next();
+  res.render('services/engagement-model', { title: model.heading, model });
+});
+
 router.get('/legal/privacy', (req, res) => {
   res.render('legal/privacy', {
     title: 'Privacy policy',

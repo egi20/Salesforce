@@ -135,6 +135,75 @@ function greetingFor(now) {
  * second half is the part worth having — every refusal listed there is a rule enforced in
  * the code, so if one stops being true the page is wrong and has to change with it.
  */
+/*
+ * Explainer pages for the engagement models named in the Companies Hub menu.
+ *
+ * Static content, one view, one data object — the same shape as PAGE_META, so a new entry
+ * is one object rather than a new route and view each time. Each one ends at a real page
+ * that already exists; none of them describes something the Hub cannot do.
+ */
+const SERVICE_PAGES = {
+  'staff-augmentation': {
+    heading: 'Staff augmentation',
+    icon: 'bi-people',
+    intro: 'Add certified Salesforce specialists to your existing team, working under your own delivery lead and your own backlog.',
+    points: [
+      'You keep the roadmap and the day-to-day work — the consultant reports into your team, not the other way round.',
+      'Engaged on a day rate, for as long as the work runs.',
+      'A good fit when you already have a delivery process and just need certified hands.'
+    ],
+    cta: { label: 'Browse consultants', href: '/consultants' }
+  },
+  'project-based': {
+    heading: 'Project-based delivery',
+    icon: 'bi-kanban',
+    intro: 'Scope a piece of work end to end — phases, team shape, timeline and budget — before anyone starts.',
+    points: [
+      'A phased plan with a fixed set of deliverables and a reconciled budget, not an open-ended day-rate clock.',
+      'Built from the same estimator that prices every quote on the Hub, so the figures reconcile line by line.',
+      'A good fit for a defined piece of work with a clear start and end.'
+    ],
+    cta: { label: 'Get a scope estimate', href: '/quotes/new' }
+  },
+  'managed-services': {
+    heading: 'Managed services',
+    icon: 'bi-gear',
+    intro: 'Ongoing support and enhancement of a live Salesforce org, without hiring a permanent admin.',
+    points: [
+      'A consultant or small team owns the org’s day-to-day health: fixes, small enhancements, release management.',
+      'Priced and agreed the same way as any other engagement on the Hub — nothing is billed that was not scoped first.',
+      'A good fit once a build is live and needs someone to keep it running.'
+    ],
+    cta: { label: 'Browse consultants', href: '/consultants' }
+  },
+  'document-generator': {
+    heading: 'Document generator',
+    icon: 'bi-file-earmark-text',
+    intro: 'Every quote on the Hub can be turned into a matching SOW, work breakdown and summary deck — and every consultant profile into a CV and rate card.',
+    points: [
+      'A scope estimate becomes a downloadable SOW (.docx), work breakdown with Gantt (.xlsx) and summary deck (.pptx), zipped together — all three read the same stored figures, so they cannot contradict each other.',
+      'A consultant profile becomes a formatted CV and rate card on demand, rendered from the profile rather than written by anything else.',
+      'Nothing is generated until you ask for it, and nothing is stored afterwards — the source is always the quote or the profile, not the file.'
+    ],
+    cta: { label: 'Start a quote', href: '/quotes/new' }
+  }
+};
+
+
+/*
+ * `hasOwnProperty`, never a truthiness check on the lookup.
+ *
+ * `SERVICE_PAGES['constructor']` is `Object` — truthy — so a plain `if (!model)` guard
+ * hands `Object` to the view and the render dies on `model.points.forEach`. The same trap
+ * `AppSetting.isValidKey` and `ImageBlob`'s table lookup already avoid, arriving here
+ * through a URL segment anybody can type.
+ */
+router.get('/services/:page', (req, res, next) => {
+  if (!Object.prototype.hasOwnProperty.call(SERVICE_PAGES, req.params.page)) return next();
+  const model = SERVICE_PAGES[req.params.page];
+  res.render('services/engagement-model', { title: model.heading, model });
+});
+
 router.get('/about', (req, res) => {
   res.render('about', { title: 'About', legal });
 });

@@ -1,0 +1,24 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', { icon: model.icon, heading: model.heading, label: 'ENGAGEMENT MODEL' }) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <p class="lead"><%= model.intro %></p>
+      <ul class="list-unstyled">
+        <% model.points.forEach(function (point) { %>
+          <li class="d-flex gap-2 mb-3">
+            <i class="bi bi-check-circle-fill text-primary mt-1"></i>
+            <span><%= point %></span>
+          </li>
+        <% }); %>
+      </ul>
+      <a class="btn btn-primary" href="<%= model.cta.href %>"><%= model.cta.label %></a>
+    </div>
+  </div>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

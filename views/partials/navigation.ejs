@@ -38,6 +38,7 @@
           || (currentUser && startsWith('/profile/consultant'));
         const isCompanyArea = isCompanyJobPath
           || startsWith('/consultants') || startsWith('/companies') || startsWith('/recruiters')
+          || startsWith('/services')
           || (currentUser && (startsWith('/quotes') || startsWith('/dashboard/jobs')
             || startsWith('/dashboard/applicants') || startsWith('/applications')));
       %>
@@ -92,6 +93,11 @@
             <li><a class="dropdown-item" href="/consultants"><i class="bi bi-people"></i> Find consultants</a></li>
             <li><a class="dropdown-item" href="/companies"><i class="bi bi-buildings"></i> Companies</a></li>
             <li><a class="dropdown-item" href="/recruiters"><i class="bi bi-person-rolodex"></i> Recruitment agencies</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <%# How an engagement is shaped. Each one ends at a page that already exists. %>
+            <li><a class="dropdown-item" href="/services/staff-augmentation"><i class="bi bi-people"></i> Staff augmentation</a></li>
+            <li><a class="dropdown-item" href="/services/project-based"><i class="bi bi-kanban"></i> Project-based delivery</a></li>
+            <li><a class="dropdown-item" href="/services/managed-services"><i class="bi bi-gear"></i> Managed services</a></li>
             <% if (currentUser && (currentUser.isCompany || currentUser.isRecruiter)) { %>
               <li><hr class="dropdown-divider"></li>
               <%# Posting and its pipeline are `isCompany` in routes/jobs.js and %>

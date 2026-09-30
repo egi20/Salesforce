@@ -71,3 +71,32 @@ describe('site navigation', () => {
     expect(FOOTER).toMatch(/Not affiliated with Salesforce, Inc\./);
   });
 });
+
+describe('the engagement-model pages', () => {
+  const routes = fs.readFileSync(path.join(ROOT, 'routes', 'index.js'), 'utf8');
+
+  test('an unknown page is looked up with hasOwnProperty, not a truthiness check', () => {
+    // `SERVICE_PAGES['constructor']` is `Object` — truthy — so `if (!model) return next()`
+    // hands `Object` to the view and the render dies inside `model.points.forEach`. The
+    // same trap `AppSetting.isValidKey` and `ImageBlob`'s table lookup already avoid,
+    // reached here through a URL segment anybody can type.
+    expect(routes).toMatch(/hasOwnProperty\.call\(SERVICE_PAGES, req\.params\.page\)/);
+  });
+
+  test('every engagement model is reachable and indexable', () => {
+    for (const slug of ['staff-augmentation', 'project-based', 'managed-services', 'document-generator']) {
+      expect(routes).toContain(`'${slug}': {`);
+      expect(PUBLIC_PATHS).toContain(`/services/${slug}`);
+      expect(PAGE_META[`/services/${slug}`]).toBeDefined();
+    }
+  });
+
+  test('no page advertises the deduplication feature this clone excludes', () => {
+    // It was on the branch this came from, as an honest "not built yet" explainer. It is
+    // still a promise: dedupe is permanently out of scope here, so a page saying it is on
+    // the roadmap is the overclaim, not the absence.
+    expect(routes).not.toMatch(/dedupe/i);
+    expect(fs.readFileSync(path.join(ROOT, 'views', 'partials', 'navigation.ejs'), 'utf8'))
+      .not.toMatch(/dedupe/i);
+  });
+});

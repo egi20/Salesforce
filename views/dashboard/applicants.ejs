@@ -1,0 +1,166 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', {
+  icon: 'bi-kanban',
+  heading: 'Applicants',
+  sub: 'Everyone who has applied, across every role you have posted.'
+}) %>
+
+<section class="glass-section pb-5">
+<div class="container-fluid px-lg-5">
+  <%- include('../partials/flash') %>
+
+  <%
+    /*
+     * The filter is a plain GET form. It works with scripting off, it is bookmarkable, and
+     * it carries no token because it changes nothing — reading a board is a read.
+     *
+     * `status` is carried as a hidden field so narrowing the job or the window from inside
+     * a single-stage list keeps you in that stage instead of bouncing you to the board.
+     */
+    const stageLabel = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+    const qs = (over) => {
+      const merged = { job: filters.job, since: filters.since, status: filters.status, ...over };
+      const parts = Object.entries(merged)
+        .filter(([, v]) => v !== '' && v !== null && v !== undefined)
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+      return parts.length ? `?${parts.join('&')}` : '';
+    };
+  %>
+
+  <form class="glass-card mb-4" method="get" action="/dashboard/applicants">
+    <div class="card-body d-flex flex-wrap align-items-end gap-3">
+      <input type="hidden" name="status" value="<%= filters.status %>">
+      <div>
+        <label class="form-label mb-1" for="f-job">Role</label>
+        <select class="form-select" id="f-job" name="job">
+          <option value="">All roles</option>
+          <% jobs.forEach(function (j) { %>
+            <option value="<%= j.id %>" <%= String(filters.job) === String(j.id) ? 'selected' : '' %>>
+              <%= j.title %> (<%= j.application_count %>)
+            </option>
+          <% }); %>
+        </select>
+      </div>
+      <div>
+        <label class="form-label mb-1" for="f-since">Applied</label>
+        <select class="form-select" id="f-since" name="since">
+          <% sinceOptions.forEach(function (o) { %>
+            <option value="<%= o.value %>" <%= filters.since === o.value ? 'selected' : '' %>><%= o.label %></option>
+          <% }); %>
+        </select>
+      </div>
+      <button class="btn btn-primary" type="submit">Apply</button>
+      <% if (filters.job || filters.since || filters.status) { %>
+        <a class="btn btn-outline-primary" href="/dashboard/applicants">Clear</a>
+      <% } %>
+      <div class="ms-auto small text-muted-2">
+        <strong><%= total %></strong> application<%= total === 1 ? '' : 's' %><%= filters.status ? ` at "${filters.status}"` : '' %>
+      </div>
+    </div>
+  </form>
+
+  <%
+    /*
+     * The stage tabs count rows under the SAME job and date filters as the board, because
+     * both go through `Application.buildFilter`. The status itself is dropped from the
+     * counts — a tab row that collapsed the moment you picked a tab would make every other
+     * stage read as empty.
+     */
+  %>
+  <ul class="nav nav-pills flex-wrap mb-4">
+    <li class="nav-item">
+      <a class="nav-link <%= filters.status === '' ? 'active' : '' %>" href="/dashboard/applicants<%= qs({ status: '' }) %>">Board</a>
+    </li>
+    <% columns.forEach(function (s) { %>
+      <li class="nav-item">
+        <a class="nav-link <%= filters.status === s ? 'active' : '' %>" href="/dashboard/applicants<%= qs({ status: s }) %>">
+          <%= stageLabel(s) %> (<%= counts[s] || 0 %>)
+        </a>
+      </li>
+    <% }); %>
+  </ul>
+
+  <% if (mode === 'board') { %>
+    <% if (total === 0) { %>
+      <div class="empty-state glass-card">
+        <i class="bi bi-people"></i>
+        No applications<%= filters.job || filters.since ? ' match these filters' : ' yet' %>.
+        <div><a href="/dashboard/jobs">Check your open roles</a></div>
+      </div>
+    <% } else { %>
+      <%# A column per stage, scrolling sideways rather than shrinking to nothing. %>
+      <div class="applicant-board">
+        <% board.forEach(function (col) { %>
+          <section class="applicant-column">
+            <h2 class="h6 d-flex justify-content-between align-items-center mb-3">
+              <span class="badge-hub status-<%= col.status %>"><%= stageLabel(col.status) %></span>
+              <span class="text-muted-2"><%= col.total %></span>
+            </h2>
+
+            <% if (col.rows.length === 0) { %>
+              <p class="small text-muted-2">—</p>
+            <% } else { %>
+              <% col.rows.forEach(function (a) { %>
+                <a class="glass-card d-block mb-2 text-reset applicant-card" href="/applications/<%= a.id %>">
+                  <div class="card-body p-3">
+                    <div class="d-flex gap-2 align-items-center mb-2">
+                      <img class="avatar flex-shrink-0" style="width:28px;height:28px"
+                           src="<%= a.profile_picture || '/images/avatar-placeholder.svg' %>" alt="" loading="lazy">
+                      <span class="fw-semibold text-truncate"><%= a.consultant_name %></span>
+                    </div>
+                    <p class="small text-muted-2 mb-2 text-truncate"><%= a.job_title %></p>
+                    <div class="d-flex flex-wrap gap-1">
+                      <% if (a.seniority) { %><span class="badge-hub"><%= seniorityLabel(a.seniority) %></span><% } %>
+                      <% if (a.country) { %><span class="badge-hub"><%= a.country %></span><% } %>
+                      <% if (a.day_rate) { %><span class="badge-hub"><%= Math.round(a.day_rate) %> <%= a.currency %>/day</span><% } %>
+                    </div>
+                  </div>
+                </a>
+              <% }); %>
+
+              <% if (col.total > cardsPerColumn) { %>
+                <%# The column has a lid on it; the stage's own page does not. %>
+                <a class="small" href="/dashboard/applicants<%= qs({ status: col.status }) %>">
+                  See all <%= col.total %> →
+                </a>
+              <% } %>
+            <% } %>
+          </section>
+        <% }); %>
+      </div>
+    <% } %>
+  <% } else { %>
+    <% if (applications.length === 0) { %>
+      <div class="empty-state glass-card"><i class="bi bi-people"></i>Nothing at this stage.</div>
+    <% } else { %>
+      <% applications.forEach(function (a) { %>
+        <div class="glass-card mb-3">
+          <div class="card-body d-flex flex-wrap gap-3 align-items-center">
+            <img class="avatar" src="<%= a.profile_picture || '/images/avatar-placeholder.svg' %>" alt="" loading="lazy">
+            <div class="flex-grow-1 min-w-0">
+              <h2 class="h6 mb-1"><%= a.consultant_name %></h2>
+              <p class="small text-muted-2 mb-1">
+                <a href="/jobs/<%= a.job_slug %>"><%= a.job_title %></a>
+                <% if (a.headline) { %> · <%= a.headline %><% } %>
+              </p>
+              <div class="d-flex flex-wrap gap-1">
+                <% if (a.seniority) { %><span class="badge-hub"><%= seniorityLabel(a.seniority) %></span><% } %>
+                <% if (a.country) { %><span class="badge-hub"><%= a.country %></span><% } %>
+                <% if (a.day_rate) { %><span class="badge-hub"><%= Math.round(a.day_rate) %> <%= a.currency %>/day</span><% } %>
+              </div>
+            </div>
+            <div class="text-end">
+              <span class="badge-hub status-<%= a.status %> d-block mb-2"><%= stageLabel(a.status) %></span>
+              <a class="btn btn-sm btn-primary" href="/applications/<%= a.id %>">Review</a>
+            </div>
+          </div>
+        </div>
+      <% }); %>
+      <%- include('../partials/pagination') %>
+    <% } %>
+  <% } %>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

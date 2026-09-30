@@ -38,7 +38,8 @@
           || (currentUser && startsWith('/profile/consultant'));
         const isCompanyArea = isCompanyJobPath
           || startsWith('/consultants') || startsWith('/companies') || startsWith('/recruiters')
-          || (currentUser && (startsWith('/quotes') || startsWith('/dashboard/jobs') || startsWith('/applications')));
+          || (currentUser && (startsWith('/quotes') || startsWith('/dashboard/jobs')
+            || startsWith('/dashboard/applicants') || startsWith('/applications')));
       %>
 
       <ul class="navbar-nav me-auto align-items-lg-center">
@@ -93,9 +94,13 @@
             <li><a class="dropdown-item" href="/recruiters"><i class="bi bi-person-rolodex"></i> Recruitment agencies</a></li>
             <% if (currentUser && (currentUser.isCompany || currentUser.isRecruiter)) { %>
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="/jobs/new"><i class="bi bi-plus-square"></i> Post a role</a></li>
-              <li><a class="dropdown-item" href="/dashboard/jobs"><i class="bi bi-briefcase"></i> Your roles</a></li>
+              <%# Posting and its pipeline are `isCompany` in routes/jobs.js and %>
+              <%# routes/dashboard.js, so offering them to a recruiter-only account was %>
+              <%# offering a door the guard closes. %>
               <% if (currentUser.isCompany) { %>
+                <li><a class="dropdown-item" href="/jobs/new"><i class="bi bi-plus-square"></i> Post a role</a></li>
+                <li><a class="dropdown-item" href="/dashboard/jobs"><i class="bi bi-briefcase"></i> Your roles</a></li>
+                <li><a class="dropdown-item" href="/dashboard/applicants"><i class="bi bi-kanban"></i> Applicants</a></li>
                 <li><a class="dropdown-item" href="/profile/company"><i class="bi bi-building-gear"></i> Company profile</a></li>
               <% } %>
               <% if (currentUser.isRecruiter) { %>

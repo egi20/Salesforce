@@ -80,15 +80,28 @@
 
   <% if (company) { %>
     <section class="mb-5">
-      <h2 class="h5 mb-3">Hiring</h2>
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h2 class="h5 mb-0">Hiring</h2>
+        <a class="btn btn-outline-primary btn-sm" href="/dashboard/applicants">
+          <i class="bi bi-kanban"></i> Open the applicant board
+        </a>
+      </div>
 
+      <%
+        /*
+         * Each tile is a LINK to that stage, not a number to read. These six counters were
+         * the only sign an application existed anywhere on the account, and there was
+         * nothing to click on them — the stage they name is exactly the page somebody
+         * wants when they see a figure above zero.
+         */
+      %>
       <div class="row g-3 mb-3">
         <% ['submitted','reviewing','shortlisted','interviewing','offered','hired'].forEach(function (s) { %>
           <div class="col-4 col-lg-2">
-            <div class="stat-tile">
+            <a class="stat-tile d-block text-reset text-decoration-none" href="/dashboard/applicants?status=<%= s %>">
               <div class="value"><%= company.statusCounts[s] || 0 %></div>
               <div class="label"><%= s %></div>
-            </div>
+            </a>
           </div>
         <% }); %>
       </div>

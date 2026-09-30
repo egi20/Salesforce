@@ -11,11 +11,15 @@
       <li class="nav-item"><a class="nav-link <%= status === '' ? 'active' : '' %>" href="/applications/job/<%= job.slug %>">All (<%= total %>)</a></li>
       <% ['submitted','reviewing','shortlisted','interviewing','offered','hired','rejected'].forEach(function (s) { %>
         <li class="nav-item">
-          <a class="nav-link <%= status === s ? 'active' : '' %>" href="/applications/job/<%= job.slug %>?status=<%= s %>"><%= s %></a>
+          <a class="nav-link <%= status === s ? 'active' : '' %>" href="/applications/job/<%= job.slug %>?status=<%= s %>"><%= s.charAt(0).toUpperCase() + s.slice(1) %></a>
         </li>
       <% }); %>
     </ul>
-    <a class="btn btn-outline-primary btn-sm" href="/jobs/<%= job.slug %>">View the job</a>
+    <div class="d-flex gap-2">
+      <%# Back out to every role at once — this page answers "who applied for THIS". %>
+      <a class="btn btn-outline-primary btn-sm" href="/dashboard/applicants?job=<%= job.id %>">All applicants</a>
+      <a class="btn btn-outline-primary btn-sm" href="/jobs/<%= job.slug %>">View the job</a>
+    </div>
   </div>
 
   <% if (applications.length === 0) { %>
@@ -38,7 +42,7 @@
             </div>
           </div>
           <div class="text-end">
-            <span class="badge-hub status-<%= a.status %> d-block mb-2"><%= a.status %></span>
+            <span class="badge-hub status-<%= a.status %> d-block mb-2"><%= a.status.charAt(0).toUpperCase() + a.status.slice(1) %></span>
             <a class="btn btn-sm btn-primary" href="/applications/<%= a.id %>">Review</a>
           </div>
         </div>

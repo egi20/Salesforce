@@ -667,6 +667,11 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   transition: var(--transition-glass);
 }
 .stat-tile:hover { box-shadow: var(--glass-shadow-lg); }
+/* DESIGN.md: the lift is for a surface that is ITSELF a link. A static tile that moved
+   under the cursor would promise an affordance that is not there — and one that does
+   navigate has to say so before it is clicked. */
+a.stat-tile:hover { transform: translateY(-4px); }
+a.stat-tile:hover .value { color: var(--primary-blue); }
 .stat-tile .value {
   font-size: 1.85rem;
   font-weight: 800;
@@ -907,6 +912,46 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 /* The owner's actions belong to the card above them, which carries its own bottom
    margin — without this they read as a detached row between two cards. */
 .job-card-actions { margin-top: -0.5rem; }
+
+/* ============================================================================
+   THE APPLICANT BOARD
+   ==========================================================================
+
+   Eight stages side by side. It SCROLLS sideways rather than shrinking each column
+   towards nothing: a name and a role title need a readable width, and eight columns
+   squeezed into a phone is eight columns nobody can read. Each column keeps its own
+   minimum and the row carries the overflow.
+
+   There is no drag and drop, and that is deliberate rather than unfinished. A move
+   between stages is a declared transition that writes an audit event and notifies the
+   other party in one transaction, on the application's own page. A board that moved rows
+   itself would be a second write path into the same table. */
+.applicant-board {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(13.5rem, 1fr);
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding-bottom: var(--space-3);
+}
+
+.applicant-column {
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+}
+
+/* The cards are links, so they get the same lift a linked card gets everywhere else. */
+.applicant-card { transition: var(--transition-fast); }
+.applicant-card:hover { transform: translateY(-2px); box-shadow: var(--glass-shadow-lg); }
+
+@media (max-width: 767.98px) {
+  /* One column at a time on a phone: a sideways scroll containing a sideways scroll is
+     a thing nobody can operate. */
+  .applicant-board { grid-auto-flow: row; grid-auto-columns: auto; overflow-x: visible; }
+}
 
 /*
  * SEVEN COLUMNS, AND NOT A 12-COLUMN GRID.

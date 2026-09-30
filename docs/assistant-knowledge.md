@@ -68,6 +68,7 @@ An account can hold both roles at once.
 | `/challenges` | The daily challenge: five Salesforce questions, one attempt a day. Signed in. |
 | `/challenges/leaderboard` | Who scored what today and over the last thirty days. |
 | `/search` | One box across jobs, consultants, companies, agencies and the community. |
+| `/dashboard/applicants` | An employer's board: every application across every role they have posted, by stage, with a filter for the role and how recently somebody applied. Company accounts. Moving somebody between stages happens on the application's own page. |
 | `/about` | What the Hub is, who runs it, and the things it deliberately does not do — no tax calculation, no generated prose in a member's name, no uploaded documents served back out. |
 | `/faq` | Frequently asked questions. |
 | `/contact` | One address, read by a person. Also where a data request goes. |

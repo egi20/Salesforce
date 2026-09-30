@@ -63,7 +63,7 @@
                 <% if (s.voided_at) { %><span class="badge-hub muted">voided</span><% } %>
               </td>
               <td class="small">
-                <%= roleLabel(s.role) %> · <%= s.seniority %> · <%= s.country %>
+                <%= roleLabel(s.role) %> · <%= seniorityLabel(s.seniority) %> · <%= s.country %>
                 <span class="text-muted-2"><%= s.period %></span>
               </td>
               <td class="text-end fw-semibold">

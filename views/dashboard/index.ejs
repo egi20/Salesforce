@@ -108,6 +108,14 @@
     </section>
   <% } %>
 
+  <%
+    /*
+     * Saving a job is a consultant's affordance, and the panel rendered unconditionally —
+     * so an account that only hires got a "Nothing saved yet" box for a feature it has no
+     * way to use. An empty state for something you cannot do reads as something broken.
+     */
+  %>
+  <% if (currentUser.isConsultant) { %>
   <section>
     <h2 class="h5 mb-3">Saved jobs</h2>
     <% if (savedJobs.length === 0) { %>
@@ -120,6 +128,7 @@
       </div>
     <% } %>
   </section>
+  <% } %>
 </div>
 </section>
 

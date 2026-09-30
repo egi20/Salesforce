@@ -213,12 +213,19 @@ const ROLE_ALIASES = {
   recruiter: ['talent acquisition', 'headhunter']
 };
 
+/*
+ * `short` exists because a badge is not a dropdown. Every card was printing the raw slug —
+ * "mid", "lead" — since nothing here exposed a label and the full one does not fit. Two
+ * fields beat one truncated at the call site: the form shows the band, the badge shows the
+ * word.
+ */
 const SENIORITY_LEVELS = [
-  { value: 'junior', label: 'Junior (0-2 yrs)', multiplier: 0.65 },
-  { value: 'mid', label: 'Mid (3-5 yrs)', multiplier: 0.85 },
-  { value: 'senior', label: 'Senior (6-9 yrs)', multiplier: 1.0 },
-  { value: 'lead', label: 'Lead / Principal (10+ yrs)', multiplier: 1.25 }
+  { value: 'junior', label: 'Junior (0-2 yrs)', short: 'Junior', multiplier: 0.65 },
+  { value: 'mid', label: 'Mid (3-5 yrs)', short: 'Mid', multiplier: 0.85 },
+  { value: 'senior', label: 'Senior (6-9 yrs)', short: 'Senior', multiplier: 1.0 },
+  { value: 'lead', label: 'Lead / Principal (10+ yrs)', short: 'Lead', multiplier: 1.25 }
 ];
+const SENIORITY_LABELS = new Map(SENIORITY_LEVELS.map((s) => [s.value, s]));
 
 const SENIORITY_MULTIPLIERS = new Map(SENIORITY_LEVELS.map((s) => [s.value, s.multiplier]));
 
@@ -263,6 +270,13 @@ function roleLabel(slug) {
   return ROLE_LABELS.get(slug) || slug || '';
 }
 
+/** The word for a badge. `full` gives the banded label a form uses. */
+function seniorityLabel(slug, { full = false } = {}) {
+  const level = SENIORITY_LABELS.get(slug);
+  if (!level) return slug || '';
+  return full ? level.label : level.short;
+}
+
 function baseDayRate(slug) {
   return BASE_DAY_RATES[slug] ?? null;
 }
@@ -275,6 +289,7 @@ module.exports = {
   ROLE_ALIASES,
   SENIORITY_LEVELS,
   SENIORITY_MULTIPLIERS,
+  seniorityLabel,
   taxonomyProblems,
   assertTaxonomyIntegrity,
   isValidRole,

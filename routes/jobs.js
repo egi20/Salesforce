@@ -14,19 +14,20 @@ const { writeLimiter } = require('../middleware/rateLimit');
 const { JOB_FEATURE_DAYS, JOB_FEATURE_PRICE_MINOR, formatMinor } = require('../config/payments');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
-const { ROLE_CATEGORIES, isValidRole, ROLE_SLUGS } = require('../config/roleTaxonomy');
+const { ROLE_CATEGORIES, isValidRole, ROLE_SLUGS, SENIORITY_LEVELS } = require('../config/roleTaxonomy');
 const { CLOUD_FAMILIES, ALL_MODULES, isValidModule } = require('../config/cloudFamilies');
 const { jobPostingJsonLd } = require('../config/seoMeta');
 const { matchScore } = require('../utils/jobMatcher');
 const { sanitizeRichText } = require('../utils/sanitize');
 const { returnTo } = require('../utils/returnTo');
 const countries = require('../config/all-countries.json');
+const { ENGAGEMENT_SLUGS, WORK_MODE_SLUGS, hasDuration } = require('../config/jobTaxonomy');
 
 const router = express.Router();
 
-const SENIORITIES = ['junior', 'mid', 'senior', 'lead'];
-const WORK_MODES = ['remote', 'hybrid', 'onsite'];
-const ENGAGEMENTS = ['contract', 'permanent'];
+const SENIORITIES = SENIORITY_LEVELS.map((s) => s.value);
+const WORK_MODES = WORK_MODE_SLUGS;
+const ENGAGEMENTS = ENGAGEMENT_SLUGS;
 
 /** Pull filters out of the query string, dropping anything not in the taxonomy. */
 function filtersFrom(query) {
@@ -125,7 +126,11 @@ function jobFieldsFrom(body_) {
     rate_max: body_.rate_max || null,
     currency: /^[A-Z]{3}$/.test(body_.currency || '') ? body_.currency : 'EUR',
     rate_visible: body_.rate_visible === 'on',
-    duration_months: body_.duration_months || null,
+    // A permanent role has no duration. Storing one anyway produced cards reading
+    // "Permanent" and "3 months" side by side, and left every reader to decide which
+    // half to believe. The engagement decides, not the form field that happened to be
+    // filled in before the author changed the dropdown.
+    duration_months: hasDuration(body_.engagement_type) ? body_.duration_months || null : null,
     starts_on: body_.starts_on || null,
     expires_at: body_.expires_at || null,
     status: body_.publish === 'on' ? 'open' : 'draft'

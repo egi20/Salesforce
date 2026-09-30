@@ -25,10 +25,20 @@
          */
         const path = currentPath;
         const startsWith = (p) => path === p || path.startsWith(p + '/');
-        const isConsultantArea = startsWith('/jobs') || startsWith('/rates') || startsWith('/tax-advisory')
+        /*
+         * `/jobs` is a consultant page and `/jobs/new` is a company one, so the prefix
+         * cannot decide alone: posting a role lit up "Consultant Hub", which is the menu
+         * the author is not in. The company-side paths under /jobs are named, and the
+         * consultant test excludes them.
+         */
+        const companyJobPaths = ['/jobs/new'];
+        const isCompanyJobPath = companyJobPaths.some((p) => startsWith(p));
+        const isConsultantArea = (!isCompanyJobPath && startsWith('/jobs'))
+          || startsWith('/rates') || startsWith('/tax-advisory')
           || (currentUser && startsWith('/profile/consultant'));
-        const isCompanyArea = startsWith('/consultants') || startsWith('/companies') || startsWith('/recruiters')
-          || (currentUser && startsWith('/quotes'));
+        const isCompanyArea = isCompanyJobPath
+          || startsWith('/consultants') || startsWith('/companies') || startsWith('/recruiters')
+          || (currentUser && (startsWith('/quotes') || startsWith('/dashboard/jobs') || startsWith('/applications')));
       %>
 
       <ul class="navbar-nav me-auto align-items-lg-center">

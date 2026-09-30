@@ -54,7 +54,7 @@
             <tr>
               <td>
                 <a href="/jobs/<%= job.slug %>"><%= job.title %></a>
-                <div class="small text-muted-2"><%= roleLabel(job.role) %> · <%= job.seniority %></div>
+                <div class="small text-muted-2"><%= roleLabel(job.role) %> · <%= seniorityLabel(job.seniority) %></div>
               </td>
               <td><span class="badge-hub"><%= job.status %></span></td>
               <td class="text-end"><a href="/applications/job/<%= job.slug %>"><%= job.application_count %></a></td>

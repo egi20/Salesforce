@@ -24,7 +24,7 @@
           <% if (own) { %>
             <div class="alert alert-info small">
               Your last contribution: <strong><%= Math.round(own.amount) %> <%= own.currency %></strong>
-              for <%= roleLabel(own.role) %> (<%= own.seniority %>), <%= own.period %>.
+              for <%= roleLabel(own.role) %> (<%= seniorityLabel(own.seniority) %>), <%= own.period %>.
             </div>
           <% } %>
 

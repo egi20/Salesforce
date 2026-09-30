@@ -35,9 +35,7 @@ const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
 const { notFound, errorHandler, asyncHandler } = require('./middleware/errorHandler');
 const { visitGeo } = require('./middleware/visitGeo');
-const { sanitizeRichText, toPlainText, jsonForScript } = require('./utils/sanitize');
-const { roleLabel } = require('./config/roleTaxonomy');
-const { moduleLabel, familyLabel } = require('./config/cloudFamilies');
+const { attachViewHelpers } = require('./utils/viewHelpers');
 
 // Fail fast rather than degrade silently: a taxonomy with a slug that has no base rate
 // or no label produces a UI that half-works and rate buckets that quietly flatten.
@@ -274,12 +272,9 @@ app.use((req, res, next) => {
     error: req.flash('error'),
     info: req.flash('info')
   };
-  res.locals.sanitizeRichText = sanitizeRichText;
-  res.locals.toPlainText = toPlainText;
-  res.locals.jsonForScript = jsonForScript;
-  res.locals.roleLabel = roleLabel;
-  res.locals.moduleLabel = moduleLabel;
-  res.locals.familyLabel = familyLabel;
+  // One list, in utils/viewHelpers.js, so adding a helper does not mean remembering every
+  // place that has to know about it.
+  attachViewHelpers(res);
   next();
 });
 

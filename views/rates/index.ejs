@@ -150,7 +150,7 @@
             <tbody>
               <% bySeniority.forEach(function (row) { %>
                 <tr>
-                  <td class="text-capitalize"><%= row.seniority %></td>
+                  <td class="text-capitalize"><%= seniorityLabel(row.seniority) %></td>
                   <% if (row.suppressed) { %>
                     <td colspan="3" class="text-end suppressed">Not enough data</td>
                   <% } else { %>

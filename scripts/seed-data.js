@@ -11,7 +11,7 @@
  * because login refuses unverified non-admin accounts.
  */
 /* eslint-disable no-await-in-loop -- seeding is intentionally sequential: each step uses ids created by the previous one. */
-const { pool } = require('../config/database');
+const { pool, promisePool } = require('../config/database');
 const config = require('../config/config');
 /*
  * THE GUARD.
@@ -58,7 +58,7 @@ const Skill = require('../models/Skill');
 const RateSubmission = require('../models/RateSubmission');
 const Post = require('../models/Post');
 const { sync: syncCategories } = require('./sync-categories');
-const { ROLE_SLUGS, baseDayRate } = require('../config/roleTaxonomy');
+const { ROLE_SLUGS, baseDayRate, roleLabel } = require('../config/roleTaxonomy');
 const { ALL_MODULES } = require('../config/cloudFamilies');
 const { ALL_CERTIFICATIONS } = require('../config/certifications');
 
@@ -83,7 +83,37 @@ const COMPANIES = [
 
 const FIRST = ['Ana', 'Marko', 'Elira', 'Tomas', 'Sofia', 'Jonas', 'Petra', 'Luka', 'Ines', 'Mateo', 'Nora', 'Filip'];
 const LAST = ['Berisha', 'Novak', 'Hoxha', 'Kovac', 'Meier', 'Dubois', 'Rossi', 'Nowak', 'Larsen', 'Silva', 'Horvat', 'Krasniqi'];
-const COUNTRIES = ['DE', 'AL', 'NL', 'IE', 'GB', 'PL', 'ES', 'IT', 'PT', 'RO'];
+/*
+ * A country and a city that is actually in it. Every seeded row used to carry
+ * `city: 'Remote'` with an independently random work mode, so a card could read
+ * "Remote, PL" and "On site" at the same time. A city is now set only when somebody has
+ * to travel to it.
+ */
+const PLACES = [
+  ['DE', 'Berlin'], ['AL', 'Tirana'], ['NL', 'Amsterdam'], ['IE', 'Dublin'], ['GB', 'London'],
+  ['PL', 'Warsaw'], ['ES', 'Madrid'], ['IT', 'Milan'], ['PT', 'Lisbon'], ['RO', 'Bucharest']
+];
+
+/*
+ * Billable days behind an annual figure.
+ *
+ * A permanent role stores a SALARY in the same columns a contract stores a DAY RATE, and
+ * the seed wrote a day rate into both — so the site published "468 EUR/yr" beside a job
+ * titled "12 month contract" that was marked permanent. This is only a seed's arithmetic,
+ * deliberately crude, but the figure it produces has to be the right ORDER OF MAGNITUDE or
+ * the site looks broken to anybody who opens it.
+ */
+const BILLABLE_DAYS_PER_YEAR = 220;
+
+/*
+ * An employee costs less in salary than a contractor bills, because the salary is not the
+ * whole cost: holiday, sick pay, employer contributions and the bench all sit on top of it.
+ * 0.6 is a rough market ratio and nothing here depends on it being right — it exists so a
+ * seeded permanent role lands in a range a reader recognises instead of quoting contractor
+ * gross as a salary. This is seed data, not a benchmark: the real one is the rate index,
+ * which is built from figures people contributed.
+ */
+const SALARY_TO_CONTRACT_RATIO = 0.6;
 
 function pick(list, n) {
   const copy = [...list];
@@ -100,6 +130,26 @@ function randomInt(min, max) {
 
 async function seed() {
   console.log('Seeding development data...');
+
+  /*
+   * ACCOUNTS ARE IDEMPOTENT. CONTENT IS NOT.
+   *
+   * Users and profiles are looked up by email before they are written, so a second run
+   * leaves them alone — but jobs, rate submissions and posts were appended unconditionally.
+   * Running `npm run seed` twice therefore produced 60 jobs, half of them written under
+   * whatever the generator looked like the first time. That is exactly how a corrected
+   * generator gets judged on the rows it did not write.
+   *
+   * There is no merge to attempt here: this is a development fixture, and the fix is to
+   * say so and stop rather than to double it.
+   */
+  const [[{ existingJobs }]] = await promisePool.query('SELECT COUNT(*) AS existingJobs FROM jobs');
+  if (existingJobs > 0) {
+    console.log(`\n  ${existingJobs} jobs already exist, so this database has been seeded.`);
+    console.log('  Seeding again would append a second set rather than replace the first.');
+    console.log('  To start clean: drop the database, then `npm run migrate && npm run seed`.\n');
+    return;
+  }
 
   const skills = await Skill.findOrCreateMany(SKILL_POOL, { category: 'salesforce' });
   console.log(`  ${skills.length} skills`);
@@ -127,7 +177,9 @@ async function seed() {
       user = await User.create({
         email: emailAddress,
         password: SEED_PASSWORD,
-        name: `${name} Recruiting`,
+        // The account and the profile are the same organisation. Appending "Recruiting"
+        // made the menu say one name and the profile page another.
+        name,
         roles: ['company']
       });
       await User.setEmailVerified(user.id);
@@ -140,7 +192,7 @@ async function seed() {
       city,
       company_size: size,
       tagline: `${type.replace('_', ' ')} in the Salesforce ecosystem`,
-      about: `<p>${name} works across the Salesforce platform.</p>`,
+      about: `${name} works across the Salesforce platform.\n\nThe team delivers design, build and support for customers in ${city} and across ${country}.`,
       is_public: 1
     });
     companyUsers.push(user);
@@ -150,7 +202,12 @@ async function seed() {
   // --- consultants -------------------------------------------------------------
   const consultantUsers = [];
   for (let i = 0; i < 24; i += 1) {
-    const name = `${FIRST[i % FIRST.length]} ${LAST[(i * 7) % LAST.length]}`;
+    /*
+     * `LAST[(i * 7) % 12]` repeated exactly on the second pass: 84 is a multiple of 12, so
+     * consultant 13 got consultant 1's name and every one of the 24 appeared twice. The
+     * offset by pass is what breaks the cycle.
+     */
+    const name = `${FIRST[i % FIRST.length]} ${LAST[(i + Math.floor(i / FIRST.length)) % LAST.length]}`;
     const emailAddress = `consultant${i + 1}@example.com`;
 
     let user = await User.findByEmail(emailAddress);
@@ -162,17 +219,20 @@ async function seed() {
     const role = ROLE_SLUGS[i % ROLE_SLUGS.length];
     const seniority = ['junior', 'mid', 'senior', 'lead'][randomInt(0, 3)];
     const base = baseDayRate(role) || 600;
+    const [homeCountry, homeCity] = PLACES[i % PLACES.length];
+    const consultantWorkMode = ['remote', 'hybrid', 'onsite'][randomInt(0, 2)];
 
     await ConsultantProfile.ensureExists(user.id);
     await ConsultantProfile.update(user.id, {
       headline: `${seniority} Salesforce specialist`,
-      bio: `<p>${randomInt(3, 15)} years delivering Salesforce projects across Europe.</p>`,
+      bio: `${randomInt(3, 15)} years delivering Salesforce projects across Europe.`,
       primary_role: role,
       seniority,
       years_experience: randomInt(2, 18),
-      country: COUNTRIES[i % COUNTRIES.length],
-      city: 'Remote',
-      work_mode: ['remote', 'hybrid', 'onsite'][randomInt(0, 2)],
+      country: homeCountry,
+      // Same rule as a job: a city is where somebody is, not a work mode wearing its name.
+      city: consultantWorkMode === 'remote' ? null : homeCity,
+      work_mode: consultantWorkMode,
       day_rate: Math.round(base * (0.75 + Math.random() * 0.6)),
       currency: 'EUR',
       availability: ['immediate', 'two_weeks', 'one_month', 'not_available'][randomInt(0, 3)]
@@ -187,7 +247,7 @@ async function seed() {
       title: `${seniority} consultant`,
       startedOn: `${randomInt(2016, 2023)}-01-01`,
       isCurrent: true,
-      description: '<p>Delivery across multiple clouds.</p>'
+      description: 'Delivery across multiple clouds.'
     });
     await ConsultantProfile.recomputeCompleteness(user.id);
     await ConsultantProfile.setPublic(user.id, true);
@@ -204,22 +264,49 @@ async function seed() {
     const base = baseDayRate(role) || 600;
     const seniority = ['mid', 'senior', 'lead'][randomInt(0, 2)];
 
+    /*
+     * ONE DECISION DRIVES THE WHOLE ROW.
+     *
+     * Every field here used to be rolled independently, and the row contradicted itself
+     * four ways at once: a title saying "12 month contract" on a row marked permanent, a
+     * `duration_months` that disagreed with the number in its own title, a day rate
+     * published as an annual salary, and `city: 'Remote'` beside a work mode of "onsite".
+     *
+     * Seed data is the first thing anybody sees. A row that argues with itself makes the
+     * whole product look untrustworthy, and none of it is the reader's fault to untangle.
+     */
+    const isContract = i % 4 !== 0;
+    const durationMonths = isContract ? randomInt(3, 12) : null;
+    const workMode = ['remote', 'hybrid', 'onsite'][randomInt(0, 2)];
+    const [country, cityName] = PLACES[i % PLACES.length];
+    const shape = isContract ? `${durationMonths} month contract` : 'permanent role';
+    // A salary is an annual figure. Rounded to the nearest thousand, because nobody
+    // advertises a salary of 128,700.
+    const annual = (day) =>
+      Math.round((day * BILLABLE_DAYS_PER_YEAR * SALARY_TO_CONTRACT_RATIO) / 1000) * 1000;
+    const minDay = Math.round(base * 0.85);
+    const maxDay = Math.round(base * 1.25);
+
     const job = await Job.create(company.id, {
-      title: `${seniority === 'lead' ? 'Lead' : seniority === 'senior' ? 'Senior' : ''} ${role.replace(/-/g, ' ')} — ${randomInt(3, 12)} month contract`.trim(),
+      // `roleLabel`, not the slug with its hyphens swapped for spaces: that produced
+      // "pmo — 11 month contract" and "cpq consultant" in lower case on every card. The
+      // seniority is a field of its own and already renders as its own badge.
+      title: `${roleLabel(role)} — ${shape}`,
       description:
-        '<p>We are looking for an experienced practitioner to join an ongoing programme.</p>' +
-        '<p>You will work with the delivery team on design, build and handover.</p>',
+        'We are looking for an experienced practitioner to join an ongoing programme.\n\n' +
+        'You will work with the delivery team on design, build and handover.',
       role,
       seniority,
-      engagement_type: Math.random() > 0.25 ? 'contract' : 'permanent',
-      work_mode: ['remote', 'hybrid', 'onsite'][randomInt(0, 2)],
-      country: COUNTRIES[i % COUNTRIES.length],
-      city: 'Remote',
-      rate_min: Math.round(base * 0.85),
-      rate_max: Math.round(base * 1.25),
+      engagement_type: isContract ? 'contract' : 'permanent',
+      work_mode: workMode,
+      country,
+      // A remote role has no city. Naming one and calling it remote is the contradiction.
+      city: workMode === 'remote' ? null : cityName,
+      rate_min: isContract ? minDay : annual(minDay),
+      rate_max: isContract ? maxDay : annual(maxDay),
       currency: 'EUR',
       rate_visible: true,
-      duration_months: randomInt(3, 12),
+      duration_months: durationMonths,
       status: 'open'
     });
 

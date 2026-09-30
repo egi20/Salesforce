@@ -50,7 +50,7 @@
             <select class="form-select" id="f-seniority" name="seniority">
               <option value="">Any</option>
               <% ['junior','mid','senior','lead'].forEach(function (s) { %>
-                <option value="<%= s %>" <%= filters.seniority === s ? 'selected' : '' %>><%= s %></option>
+                <option value="<%= s %>" <%= filters.seniority === s ? 'selected' : '' %>><%= seniorityLabel(s, { full: true }) %></option>
               <% }); %>
             </select>
           </div>
@@ -59,7 +59,7 @@
             <select class="form-select" id="f-mode" name="work_mode">
               <option value="">Any</option>
               <% ['remote','hybrid','onsite'].forEach(function (m) { %>
-                <option value="<%= m %>" <%= filters.work_mode === m ? 'selected' : '' %>><%= m %></option>
+                <option value="<%= m %>" <%= filters.work_mode === m ? 'selected' : '' %>><%= workModeLabel(m) %></option>
               <% }); %>
             </select>
           </div>

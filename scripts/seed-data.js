@@ -54,6 +54,7 @@ const User = require('../models/User');
 const ConsultantProfile = require('../models/ConsultantProfile');
 const CompanyProfile = require('../models/CompanyProfile');
 const Job = require('../models/Job');
+const Application = require('../models/Application');
 const Skill = require('../models/Skill');
 const RateSubmission = require('../models/RateSubmission');
 const Post = require('../models/Post');
@@ -315,6 +316,56 @@ async function seed() {
     jobCount += 1;
   }
   console.log(`  ${jobCount} jobs`);
+
+  // --- applications ------------------------------------------------------------
+  /*
+   * WITHOUT THESE THE WHOLE HIRING SIDE READS AS MISSING.
+   *
+   * The seed created jobs and consultants and never connected them, so every company
+   * dashboard showed six zeroes, every "Applicants" link led to an empty list, and the
+   * pipeline — which has existed since the first migration, with its own state machine and
+   * event log — was reported as a feature that had not been built. A fixture that leaves
+   * the central workflow at zero is a fixture that hides it.
+   *
+   * Statuses are walked through `Application.transition`, never written directly: the
+   * state machine is the thing being demonstrated, and a seed that bypassed it could
+   * produce a row the application itself would refuse to create.
+   */
+  const { rows: openJobs } = await Job.browse({ status: 'open' }, { limit: 200 });
+  const PIPELINE_PATHS = [
+    [],
+    ['reviewing'],
+    ['reviewing', 'shortlisted'],
+    ['reviewing', 'shortlisted', 'interviewing'],
+    ['reviewing', 'shortlisted', 'interviewing', 'offered'],
+    ['reviewing', 'shortlisted', 'interviewing', 'offered', 'hired'],
+    ['reviewing', 'rejected']
+  ];
+
+  let applicationCount = 0;
+  for (let j = 0; j < openJobs.length; j += 1) {
+    const job = openJobs[j];
+    const applicants = pick(consultantUsers, randomInt(0, 5));
+
+    for (let a = 0; a < applicants.length; a += 1) {
+      const consultant = applicants[a];
+      const { applicationId } = await Application.apply(job.id, consultant.id, {
+        coverLetter:
+          'I have delivered this kind of programme before and can start within the notice ' +
+          'period on my profile.\n\nHappy to talk through the specifics whenever suits.',
+        dayRate: Math.round((Number(job.rate_min) || 600) * (0.95 + Math.random() * 0.2)),
+        currency: 'EUR'
+      });
+      applicationCount += 1;
+
+      // The employer walks it forward. A path of [] leaves it at "submitted", which is
+      // the state most of a real board is in.
+      for (const step of PIPELINE_PATHS[(j + a) % PIPELINE_PATHS.length]) {
+        await Application.transition(applicationId, job.company_user_id, step, { actorIsEmployer: true });
+      }
+    }
+  }
+  console.log(`  ${applicationCount} applications`);
 
   // --- rate submissions --------------------------------------------------------
   // Enough contributors per bucket that some buckets clear the privacy floor and

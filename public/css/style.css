@@ -904,6 +904,10 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 .footer-hub a { color: rgba(255, 255, 255, 0.75); }
 .footer-hub a:hover { color: #fff; }
 
+/* The owner's actions belong to the card above them, which carries its own bottom
+   margin — without this they read as a detached row between two cards. */
+.job-card-actions { margin-top: -0.5rem; }
+
 /*
  * SEVEN COLUMNS, AND NOT A 12-COLUMN GRID.
  *

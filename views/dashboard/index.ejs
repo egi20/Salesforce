@@ -102,7 +102,26 @@
         <div class="empty-state glass-card"><i class="bi bi-briefcase"></i>No open roles.
           <div><a href="/jobs/new">Post your first role</a></div></div>
       <% } else { %>
-        <% company.jobs.forEach(function (job) { %><%- include('../partials/job-card', { job: job }) %><% }); %>
+        <%
+          /*
+           * The card is one big `<a>` to the public job page, so the owner's action cannot
+           * be nested inside it — a link inside a link is invalid and browsers resolve it
+           * by dropping one. It sits beneath instead, where it is still on the same card.
+           */
+        %>
+        <% company.jobs.forEach(function (job) { %>
+          <%- include('../partials/job-card', { job: job }) %>
+          <div class="d-flex flex-wrap gap-2 mb-4 job-card-actions">
+            <% if (job.application_count > 0) { %>
+              <a class="btn btn-sm btn-primary" href="/applications/job/<%= job.slug %>">
+                Review <%= job.application_count %> applicant<%= job.application_count === 1 ? '' : 's' %>
+              </a>
+            <% } else { %>
+              <span class="small text-muted-2 align-self-center">No applicants yet</span>
+            <% } %>
+            <a class="btn btn-sm btn-outline-primary" href="/jobs/<%= job.slug %>/edit">Edit</a>
+          </div>
+        <% }); %>
         <a class="small" href="/dashboard/jobs">Manage all jobs</a>
       <% } %>
     </section>

@@ -127,6 +127,18 @@ function greetingFor(now) {
   return 'Good evening';
 }
 
+/**
+ * /about.
+ *
+ * `/faq` was standing in for this and is a different page: a FAQ answers the questions
+ * somebody already has, an About page answers who this is and what it will not do. The
+ * second half is the part worth having — every refusal listed there is a rule enforced in
+ * the code, so if one stops being true the page is wrong and has to change with it.
+ */
+router.get('/about', (req, res) => {
+  res.render('about', { title: 'About', legal });
+});
+
 router.get('/faq', (req, res) => {
   res.render('faq', { title: 'Frequently asked questions' });
 });

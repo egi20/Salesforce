@@ -1,47 +1,77 @@
 <footer class="footer-hub">
   <div class="container">
-    <div class="row g-4">
-      <div class="col-lg-4">
+    <%
+      /*
+       * THE FOOTER MIRRORS THE HEADER, COLUMN FOR COLUMN.
+       *
+       * It used to group by intent — "Find work", "Hire", "About" — which is a perfectly
+       * reasonable taxonomy and a different one from the menu directly above it. Two
+       * taxonomies for one site means a page sits under one name at the top and another at
+       * the bottom, and somebody who could not find a page in the menu cannot find it here
+       * either, because they are looking for the name they already failed to find.
+       *
+       * So the hub columns carry the SAME names as the dropdowns in `navigation.ejs`. If a
+       * name changes there, change it here in the same commit.
+       */
+      const footerColumns = [
+        ['Consultant Hub', [
+          ['/jobs', 'Find work'],
+          ['/rates', 'Rate index'],
+          ['/rates/calculator', 'Rate calculator'],
+          ['/tax-advisory', 'Tax advisory'],
+          ['/auth/register', 'Build your profile']
+        ]],
+        ['Companies Hub', [
+          ['/consultants', 'Find consultants'],
+          ['/jobs/new', 'Post a role'],
+          ['/companies', 'Companies'],
+          ['/recruiters', 'Recruitment agencies']
+        ]],
+        ['Services', [
+          ['/quotes/new', 'Scope estimator'],
+          ['/rates', 'Day rate index'],
+          ['/payments', 'Pricing']
+        ]],
+        ['Community', [
+          ['/community', 'Questions and posts'],
+          ['/success-stories', 'Success stories'],
+          // Signed in only, for the same reason the menu hides it: it answers 401 to a
+          // visitor, and a footer link whose only outcome is a login page is a dead link
+          // wearing a name.
+          ...(currentUser ? [['/challenges', 'Daily challenge']] : [])
+        ]],
+        ['Company', [
+          ['/about', 'About'],
+          ['/faq', 'FAQ'],
+          ['/contact', 'Contact'],
+          ['/report-issue', 'Report a problem']
+        ]],
+        ['Legal', [
+          ['/legal/privacy', 'Privacy policy'],
+          ['/legal/terms', 'Terms of service']
+        ]]
+      ];
+    %>
+    <div class="footer-grid">
+      <div class="footer-brand">
         <div class="navbar-brand text-white mb-2 d-block">Salesforce<span class="brand-accent">Hub</span></div>
         <p class="mb-0 footer-blurb">
           Jobs, talent and contributed day-rate benchmarks for the Salesforce ecosystem.
         </p>
       </div>
-      <div class="col-6 col-lg-2">
-        <h3>Find work</h3>
-        <ul class="list-unstyled">
-          <li><a href="/jobs">Browse jobs</a></li>
-          <li><a href="/rates">Rate index</a></li>
-          <li><a href="/rates/calculator">Rate calculator</a></li>
-          <li><a href="/tax-advisory">Tax advisory</a></li>
-          <li><a href="/auth/register">Create a profile</a></li>
-        </ul>
-      </div>
-      <div class="col-6 col-lg-2">
-        <h3>Hire</h3>
-        <ul class="list-unstyled">
-          <li><a href="/consultants">Find consultants</a></li>
-          <li><a href="/jobs/new">Post a job</a></li>
-          <li><a href="/companies">Companies</a></li>
-          <li><a href="/recruiters">Agencies</a></li>
-        </ul>
-      </div>
-      <div class="col-6 col-lg-2">
-        <h3>About</h3>
-        <ul class="list-unstyled">
-          <li><a href="/community">Community</a></li>
-          <li><a href="/success-stories">Success stories</a></li>
-          <li><a href="/search">Search</a></li>
-          <li><a href="/payments">Pricing</a></li>
-          <li><a href="/faq">FAQ</a></li>
-          <li><a href="/report-issue">Report a problem</a></li>
-          <li><a href="/legal/privacy">Privacy</a></li>
-          <li><a href="/legal/terms">Terms</a></li>
-        </ul>
-      </div>
+      <% footerColumns.forEach(function (col) { %>
+        <div>
+          <h3><%= col[0] %></h3>
+          <ul class="list-unstyled mb-0">
+            <% col[1].forEach(function (link) { %>
+              <li><a href="<%= link[0] %>"><%= link[1] %></a></li>
+            <% }); %>
+          </ul>
+        </div>
+      <% }); %>
     </div>
     <hr class="footer-rule">
-    <div class="d-flex flex-wrap justify-content-between small">
+    <div class="d-flex flex-wrap justify-content-between small gap-2">
       <span>&copy; <%= new Date().getFullYear() %> <%= appName %></span>
       <span>Not affiliated with Salesforce, Inc. Product names are trademarks of their respective owners.</span>
     </div>

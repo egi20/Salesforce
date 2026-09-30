@@ -112,7 +112,9 @@
         </li>
 
         <li class="nav-item">
-          <a class="nav-link <%= startsWith('/faq') ? 'active' : '' %>" href="/faq"><i class="bi bi-info-circle"></i> About</a>
+          <%# "About" points at /about. /faq answers the questions somebody already has; it %>
+          <%# was standing in for a page about who this is, and it is a different page. %>
+          <a class="nav-link <%= startsWith('/about') || startsWith('/faq') ? 'active' : '' %>" href="/about"><i class="bi bi-info-circle"></i> About</a>
         </li>
       </ul>
 

@@ -894,6 +894,44 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 .footer-hub a { color: rgba(255, 255, 255, 0.75); }
 .footer-hub a:hover { color: #fff; }
 
+/*
+ * SEVEN COLUMNS, AND NOT A 12-COLUMN GRID.
+ *
+ * The footer carries the brand plus one column per menu group, which is seven — a number
+ * the Bootstrap grid cannot divide, so `col-lg-2` six times leaves the brand a column of
+ * the same width as "Legal". A named grid says what the layout is: the brand gets the wide
+ * track and the six link columns share the rest evenly.
+ */
+.footer-grid {
+  display: grid;
+  gap: var(--space-4) var(--space-4);
+  grid-template-columns: 1fr;
+}
+.footer-grid h3 { margin-bottom: var(--space-3); }
+.footer-grid li + li { margin-top: 0.35rem; }
+
+@media (min-width: 576px) {
+  .footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .footer-brand { grid-column: 1 / -1; }
+}
+@media (min-width: 768px) {
+  .footer-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 992px) {
+  .footer-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (min-width: 1400px) {
+  /*
+   * All seven on one row, and not before 1400px: inside the 1140px container that Bootstrap
+   * gives the range below it, a seventh track is narrow enough to wrap "Consultant Hub"
+   * across two lines while the column beside it has room to spare.
+   *
+   * The brand track is wider because it holds a sentence, not a list of two-word links.
+   */
+  .footer-grid { grid-template-columns: 1.7fr repeat(6, minmax(0, 1fr)); }
+  .footer-brand { grid-column: auto; }
+}
+
 /* ============================================================================
    MOTION
    ========================================================================== */

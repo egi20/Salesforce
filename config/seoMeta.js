@@ -48,6 +48,11 @@ const PAGE_META = {
     description:
       'An introduction to a specialist who works in your country. Salesforce Hub does not calculate your tax, your take-home pay or a saving.'
   },
+  '/about': {
+    title: 'About Salesforce Hub',
+    description:
+      'An independent marketplace for the Salesforce ecosystem: jobs, consultants and contributed day rates — and the things this site deliberately will not do.'
+  },
   '/auth/login': { title: 'Sign in', description: 'Sign in to Salesforce Hub.' },
   '/auth/register': { title: 'Create an account', description: 'Join Salesforce Hub as a consultant or a hiring company.' }
 };
@@ -56,7 +61,7 @@ const PAGE_META = {
 // `/tax-advisory` is indexable; `/tax-advisory/enquire` deliberately is not. A form page
 // carries no content a search result can usefully show, and the page above it already
 // links to it.
-const PUBLIC_PATHS = ['/', '/jobs', '/consultants', '/companies', '/rates', '/recruiters', '/success-stories', '/tax-advisory', '/faq', '/contact', '/legal/privacy', '/legal/terms'];
+const PUBLIC_PATHS = ['/', '/about', '/jobs', '/consultants', '/companies', '/rates', '/recruiters', '/success-stories', '/tax-advisory', '/faq', '/contact', '/legal/privacy', '/legal/terms'];
 
 function canonicalUrl(path) {
   const clean = String(path || '/').split('?')[0];

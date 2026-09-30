@@ -95,6 +95,14 @@ So the body is a clean white base, and the wash is applied deliberately:
   pages whose content does not fill the screen. The auth pages use it.
 - `.hero` and `.page-header` carry their own navy gradient plus a mesh overlay.
 
+**Anything that FLOATS over arbitrary page content is opaque, never glass.** A navbar
+dropdown, the assistant panel, and anything else that opens on top of whatever happens to
+be underneath it: the wash works because the thing behind it is a known background, and a
+floating panel has no such thing. The menu dropdowns were `rgba(255,255,255,0.85)` with a
+blur and the home hero's `h1` read straight through them, across the item labels. A blur
+does not rescue it — the only background that works over every page is one that lets
+nothing through. Separation comes from the border and the shadow instead.
+
 Neither the header band nor the footer has an outside margin. The washed section supplies
 the spacing, so the three meet without a white seam. If you add a page that ends in
 something other than a `.glass-section`, give it bottom padding rather than putting the

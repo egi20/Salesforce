@@ -56,6 +56,19 @@ describe('navbar layout', () => {
     expect(wide).toMatch(/position:\s*absolute/);
   });
 
+  test('an open dropdown is opaque', () => {
+    // It was `--glass-bg-heavy` (white at 85%) with a blur, and over the home hero the h1
+    // read straight through the panel and across the item labels. A menu opens over
+    // whatever the page happens to be, so the only background that works everywhere is one
+    // that lets nothing through — the same reason `.sf-assistant-panel` is `#fff`.
+    const rule = CSS.match(/\.navbar-hub \.dropdown-menu \{[^}]*\}/)[0];
+    expect(rule).toMatch(/background:\s*#fff\s*;/);
+    expect(rule).not.toMatch(/rgba|--glass-bg|backdrop-filter/);
+    // Translucency was doing the separating. The border and the shadow have to now.
+    expect(rule).toMatch(/border:\s*1px solid/);
+    expect(rule).toMatch(/box-shadow:/);
+  });
+
   test('the auth links are a matched pair that cannot wrap', () => {
     expect(NAV).toMatch(/btn btn-outline-primary btn-sm btn-auth/);
     expect(NAV).toMatch(/btn btn-primary btn-sm btn-auth/);

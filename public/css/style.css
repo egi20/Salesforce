@@ -1220,3 +1220,134 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   flex: 0 0 28px;
   display: block;
 }
+
+/* ============================================================================
+   ROLE CARDS — the "I am" question on the sign-up form
+   ==========================================================================*/
+
+/*
+ * Big targets instead of a column of 13px checkboxes. The first question on the form is
+ * the one people misread, and a card is both easier to hit on a phone and easier to scan.
+ *
+ * THE INPUT IS STILL THE CONTROL. It is moved out of sight with `opacity: 0`, NOT with
+ * `display: none` or `visibility: hidden` — either of those drops it from the tab order and
+ * from the accessibility tree, which would make this keyboard-unusable and invisible to a
+ * screen reader. The label is its face, tied by `for`, so a click or a space bar both work
+ * and the page needs no JavaScript at all.
+ */
+.role-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.role-card {
+  position: relative;
+}
+
+.role-card-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.role-card-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.25rem;
+  padding: 1.1rem 0.75rem;
+  height: 100%;
+  border: 2px solid var(--border-color, rgba(3, 45, 96, 0.14));
+  border-radius: var(--radius-md, 12px);
+  background: var(--glass-bg-light, rgba(255, 255, 255, 0.5));
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.role-card-face i {
+  font-size: 1.5rem;
+  color: var(--primary-blue);
+}
+
+.role-card-title {
+  font-weight: 600;
+  color: var(--primary-navy);
+}
+
+.role-card-note {
+  font-size: 0.8125rem;
+  color: var(--text-light);
+  line-height: 1.3;
+}
+
+.role-card-input:hover + .role-card-face {
+  border-color: var(--primary-blue);
+}
+
+.role-card-input:checked + .role-card-face {
+  border-color: var(--primary-blue);
+  background: var(--glass-bg-tinted, rgba(1, 118, 211, 0.08));
+}
+
+/*
+ * The focus ring is on the FACE, driven by focus on the hidden input — otherwise a keyboard
+ * user tabbing through sees nothing move. `:focus-visible` rather than `:focus` so it does
+ * not appear on a mouse click.
+ */
+.role-card-input:focus-visible + .role-card-face {
+  outline: 3px solid var(--primary-blue);
+  outline-offset: 2px;
+}
+
+/*
+ * A tick in the corner of a chosen card.
+ *
+ * Colour alone must not carry the answer: somebody who cannot distinguish the tinted
+ * background from the plain one still needs to see which cards are selected.
+ */
+.role-card-input:checked + .role-card-face::after {
+  content: '\f26e'; /* bi-check-lg */
+  font-family: 'bootstrap-icons';
+  position: absolute;
+  top: 0.4rem;
+  right: 0.55rem;
+  font-size: 0.95rem;
+  color: var(--primary-blue);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-card-face { transition: none; }
+}
+
+/* The show/hide control public/js/main.js adds to a password field. */
+.password-field { position: relative; }
+
+.password-field .form-control { padding-right: 2.75rem; }
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--text-light);
+  padding: 0.35rem 0.5rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.password-toggle:hover { color: var(--primary-blue); }
+
+.password-toggle:focus-visible {
+  outline: 2px solid var(--primary-blue);
+  outline-offset: 1px;
+}

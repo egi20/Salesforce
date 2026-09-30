@@ -159,24 +159,78 @@ describe('the site can say who is responsible for the data', () => {
 });
 
 describe('every public path has a page behind it', () => {
+  /*
+   * This asks the REAL ROUTER, not the source text.
+   *
+   * It used to scan the route files for the literal path, which cannot see a page served
+   * by a pattern — `/services/staff-augmentation` comes from `router.get('/services/:page')`
+   * and the literal appears nowhere. Loosening the scan to accept any parameterised route
+   * was worse: `routes/companies.js` has `router.get('/:slug')`, so every one-segment path
+   * matched and the check passed for a page that does not exist. A heuristic that answers
+   * "yes" for everything is not a check.
+   *
+   * `server.js` exports the app and only listens when it is the main module, so the router
+   * table is readable here — and the answer is the one Express itself would give.
+   */
+  /*
+   * The routers are mounted HERE rather than by requiring `server.js`, which builds a
+   * session store and leaves a handle open long enough to hang the whole run. The mount
+   * map is read out of `server.js` itself, so a router mounted there and forgotten here
+   * cannot make this check quietly weaker.
+   */
+  const express = require('express');
+  const app = express();
+  const mounts = [...read('server.js').matchAll(/app\.use\('(\/[^']*)', require\('(\.\/routes\/[^']+)'\)\)/g)];
+  expect(mounts.length).toBeGreaterThan(20);
+  for (const [, prefix, modulePath] of mounts) {
+    app.use(prefix, require(`../../${modulePath.slice(2)}`));
+  }
+
+  function resolves(urlPath) {
+    const walk = (stack, remaining) =>
+      stack.some((layer) => {
+        if (layer.route) {
+          return Boolean(layer.route.methods.get) && layer.regexp.test(remaining);
+        }
+        if (layer.handle && layer.handle.stack && layer.regexp) {
+          const matched = layer.regexp.exec(remaining);
+          if (!matched) return false;
+          // A mounted router sees the path with its own prefix stripped.
+          const rest = remaining.slice(matched[0].length) || '/';
+          return walk(layer.handle.stack, rest.startsWith('/') ? rest : `/${rest}`);
+        }
+        return false;
+      });
+    return walk(app._router.stack, urlPath);
+  }
+
   it('nothing in PUBLIC_PATHS 404s', () => {
     /*
-     * `/contact` sat in this list for the life of the project. robots.txt allowed it and the
-     * sitemap handed it to search engines, and it 404'd because no route had ever been
+     * `/contact` sat in this list for the life of the project. robots.txt allowed it and
+     * the sitemap handed it to search engines, and it 404'd because no route had ever been
      * written — which mattered more than a dead link, because the privacy policy said "ask
      * us" and this was the page that would have said how.
      */
-    const routes = fs.readdirSync(path.join(ROOT, 'routes'))
-      .map((f) => read(path.join('routes', f)))
-      .join('\n');
+    expect(PUBLIC_PATHS.filter((p) => !resolves(p))).toEqual([]);
+  });
 
-    const missing = PUBLIC_PATHS.filter((p) => {
-      if (p === '/') return !routes.includes("router.get('/'");
-      // Mounted routers strip their prefix, so check the full path and the leaf.
-      const leaf = '/' + p.split('/').slice(2).join('/');
-      return !routes.includes(`'${p}'`) && !(leaf !== '/' && routes.includes(`'${leaf}'`));
-    });
-    expect(missing).toEqual([]);
+  it('and the check can still tell a missing page from a present one', () => {
+    // Without this, a resolver that answered "yes" to everything would look identical —
+    // which is what the previous, text-scanning version had quietly become.
+    expect(resolves('/definitely-not-a-page-on-this-site')).toBe(false);
+  });
+
+  it('says plainly what it does NOT cover', () => {
+    /*
+     * It answers "a route matches this path", not "this page exists". `/services/:page`
+     * matches any slug and then calls `next()` for one it does not know, so an invented
+     * service slug resolves here and 404s in the browser.
+     *
+     * That gap is closed where it can be — tests/unit/siteNavigation.test.js asserts every
+     * `/services/...` in PUBLIC_PATHS is a declared entry — and stated here rather than
+     * left for somebody to discover by trusting this check too far.
+     */
+    expect(resolves('/services/invented-slug')).toBe(true);
   });
 });
 

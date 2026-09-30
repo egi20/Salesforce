@@ -1,5 +1,5 @@
 <a class="skip-link" href="#main">Skip to content</a>
-<nav class="navbar navbar-expand-lg navbar-hub sticky-top" aria-label="Main">
+<nav class="navbar navbar-expand-xl navbar-hub sticky-top" aria-label="Main">
   <div class="container">
     <a class="navbar-brand d-inline-flex align-items-center gap-2" href="/">
       <%# Decorative: the wordmark beside it already names the site, so a screen reader %>
@@ -127,7 +127,7 @@
         <input class="form-control form-control-sm" id="navSearch" name="q" type="search" maxlength="120"
                value="<%= currentPath === '/search' && query && query.q ? query.q : '' %>"
                placeholder="Search…" aria-label="Search the Hub">
-        <button class="btn btn-sm btn-outline-light ms-1" type="submit" aria-label="Search">
+        <button class="btn btn-sm btn-outline-primary ms-1" type="submit" aria-label="Search">
           <i class="bi bi-search"></i>
         </button>
       </form>
@@ -151,7 +151,7 @@
                data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
               <img class="avatar" style="width:30px;height:30px"
                    src="<%= currentUser.profilePicture || '/images/avatar-placeholder.svg' %>" alt="">
-              <span class="d-none d-lg-inline"><%= currentUser.name %></span>
+              <span class="nav-user-name"><%= currentUser.name %></span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
               <li><a class="dropdown-item" href="/dashboard"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
@@ -174,8 +174,9 @@
             </ul>
           </li>
         <% } else { %>
-          <li class="nav-item"><a class="nav-link" href="/auth/login">Sign in</a></li>
-          <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm" href="/auth/register">Join free</a></li>
+          <%# A matched pair: outlined then filled, both pills, neither wrapping. %>
+          <li class="nav-item"><a class="btn btn-outline-primary btn-sm btn-auth" href="/auth/login">Sign in</a></li>
+          <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm btn-auth" href="/auth/register">Sign up</a></li>
         <% } %>
       </ul>
     </div>

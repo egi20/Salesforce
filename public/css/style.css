@@ -399,12 +399,35 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   -webkit-text-fill-color: transparent;
 }
 
-.navbar-hub .nav-link {
+/*
+ * `.navbar-nav` is in the selector deliberately. Bootstrap sets the horizontal padding with
+ * `.navbar-expand-xl .navbar-nav .nav-link`, three classes, so a two-class rule here loses
+ * and the padding below is silently ignored — which is exactly what happened the first time
+ * this was trimmed.
+ */
+.navbar-hub .navbar-nav .nav-link {
   color: var(--text-medium);
   font-weight: 500;
   border-radius: var(--radius-lg);
-  padding: 0.45rem 0.8rem;
+  /*
+   * Tighter than the 0.8rem it was. Six dropdowns, a brand, a search and two buttons is a
+   * lot for one bar, and the alternative to trimming this is collapsing to a hamburger at a
+   * width where there is visibly room for a menu.
+   */
+  padding: 0.45rem 0.6rem;
   transition: var(--transition-fast);
+  /*
+   * Icon and label on ONE line.
+   *
+   * Without this the plain links — Home and About — wrapped their icon above the text and
+   * stood 62px tall while every dropdown beside them was 38px, because a dropdown toggle
+   * gets `display: flex` from Bootstrap and a plain link does not. The bar looked ragged and
+   * nobody could see why.
+   */
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
 }
 .navbar-hub .nav-link:hover {
   background: rgba(1, 118, 211, 0.08);
@@ -1010,23 +1033,139 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
    A narrow box in the bar on large screens, full width once the menu collapses —
    a search field squeezed to nothing on a phone is a field nobody uses.
  */
+/*
+ * THE FIELD WAS STYLED FOR A BAR THAT IS NOT THERE.
+ *
+ * It carried `color: #fff`, a translucent white background and a `btn-outline-light` button
+ * — all of which assume a dark navbar. This one is white, so the text was white on white,
+ * the placeholder invisible, and the whole control read as a faint empty square sitting
+ * next to "Sign in". It was reported as "an icon with no image"; it was a working search box
+ * painted in the one colour that hides it.
+ */
 .nav-search .form-control {
-  min-width: 9rem;
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.25);
-  color: #fff;
+  max-width: 11rem;
+  background: rgba(3, 45, 96, 0.04);
+  border-color: rgba(3, 45, 96, 0.14);
+  color: var(--text-dark);
 }
-.nav-search .form-control::placeholder { color: rgba(255, 255, 255, 0.65); }
+.nav-search .form-control::placeholder { color: var(--text-light); }
 .nav-search .form-control:focus {
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
-  border-color: #fff;
-  box-shadow: none;
+  background: #fff;
+  color: var(--text-dark);
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(1, 118, 211, 0.15);
 }
 
-@media (max-width: 991.98px) {
+/*
+ * ON A WIDE BAR THE FIELD COLLAPSES TO ITS BUTTON.
+ *
+ * Fixing the colours made the box visible, which made the real problem visible with it: at
+ * 1377px the bar ran out of room and "Sign up" was cut off the right edge. A search field
+ * parked open costs about nine rem to a bar that has none to spare.
+ *
+ * So it opens on focus, in CSS alone. The input stays in the document and in the tab order —
+ * tabbing to it puts `:focus-within` on the form, which opens it — so this needs no
+ * JavaScript and there is no state for anything to get wrong. Below the breakpoint the menu
+ * collapses anyway and the field is simply full width, because a search squeezed to nothing
+ * on a phone is a search nobody uses.
+ */
+@media (min-width: 1200px) {
+  /*
+   * The open field is taken OUT OF FLOW and opens leftwards over the menu.
+   *
+   * The first attempt expanded it in flow, which simply moved the overflow from the resting
+   * state to the focused one: opening the box pushed "Sign up" off the right edge instead.
+   * Out of flow, the form occupies only its button whatever the field is doing, so nothing
+   * downstream of it can move. Covering a few menu items while somebody types a search is
+   * not a cost — they are reading the field, not the menu.
+   */
+  .nav-search { position: relative; }
+  .nav-search .form-control {
+    position: absolute;
+    right: 2.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    min-width: 0;
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+    border-width: 0;
+    opacity: 0;
+    transition: width 0.18s ease, opacity 0.18s ease, padding 0.18s ease;
+  }
+
+  /* Open while it is being used, and stay open while it holds a query. */
+  .nav-search:focus-within .form-control,
+  .nav-search .form-control:not(:placeholder-shown) {
+    width: 14rem;
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+    border-width: 1px;
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nav-search .form-control { transition: none; }
+  }
+}
+
+
+/*
+ * The auth buttons, as a matched pair that never wraps.
+ *
+ * "Sign in" and "Join free" were breaking onto two lines at 1377px — a text link beside a
+ * filled button, each sized differently, in a bar with no room left. Two pills of the same
+ * shape read as one control pair and `nowrap` keeps each on its own line whatever the width.
+ */
+.navbar-hub .btn-auth {
+  white-space: nowrap;
+  border-radius: 999px;
+  padding: 0.4rem 1.1rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+@media (max-width: 1199.98px) {
+  /* Collapsed, the bar is a column and the field has the whole row: no reason to cap it. */
   .nav-search { width: 100%; }
-  .nav-search .form-control { min-width: 0; }
+  .nav-search .form-control { min-width: 0; max-width: none; flex: 1 1 auto; }
+}
+
+/*
+ * THE NARROW END OF THE EXPANDED BAR.
+ *
+ * The menu expands at 1200px, and at exactly 1200px it did not fit: brand, six items, the
+ * search and two buttons measured 1196px inside a 1140px container, so "Sign up" hung off
+ * the right edge. Collapsing to a hamburger instead would hide a menu at a width where a
+ * laptop plainly has room for one.
+ *
+ * So the band between the expand breakpoint and a comfortable width trims what costs
+ * nothing to read: the padding around each item and a little off the wordmark. Nothing is
+ * hidden and nothing moves.
+ */
+@media (min-width: 1200px) and (max-width: 1399.98px) {
+  .navbar-hub .navbar-brand { font-size: 1.15rem; }
+  .navbar-hub .navbar-nav .nav-link { padding: 0.45rem 0.4rem; gap: 0.3rem; }
+  .navbar-hub .btn-auth { padding: 0.4rem 0.9rem; }
+
+  /*
+   * Signed in, the account name is the widest thing in the bar and it was the piece that
+   * overflowed at 1200px — the avatar beside it already identifies the account. It is
+   * CLIPPED rather than `display: none`, so the link keeps an accessible name; a bare avatar
+   * with an empty alt announces as nothing at all.
+   */
+  .nav-user-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
 /* ============================================================================

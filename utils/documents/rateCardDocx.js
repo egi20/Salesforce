@@ -88,6 +88,12 @@ async function generateRateCardDocx(dossier, projection = null) {
   if (dossier.dayRate) {
     commercial.push(['Day rate', `${formatNumber(dossier.dayRate)} ${dossier.currency}`]);
   }
+  if (dossier.hourlyRate) {
+    // Printed as given. Not derived from the day rate and not reconciled against it: the
+    // hours in a billable day are a contract term, and a document that quietly assumed one
+    // would be stating a number the consultant never agreed to.
+    commercial.push(['Hourly rate', `${formatNumber(dossier.hourlyRate)} ${dossier.currency}`]);
+  }
   if (projection && projection.money) {
     // Stated as what it is — revenue at an assumed number of billable days — rather than
     // as "annual salary". The two are not the same number and conflating them is the most

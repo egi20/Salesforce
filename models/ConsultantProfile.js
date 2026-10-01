@@ -158,7 +158,16 @@ const RANK_EXPRESSION = `(
  * placed with the profiles that have none — the same reasoning as the filter above, and
  * for the same reason: position in a sorted list is a measurement.
  */
-const RATE_OR_NULL = 'CASE WHEN cp.rate_visible = 1 THEN cp.day_rate ELSE NULL END';
+/*
+ * ONE SWITCH COVERS EVERY FIGURE.
+ *
+ * `rate_visible` was added for the day rate; migration 030 added an hourly rate and an
+ * expected salary beside it. Publishing either of those while the day rate was hidden
+ * would defeat the switch — multiply an hourly rate by a working day and you are within a
+ * few per cent of the number somebody chose to keep back.
+ */
+const hiddenUnlessVisible = (column) => `CASE WHEN cp.rate_visible = 1 THEN cp.${column} ELSE NULL END`;
+const RATE_OR_NULL = hiddenUnlessVisible('day_rate');
 
 const SORTS = {
   relevance: `${RANK_EXPRESSION} DESC, cp.updated_at DESC`,
@@ -195,7 +204,8 @@ class ConsultantProfile {
     const allowed = [
       'headline', 'bio', 'primary_role', 'seniority', 'years_experience',
       'country', 'city', 'timezone', 'work_mode', 'willing_to_travel',
-      'day_rate', 'currency', 'rate_visible', 'availability', 'available_from',
+      'day_rate', 'hourly_rate', 'annual_salary', 'currency', 'rate_visible',
+      'availability', 'available_from',
       'linkedin_url', 'website_url', 'trailblazer_url'
     ];
 
@@ -281,6 +291,8 @@ class ConsultantProfile {
     const [rows] = await promisePool.query(
       `SELECT cp.user_id, cp.headline, cp.primary_role, cp.seniority, cp.country, cp.city,
               cp.work_mode, ${RATE_OR_NULL} AS day_rate,
+              ${hiddenUnlessVisible('hourly_rate')} AS hourly_rate,
+              ${hiddenUnlessVisible('annual_salary')} AS annual_salary,
               cp.currency, cp.rate_visible, cp.availability, cp.profile_picture,
               cp.linkedin_verified, cp.completeness, u.name,
               (SELECT COUNT(*) FROM consultant_certifications cc WHERE cc.user_id = cp.user_id) AS certification_count

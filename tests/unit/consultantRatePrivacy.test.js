@@ -31,9 +31,10 @@ describe('a hidden day rate is an unknown rate, not a withheld one', () => {
     // Position in a sorted list is a measurement. A hidden rate sorts with the ones that
     // do not exist.
     const source = fs.readFileSync(path.join(ROOT, 'models', 'ConsultantProfile.js'), 'utf8');
-    expect(source).toMatch(/CASE WHEN cp\.rate_visible = 1 THEN cp\.day_rate ELSE NULL END/);
-    expect(source).not.toMatch(/rate_asc: 'cp\.day_rate IS NULL, cp\.day_rate ASC'/);
-    expect(source).not.toMatch(/rate_desc: 'cp\.day_rate DESC'/);
+    expect(source).toContain("CASE WHEN cp.rate_visible = 1 THEN cp.${column} ELSE NULL END");
+    expect(source).toContain('const RATE_OR_NULL = hiddenUnlessVisible(\'day_rate\')');
+    expect(source).not.toContain("rate_asc: 'cp.day_rate IS NULL, cp.day_rate ASC'");
+    expect(source).not.toContain("rate_desc: 'cp.day_rate DESC'");
   });
 
   test('the list query nulls the figure rather than trusting each template', () => {
@@ -60,12 +61,56 @@ describe('a hidden day rate is an unknown rate, not a withheld one', () => {
     // to see it, which is more than the consultant chose to publish.
     const view = fs.readFileSync(path.join(ROOT, 'views', 'consultants', 'show.ejs'), 'utf8');
     expect(view).toContain('Rate on request');
-    expect(view).toMatch(/profile\.day_rate && showRate/);
+    // Every figure is gated on the one flag: `showRate` decides the whole list.
+    expect(view).toContain('const figures = showRate');
+    /*
+     * Scoped to the rate block, with comments stripped. A bare `not.toContain('hidden')`
+     * over the whole file matches `<input type="hidden">` and the banner telling an owner
+     * their profile is hidden from the directory — neither of which is this.
+     */
+    const block = view
+      .slice(view.indexOf('const figures = showRate'), view.indexOf('Availability and rate') + 2000)
+      .replace(/<%#[\s\S]*?%>/g, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(block).not.toMatch(/hidden/i);
   });
 
   test('the owner and an admin still see their own figure', () => {
     const route = fs.readFileSync(path.join(ROOT, 'routes', 'consultants.js'), 'utf8');
     expect(route).toMatch(/const showRate = Boolean\(profile\.rate_visible\) \|\| isSelf \|\| \(viewer && viewer\.isAdmin\)/);
+  });
+
+  test('ONE switch covers every figure, not just the day rate', () => {
+    /*
+     * Migration 030 added an hourly rate and an expected salary. Publishing the hourly one
+     * while the day rate was hidden would defeat the whole thing: multiply it by a working
+     * day and you are within a few per cent of the number somebody chose to keep back.
+     */
+    const source = fs.readFileSync(path.join(ROOT, 'models', 'ConsultantProfile.js'), 'utf8');
+    const browse = source.slice(source.indexOf('static async browse'));
+    for (const column of ['hourly_rate', 'annual_salary']) {
+      expect(browse).toContain(`hiddenUnlessVisible('${column}')} AS ${column}`);
+      // Never selected raw, which would hand the figure to a template to forget about.
+      expect(browse).not.toContain(`cp.${column},`);
+    }
+  });
+
+  test('nothing is derived from anything else', () => {
+    /*
+     * An hourly rate is not a day rate over eight: the divisor is a contract term, 7 or 7.5
+     * or 8, and choosing one would put a figure on somebody's profile that they never
+     * agreed to. A salary is a different engagement, not a converted rate. The same refusal
+     * `utils/contractorEconomics.js` makes about tax.
+     */
+    const sources = ['models/ConsultantProfile.js', 'routes/profile.js', 'services/consultantDossier.js']
+      .map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8'))
+      .join('\n')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+    // No arithmetic between the three columns anywhere in the write or read paths.
+    expect(sources).not.toMatch(/day_rate\s*[*/]\s*\d/);
+    expect(sources).not.toMatch(/hourly_rate\s*[*/]/);
+    expect(sources).not.toMatch(/annual_salary\s*[*/]/);
   });
 
   test('it changes nothing about the rate index', () => {

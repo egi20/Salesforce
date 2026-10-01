@@ -140,6 +140,16 @@
                      value="<%= profile.day_rate ? Math.round(profile.day_rate) : '' %>">
             </div>
             <div class="col-md-3">
+              <label class="form-label" for="hourly_rate">Hourly rate</label>
+              <input class="form-control" id="hourly_rate" name="hourly_rate" type="number" min="0" step="1"
+                     value="<%= profile.hourly_rate ? Math.round(profile.hourly_rate) : '' %>">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label" for="annual_salary">Permanent roles from</label>
+              <input class="form-control" id="annual_salary" name="annual_salary" type="number" min="0" step="1"
+                     value="<%= profile.annual_salary ? Math.round(profile.annual_salary) : '' %>">
+            </div>
+            <div class="col-md-3">
               <label class="form-label" for="currency">Currency</label>
               <select class="form-select" id="currency" name="currency">
                 <% ['EUR','USD','GBP','CHF'].forEach(function (c) { %>
@@ -165,6 +175,25 @@
 
           <%
             /*
+             * NOTHING HERE IS DERIVED FROM ANYTHING ELSE HERE.
+             *
+             * An hourly rate is not a day rate divided by eight — the divisor is a contract
+             * term, 7 or 7.5 or 8, and picking one would put a figure on this profile that
+             * its owner never agreed to. An expected salary is not a converted day rate
+             * either: it is a different engagement, with holiday, sick pay and employer
+             * contributions inside it rather than on top. Fill in the ones that apply to
+             * you and leave the rest blank.
+             */
+          %>
+          <p class="form-text mt-0 mb-3">
+            Fill in whichever apply. Nothing is calculated from anything else — an hourly
+            rate is not a day rate divided by eight, and a salary is a different kind of
+            engagement, not a converted rate. <strong>The day rate</strong> is the one your
+            match scores and your rate card use.
+          </p>
+
+          <%
+            /*
              * A public profile is how you get found; your day rate is the number you
              * negotiate with, and until now the two were the same decision. The employer
              * side has had this since the beginning — a role can be advertised without its
@@ -181,9 +210,10 @@
             <label class="form-check-label" for="rate_visible">Show my day rate on my public profile</label>
             <p class="form-text mb-0">
               Untick it and your profile reads <strong>“Rate on request”</strong> to everyone
-              but you. The figure is kept — it still drives your match scores and your rate
-              card — and it stops answering the directory’s rate filter and rate sorting, so
-              it cannot be narrowed down from the outside either.
+              but you — all three figures, not just the day rate, because an hourly rate
+              times a working day gives the day rate back. They are kept: they still drive
+              your match scores and your rate card, and they stop answering the directory’s
+              rate filter and rate sorting, so nothing can be narrowed down from outside.
             </p>
           </div>
 

@@ -70,7 +70,7 @@ An account can hold both roles at once.
 | `/search` | One box across jobs, consultants, companies, agencies and the community. |
 | `/services/staff-augmentation`, `/services/project-based`, `/services/managed-services` | The three shapes an engagement can take, and which one fits. Each ends at the consultant directory or the scope estimator. |
 | `/services/document-generator` | What the Hub generates: a quote becomes an SOW, work breakdown and deck; a profile becomes a CV and rate card. Nothing is stored. |
-| `/profile/consultant` | Where a consultant builds their profile. The day rate can be kept private: untick "Show my day rate" and the profile reads "Rate on request" to everyone else, while the figure still drives match scores and the rate card. |
+| `/profile/consultant` | Where a consultant builds their profile. Three optional figures — a day rate, an hourly rate and the salary a permanent role would have to pay. None is calculated from another. One switch hides all three: the profile then reads "Rate on request" to everyone else, while the figures still drive match scores and the rate card. |
 | `/admin/tests` | An administrator's panel that makes real requests against this site's own routes and records what they answered. Admin accounts. |
 | `/dashboard/applicants` | An employer's board: every application across every role they have posted, by stage, with a filter for the role and how recently somebody applied. Company accounts. Moving somebody between stages happens on the application's own page. |
 | `/about` | What the Hub is, who runs it, and the things it deliberately does not do — no tax calculation, no generated prose in a member's name, no uploaded documents served back out. |

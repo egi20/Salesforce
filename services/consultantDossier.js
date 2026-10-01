@@ -77,6 +77,11 @@ async function build(userId) {
     availability: profile.availability,
     availableFrom: profile.available_from ? monthYear(profile.available_from) : null,
     dayRate: profile.day_rate ? Number(profile.day_rate) : null,
+    // Carried only if it was typed. The rate card is a CONTRACTING document, so the
+    // expected permanent salary is deliberately not part of this dossier — the two are
+    // different engagements and the existing "Annual at this rate" line on the card is
+    // revenue at an assumed number of billable days, which is a third thing again.
+    hourlyRate: profile.hourly_rate ? Number(profile.hourly_rate) : null,
     currency: profile.currency || 'EUR',
     bio: profile.bio || '',
     links: {

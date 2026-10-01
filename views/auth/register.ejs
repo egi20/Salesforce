@@ -39,10 +39,12 @@
                * here needs JavaScript: the page works with scripting off, which is the rule
                * this whole codebase holds client-side code to.
                *
-               * Three, not the reference's two. `recruiter` is in `User.PUBLIC_ROLES` and can
-               * be self-selected; `partner` is not, and must not appear here — it is the role
-               * that carries a commission rate, and the reference's `user_types[]=partner`
-               * POST was a real privilege escalation rather than a missing checkbox.
+               * Three, not the reference's two: `recruiter` is in `User.PUBLIC_ROLES` and can
+               * be self-selected, because a recruiter account can do what a company account
+               * can already do. This list and `User.PUBLIC_ROLES` are asserted to be the same
+               * list, so a card added here without the server agreeing fails a test — the
+               * reference's `user_types[]` POST was a real privilege escalation rather than a
+               * missing checkbox.
                */
               const ROLE_CARDS = [
                 { value: 'consultant', icon: 'bi-person-badge', title: 'Consultant', note: 'Looking for Salesforce work' },

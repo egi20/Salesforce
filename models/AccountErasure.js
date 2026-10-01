@@ -135,7 +135,7 @@ async function erase(userId, { reason = 'self-service' } = {}) {
          gender = NULL, date_of_birth = NULL,
          signup_ip = NULL, signup_country = NULL,
          is_active = 0, email_verified = 0,
-         is_consultant = 0, is_company = 0, is_recruiter = 0, is_partner = 0,
+         is_consultant = 0, is_company = 0, is_recruiter = 0,
          last_login_at = NULL,
          anonymised_at = NOW()
        WHERE id = ?`,

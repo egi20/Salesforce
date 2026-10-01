@@ -15,14 +15,13 @@ describe('the sign-up form', () => {
 
   it('offers exactly the roles a person may give themselves', () => {
     /*
-     * THE SECURITY POINT, not a presentation one. `partner` carries a commission rate — it is
-     * the role that costs somebody money — and the reference's `user_types[]=partner` POST
-     * was a real privilege escalation rather than a missing checkbox. A card for it here
-     * would be that escalation with a nicer target.
+     * THE SECURITY POINT, not a presentation one. The reference's `user_types[]` POST was a
+     * real privilege escalation rather than a missing checkbox, and a card for a withheld
+     * role here would be that escalation with a nicer target. The list on the form and the
+     * list the server accepts are asserted to be the SAME list, so neither can drift.
      */
     const offered = [...view.matchAll(/value:\s*'([a-z]+)'/g)].map((m) => m[1]);
     expect(offered.sort()).toEqual([...PUBLIC_ROLES].sort());
-    expect(offered).not.toContain('partner');
     expect(offered).not.toContain('admin');
   });
 

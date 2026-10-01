@@ -21,13 +21,16 @@ const COMPLETE = Object.freeze({
 });
 
 describe('the recruiter role', () => {
-  test('is self-service, and partner still is not', () => {
-    // The line is money. A recruiter account can do what a company account can already
-    // do; a partner account carries a commission rate, which is what made the reference's
-    // `user_types[]=partner` POST a real escalation.
+  test('is self-service, and admin still is not', () => {
+    // A recruiter account can do what a company account can already do, so withholding it
+    // would have protected nothing. `admin` is what the allowlist is for: it reads private
+    // circumstances, individual day rates beside the people who gave them, and the contact
+    // details of people who never asked to be contacted.
     expect(User.PUBLIC_ROLES).toContain('recruiter');
-    expect(User.PUBLIC_ROLES).not.toContain('partner');
     expect(User.PUBLIC_ROLES).not.toContain('admin');
+    // `partner` is not a role here at all any more — migration 027 removed it, because it
+    // was read by nothing and the comment claiming it carried a commission rate was wrong.
+    expect(User.ALL_ROLES).not.toContain('partner');
   });
 
   test('self-service roles can never add a privileged one', () => {

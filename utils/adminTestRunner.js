@@ -49,6 +49,9 @@ async function runSuite({ category = null, runBy = null } = {}) {
 
   for (const group of groups) {
     for (const test of group.tests) {
+      // Sequential ON PURPOSE — see the comment above. Running thirty requests at once
+      // would make "the app fell over under its own load test" look like a real finding.
+      // eslint-disable-next-line no-await-in-loop
       const result = await runOne(test);
       rows.push({
         testKey: testKeyFor(group.category, test.name),

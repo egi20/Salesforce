@@ -50,7 +50,7 @@
             <select class="form-select" id="f-seniority" name="seniority">
               <option value="">Any</option>
               <% ['junior','mid','senior','lead'].forEach(function (s) { %>
-                <option value="<%= s %>" <%= filters.seniority === s ? 'selected' : '' %>><%= s %></option>
+                <option value="<%= s %>" <%= filters.seniority === s ? 'selected' : '' %>><%= seniorityLabel(s, { full: true }) %></option>
               <% }); %>
             </select>
           </div>
@@ -59,10 +59,19 @@
             <select class="form-select" id="f-mode" name="work_mode">
               <option value="">Any</option>
               <% ['remote','hybrid','onsite'].forEach(function (m) { %>
-                <option value="<%= m %>" <%= filters.work_mode === m ? 'selected' : '' %>><%= m %></option>
+                <option value="<%= m %>" <%= filters.work_mode === m ? 'selected' : '' %>><%= workModeLabel(m) %></option>
               <% }); %>
             </select>
           </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="f-posted">Posted</label>
+          <select class="form-select" id="f-posted" name="posted">
+            <% postedWindows.forEach(function (w) { %>
+              <option value="<%= w.value %>" <%= filters.posted === w.value ? 'selected' : '' %>><%= w.label %></option>
+            <% }); %>
+          </select>
         </div>
 
         <div class="mb-3">
@@ -86,7 +95,7 @@
 
         <div class="mb-3">
           <label class="form-label" for="f-rate">Minimum day rate</label>
-          <input class="form-control" id="f-rate" name="rate_min" type="number" min="0" step="50"
+          <input class="form-control" id="f-rate" name="rate_min" type="number" min="0" step="1"
                  value="<%= filters.rate_min %>" placeholder="Any">
         </div>
 

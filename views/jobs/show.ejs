@@ -32,12 +32,12 @@
 
           <div class="d-flex flex-wrap gap-1 mb-3">
             <span class="badge-hub cloud"><%= roleLabel(job.role) %></span>
-            <span class="badge-hub"><%= job.seniority %></span>
-            <span class="badge-hub"><%= job.work_mode %></span>
-            <span class="badge-hub"><%= job.engagement_type %></span>
+            <span class="badge-hub"><%= seniorityLabel(job.seniority) %></span>
+            <span class="badge-hub"><%= workModeLabel(job.work_mode) %></span>
+            <span class="badge-hub"><%= engagementLabel(job.engagement_type) %></span>
             <% if (job.duration_months) { %><span class="badge-hub"><%= job.duration_months %> months</span><% } %>
             <% if (job.rate_visible && job.rate_min && job.rate_max) { %>
-              <span class="badge-hub ok"><%= Math.round(job.rate_min) %>–<%= Math.round(job.rate_max) %> <%= job.currency %><%= job.engagement_type === 'contract' ? '/day' : '/yr' %></span>
+              <span class="badge-hub ok"><%= Math.round(job.rate_min) %>–<%= Math.round(job.rate_max) %> <%= job.currency %><%= rateUnit(job.engagement_type) %></span>
             <% } %>
             <% if (job.status !== 'open') { %><span class="badge-hub warn"><%= job.status %></span><% } %>
           </div>
@@ -130,7 +130,7 @@
                 <div class="row g-2 mb-2">
                   <div class="col-7">
                     <label class="form-label" for="day_rate">Your rate</label>
-                    <input class="form-control" id="day_rate" name="day_rate" type="number" min="0" step="10">
+                    <input class="form-control" id="day_rate" name="day_rate" type="number" min="0" step="1">
                   </div>
                   <div class="col-5">
                     <label class="form-label" for="currency">Currency</label>

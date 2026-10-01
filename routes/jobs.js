@@ -14,22 +14,38 @@ const { writeLimiter } = require('../middleware/rateLimit');
 const { JOB_FEATURE_DAYS, JOB_FEATURE_PRICE_MINOR, formatMinor } = require('../config/payments');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
-const { ROLE_CATEGORIES, isValidRole, ROLE_SLUGS } = require('../config/roleTaxonomy');
+const { ROLE_CATEGORIES, isValidRole, ROLE_SLUGS, SENIORITY_LEVELS } = require('../config/roleTaxonomy');
 const { CLOUD_FAMILIES, ALL_MODULES, isValidModule } = require('../config/cloudFamilies');
 const { jobPostingJsonLd } = require('../config/seoMeta');
 const { matchScore } = require('../utils/jobMatcher');
 const { sanitizeRichText } = require('../utils/sanitize');
 const { returnTo } = require('../utils/returnTo');
 const countries = require('../config/all-countries.json');
+const { ENGAGEMENT_SLUGS, WORK_MODE_SLUGS, hasDuration } = require('../config/jobTaxonomy');
 
 const router = express.Router();
 
-const SENIORITIES = ['junior', 'mid', 'senior', 'lead'];
-const WORK_MODES = ['remote', 'hybrid', 'onsite'];
-const ENGAGEMENTS = ['contract', 'permanent'];
+const SENIORITIES = SENIORITY_LEVELS.map((s) => s.value);
+
+/*
+ * "Posted" windows, as a declared list.
+ *
+ * A board without one makes somebody who checks weekly re-read every role they have already
+ * seen. The values are matched against this list rather than parsed from the query, so the
+ * number that reaches `INTERVAL ? DAY` is always one of four we chose.
+ */
+const POSTED_WINDOWS = [
+  { value: '', label: 'Any time' },
+  { value: '1', label: 'Last 24 hours' },
+  { value: '7', label: 'Last 7 days' },
+  { value: '30', label: 'Last 30 days' }
+];
+const WORK_MODES = WORK_MODE_SLUGS;
+const ENGAGEMENTS = ENGAGEMENT_SLUGS;
 
 /** Pull filters out of the query string, dropping anything not in the taxonomy. */
 function filtersFrom(query) {
+  const posted = POSTED_WINDOWS.some((w) => w.value && w.value === query.posted) ? query.posted : '';
   return {
     q: query.q ? String(query.q).slice(0, 120) : '',
     role: isValidRole(query.role) ? query.role : '',
@@ -38,7 +54,15 @@ function filtersFrom(query) {
     work_mode: WORK_MODES.includes(query.work_mode) ? query.work_mode : '',
     country: /^[A-Z]{2}$/.test(query.country || '') ? query.country : '',
     module: isValidModule(query.module) ? query.module : '',
-    rate_min: query.rate_min || ''
+    rate_min: query.rate_min || '',
+    /*
+     * Both forms of the same validated value, in ONE object: `posted` is what the form
+     * re-selects, `posted_within_days` is what the builder reads. They are derived
+     * together so a list, its count and its facets cannot end up filtered differently —
+     * the same object goes to `Job.browse` and to `Job.facetByRole`.
+     */
+    posted,
+    posted_within_days: posted ? Number(posted) : null
   };
 }
 
@@ -58,6 +82,7 @@ router.get(
       title: res.locals.seo.title,
       jobs: rows,
       filters,
+      postedWindows: POSTED_WINDOWS,
       sort,
       facets,
       roleCategories: ROLE_CATEGORIES,
@@ -125,7 +150,11 @@ function jobFieldsFrom(body_) {
     rate_max: body_.rate_max || null,
     currency: /^[A-Z]{3}$/.test(body_.currency || '') ? body_.currency : 'EUR',
     rate_visible: body_.rate_visible === 'on',
-    duration_months: body_.duration_months || null,
+    // A permanent role has no duration. Storing one anyway produced cards reading
+    // "Permanent" and "3 months" side by side, and left every reader to decide which
+    // half to believe. The engagement decides, not the form field that happened to be
+    // filled in before the author changed the dropdown.
+    duration_months: hasDuration(body_.engagement_type) ? body_.duration_months || null : null,
     starts_on: body_.starts_on || null,
     expires_at: body_.expires_at || null,
     status: body_.publish === 'on' ? 'open' : 'draft'

@@ -19,7 +19,7 @@
               <p class="text-muted-2 mb-2"><%= profile.headline || roleLabel(profile.primary_role) %></p>
               <div class="d-flex flex-wrap gap-1">
                 <% if (profile.primary_role) { %><span class="badge-hub cloud"><%= roleLabel(profile.primary_role) %></span><% } %>
-                <% if (profile.seniority) { %><span class="badge-hub"><%= profile.seniority %></span><% } %>
+                <% if (profile.seniority) { %><span class="badge-hub"><%= seniorityLabel(profile.seniority) %></span><% } %>
                 <% if (profile.years_experience) { %><span class="badge-hub"><%= profile.years_experience %> yrs</span><% } %>
                 <% if (profile.country) { %><span class="badge-hub"><%= [profile.city, profile.country].filter(Boolean).join(', ') %></span><% } %>
                 <%
@@ -76,21 +76,46 @@
       <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6">Availability and rate</h2>
-          <p class="mb-1">
-            <% if (profile.day_rate) { %>
-              <span class="rate-figure"><%= Math.round(profile.day_rate) %></span>
-              <span class="text-muted-2"><%= profile.currency %>/day</span>
-            <% } else { %>
-              <span class="text-muted-2">Rate on request</span>
+          <%# A hidden rate reads exactly like an absent one. Saying "hidden" would tell %>
+          <%# the reader there is a figure here and that they are not allowed to see it. %>
+          <%
+            /*
+             * Each figure is printed only if it was typed. Nothing is converted into
+             * anything else — an hourly rate is not a day rate over eight, and the salary
+             * is a different engagement rather than a restatement of the same one.
+             */
+            const figures = showRate
+              ? [
+                  [profile.day_rate, `${profile.currency}/day`],
+                  [profile.hourly_rate, `${profile.currency}/hour`],
+                  [profile.annual_salary, `${profile.currency}/year, permanent`]
+                ].filter(([value]) => value)
+              : [];
+          %>
+          <% if (figures.length === 0) { %>
+            <p class="mb-1"><span class="text-muted-2">Rate on request</span></p>
+          <% } else { %>
+            <% figures.forEach(function (f, i) { %>
+              <p class="mb-1">
+                <% if (i === 0) { %>
+                  <span class="rate-figure"><%= Math.round(f[0]) %></span>
+                  <span class="text-muted-2"><%= f[1] %></span>
+                <% } else { %>
+                  <span class="text-muted-2"><strong><%= Math.round(f[0]) %></strong> <%= f[1] %></span>
+                <% } %>
+              </p>
+            <% }); %>
+            <% if (!profile.rate_visible) { %>
+              <p class="mb-1"><span class="badge-hub"><i class="bi bi-eye-slash"></i> Only you can see these</span></p>
             <% } %>
-          </p>
+          <% } %>
           <p class="mb-1">
             <span class="badge-hub <%= profile.availability === 'immediate' ? 'ok' : '' %>">
               <%= { immediate: 'Available now', two_weeks: 'Available in 2 weeks', one_month: 'Available in a month', not_available: 'Not currently available' }[profile.availability] %>
             </span>
           </p>
           <p class="small text-muted-2 mb-0">
-            <%= profile.work_mode %><%= profile.willing_to_travel ? ' · willing to travel' : '' %>
+            <%= workModeLabel(profile.work_mode) %><%= profile.willing_to_travel ? ' · willing to travel' : '' %>
           </p>
 
           <% if (canSeeContact) { %>

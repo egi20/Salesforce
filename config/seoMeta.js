@@ -48,6 +48,31 @@ const PAGE_META = {
     description:
       'An introduction to a specialist who works in your country. Salesforce Hub does not calculate your tax, your take-home pay or a saving.'
   },
+  '/services/staff-augmentation': {
+    title: 'Salesforce staff augmentation',
+    description:
+      'Add certified Salesforce specialists to your existing team, on a day rate, under your own delivery lead.'
+  },
+  '/services/project-based': {
+    title: 'Project-based Salesforce delivery',
+    description:
+      'Scope a Salesforce project end to end — phases, team, timeline and a budget that reconciles line by line — before anyone starts.'
+  },
+  '/services/managed-services': {
+    title: 'Salesforce managed services',
+    description:
+      'Ongoing support and enhancement of a live Salesforce org, without hiring a permanent admin.'
+  },
+  '/services/document-generator': {
+    title: 'Salesforce SOW, CV and rate card generator',
+    description:
+      'Turn a scope estimate into a matching SOW, work breakdown and deck, and a consultant profile into a CV and rate card. Nothing is stored.'
+  },
+  '/about': {
+    title: 'About Salesforce Hub',
+    description:
+      'An independent marketplace for the Salesforce ecosystem: jobs, consultants and contributed day rates — and the things this site deliberately will not do.'
+  },
   '/auth/login': { title: 'Sign in', description: 'Sign in to Salesforce Hub.' },
   '/auth/register': { title: 'Create an account', description: 'Join Salesforce Hub as a consultant or a hiring company.' }
 };
@@ -56,7 +81,9 @@ const PAGE_META = {
 // `/tax-advisory` is indexable; `/tax-advisory/enquire` deliberately is not. A form page
 // carries no content a search result can usefully show, and the page above it already
 // links to it.
-const PUBLIC_PATHS = ['/', '/jobs', '/consultants', '/companies', '/rates', '/recruiters', '/success-stories', '/tax-advisory', '/faq', '/contact', '/legal/privacy', '/legal/terms'];
+const PUBLIC_PATHS = ['/', '/about',
+  '/services/staff-augmentation', '/services/project-based', '/services/managed-services',
+  '/services/document-generator', '/jobs', '/consultants', '/companies', '/rates', '/recruiters', '/success-stories', '/tax-advisory', '/faq', '/contact', '/legal/privacy', '/legal/terms'];
 
 function canonicalUrl(path) {
   const clean = String(path || '/').split('?')[0];

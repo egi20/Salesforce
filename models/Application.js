@@ -209,15 +209,101 @@ class Application {
     return rows;
   }
 
-  static async statusCountsForCompany(companyUserId) {
+  /**
+   * THE ONLY FILTER BUILDER FOR AN EMPLOYER'S APPLICATIONS.
+   *
+   * The board, its per-status counts and its paginated list all go through this, so the
+   * number on a tab is provably the number of rows behind it. Two builders would let a
+   * count and its list disagree, and here that disagreement is somebody being told they
+   * have four people to review and finding three.
+   *
+   * `companyUserId` is not a filter, it is the scope: it is always applied and it comes
+   * from the session, never from the query string. Everything else is optional and is
+   * dropped when it is not one of the declared values.
+   */
+  static buildFilter(companyUserId, filters = {}) {
+    const where = ['j.company_user_id = ?'];
+    const params = [companyUserId];
+
+    if (filters.status && Object.prototype.hasOwnProperty.call(TRANSITIONS, filters.status)) {
+      where.push('a.status = ?');
+      params.push(filters.status);
+    }
+    if (filters.jobId) {
+      where.push('a.job_id = ?');
+      params.push(filters.jobId);
+    }
+    if (filters.sinceDays) {
+      // Bounded by the caller against a declared list, so this can never become a
+      // caller-supplied interval expression.
+      where.push('a.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)');
+      params.push(filters.sinceDays);
+    }
+
+    return { clause: where.join(' AND '), params };
+  }
+
+  /** One page of an employer's applications, across every role they have posted. */
+  static async browseForCompany(companyUserId, filters = {}, { limit = 50, offset = 0 } = {}) {
+    const { clause, params } = Application.buildFilter(companyUserId, filters);
+
+    const [rows] = await promisePool.query(
+      `SELECT a.id, a.status, a.day_rate, a.currency, a.created_at, a.updated_at,
+              a.consultant_user_id,
+              j.id AS job_id, j.title AS job_title, j.slug AS job_slug,
+              u.name AS consultant_name,
+              cp.headline, cp.primary_role, cp.seniority, cp.country, cp.profile_picture,
+              cp.linkedin_verified
+         FROM applications a
+         JOIN jobs j ON j.id = a.job_id
+         JOIN users u ON u.id = a.consultant_user_id
+         LEFT JOIN consultant_profiles cp ON cp.user_id = a.consultant_user_id
+        WHERE ${clause}
+        ORDER BY a.updated_at DESC, a.id DESC
+        LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
+    );
+
+    const [[{ total }]] = await promisePool.query(
+      `SELECT COUNT(*) AS total FROM applications a JOIN jobs j ON j.id = a.job_id WHERE ${clause}`,
+      params
+    );
+    return { rows, total };
+  }
+
+  /**
+   * How many applications sit at each status, under the SAME filters as the list.
+   *
+   * The status filter is deliberately dropped: a tab row whose own counts collapsed the
+   * moment you picked a tab would make every other tab read as empty.
+   */
+  static async countsForCompany(companyUserId, filters = {}) {
+    const { clause, params } = Application.buildFilter(companyUserId, { ...filters, status: '' });
     const [rows] = await promisePool.query(
       `SELECT a.status, COUNT(*) AS count
          FROM applications a JOIN jobs j ON j.id = a.job_id
-        WHERE j.company_user_id = ?
+        WHERE ${clause}
         GROUP BY a.status`,
+      params
+    );
+    return Object.fromEntries(rows.map((r) => [r.status, Number(r.count)]));
+  }
+
+  /** The roles that actually have applications, for the board's job filter. */
+  static async jobsWithApplications(companyUserId) {
+    const [rows] = await promisePool.query(
+      `SELECT j.id, j.title, COUNT(a.id) AS application_count
+         FROM jobs j JOIN applications a ON a.job_id = j.id
+        WHERE j.company_user_id = ?
+        GROUP BY j.id, j.title
+        ORDER BY j.title ASC`,
       [companyUserId]
     );
-    return Object.fromEntries(rows.map((r) => [r.status, r.count]));
+    return rows;
+  }
+
+  static async statusCountsForCompany(companyUserId) {
+    return Application.countsForCompany(companyUserId);
   }
 }
 

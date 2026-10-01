@@ -1,0 +1,108 @@
+<%- include('partials/layout-start') %>
+<%- include('partials/page-header', {
+  icon: 'bi-info-circle',
+  heading: 'About ' + appName,
+  sub: 'An independent marketplace for the Salesforce ecosystem — and a short list of the things it will not do.'
+}) %>
+
+<section class="glass-section pb-5"><div class="container">
+  <div class="row justify-content-center"><div class="col-lg-8">
+
+    <div class="glass-card mb-4"><div class="card-body p-4">
+      <h2 class="h5 mb-3">What this is</h2>
+      <p>
+        Three things in one place: contract and permanent roles across the Salesforce clouds,
+        a directory of consultants you can filter by credential and availability, and a
+        day-rate index built from figures the people doing the work contributed themselves.
+      </p>
+      <p class="mb-0">
+        Around them sit the tools that came out of needing them — a scope estimator that
+        produces a statement of work, a rate calculator for a contractor working out what a
+        day is worth, a community, and an introduction to a tax specialist in your own
+        country.
+      </p>
+    </div></div>
+
+    <%
+      /*
+       * These are not marketing claims. Each one is a rule enforced in the code, and each is
+       * here because the obvious alternative is what most sites in this shape actually do.
+       * If one of them ever stops being true, this page is wrong and has to change with it.
+       */
+      const refusals = [
+        ['We do not calculate your tax',
+         'Not a saving, not a take-home figure, not a percentage. Tax depends on your jurisdiction, your entity, your VAT position and how you pay yourself. A number that looks like tax advice but is a guess is worse than no number, because people act on it. What we do instead is introduce you to somebody who can answer it properly.',
+         'bi-slash-circle'],
+        ['A rate bucket with fewer than three contributors is not published',
+         'You see the contributor count and no figures. Every figure counts one person rather than one submission, and a month below the threshold is drawn as a gap rather than as a zero — interpolating across it would invent data about a small enough group to identify.',
+         'bi-people'],
+        ['Nothing on this site writes prose in your name',
+         'A generated CV summary is fluent text about a career the model does not know, in a document you send to a client. Your CV and your rate card are formatted from what you entered and nothing else. Where a model does draft anything — the narrative sections of a quote — you edit it and accept it before a client ever sees it, and it is never handed a figure to repeat.',
+         'bi-pencil'],
+        ['We do not take documents and hand them back out',
+         'No uploaded CV templates, no uploaded invoice templates, no supplier invoices put through a model. Every document this site serves is one it built and then opened and parsed before sending, because a file we did not build is a file we cannot vouch for.',
+         'bi-file-earmark-lock'],
+        ['Nothing here emails anybody on your behalf',
+         'There is no outreach queue and no automated connection request. Where a message is drafted, a person sends it from their own mail client and records that they did.',
+         'bi-send-slash'],
+        ['Moderation hides, it does not delete',
+         'A hide is reversible and leaves an entry saying who did it and why. The exception is a support enquiry, where deletion is what was promised on the form — and that one is on a published retention clock.',
+         'bi-eye-slash']
+      ];
+    %>
+    <div class="glass-card mb-4"><div class="card-body p-4">
+      <h2 class="h5 mb-3">What it refuses to do</h2>
+      <div class="vstack gap-3">
+        <% refusals.forEach(function (r) { %>
+          <div class="d-flex gap-3">
+            <span class="icon-tile icon-tile-sm icon-blue flex-shrink-0"><i class="bi <%= r[2] %>"></i></span>
+            <div>
+              <div class="fw-semibold"><%= r[0] %></div>
+              <p class="small text-muted-2 mb-0"><%= r[1] %></p>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    </div></div>
+
+    <div class="glass-card mb-4"><div class="card-body p-4">
+      <h2 class="h5 mb-3">Not affiliated with Salesforce, Inc.</h2>
+      <p class="mb-0">
+        Salesforce, Sales Cloud, Service Cloud, Agentforce, MuleSoft, Tableau and the other
+        product names used here are trademarks of Salesforce, Inc. This site is independent:
+        it is not endorsed by, sponsored by or connected to Salesforce, Inc., and it carries
+        none of their marks. The mark in the header is our own.
+      </p>
+    </div></div>
+
+    <div class="glass-card mb-4"><div class="card-body p-4">
+      <h2 class="h5 mb-3">Who runs it</h2>
+      <% if (legal.isConfigured()) { %>
+        <p class="mb-1"><strong><%= legal.controller.name %></strong></p>
+        <% if (legal.controller.address) { %>
+          <p class="small text-muted-2 mb-0" style="white-space: pre-line"><%= legal.controller.address %></p>
+        <% } %>
+      <% } else { %>
+        <%# Saying so plainly beats inventing a name, and the boot log warns about it too. %>
+        <div class="alert alert-warning mb-0">
+          <strong>The operator of this site has not been set.</strong>
+          Until <code>LEGAL_CONTROLLER_NAME</code> is configured there is no company or
+          person named here, because printing a placeholder would be worse than an absence.
+        </div>
+      <% } %>
+    </div></div>
+
+    <div class="glass-card"><div class="card-body p-4">
+      <h2 class="h5 mb-3">Where to go next</h2>
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" href="/auth/register">Create an account</a>
+        <a class="btn btn-outline-primary" href="/faq">Frequently asked questions</a>
+        <a class="btn btn-outline-primary" href="/contact">Contact</a>
+        <a class="btn btn-outline-primary" href="/report-issue">Report a problem</a>
+      </div>
+    </div></div>
+
+  </div></div>
+</div></section>
+
+<%- include('partials/layout-end') %>

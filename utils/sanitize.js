@@ -32,9 +32,46 @@ const RICH_TEXT_OPTIONS = {
   }
 };
 
+/*
+ * Whether the text already carries structure of its own.
+ *
+ * `br` counts: a value that already has line breaks has been through this once.
+ */
+const BLOCK_TAG = /<(p|ul|ol|h3|h4|blockquote|pre|br)\b/i;
+
+/** Blank line starts a paragraph, single newline is a break. */
+function asParagraphs(text) {
+  return text
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => `<p>${block.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+}
+
+/*
+ * Sanitise first, then give plain text its paragraphs.
+ *
+ * Every rich-text field in this application is edited in a BARE TEXTAREA — the job
+ * description, a consultant's bio, a company's About. There is no editor emitting markup,
+ * so what a person types is plain text with blank lines in it, and HTML collapses every
+ * one of them: three paragraphs rendered as a single run-on block and nobody could see
+ * why, because the stored value looked exactly as it had been typed.
+ *
+ * The conversion runs HERE, on the stored value at render time, for the same reason
+ * `utils/videoEmbed.js` converts at render: today's rules then apply to every row,
+ * including the ones written before this existed. It is idempotent — the output carries
+ * `<p>`, so a second pass leaves it alone — and it never runs on text that already has
+ * structure, so markup a person did type is untouched.
+ *
+ * Sanitising FIRST is not an ordering preference. Wrapping before sanitising would build
+ * paragraphs around input nothing had inspected yet.
+ */
 function sanitizeRichText(html) {
   if (!html) return '';
-  return sanitizeHtml(String(html), RICH_TEXT_OPTIONS);
+  const clean = sanitizeHtml(String(html), RICH_TEXT_OPTIONS);
+  if (BLOCK_TAG.test(clean)) return clean;
+  return asParagraphs(clean);
 }
 
 /** Strip all markup, e.g. for meta descriptions and list previews. */

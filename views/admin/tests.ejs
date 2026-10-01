@@ -28,8 +28,21 @@
     <div class="col-6 col-lg-3">
       <div class="stat-tile"><div class="value"><%= totalTests %></div><div class="label">Total Tests</div></div>
     </div>
+    <%
+      /*
+       * This tile said "Enabled" and printed `totalTests` — the same figure as the one
+       * beside it, under a different word. There is no such thing as a disabled test here:
+       * the suite is an array in config, and every entry runs. Two identical numbers under
+       * two labels look like information and are not.
+       *
+       * What is worth a tile is how the last run went.
+       */
+    %>
     <div class="col-6 col-lg-3">
-      <div class="stat-tile"><div class="value"><%= totalTests %></div><div class="label">Enabled</div></div>
+      <div class="stat-tile">
+        <div class="value"><%= lastRun ? `${lastRun.passed}/${lastRun.total}` : '—' %></div>
+        <div class="label">Passed last run</div>
+      </div>
     </div>
     <div class="col-6 col-lg-3">
       <div class="stat-tile"><div class="value"><%= categoryCount %></div><div class="label">Categories</div></div>

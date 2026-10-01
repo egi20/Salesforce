@@ -404,16 +404,34 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 .navbar-hub .navbar-nav {
   gap: 0.2rem;
 }
-@media (min-width: 992px) {
-  .navbar-hub .navbar-nav.mx-lg-auto { gap: 0.35rem; }
+@media (min-width: 1200px) {
+  .navbar-hub .navbar-nav.mx-xl-auto { gap: 0.35rem; }
 }
 
-.navbar-hub .nav-link {
+/*
+ * `.navbar-nav` is in the selector deliberately. Bootstrap sets the horizontal padding with
+ * `.navbar-expand-xl .navbar-nav .nav-link`, three classes, so a two-class rule here loses
+ * and the padding below is silently ignored — which is exactly what happened the first time
+ * this was trimmed.
+ */
+.navbar-hub .navbar-nav .nav-link {
   color: var(--text-medium);
   font-weight: 500;
   border-radius: var(--radius-lg);
   padding: 0.5rem 0.9rem;
   transition: var(--transition-fast);
+  /*
+   * Icon and label on ONE line.
+   *
+   * Without this the plain links — Home and About — wrapped their icon above the text and
+   * stood 62px tall while every dropdown beside them was 38px, because a dropdown toggle
+   * gets `display: flex` from Bootstrap and a plain link does not. The bar looked ragged and
+   * nobody could see why.
+   */
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
 }
 .navbar-hub .nav-link:hover {
   background: rgba(1, 118, 211, 0.08);
@@ -425,10 +443,20 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   background: rgba(1, 118, 211, 0.1);
 }
 
+/*
+ * AN OPEN MENU IS OPAQUE. This is the one place the frost is wrong.
+ *
+ * It was `--glass-bg-heavy` (white at 85%) with a blur behind it, which reads well over a
+ * pale page and fails completely over the home hero: the h1 showed straight through the
+ * panel and ran across the item labels. A blur cannot save it either — the menu opens over
+ * whatever the page happens to be, so the only background that works everywhere is one that
+ * lets nothing through.
+ *
+ * The border and the shadow stay; they are what separate the panel from a white page now
+ * that translucency no longer does it.
+ */
 .navbar-hub .dropdown-menu {
-  background: var(--glass-bg-heavy);
-  backdrop-filter: var(--glass-blur-lg);
-  -webkit-backdrop-filter: var(--glass-blur-lg);
+  background: #fff;
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--glass-shadow-lg);
@@ -769,6 +797,11 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   transition: var(--transition-glass);
 }
 .stat-tile:hover { box-shadow: var(--glass-shadow-lg); }
+/* DESIGN.md: the lift is for a surface that is ITSELF a link. A static tile that moved
+   under the cursor would promise an affordance that is not there — and one that does
+   navigate has to say so before it is clicked. */
+a.stat-tile:hover { transform: translateY(-4px); }
+a.stat-tile:hover .value { color: var(--primary-blue); }
 .stat-tile .value {
   font-size: 1.85rem;
   font-weight: 800;
@@ -1006,6 +1039,88 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 .footer-hub a { color: rgba(255, 255, 255, 0.75); }
 .footer-hub a:hover { color: #fff; }
 
+/* The owner's actions belong to the card above them, which carries its own bottom
+   margin — without this they read as a detached row between two cards. */
+.job-card-actions { margin-top: -0.5rem; }
+
+/* ============================================================================
+   THE APPLICANT BOARD
+   ==========================================================================
+
+   Eight stages side by side. It SCROLLS sideways rather than shrinking each column
+   towards nothing: a name and a role title need a readable width, and eight columns
+   squeezed into a phone is eight columns nobody can read. Each column keeps its own
+   minimum and the row carries the overflow.
+
+   There is no drag and drop, and that is deliberate rather than unfinished. A move
+   between stages is a declared transition that writes an audit event and notifies the
+   other party in one transaction, on the application's own page. A board that moved rows
+   itself would be a second write path into the same table. */
+.applicant-board {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(13.5rem, 1fr);
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding-bottom: var(--space-3);
+}
+
+.applicant-column {
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+}
+
+/* The cards are links, so they get the same lift a linked card gets everywhere else. */
+.applicant-card { transition: var(--transition-fast); }
+.applicant-card:hover { transform: translateY(-2px); box-shadow: var(--glass-shadow-lg); }
+
+@media (max-width: 767.98px) {
+  /* One column at a time on a phone: a sideways scroll containing a sideways scroll is
+     a thing nobody can operate. */
+  .applicant-board { grid-auto-flow: row; grid-auto-columns: auto; overflow-x: visible; }
+}
+
+/*
+ * SEVEN COLUMNS, AND NOT A 12-COLUMN GRID.
+ *
+ * The footer carries the brand plus one column per menu group, which is seven — a number
+ * the Bootstrap grid cannot divide, so `col-lg-2` six times leaves the brand a column of
+ * the same width as "Legal". A named grid says what the layout is: the brand gets the wide
+ * track and the six link columns share the rest evenly.
+ */
+.footer-grid {
+  display: grid;
+  gap: var(--space-4) var(--space-4);
+  grid-template-columns: 1fr;
+}
+.footer-grid h3 { margin-bottom: var(--space-3); }
+.footer-grid li + li { margin-top: 0.35rem; }
+
+@media (min-width: 576px) {
+  .footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .footer-brand { grid-column: 1 / -1; }
+}
+@media (min-width: 768px) {
+  .footer-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 992px) {
+  .footer-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (min-width: 1400px) {
+  /*
+   * All seven on one row, and not before 1400px: inside the 1140px container that Bootstrap
+   * gives the range below it, a seventh track is narrow enough to wrap "Consultant Hub"
+   * across two lines while the column beside it has room to spare.
+   *
+   * The brand track is wider because it holds a sentence, not a list of two-word links.
+   */
+  .footer-grid { grid-template-columns: 1.7fr repeat(6, minmax(0, 1fr)); }
+  .footer-brand { grid-column: auto; }
+}
+
 /* ============================================================================
    MOTION
    ========================================================================== */
@@ -1177,9 +1292,9 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   right: 0;
   width: 18rem;
   max-width: calc(100vw - 2rem);
-  background: var(--glass-bg-heavy);
-  backdrop-filter: var(--glass-blur-lg);
-  -webkit-backdrop-filter: var(--glass-blur-lg);
+  /* Opaque for the same reason `.navbar-hub .dropdown-menu` is: it opens over the home
+     hero, and a translucent panel let the h1 read straight through the field. */
+  background: #fff;
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--glass-shadow-lg);
@@ -1201,8 +1316,59 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   color: var(--text-light);
 }
 
-@media (max-width: 991.98px) {
+@media (max-width: 1199.98px) {
   .nav-search-panel { position: static; width: 100%; margin-top: 0.5rem; box-shadow: none; }
+}
+
+/*
+ * The auth buttons, as a matched pair that never wraps.
+ *
+ * "Sign in" and "Join free" were breaking onto two lines at 1377px — a text link beside a
+ * filled button, each sized differently, in a bar with no room left. Two pills of the same
+ * shape read as one control pair and `nowrap` keeps each on its own line whatever the width.
+ */
+.navbar-hub .btn-auth {
+  white-space: nowrap;
+  border-radius: 999px;
+  padding: 0.4rem 1.1rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+/*
+ * THE NARROW END OF THE EXPANDED BAR.
+ *
+ * The menu expands at 1200px, and at exactly 1200px it did not fit: brand, six items, the
+ * search and two buttons measured 1196px inside a 1140px container, so "Sign up" hung off
+ * the right edge. Collapsing to a hamburger instead would hide a menu at a width where a
+ * laptop plainly has room for one.
+ *
+ * So the band between the expand breakpoint and a comfortable width trims what costs
+ * nothing to read: the padding around each item and a little off the wordmark. Nothing is
+ * hidden and nothing moves.
+ */
+@media (min-width: 1200px) and (max-width: 1399.98px) {
+  .navbar-hub .navbar-brand { font-size: 1.15rem; }
+  .navbar-hub .navbar-nav .nav-link { padding: 0.45rem 0.4rem; gap: 0.3rem; }
+  .navbar-hub .btn-auth { padding: 0.4rem 0.9rem; }
+
+  /*
+   * Signed in, the account name is the widest thing in the bar and it was the piece that
+   * overflowed at 1200px — the avatar beside it already identifies the account. It is
+   * CLIPPED rather than `display: none`, so the link keeps an accessible name; a bare avatar
+   * with an empty alt announces as nothing at all.
+   */
+  .nav-user-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
 /* ============================================================================
@@ -1395,4 +1561,135 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   height: 28px;
   flex: 0 0 28px;
   display: block;
+}
+
+/* ============================================================================
+   ROLE CARDS — the "I am" question on the sign-up form
+   ==========================================================================*/
+
+/*
+ * Big targets instead of a column of 13px checkboxes. The first question on the form is
+ * the one people misread, and a card is both easier to hit on a phone and easier to scan.
+ *
+ * THE INPUT IS STILL THE CONTROL. It is moved out of sight with `opacity: 0`, NOT with
+ * `display: none` or `visibility: hidden` — either of those drops it from the tab order and
+ * from the accessibility tree, which would make this keyboard-unusable and invisible to a
+ * screen reader. The label is its face, tied by `for`, so a click or a space bar both work
+ * and the page needs no JavaScript at all.
+ */
+.role-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.role-card {
+  position: relative;
+}
+
+.role-card-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.role-card-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.25rem;
+  padding: 1.1rem 0.75rem;
+  height: 100%;
+  border: 2px solid var(--border-color, rgba(3, 45, 96, 0.14));
+  border-radius: var(--radius-md, 12px);
+  background: var(--glass-bg-light, rgba(255, 255, 255, 0.5));
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.role-card-face i {
+  font-size: 1.5rem;
+  color: var(--primary-blue);
+}
+
+.role-card-title {
+  font-weight: 600;
+  color: var(--primary-navy);
+}
+
+.role-card-note {
+  font-size: 0.8125rem;
+  color: var(--text-light);
+  line-height: 1.3;
+}
+
+.role-card-input:hover + .role-card-face {
+  border-color: var(--primary-blue);
+}
+
+.role-card-input:checked + .role-card-face {
+  border-color: var(--primary-blue);
+  background: var(--glass-bg-tinted, rgba(1, 118, 211, 0.08));
+}
+
+/*
+ * The focus ring is on the FACE, driven by focus on the hidden input — otherwise a keyboard
+ * user tabbing through sees nothing move. `:focus-visible` rather than `:focus` so it does
+ * not appear on a mouse click.
+ */
+.role-card-input:focus-visible + .role-card-face {
+  outline: 3px solid var(--primary-blue);
+  outline-offset: 2px;
+}
+
+/*
+ * A tick in the corner of a chosen card.
+ *
+ * Colour alone must not carry the answer: somebody who cannot distinguish the tinted
+ * background from the plain one still needs to see which cards are selected.
+ */
+.role-card-input:checked + .role-card-face::after {
+  content: '\f26e'; /* bi-check-lg */
+  font-family: 'bootstrap-icons';
+  position: absolute;
+  top: 0.4rem;
+  right: 0.55rem;
+  font-size: 0.95rem;
+  color: var(--primary-blue);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-card-face { transition: none; }
+}
+
+/* The show/hide control public/js/main.js adds to a password field. */
+.password-field { position: relative; }
+
+.password-field .form-control { padding-right: 2.75rem; }
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--text-light);
+  padding: 0.35rem 0.5rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.password-toggle:hover { color: var(--primary-blue); }
+
+.password-toggle:focus-visible {
+  outline: 2px solid var(--primary-blue);
+  outline-offset: 1px;
 }

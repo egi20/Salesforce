@@ -28,7 +28,7 @@ const { promisePool } = require('../config/database');
 /** Written out rather than `SELECT *` — see rule 2. */
 const USER_COLUMNS = [
   'id', 'email', 'name', 'user_type',
-  'is_consultant', 'is_company', 'is_recruiter', 'is_partner',
+  'is_consultant', 'is_company', 'is_recruiter',
   'is_active', 'email_verified',
   'terms_accepted_at', 'terms_version', 'privacy_policy_version',
   'gender', 'date_of_birth', 'signup_country',

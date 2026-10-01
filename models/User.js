@@ -9,29 +9,36 @@ const config = require('../config/config');
  * Roles the public registration form is allowed to create.
  *
  * This is a security boundary, not a UI convenience. In the reference implementation,
- * before this filter existed, a hand-crafted `user_types[]=partner` POST created a
- * working partner account with a commission rate and no approval step. Every other
- * role is admin-onboarded.
- */
-/*
- * `recruiter` IS self-service; `partner` is NOT, and the line between them is money.
+ * before this filter existed, a hand-crafted `user_types[]` POST created a privileged
+ * account with no approval step. The filter is an allowlist for that reason, and
+ * `addSelfServiceRoles` unions rather than replaces, so nothing here can remove a role or
+ * grant a privileged flag.
  *
- * A recruiter account can do what a company account can already do — advertise roles and
- * read the consultant directory — so gating it behind support would make the role dead on
- * arrival without protecting anything. A partner account carries a commission rate, which
- * is why the reference's `user_types[]=partner` POST was a real escalation: it created a
- * working account that could be owed money, with no approval step.
+ * `admin` is the whole of what this list withholds, and it is enough: an admin reads
+ * private circumstances on `/admin/tax-advisory`, individual day rates beside the people
+ * who gave them on `/admin/rates`, and the contact details of people who never asked to be
+ * contacted on `/crm`.
+ *
+ * `recruiter` IS self-service, deliberately. A recruiter account can do what a company
+ * account can already do — advertise roles and read the consultant directory — so gating it
+ * behind support would make the role dead on arrival without protecting anything.
+ *
+ * This comment used to say the line was `partner`, "the role that carries a commission
+ * rate". That was true of the reference and never true here: the referral rate comes from
+ * `config/referrals.js` for every account that enrols, and `is_partner` was read by nothing
+ * at all. Migration 027 removed it. Documentation that is wrong is more dangerous than
+ * documentation that is missing, because a security argument standing on it looks
+ * load-bearing.
  *
  * Anyone adding a role here: ask whether it grants access somebody else pays for.
  */
 const PUBLIC_ROLES = Object.freeze(['consultant', 'company', 'recruiter']);
-const ALL_ROLES = Object.freeze(['consultant', 'company', 'recruiter', 'partner', 'admin']);
+const ALL_ROLES = Object.freeze(['consultant', 'company', 'recruiter', 'admin']);
 
 const ROLE_FLAG_COLUMN = Object.freeze({
   consultant: 'is_consultant',
   company: 'is_company',
-  recruiter: 'is_recruiter',
-  partner: 'is_partner'
+  recruiter: 'is_recruiter'
 });
 
 /**
@@ -111,17 +118,16 @@ class User {
     const flags = {
       is_consultant: finalRoles.includes('consultant') ? 1 : 0,
       is_company: finalRoles.includes('company') ? 1 : 0,
-      is_recruiter: finalRoles.includes('recruiter') ? 1 : 0,
-      is_partner: finalRoles.includes('partner') ? 1 : 0
+      is_recruiter: finalRoles.includes('recruiter') ? 1 : 0
     };
 
     const [result] = await promisePool.query(
       `INSERT INTO users
          (email, password_hash, name, user_type,
-          is_consultant, is_company, is_recruiter, is_partner,
+          is_consultant, is_company, is_recruiter,
           terms_accepted_at, terms_version, privacy_policy_version,
           gender, date_of_birth, signup_ip, signup_country)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         normalisedEmail,
         passwordHash,
@@ -130,7 +136,6 @@ class User {
         flags.is_consultant,
         flags.is_company,
         flags.is_recruiter,
-        flags.is_partner,
         consent ? new Date() : null,
         consent ? consent.termsVersion : null,
         consent ? consent.privacyVersion : null,
@@ -195,7 +200,6 @@ class User {
     if (userRow.is_consultant) roles.add('consultant');
     if (userRow.is_company) roles.add('company');
     if (userRow.is_recruiter) roles.add('recruiter');
-    if (userRow.is_partner) roles.add('partner');
     if (userRow.user_type === 'admin') roles.add('admin');
     roles.add(userRow.user_type);
     return ALL_ROLES.filter((r) => roles.has(r));
@@ -216,7 +220,7 @@ class User {
 
       await conn.query(
         `UPDATE users
-            SET user_type = ?, is_consultant = ?, is_company = ?, is_recruiter = ?, is_partner = ?
+            SET user_type = ?, is_consultant = ?, is_company = ?, is_recruiter = ?
           WHERE id = ?`,
         [
           primary,
@@ -225,7 +229,6 @@ class User {
           // Privileged flags are preserved exactly as they were; a self-service form
           // can neither grant nor revoke them.
           user.is_recruiter,
-          user.is_partner,
           userId
         ]
       );
@@ -240,14 +243,13 @@ class User {
 
     await promisePool.query(
       `UPDATE users
-          SET user_type = ?, is_consultant = ?, is_company = ?, is_recruiter = ?, is_partner = ?
+          SET user_type = ?, is_consultant = ?, is_company = ?, is_recruiter = ?
         WHERE id = ?`,
       [
         primaryRole,
         finalRoles.includes('consultant') ? 1 : 0,
         finalRoles.includes('company') ? 1 : 0,
         finalRoles.includes('recruiter') ? 1 : 0,
-        finalRoles.includes('partner') ? 1 : 0,
         userId
       ]
     );
@@ -279,7 +281,6 @@ class User {
       isConsultant: Boolean(userRow.is_consultant) || userRow.user_type === 'consultant',
       isCompany: Boolean(userRow.is_company) || userRow.user_type === 'company',
       isRecruiter: Boolean(userRow.is_recruiter) || userRow.user_type === 'recruiter',
-      isPartner: Boolean(userRow.is_partner) || userRow.user_type === 'partner',
       isAdmin: userRow.user_type === 'admin' || Boolean(userRow.is_superadmin),
       isSuperadmin: Boolean(userRow.is_superadmin),
       emailVerified: Boolean(userRow.email_verified),
@@ -305,7 +306,7 @@ class User {
 
     const clause = where.join(' AND ');
     const [rows] = await promisePool.query(
-      `SELECT id, email, name, user_type, is_consultant, is_company, is_recruiter, is_partner,
+      `SELECT id, email, name, user_type, is_consultant, is_company, is_recruiter,
               is_superadmin, is_active, email_verified, created_at, last_login_at
          FROM users
         WHERE ${clause}

@@ -111,6 +111,16 @@ router.get(
       }
     }
 
+    /*
+     * Whether the figure is printed at all.
+     *
+     * A consultant can publish a profile and keep the number they negotiate with to
+     * themselves — `rate_visible`, migration 029. The owner and an admin always see it,
+     * because the owner is the person it belongs to and an admin is who answers when
+     * somebody asks what is stored about them.
+     */
+    const showRate = Boolean(profile.rate_visible) || isSelf || (viewer && viewer.isAdmin);
+
     const [skills, certifications, experiences] = await Promise.all([
       Skill.forConsultant(profile.user_id),
       ConsultantProfile.listCertifications(profile.user_id),
@@ -131,6 +141,7 @@ router.get(
       certifications,
       experiences,
       isSelf,
+      showRate,
       hiringJobs,
       // Contact details are for signed-in companies only. An open directory of
       // e-mail addresses is a scraping target, and consultants did not consent to that.

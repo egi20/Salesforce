@@ -111,6 +111,121 @@ router.get(
   })
 );
 
+/*
+ * THE BOARD: every application across every role, in one place.
+ *
+ * The per-job pipeline (`/applications/job/:slug`) answers "who applied for this role".
+ * It does not answer "what is waiting for me", which is the question somebody hiring for
+ * five roles actually opens the site with — and answering it meant opening five pages and
+ * holding the total in your head.
+ *
+ * It is READ-ONLY on purpose. Every transition still happens on the application's own page,
+ * where the state machine, the audit event and the notification are already written in one
+ * transaction. A board that moved rows itself would be a second write path into the same
+ * table, and the first one to drift is the one nobody is looking at.
+ */
+const SINCE_OPTIONS = [
+  { value: '', label: 'Any time' },
+  { value: '7', label: 'Last 7 days' },
+  { value: '30', label: 'Last 30 days' },
+  { value: '90', label: 'Last 90 days' }
+];
+
+/** The pipeline in order, then the two ways an application ends. */
+const BOARD_COLUMNS = ['submitted', 'reviewing', 'shortlisted', 'interviewing', 'offered', 'hired', 'rejected', 'withdrawn'];
+
+/*
+ * The columns the board actually draws.
+ *
+ * `rejected` and `withdrawn` are OUTCOMES, not stages somebody works through, and drawing
+ * them pushed the six live stages off the right edge — the two columns nobody opens the
+ * board for were the two taking up the room. Their counts are still on the tabs above, and
+ * the tab opens the full list, so nothing is hidden; it is just not occupying a sixth of
+ * the width by default.
+ */
+const BOARD_STAGES = BOARD_COLUMNS.filter((s) => !['rejected', 'withdrawn'].includes(s));
+
+/** At most this many cards per column before the column offers its own filtered page. */
+const CARDS_PER_COLUMN = 6;
+
+router.get(
+  '/applicants',
+  isCompany,
+  asyncHandler(async (req, res) => {
+    const user = req.session.user;
+
+    // Read named fields and drop anything not declared, rather than spreading the query.
+    const jobId = /^\d+$/.test(req.query.job || '') ? Number(req.query.job) : null;
+    const sinceDays = SINCE_OPTIONS.some((o) => o.value && o.value === req.query.since)
+      ? Number(req.query.since)
+      : null;
+    const status = BOARD_COLUMNS.includes(req.query.status) ? req.query.status : '';
+
+    const filters = { jobId, sinceDays, status };
+    const [counts, jobs] = await Promise.all([
+      Application.countsForCompany(user.id, filters),
+      Application.jobsWithApplications(user.id)
+    ]);
+
+    // A named job that is not this company's produces no rows anyway — the scope is in the
+    // builder — but saying so beats rendering an empty board with a filter nobody chose.
+    const selectedJob = jobId ? jobs.find((j) => j.id === jobId) || null : null;
+
+    const { page, perPage, limit, offset } = paginationFrom(req.query);
+
+    if (status) {
+      // One status: a full, paginated list rather than a column with a lid on it.
+      const { rows, total } = await Application.browseForCompany(user.id, filters, { limit, offset });
+      return res.render('dashboard/applicants', {
+        title: 'Applicants',
+        mode: 'list',
+        applications: rows,
+        columns: BOARD_COLUMNS,
+        counts,
+        jobs,
+        selectedJob,
+        filters: { job: jobId || '', since: req.query.since || '', status },
+        sinceOptions: SINCE_OPTIONS,
+        total,
+        pagination: paginationMeta({ page, perPage, total }),
+        pageUrl: (p) => pageUrl('/dashboard/applicants', req.query, p)
+      });
+    }
+
+    /*
+     * The board. One query per column rather than one query sliced in memory: a company
+     * with a thousand applications would otherwise fetch all of them to show six per
+     * column, and the LIMIT is the whole point of a capped column.
+     */
+    const columns = await Promise.all(
+      BOARD_STAGES.map(async (columnStatus) => {
+        const shown = counts[columnStatus] || 0;
+        if (shown === 0) return { status: columnStatus, total: 0, rows: [] };
+        const { rows } = await Application.browseForCompany(
+          user.id,
+          { ...filters, status: columnStatus },
+          { limit: CARDS_PER_COLUMN, offset: 0 }
+        );
+        return { status: columnStatus, total: shown, rows };
+      })
+    );
+
+    return res.render('dashboard/applicants', {
+      title: 'Applicants',
+      mode: 'board',
+      columns: BOARD_COLUMNS,
+      board: columns,
+      cardsPerColumn: CARDS_PER_COLUMN,
+      counts,
+      jobs,
+      selectedJob,
+      filters: { job: jobId || '', since: req.query.since || '', status: '' },
+      sinceOptions: SINCE_OPTIONS,
+      total: Object.values(counts).reduce((sum, n) => sum + n, 0)
+    });
+  })
+);
+
 router.get(
   '/applications',
   isConsultant,

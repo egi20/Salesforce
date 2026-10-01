@@ -134,6 +134,46 @@
     sync();
   }
 
+  /*
+   * Show/hide on a password field.
+   *
+   * BUILT HERE, not written into the markup, and that is the point: with scripting off there
+   * is no button to press, and the field is simply a password field — which is the correct
+   * behaviour rather than a dead control. Same rule the rest of this file follows: the page
+   * works without it and this only makes it nicer.
+   *
+   * It matters most on a phone, where a mistyped password in a field nobody can read is the
+   * commonest reason a sign-up is abandoned.
+   */
+  document.querySelectorAll('input[type="password"][data-toggle-visibility]').forEach(function (field) {
+    var wrap = document.createElement('div');
+    wrap.className = 'password-field';
+    field.parentNode.insertBefore(wrap, field);
+    wrap.appendChild(field);
+
+    var button = document.createElement('button');
+    // Explicitly `button`: inside a form an unspecified type submits it, so pressing this
+    // would sign somebody up rather than show them what they typed.
+    button.type = 'button';
+    button.className = 'password-toggle';
+    button.setAttribute('aria-label', 'Show password');
+    button.innerHTML = '<i class="bi bi-eye" aria-hidden="true"></i>';
+
+    button.addEventListener('click', function () {
+      var shown = field.type === 'text';
+      field.type = shown ? 'password' : 'text';
+      button.setAttribute('aria-label', shown ? 'Show password' : 'Hide password');
+      button.innerHTML = '<i class="bi ' + (shown ? 'bi-eye' : 'bi-eye-slash') + '" aria-hidden="true"></i>';
+      // Focus goes back to the field, at the end of what they typed — otherwise the caret
+      // jumps to the start and the next keystroke lands in the wrong place.
+      field.focus();
+      var end = field.value.length;
+      try { field.setSelectionRange(end, end); } catch (e) { /* not selectable on some types */ }
+    });
+
+    wrap.appendChild(button);
+  });
+
   /** Ending an experience and marking it current are mutually exclusive. */
   var isCurrent = document.getElementById('is_current');
   if (isCurrent) {

@@ -80,15 +80,28 @@
 
   <% if (company) { %>
     <section class="mb-5">
-      <h2 class="h5 mb-3">Hiring</h2>
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h2 class="h5 mb-0">Hiring</h2>
+        <a class="btn btn-outline-primary btn-sm" href="/dashboard/applicants">
+          <i class="bi bi-kanban"></i> Open the applicant board
+        </a>
+      </div>
 
+      <%
+        /*
+         * Each tile is a LINK to that stage, not a number to read. These six counters were
+         * the only sign an application existed anywhere on the account, and there was
+         * nothing to click on them — the stage they name is exactly the page somebody
+         * wants when they see a figure above zero.
+         */
+      %>
       <div class="row g-3 mb-3">
         <% ['submitted','reviewing','shortlisted','interviewing','offered','hired'].forEach(function (s) { %>
           <div class="col-4 col-lg-2">
-            <div class="stat-tile">
+            <a class="stat-tile d-block text-reset text-decoration-none" href="/dashboard/applicants?status=<%= s %>">
               <div class="value"><%= company.statusCounts[s] || 0 %></div>
               <div class="label"><%= s %></div>
-            </div>
+            </a>
           </div>
         <% }); %>
       </div>
@@ -102,12 +115,39 @@
         <div class="empty-state glass-card"><i class="bi bi-briefcase"></i>No open roles.
           <div><a href="/jobs/new">Post your first role</a></div></div>
       <% } else { %>
-        <% company.jobs.forEach(function (job) { %><%- include('../partials/job-card', { job: job }) %><% }); %>
+        <%
+          /*
+           * The card is one big `<a>` to the public job page, so the owner's action cannot
+           * be nested inside it — a link inside a link is invalid and browsers resolve it
+           * by dropping one. It sits beneath instead, where it is still on the same card.
+           */
+        %>
+        <% company.jobs.forEach(function (job) { %>
+          <%- include('../partials/job-card', { job: job }) %>
+          <div class="d-flex flex-wrap gap-2 mb-4 job-card-actions">
+            <% if (job.application_count > 0) { %>
+              <a class="btn btn-sm btn-primary" href="/applications/job/<%= job.slug %>">
+                Review <%= job.application_count %> applicant<%= job.application_count === 1 ? '' : 's' %>
+              </a>
+            <% } else { %>
+              <span class="small text-muted-2 align-self-center">No applicants yet</span>
+            <% } %>
+            <a class="btn btn-sm btn-outline-primary" href="/jobs/<%= job.slug %>/edit">Edit</a>
+          </div>
+        <% }); %>
         <a class="small" href="/dashboard/jobs">Manage all jobs</a>
       <% } %>
     </section>
   <% } %>
 
+  <%
+    /*
+     * Saving a job is a consultant's affordance, and the panel rendered unconditionally —
+     * so an account that only hires got a "Nothing saved yet" box for a feature it has no
+     * way to use. An empty state for something you cannot do reads as something broken.
+     */
+  %>
+  <% if (currentUser.isConsultant) { %>
   <section>
     <h2 class="h5 mb-3">Saved jobs</h2>
     <% if (savedJobs.length === 0) { %>
@@ -120,6 +160,7 @@
       </div>
     <% } %>
   </section>
+  <% } %>
 </div>
 </section>
 

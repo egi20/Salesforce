@@ -1,5 +1,5 @@
 <a class="skip-link" href="#main">Skip to content</a>
-<nav class="navbar navbar-expand-lg navbar-hub sticky-top" aria-label="Main">
+<nav class="navbar navbar-expand-xl navbar-hub sticky-top" aria-label="Main">
   <div class="container">
     <a class="navbar-brand d-inline-flex align-items-center gap-2" href="/">
       <%# Decorative: the wordmark beside it already names the site, so a screen reader %>
@@ -25,13 +25,25 @@
          */
         const path = currentPath;
         const startsWith = (p) => path === p || path.startsWith(p + '/');
-        const isConsultantArea = startsWith('/jobs') || startsWith('/rates') || startsWith('/tax-advisory')
+        /*
+         * `/jobs` is a consultant page and `/jobs/new` is a company one, so the prefix
+         * cannot decide alone: posting a role lit up "Consultant Hub", which is the menu
+         * the author is not in. The company-side paths under /jobs are named, and the
+         * consultant test excludes them.
+         */
+        const companyJobPaths = ['/jobs/new'];
+        const isCompanyJobPath = companyJobPaths.some((p) => startsWith(p));
+        const isConsultantArea = (!isCompanyJobPath && startsWith('/jobs'))
+          || startsWith('/rates') || startsWith('/tax-advisory')
           || (currentUser && startsWith('/profile/consultant'));
-        const isCompanyArea = startsWith('/consultants') || startsWith('/companies') || startsWith('/recruiters')
-          || (currentUser && startsWith('/quotes'));
+        const isCompanyArea = isCompanyJobPath
+          || startsWith('/consultants') || startsWith('/companies') || startsWith('/recruiters')
+          || startsWith('/services')
+          || (currentUser && (startsWith('/quotes') || startsWith('/dashboard/jobs')
+            || startsWith('/dashboard/applicants') || startsWith('/applications')));
       %>
 
-      <ul class="navbar-nav mx-lg-auto align-items-lg-center">
+      <ul class="navbar-nav mx-xl-auto align-items-lg-center">
         <li class="nav-item">
           <a class="nav-link <%= path === '/' ? 'active' : '' %>" href="/"><i class="bi bi-house"></i> Home</a>
         </li>
@@ -83,12 +95,13 @@
             <li><a class="dropdown-item" href="/rates"><i class="bi bi-graph-up"></i> Rate &amp; Salary Index</a></li>
             <li><a class="dropdown-item" href="/quotes/new"><i class="bi bi-calculator"></i> SOW Generator</a></li>
             <li><a class="dropdown-item" href="/services/document-generator"><i class="bi bi-file-earmark-text"></i> Document Generator</a></li>
-            <li><a class="dropdown-item" href="/services/dedupe"><i class="bi bi-layers"></i> Dedupe</a></li>
           </ul>
         </li>
 
         <li class="nav-item">
-          <a class="nav-link <%= startsWith('/faq') ? 'active' : '' %>" href="/faq"><i class="bi bi-info-circle"></i> About</a>
+          <%# "About" points at /about. /faq answers the questions somebody already has; it %>
+          <%# was standing in for a page about who this is, and it is a different page. %>
+          <a class="nav-link <%= startsWith('/about') || startsWith('/faq') ? 'active' : '' %>" href="/about"><i class="bi bi-info-circle"></i> About</a>
         </li>
       </ul>
 
@@ -123,7 +136,7 @@
                data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
               <img class="avatar" style="width:30px;height:30px"
                    src="<%= currentUser.profilePicture || '/images/avatar-placeholder-nav.svg' %>" alt="">
-              <span class="d-none d-lg-inline"><%= currentUser.name %></span>
+              <span class="nav-user-name"><%= currentUser.name %></span>
             </a>
             <div class="dropdown-menu dropdown-menu-end shadow-sm account-menu" id="accountMenu">
               <div class="account-menu-header">
@@ -136,7 +149,6 @@
                     <% if (currentUser.isConsultant) { %><span class="badge-hub cloud">CONSULTANT</span><% } %>
                     <% if (currentUser.isCompany) { %><span class="badge-hub cloud">COMPANY</span><% } %>
                     <% if (currentUser.isRecruiter) { %><span class="badge-hub cloud">RECRUITER</span><% } %>
-                    <% if (currentUser.isPartner) { %><span class="badge-hub cloud">PARTNER</span><% } %>
                     <% if (currentUser.isAdmin) { %><span class="badge-hub cloud">ADMIN</span><% } %>
                   </div>
                 </div>
@@ -203,8 +215,9 @@
             </div>
           </li>
         <% } else { %>
-          <li class="nav-item"><a class="nav-link" href="/auth/login">Sign in</a></li>
-          <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm" href="/auth/register">Join free</a></li>
+          <%# A matched pair: outlined then filled, both pills, neither wrapping. %>
+          <li class="nav-item"><a class="btn btn-outline-primary btn-sm btn-auth" href="/auth/login">Sign in</a></li>
+          <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm btn-auth" href="/auth/register">Sign up</a></li>
         <% } %>
       </ul>
     </div>

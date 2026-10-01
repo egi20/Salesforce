@@ -30,21 +30,50 @@
             %>
             <input type="hidden" name="ref" value="<%= values.ref || '' %>">
 
-            <fieldset class="mb-3">
-              <legend class="form-label">I am</legend>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="user_types" value="consultant" id="t-consultant" checked>
-                <label class="form-check-label" for="t-consultant">A Salesforce consultant looking for work</label>
+            <%
+              /*
+               * The roles, as cards rather than a column of small checkboxes.
+               *
+               * They ARE checkboxes — the input is the control, visually hidden but still
+               * focusable and still in the tab order, with the label as its face. Nothing
+               * here needs JavaScript: the page works with scripting off, which is the rule
+               * this whole codebase holds client-side code to.
+               *
+               * Three, not the reference's two: `recruiter` is in `User.PUBLIC_ROLES` and can
+               * be self-selected, because a recruiter account can do what a company account
+               * can already do. This list and `User.PUBLIC_ROLES` are asserted to be the same
+               * list, so a card added here without the server agreeing fails a test — the
+               * reference's `user_types[]` POST was a real privilege escalation rather than a
+               * missing checkbox.
+               */
+              const ROLE_CARDS = [
+                { value: 'consultant', icon: 'bi-person-badge', title: 'Consultant', note: 'Looking for Salesforce work' },
+                { value: 'company', icon: 'bi-buildings', title: 'Company', note: 'Hiring Salesforce talent' },
+                { value: 'recruiter', icon: 'bi-people', title: 'Recruiter', note: 'An agency or headhunter' }
+              ];
+              // What they picked before a failed submit, so a validation error does not reset
+              // the first question on the form.
+              const chosen = Array.isArray(values.user_types)
+                ? values.user_types
+                : (values.user_types ? [values.user_types] : ['consultant']);
+            %>
+            <fieldset class="mb-4">
+              <legend class="form-label">I am <span class="text-muted-2 fw-normal">(pick all that apply)</span></legend>
+              <div class="role-cards">
+                <% ROLE_CARDS.forEach(function (r) { %>
+                  <div class="role-card">
+                    <input class="role-card-input" type="checkbox" name="user_types"
+                           value="<%= r.value %>" id="t-<%= r.value %>"
+                           <%= chosen.includes(r.value) ? 'checked' : '' %>>
+                    <label class="role-card-face" for="t-<%= r.value %>">
+                      <i class="bi <%= r.icon %>" aria-hidden="true"></i>
+                      <span class="role-card-title"><%= r.title %></span>
+                      <span class="role-card-note"><%= r.note %></span>
+                    </label>
+                  </div>
+                <% }); %>
               </div>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="user_types" value="company" id="t-company">
-                <label class="form-check-label" for="t-company">A company hiring Salesforce talent</label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="user_types" value="recruiter" id="t-recruiter">
-                <label class="form-check-label" for="t-recruiter">A recruitment agency or headhunter</label>
-              </div>
-              <p class="form-text">You can hold more than one role on one account.</p>
+              <p class="form-text mb-0">You can hold more than one role on one account.</p>
             </fieldset>
 
             <div class="mb-3">
@@ -68,12 +97,14 @@
             <div class="row g-2 mb-3">
               <div class="col-md-6">
                 <label class="form-label" for="password">Password</label>
-                <input class="form-control" id="password" name="password" type="password" required autocomplete="new-password">
+                <input class="form-control" id="password" name="password" type="password" required
+                     autocomplete="new-password" data-toggle-visibility>
                 <p class="form-text">At least 8 characters, with upper case, lower case and a number.</p>
               </div>
               <div class="col-md-6">
                 <label class="form-label" for="confirm_password">Confirm password</label>
-                <input class="form-control" id="confirm_password" name="confirm_password" type="password" required autocomplete="new-password">
+                <input class="form-control" id="confirm_password" name="confirm_password" type="password" required
+                     autocomplete="new-password" data-toggle-visibility>
               </div>
             </div>
 

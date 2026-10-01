@@ -36,7 +36,7 @@
             <select class="form-select" id="c-seniority" name="seniority">
               <option value="">Any</option>
               <% ['junior','mid','senior','lead'].forEach(function (s) { %>
-                <option value="<%= s %>" <%= filters.seniority === s ? 'selected' : '' %>><%= s %></option>
+                <option value="<%= s %>" <%= filters.seniority === s ? 'selected' : '' %>><%= seniorityLabel(s, { full: true }) %></option>
               <% }); %>
             </select>
           </div>
@@ -45,7 +45,7 @@
             <select class="form-select" id="c-mode" name="work_mode">
               <option value="">Any</option>
               <% ['remote','hybrid','onsite'].forEach(function (m) { %>
-                <option value="<%= m %>" <%= filters.work_mode === m ? 'selected' : '' %>><%= m %></option>
+                <option value="<%= m %>" <%= filters.work_mode === m ? 'selected' : '' %>><%= workModeLabel(m) %></option>
               <% }); %>
             </select>
           </div>
@@ -73,7 +73,7 @@
 
         <div class="mb-3">
           <label class="form-label" for="c-rate">Maximum day rate</label>
-          <input class="form-control" id="c-rate" name="rate_max" type="number" min="0" step="50" value="<%= filters.rate_max %>">
+          <input class="form-control" id="c-rate" name="rate_max" type="number" min="0" step="1" value="<%= filters.rate_max %>">
         </div>
 
         <div class="form-check mb-3">

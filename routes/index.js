@@ -127,19 +127,20 @@ function greetingFor(now) {
   return 'Good evening';
 }
 
-router.get('/faq', (req, res) => {
-  res.render('faq', { title: 'Frequently asked questions' });
-});
-
 /**
- * Explainer pages for items named in the Companies Hub and Services menus that don't map
- * onto an existing route. Static content, one view, one data object — the same shape as
- * PAGE_META, so a new entry is one object rather than a new route and view each time.
+ * /about.
  *
- * 'dedupe' is honest rather than a stub pretending the feature exists: README already lists
- * record deduplication under "deliberately not built yet", and a page that implied
- * otherwise would be the exact kind of overclaim this codebase avoids everywhere else
- * (see the tax-advisory and rate-index sections of CLAUDE.md).
+ * `/faq` was standing in for this and is a different page: a FAQ answers the questions
+ * somebody already has, an About page answers who this is and what it will not do. The
+ * second half is the part worth having — every refusal listed there is a rule enforced in
+ * the code, so if one stops being true the page is wrong and has to change with it.
+ */
+/*
+ * Explainer pages for the engagement models named in the Companies Hub menu.
+ *
+ * Static content, one view, one data object — the same shape as PAGE_META, so a new entry
+ * is one object rather than a new route and view each time. Each one ends at a real page
+ * that already exists; none of them describes something the Hub cannot do.
  */
 const SERVICE_PAGES = {
   'staff-augmentation': {
@@ -185,24 +186,30 @@ const SERVICE_PAGES = {
       'Nothing is generated until you ask for it, and nothing is stored afterwards — the source is always the quote or the profile, not the file.'
     ],
     cta: { label: 'Start a quote', href: '/quotes/new' }
-  },
-  dedupe: {
-    heading: 'Duplicate detection',
-    icon: 'bi-layers',
-    intro: 'Not built yet — listed here so nobody mistakes the scope.',
-    points: [
-      'Automatically catching duplicate leads, consultants or job posts is on the roadmap, not live today.',
-      'Nothing on the Hub currently merges or flags records as duplicates on its own.',
-      'If you’ve run into duplicate records, let us know — that shapes what gets built first.'
-    ],
-    cta: { label: 'Get in touch', href: '/contact' }
   }
 };
 
+
+/*
+ * `hasOwnProperty`, never a truthiness check on the lookup.
+ *
+ * `SERVICE_PAGES['constructor']` is `Object` — truthy — so a plain `if (!model)` guard
+ * hands `Object` to the view and the render dies on `model.points.forEach`. The same trap
+ * `AppSetting.isValidKey` and `ImageBlob`'s table lookup already avoid, arriving here
+ * through a URL segment anybody can type.
+ */
 router.get('/services/:page', (req, res, next) => {
+  if (!Object.prototype.hasOwnProperty.call(SERVICE_PAGES, req.params.page)) return next();
   const model = SERVICE_PAGES[req.params.page];
-  if (!model) return next();
   res.render('services/engagement-model', { title: model.heading, model });
+});
+
+router.get('/about', (req, res) => {
+  res.render('about', { title: 'About', legal });
+});
+
+router.get('/faq', (req, res) => {
+  res.render('faq', { title: 'Frequently asked questions' });
 });
 
 router.get('/legal/privacy', (req, res) => {

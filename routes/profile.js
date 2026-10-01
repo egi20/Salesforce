@@ -147,6 +147,8 @@ router.post(
     body('headline').optional({ checkFalsy: true }).isLength({ max: 200 }),
     body('primary_role').optional({ checkFalsy: true }).isIn(ROLE_SLUGS),
     body('day_rate').optional({ checkFalsy: true }).isFloat({ min: 0, max: 100000 }),
+    body('hourly_rate').optional({ checkFalsy: true }).isFloat({ min: 0, max: 10000 }),
+    body('annual_salary').optional({ checkFalsy: true }).isFloat({ min: 0, max: 10000000 }),
     body('years_experience').optional({ checkFalsy: true }).isInt({ min: 0, max: 60 }),
     body('given_name').optional({ checkFalsy: true }).isLength({ max: 100 }),
     body('family_name').optional({ checkFalsy: true }).isLength({ max: 100 }),
@@ -175,7 +177,15 @@ router.post(
       work_mode: req.body.work_mode || 'remote',
       willing_to_travel: req.body.willing_to_travel === 'on' ? 1 : 0,
       day_rate: req.body.day_rate || null,
+      // Stored as typed, never derived from each other. An hourly rate is not a day rate
+      // divided by eight — the divisor is a contract term, not a constant — and a salary
+      // is a different engagement, not a converted rate.
+      hourly_rate: req.body.hourly_rate || null,
+      annual_salary: req.body.annual_salary || null,
       currency: /^[A-Z]{3}$/.test(req.body.currency || '') ? req.body.currency : 'EUR',
+      // An unticked checkbox posts nothing, so absence is "hide it" — which is the safe
+      // direction for a figure. Read as a named field, like `willing_to_travel` above.
+      rate_visible: req.body.rate_visible === 'on' ? 1 : 0,
       availability: req.body.availability || 'not_available',
       available_from: req.body.available_from || null,
       linkedin_url: req.body.linkedin_url || null,

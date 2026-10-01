@@ -4,6 +4,8 @@ const path = require('path');
 const express = require('express');
 const request = require('supertest');
 
+const { attachViewHelpers } = require('../../utils/viewHelpers');
+
 const { notFound, errorHandler } = require('../../middleware/errorHandler');
 const Job = require('../../models/Job');
 const Post = require('../../models/Post');
@@ -37,12 +39,9 @@ function buildApp() {
     res.locals.linkedInEnabled = false;
     res.locals.siteNotice = '';
     res.locals.flash = { success: [], error: [], info: [] };
-    res.locals.toPlainText = (value, max) => String(value || '').slice(0, max || 200);
-    res.locals.roleLabel = (slug) => slug;
-    res.locals.moduleLabel = (slug) => slug;
-    res.locals.familyLabel = (slug) => slug;
-    res.locals.sanitizeRichText = (html) => html;
-    res.locals.jsonForScript = (value) => JSON.stringify(value);
+    // The real helpers, from the one list the server uses — a hand-written stub per
+    // helper meant adding one broke this file with "x is not defined" from a partial.
+    attachViewHelpers(res);
     res.locals.seo = {
       title: 't', description: 'd', canonical: 'http://x/search', ogImage: 'http://x/o.png', indexable: false
     };

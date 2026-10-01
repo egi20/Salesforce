@@ -27,7 +27,10 @@ const TEST_SUITE = [
       { name: 'Recruiters Directory Loads', method: 'GET', endpoint: '/recruiters', expectedStatus: 200 },
       { name: 'Rate Index Loads', method: 'GET', endpoint: '/rates', expectedStatus: 200 },
       { name: 'Success Stories Loads', method: 'GET', endpoint: '/success-stories', expectedStatus: 200 },
+      { name: 'About Loads', method: 'GET', endpoint: '/about', expectedStatus: 200 },
       { name: 'FAQ Loads', method: 'GET', endpoint: '/faq', expectedStatus: 200 },
+      { name: 'Contact Loads', method: 'GET', endpoint: '/contact', expectedStatus: 200 },
+      { name: 'Report an Issue Loads', method: 'GET', endpoint: '/report-issue', expectedStatus: 200 },
       { name: 'Tax Advisory Loads', method: 'GET', endpoint: '/tax-advisory', expectedStatus: 200 }
     ]
   },
@@ -38,8 +41,14 @@ const TEST_SUITE = [
       { name: 'Project-Based Loads', method: 'GET', endpoint: '/services/project-based', expectedStatus: 200 },
       { name: 'Managed Services Loads', method: 'GET', endpoint: '/services/managed-services', expectedStatus: 200 },
       { name: 'Document Generator Loads', method: 'GET', endpoint: '/services/document-generator', expectedStatus: 200 },
-      { name: 'Dedupe Explainer Loads', method: 'GET', endpoint: '/services/dedupe', expectedStatus: 200 },
-      { name: 'Unknown Service Slug 404s', method: 'GET', endpoint: '/services/not-a-real-service', expectedStatus: 404 }
+      { name: 'Unknown Service Slug 404s', method: 'GET', endpoint: '/services/not-a-real-service', expectedStatus: 404 },
+      /*
+       * `SERVICE_PAGES['constructor']` is `Object` — truthy — so the lookup this came with
+       * handed `Object` to the view and died inside `model.points.forEach`. It is
+       * `hasOwnProperty` now. A 500 here is that bug back, and it is the kind nobody
+       * notices because nobody types it.
+       */
+      { name: 'Prototype Key Is Not A Page', method: 'GET', endpoint: '/services/constructor', expectedStatus: 404 }
     ]
   },
   {
@@ -55,7 +64,10 @@ const TEST_SUITE = [
       { name: 'Dashboard Requires Auth (browser)', method: 'GET', endpoint: '/dashboard', expectedStatus: 302 },
       { name: 'Dashboard Requires Auth (API)', method: 'GET', endpoint: '/dashboard', expectedStatus: 401, api: true },
       { name: 'Notifications API Requires Auth', method: 'GET', endpoint: '/notifications/unread-count', expectedStatus: 401, api: true },
-      { name: 'Messages API Requires Auth', method: 'GET', endpoint: '/messages/unread-count', expectedStatus: 401, api: true }
+      { name: 'Messages API Requires Auth', method: 'GET', endpoint: '/messages/unread-count', expectedStatus: 401, api: true },
+      // The employer's board is company-only, and a signed-out request is a navigation.
+      { name: 'Applicant Board Requires Auth (browser)', method: 'GET', endpoint: '/dashboard/applicants', expectedStatus: 302 },
+      { name: 'Applicant Board Requires Auth (API)', method: 'GET', endpoint: '/dashboard/applicants', expectedStatus: 401, api: true }
     ]
   },
   {
@@ -64,7 +76,8 @@ const TEST_SUITE = [
       { name: 'Admin Dashboard Protected (browser)', method: 'GET', endpoint: '/admin', expectedStatus: 302 },
       { name: 'Admin Users Protected (browser)', method: 'GET', endpoint: '/admin/users', expectedStatus: 302 },
       { name: 'Admin Settings Protected (browser)', method: 'GET', endpoint: '/admin/settings', expectedStatus: 302 },
-      { name: 'CRM Protected (browser)', method: 'GET', endpoint: '/crm', expectedStatus: 302 }
+      { name: 'CRM Protected (browser)', method: 'GET', endpoint: '/crm', expectedStatus: 302 },
+      { name: 'Finance Protected (browser)', method: 'GET', endpoint: '/admin/finance', expectedStatus: 302 }
     ]
   },
   {

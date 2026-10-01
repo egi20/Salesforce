@@ -175,9 +175,31 @@
 
           <div class="row g-2 mb-3">
             <div class="col-md-3">
+              <%
+                /*
+                 * `step="1"`, not `step="10"`.
+                 *
+                 * A number input with `step="10"` is INVALID for any value that is not a
+                 * multiple of ten, and the browser then silently refuses to submit the
+                 * whole form. A consultant whose rate was 752 could not save their profile
+                 * at all — not the rate, not their bio, nothing — and the page gave no
+                 * reason beyond a tooltip on a field they had not touched. The same
+                 * attribute was on both job rate fields and on the rate submission.
+                 */
+              %>
               <label class="form-label" for="day_rate">Day rate</label>
-              <input class="form-control" id="day_rate" name="day_rate" type="number" min="0" step="10"
+              <input class="form-control" id="day_rate" name="day_rate" type="number" min="0" step="1"
                      value="<%= profile.day_rate ? Math.round(profile.day_rate) : '' %>">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label" for="hourly_rate">Hourly rate</label>
+              <input class="form-control" id="hourly_rate" name="hourly_rate" type="number" min="0" step="1"
+                     value="<%= profile.hourly_rate ? Math.round(profile.hourly_rate) : '' %>">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label" for="annual_salary">Permanent roles from</label>
+              <input class="form-control" id="annual_salary" name="annual_salary" type="number" min="0" step="1"
+                     value="<%= profile.annual_salary ? Math.round(profile.annual_salary) : '' %>">
             </div>
             <div class="col-md-3">
               <label class="form-label" for="currency">Currency</label>
@@ -201,6 +223,50 @@
               <input class="form-control" id="available_from" name="available_from" type="date"
                      value="<%= profile.available_from ? new Date(profile.available_from).toISOString().slice(0,10) : '' %>">
             </div>
+          </div>
+
+          <%
+            /*
+             * NOTHING HERE IS DERIVED FROM ANYTHING ELSE HERE.
+             *
+             * An hourly rate is not a day rate divided by eight — the divisor is a contract
+             * term, 7 or 7.5 or 8, and picking one would put a figure on this profile that
+             * its owner never agreed to. An expected salary is not a converted day rate
+             * either: it is a different engagement, with holiday, sick pay and employer
+             * contributions inside it rather than on top. Fill in the ones that apply to
+             * you and leave the rest blank.
+             */
+          %>
+          <p class="form-text mt-0 mb-3">
+            Fill in whichever apply. Nothing is calculated from anything else — an hourly
+            rate is not a day rate divided by eight, and a salary is a different kind of
+            engagement, not a converted rate. <strong>The day rate</strong> is the one your
+            match scores and your rate card use.
+          </p>
+
+          <%
+            /*
+             * A public profile is how you get found; your day rate is the number you
+             * negotiate with, and until now the two were the same decision. The employer
+             * side has had this since the beginning — a role can be advertised without its
+             * budget — and the consultant had no equivalent.
+             *
+             * An unticked checkbox posts nothing, so this is phrased as "show it" and the
+             * route reads the absence as "hide it". The alternative wording would make a
+             * missing field mean "publish", which is the wrong way round for a figure.
+             */
+          %>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="rate_visible" name="rate_visible"
+                   <%= profile.rate_visible ? 'checked' : '' %>>
+            <label class="form-check-label" for="rate_visible">Show my day rate on my public profile</label>
+            <p class="form-text mb-0">
+              Untick it and your profile reads <strong>“Rate on request”</strong> to everyone
+              but you — all three figures, not just the day rate, because an hourly rate
+              times a working day gives the day rate back. They are kept: they still drive
+              your match scores and your rate card, and they stop answering the directory’s
+              rate filter and rate sorting, so nothing can be narrowed down from outside.
+            </p>
           </div>
 
           <hr>

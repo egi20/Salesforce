@@ -7,16 +7,20 @@ describe('role escalation boundary', () => {
     // The hand-crafted POST that created a working privileged account before this
     // filter existed.
     //
-    // `recruiter` joined the allowed set when the agency directory was built, and the
-    // line it sits on the right side of is MONEY: a recruiter account can do what a
-    // company account can already do, while a partner account carries a commission rate.
-    // That is what made `user_types[]=partner` a real escalation in the reference.
-    const roles = User.unionRoles([], ['consultant', 'partner', 'admin', 'recruiter'], {
+    // `recruiter` joined the allowed set when the agency directory was built: a recruiter
+    // account can do what a company account can already do, so withholding it would have
+    // protected nothing. `admin` is what the list withholds, and it is enough — an admin
+    // reads private circumstances on /admin/tax-advisory, individual day rates beside the
+    // people who gave them on /admin/rates, and strangers' contact details on /crm.
+    //
+    // A submitted role that is not in the taxonomy at all is dropped the same way, which is
+    // what `partner` became once migration 027 removed it.
+    const roles = User.unionRoles([], ['consultant', 'admin', 'recruiter', 'partner'], {
       allowed: User.PUBLIC_ROLES
     });
     expect(roles).toEqual(['consultant', 'recruiter']);
-    expect(roles).not.toContain('partner');
     expect(roles).not.toContain('admin');
+    expect(roles).not.toContain('partner');
   });
 
   it('the self-service form is add-only: an existing role survives an omitted checkbox', () => {
@@ -81,7 +85,6 @@ describe('rolesOf and buildSessionUser', () => {
     is_consultant: 1,
     is_company: 0,
     is_recruiter: 0,
-    is_partner: 0,
     is_superadmin: 0,
     email_verified: 1,
     onboarded_at: null
@@ -101,5 +104,61 @@ describe('rolesOf and buildSessionUser', () => {
   it('falls back to the email local part when there is no name', () => {
     const session = User.buildSessionUser({ ...row, name: null });
     expect(session.name).toBe('x');
+  });
+});
+
+describe('the partner role is gone, and nothing still writes to it', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const ROOT = path.join(__dirname, '..', '..');
+
+  function walk(dir) {
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) return walk(full);
+      return /\.(js|ejs)$/.test(e.name) ? [full] : [];
+    });
+  }
+
+  const sources = ['models', 'routes', 'views', 'services', 'middleware', 'config']
+    .flatMap((d) => walk(path.join(ROOT, d)));
+
+  /*
+   * Comments are stripped first. Twice before, a test in this repo matched the prose
+   * explaining a rule rather than any code breaking it — and the fix is not to stop
+   * explaining, it is to scan what runs. The comment in `models/User.js` saying why the
+   * column went is exactly the thing worth keeping.
+   */
+  function codeOf(file) {
+    return fs.readFileSync(file, 'utf8')
+      .replace(/<%#[\s\S]*?%>/g, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+  }
+
+  it('no query names the column migration 027 dropped', () => {
+    /*
+     * This is the `billingDetailsFor` failure made impossible rather than remembered.
+     *
+     * That method selected `u.first_name, u.last_name` — columns that had never existed —
+     * from inside the transaction every invoice is raised in, and nothing caught it because
+     * the suite mocked the database so the query never ran. A dropped column is the same
+     * shape of mistake arriving from the other direction: the name reads fine, and MySQL
+     * answers ER_BAD_FIELD_ERROR the first time somebody exports their data or closes their
+     * account.
+     */
+    const offenders = sources
+      .filter((f) => /is_partner|isPartner/.test(codeOf(f)))
+      .map((f) => path.relative(ROOT, f));
+    expect(offenders).toEqual([]);
+  });
+
+  it('is not a role the taxonomy knows', () => {
+    expect(User.ALL_ROLES).not.toContain('partner');
+    expect(User.PUBLIC_ROLES).not.toContain('partner');
+  });
+
+  it('and a submitted `partner` is dropped like any other unknown role', () => {
+    expect(User.unionRoles([], ['partner'], { allowed: User.PUBLIC_ROLES })).toEqual([]);
   });
 });

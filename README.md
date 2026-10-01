@@ -129,6 +129,7 @@ then depends entirely on the buyer landing back on the success page.
 | `npm run seed` | insert development data |
 | `npm run wait-for-db` | block until the database accepts connections |
 | `npm run validate-boot` | config, taxonomy, module and template checks — no database needed |
+| `npm run preflight` | what this deployment is NOT doing, and whether that is survivable — run it before deploying |
 | `npm test` | Jest (with VM modules enabled — see CLAUDE.md) |
 | `npm run lint` | ESLint |
 

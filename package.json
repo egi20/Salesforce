@@ -1,7 +1,7 @@
 {
   "name": "salesforce-hub",
   "version": "0.1.0",
-  "description": "Salesforce Hub — marketplace, job board and rate index for the Salesforce consulting ecosystem",
+  "description": "Salesforce Hub \u2014 marketplace, job board and rate index for the Salesforce consulting ecosystem",
   "main": "server.js",
   "license": "ISC",
   "engines": {
@@ -25,7 +25,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{js,json,md}\"",
-    "setup": "npm run db:create && npm run migrate && npm run sync:categories && npm run seed"
+    "setup": "npm run db:create && npm run migrate && npm run sync:categories && npm run seed",
+    "preflight": "node scripts/preflight.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.125.0",

@@ -83,7 +83,7 @@
               <label class="form-label" for="seniority">Seniority</label>
               <select class="form-select" id="seniority" name="seniority">
                 <% ['junior','mid','senior','lead'].forEach(function (s) { %>
-                  <option value="<%= s %>" <%= (values.seniority || 'senior') === s ? 'selected' : '' %>><%= s %></option>
+                  <option value="<%= s %>" <%= (values.seniority || 'senior') === s ? 'selected' : '' %>><%= seniorityLabel(s, { full: true }) %></option>
                 <% }); %>
               </select>
             </div>
@@ -91,7 +91,7 @@
               <label class="form-label" for="work_mode">Work mode</label>
               <select class="form-select" id="work_mode" name="work_mode">
                 <% ['remote','hybrid','onsite'].forEach(function (m) { %>
-                  <option value="<%= m %>" <%= (values.work_mode || 'remote') === m ? 'selected' : '' %>><%= m %></option>
+                  <option value="<%= m %>" <%= (values.work_mode || 'remote') === m ? 'selected' : '' %>><%= workModeLabel(m) %></option>
                 <% }); %>
               </select>
             </div>
@@ -129,11 +129,11 @@
           <div class="row g-2 mb-2">
             <div class="col-4">
               <label class="form-label" for="rate_min">From</label>
-              <input class="form-control" id="rate_min" name="rate_min" type="number" min="0" step="10" value="<%= values.rate_min || '' %>">
+              <input class="form-control" id="rate_min" name="rate_min" type="number" min="0" step="1" value="<%= values.rate_min || '' %>">
             </div>
             <div class="col-4">
               <label class="form-label" for="rate_max">To</label>
-              <input class="form-control" id="rate_max" name="rate_max" type="number" min="0" step="10" value="<%= values.rate_max || '' %>">
+              <input class="form-control" id="rate_max" name="rate_max" type="number" min="0" step="1" value="<%= values.rate_max || '' %>">
             </div>
             <div class="col-4">
               <label class="form-label" for="currency">Currency</label>
@@ -144,6 +144,12 @@
               </select>
             </div>
           </div>
+          <%# One pair of columns serves both shapes, so the unit has to be said rather than %>
+          <%# assumed. A day rate typed into a permanent role publishes as "468 EUR/yr". %>
+          <p class="form-text mt-0 mb-3">
+            A <strong>day rate</strong> on a contract, an <strong>annual salary</strong> on a
+            permanent role. Whole units, no decimals.
+          </p>
           <div class="form-check mb-3">
             <input class="form-check-input" type="checkbox" id="rate_visible" name="rate_visible"
                    <%= (!values || values.rate_visible === undefined || values.rate_visible) ? 'checked' : '' %>>
@@ -155,6 +161,9 @@
               <label class="form-label" for="duration_months">Duration (months)</label>
               <input class="form-control" id="duration_months" name="duration_months" type="number" min="1" max="60"
                      value="<%= values.duration_months || '' %>">
+              <%# Cleared on save for a permanent role, so a card can never read %>
+              <%# "Permanent" and "3 months" at the same time. %>
+              <p class="form-text">Contracts only — ignored on a permanent role.</p>
             </div>
             <div class="col-6">
               <label class="form-label" for="starts_on">Starts</label>

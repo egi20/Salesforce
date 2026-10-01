@@ -71,3 +71,38 @@ describe('the single consultant filter builder', () => {
     expect(clause).not.toContain('cp.primary_role = ?');
   });
 });
+
+describe('the posted-within window', () => {
+  it('filters on when a role APPEARED, not when it was typed', () => {
+    // A draft written in March and published in September is a September role to everybody
+    // reading the board. `created_at` would put it in March and nobody would ever see it
+    // in a freshness filter.
+    const { clause, params } = Job.buildFilter({ posted_within_days: 7 });
+    expect(clause).toContain('j.published_at IS NOT NULL');
+    expect(clause).toContain('j.published_at >= DATE_SUB(NOW(), INTERVAL ? DAY)');
+    expect(clause).not.toContain('j.created_at');
+    expect(params).toEqual([7]);
+  });
+
+  it('parameterises the window rather than building an interval expression', () => {
+    const { clause } = Job.buildFilter({ posted_within_days: 30 });
+    expect(clause).not.toContain('INTERVAL 30');
+  });
+
+  it('is absent entirely when not asked for', () => {
+    expect(Job.buildFilter({}).clause).not.toContain('published_at >=');
+  });
+
+  it('the route validates the window against a declared list', () => {
+    // So the number reaching `INTERVAL ? DAY` is always one of the four we chose, and the
+    // form's selected state and the builder's value come from the SAME validated string —
+    // the one object goes to `Job.browse` and to `Job.facetByRole`, so a list, its count
+    // and its facets cannot end up filtered differently.
+    const fs = require('fs');
+    const path = require('path');
+    const source = fs.readFileSync(path.join(__dirname, '..', '..', 'routes', 'jobs.js'), 'utf8');
+    expect(source).toMatch(/const POSTED_WINDOWS = \[/);
+    expect(source).toMatch(/POSTED_WINDOWS\.some\(\(w\) => w\.value && w\.value === query\.posted\)/);
+    expect(source).toMatch(/posted_within_days: posted \? Number\(posted\) : null/);
+  });
+});

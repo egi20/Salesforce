@@ -24,7 +24,7 @@
           <% if (own) { %>
             <div class="alert alert-info small">
               Your last contribution: <strong><%= Math.round(own.amount) %> <%= own.currency %></strong>
-              for <%= roleLabel(own.role) %> (<%= own.seniority %>), <%= own.period %>.
+              for <%= roleLabel(own.role) %> (<%= seniorityLabel(own.seniority) %>), <%= own.period %>.
             </div>
           <% } %>
 
@@ -72,7 +72,7 @@
             <div class="row g-2 mb-3">
               <div class="col-md-5">
                 <label class="form-label" for="amount">Amount</label>
-                <input class="form-control" id="amount" name="amount" type="number" min="1" step="10" required
+                <input class="form-control" id="amount" name="amount" type="number" min="1" step="1" required
                        value="<%= own ? Math.round(own.amount) : '' %>">
               </div>
               <div class="col-md-3">

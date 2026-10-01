@@ -92,6 +92,18 @@ function buildFilter(filters = {}) {
       params.push(min);
     }
   }
+  if (filters.posted_within_days) {
+    /*
+     * "Posted in the last N days", bounded by the caller against a declared list so this
+     * can never become a caller-supplied interval expression.
+     *
+     * On `published_at` rather than `created_at`: a draft written in March and published in
+     * September is a September role to everybody reading the board, and a job searcher
+     * sorting by freshness is asking when it appeared, not when it was typed.
+     */
+    where.push('j.published_at IS NOT NULL AND j.published_at >= DATE_SUB(NOW(), INTERVAL ? DAY)');
+    params.push(filters.posted_within_days);
+  }
   if (filters.module) {
     where.push('EXISTS (SELECT 1 FROM job_modules jm WHERE jm.job_id = j.id AND jm.module_slug = ?)');
     params.push(filters.module);

@@ -1001,10 +1001,28 @@ router.post(
   })
 );
 
-/**
- * The automated-testing panel. Test cases come from config/adminTests.js; this route only
- * reads run history and, on POST, triggers a run — see migration 027 and
- * utils/adminTestRunner.js for why results are the only thing this ever writes.
+/*
+ * THE AUTOMATED-TESTING PANEL.
+ *
+ * It answers one question nothing else here answers: "is the running site, as deployed,
+ * still serving what it should?" The Jest suite proves the code is right on the machine
+ * that ran it; this proves the thing behind the domain is up, behind the right guards, and
+ * answering the status codes CLAUDE.md's Auth section documents. Those are different
+ * questions, and the second one is the one a deployment breaks.
+ *
+ * Three things keep it from being a liability:
+ *
+ * 1. The cases are CODE, in `config/adminTests.js`, never a table an admin edits through a
+ *    form. A list of endpoints to request is exactly the shape of thing somebody would
+ *    point at an internal address, and a change with no diff and no review is the whole
+ *    objection. Same rule the settings surface already holds: catalogue values live in
+ *    config under version control.
+ * 2. It only ever GETs its own declared endpoints on its own base URL. Nothing here takes
+ *    a URL from the request.
+ * 3. The run is the only thing it writes, and it writes results — never the cases.
+ *
+ * `/admin` is behind `isAuthenticated, isAdmin` at the router level, so all three inherit
+ * that.
  */
 router.get(
   '/tests',
@@ -1038,6 +1056,8 @@ router.post(
   '/tests/run-category',
   writeLimiter,
   asyncHandler(async (req, res) => {
+    // The category is matched against the declared suite, not used as a filter value: an
+    // unrecognised one is refused rather than quietly running nothing and reporting 0/0.
     const category = TEST_SUITE.find((g) => g.category === req.body.category);
     if (!category) {
       req.flash('error', 'Unknown test category.');

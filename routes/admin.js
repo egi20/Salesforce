@@ -37,6 +37,9 @@ const { writeLimiter } = require('../middleware/rateLimit');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireIdParam } = require('../utils/ids');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
+const { TEST_SUITE, totalTestCount } = require('../config/adminTests');
+const AdminTestRun = require('../models/AdminTestRun');
+const { runSuite } = require('../utils/adminTestRunner');
 
 const router = express.Router();
 
@@ -995,6 +998,74 @@ router.post(
       req.flash('error', err.message);
     }
     return res.redirect(returnTo(req, '/admin/issues'));
+  })
+);
+
+/*
+ * THE AUTOMATED-TESTING PANEL.
+ *
+ * It answers one question nothing else here answers: "is the running site, as deployed,
+ * still serving what it should?" The Jest suite proves the code is right on the machine
+ * that ran it; this proves the thing behind the domain is up, behind the right guards, and
+ * answering the status codes CLAUDE.md's Auth section documents. Those are different
+ * questions, and the second one is the one a deployment breaks.
+ *
+ * Three things keep it from being a liability:
+ *
+ * 1. The cases are CODE, in `config/adminTests.js`, never a table an admin edits through a
+ *    form. A list of endpoints to request is exactly the shape of thing somebody would
+ *    point at an internal address, and a change with no diff and no review is the whole
+ *    objection. Same rule the settings surface already holds: catalogue values live in
+ *    config under version control.
+ * 2. It only ever GETs its own declared endpoints on its own base URL. Nothing here takes
+ *    a URL from the request.
+ * 3. The run is the only thing it writes, and it writes results — never the cases.
+ *
+ * `/admin` is behind `isAuthenticated, isAdmin` at the router level, so all three inherit
+ * that.
+ */
+router.get(
+  '/tests',
+  asyncHandler(async (req, res) => {
+    const [lastRun, totalRuns] = await Promise.all([AdminTestRun.lastRun(), AdminTestRun.totalRuns()]);
+    const lastResults = lastRun ? await AdminTestRun.resultsFor(lastRun.runBatch) : {};
+
+    res.render('admin/tests', {
+      title: 'Automated testing',
+      suite: TEST_SUITE,
+      totalTests: totalTestCount(),
+      categoryCount: TEST_SUITE.length,
+      lastRun,
+      totalRuns,
+      lastResults
+    });
+  })
+);
+
+router.post(
+  '/tests/run',
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const summary = await runSuite({ runBy: req.session.user.id });
+    req.flash('success', `${summary.passed}/${summary.total} tests passed.`);
+    return res.redirect('/admin/tests');
+  })
+);
+
+router.post(
+  '/tests/run-category',
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    // The category is matched against the declared suite, not used as a filter value: an
+    // unrecognised one is refused rather than quietly running nothing and reporting 0/0.
+    const category = TEST_SUITE.find((g) => g.category === req.body.category);
+    if (!category) {
+      req.flash('error', 'Unknown test category.');
+      return res.redirect('/admin/tests');
+    }
+    const summary = await runSuite({ category: category.category, runBy: req.session.user.id });
+    req.flash('success', `${category.category}: ${summary.passed}/${summary.total} tests passed.`);
+    return res.redirect('/admin/tests');
   })
 );
 

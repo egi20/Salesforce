@@ -1,0 +1,119 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', {
+      icon: 'bi-check2-circle',
+      heading: 'Automated testing',
+      sub: 'Run live checks against this app’s own routes.',
+      label: 'ADMIN'
+    }) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <p class="text-muted-2 mb-0" style="max-width: 40rem;">
+      Every test below makes a real HTTP request to this server and checks the status code it
+      answers with. Test cases are defined in <code>config/adminTests.js</code> — reviewed and
+      deployed like any other code, not editable from this screen. What this page writes is the
+      run history, in <code>admin_test_runs</code>.
+    </p>
+    <form method="post" action="/admin/tests/run">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn btn-primary" type="submit"><i class="bi bi-play-fill"></i> Run All Tests</button>
+    </form>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="stat-tile"><div class="value"><%= totalTests %></div><div class="label">Total Tests</div></div>
+    </div>
+    <%
+      /*
+       * This tile said "Enabled" and printed `totalTests` — the same figure as the one
+       * beside it, under a different word. There is no such thing as a disabled test here:
+       * the suite is an array in config, and every entry runs. Two identical numbers under
+       * two labels look like information and are not.
+       *
+       * What is worth a tile is how the last run went.
+       */
+    %>
+    <div class="col-6 col-lg-3">
+      <div class="stat-tile">
+        <div class="value"><%= lastRun ? `${lastRun.passed}/${lastRun.total}` : '—' %></div>
+        <div class="label">Passed last run</div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-tile"><div class="value"><%= categoryCount %></div><div class="label">Categories</div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-tile"><div class="value"><%= totalRuns %></div><div class="label">Total Runs</div></div>
+    </div>
+  </div>
+
+  <% if (lastRun) { %>
+    <div class="alert <%= lastRun.passed === lastRun.total ? 'alert-success' : 'alert-warning' %> d-flex align-items-center gap-2 mb-4">
+      <i class="bi <%= lastRun.passed === lastRun.total ? 'bi-check-circle' : 'bi-exclamation-triangle' %>"></i>
+      <span>
+        <strong>Last run:</strong> <%= lastRun.passed %>/<%= lastRun.total %> tests passed
+        (<%= lastRun.ranAt.toLocaleString() %>)
+      </span>
+    </div>
+  <% } else { %>
+    <div class="alert alert-info mb-4">No runs yet — click "Run All Tests" to start.</div>
+  <% } %>
+
+  <h2 class="h5 mb-3"><i class="bi bi-list-check"></i> Test Cases</h2>
+
+  <% suite.forEach(function (group) { %>
+    <div class="glass-card mb-3">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h3 class="h6 mb-0"><i class="bi bi-folder"></i> <%= group.category %>
+            <span class="badge-hub muted"><%= group.tests.length %></span>
+          </h3>
+          <form method="post" action="/admin/tests/run-category">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="category" value="<%= group.category %>">
+            <button class="btn btn-outline-primary btn-sm" type="submit"><i class="bi bi-play-fill"></i> Run</button>
+          </form>
+        </div>
+
+        <div class="list-group list-group-flush">
+          <% group.tests.forEach(function (t) {
+               const key = group.category + '::' + t.name;
+               const result = lastResults[key];
+          %>
+            <div class="list-group-item d-flex align-items-start gap-3 px-0">
+              <span class="fs-5">
+                <% if (!result) { %>
+                  <i class="bi bi-dash-circle text-muted-2" title="Not run yet"></i>
+                <% } else if (result.passed) { %>
+                  <i class="bi bi-check-circle-fill text-success" title="Passed"></i>
+                <% } else { %>
+                  <i class="bi bi-x-circle-fill text-danger" title="Failed"></i>
+                <% } %>
+              </span>
+              <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <span class="fw-semibold"><%= t.name %></span>
+                  <span class="badge-hub <%= t.method === 'GET' ? 'ok' : 'warn' %>"><%= t.method %></span>
+                  <% if (t.api) { %><span class="badge-hub muted">API</span><% } %>
+                </div>
+                <div class="small text-muted-2"><%= t.endpoint %>
+                  <% if (result && !result.passed) { %>
+                    — expected <%= t.expectedStatus %>, got <%= result.actualStatus || (result.error ? 'error: ' + result.error : '—') %>
+                  <% } %>
+                </div>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+    </div>
+  <% }); %>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

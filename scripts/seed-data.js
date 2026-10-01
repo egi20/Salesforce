@@ -311,6 +311,23 @@ async function seed() {
       status: 'open'
     });
 
+    /*
+     * Spread the publication dates over the last six weeks.
+     *
+     * Every seeded role was published at the instant the seed ran, which made a board of
+     * thirty roles look like thirty roles posted today — and made the "Posted in the last
+     * 24 hours" filter return all of them, so the one thing it exists to do was
+     * undemonstrable. The dates are deterministic from the index so a given seed is
+     * reproducible.
+     */
+    const daysOld = (i * 7) % 42;
+    if (daysOld > 0) {
+      await promisePool.query(
+        'UPDATE jobs SET published_at = DATE_SUB(NOW(), INTERVAL ? DAY), created_at = DATE_SUB(NOW(), INTERVAL ? DAY) WHERE id = ?',
+        [daysOld, daysOld, job.id]
+      );
+    }
+
     await Skill.setForJob(job.id, pick(skills, randomInt(2, 6)).map((s) => s.id));
     await Job.setModules(job.id, pick(ALL_MODULES, randomInt(1, 3)).map((m) => m.value));
     jobCount += 1;

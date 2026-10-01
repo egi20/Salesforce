@@ -166,6 +166,9 @@ router.post(
       willing_to_travel: req.body.willing_to_travel === 'on' ? 1 : 0,
       day_rate: req.body.day_rate || null,
       currency: /^[A-Z]{3}$/.test(req.body.currency || '') ? req.body.currency : 'EUR',
+      // An unticked checkbox posts nothing, so absence is "hide it" — which is the safe
+      // direction for a figure. Read as a named field, like `willing_to_travel` above.
+      rate_visible: req.body.rate_visible === 'on' ? 1 : 0,
       availability: req.body.availability || 'not_available',
       available_from: req.body.available_from || null,
       linkedin_url: req.body.linkedin_url || null,

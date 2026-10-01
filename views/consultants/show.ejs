@@ -76,10 +76,15 @@
       <div class="glass-card mb-3">
         <div class="card-body">
           <h2 class="h6">Availability and rate</h2>
+          <%# A hidden rate reads exactly like an absent one. Saying "hidden" would tell %>
+          <%# the reader there is a figure here and that they are not allowed to see it. %>
           <p class="mb-1">
-            <% if (profile.day_rate) { %>
+            <% if (profile.day_rate && showRate) { %>
               <span class="rate-figure"><%= Math.round(profile.day_rate) %></span>
               <span class="text-muted-2"><%= profile.currency %>/day</span>
+              <% if (!profile.rate_visible) { %>
+                <span class="badge-hub ms-1"><i class="bi bi-eye-slash"></i> Only you can see this</span>
+              <% } %>
             <% } else { %>
               <span class="text-muted-2">Rate on request</span>
             <% } %>

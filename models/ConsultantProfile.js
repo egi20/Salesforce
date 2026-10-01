@@ -110,7 +110,18 @@ function buildFilter(filters = {}) {
   if (filters.rate_max) {
     const max = Number(filters.rate_max);
     if (Number.isFinite(max) && max > 0) {
-      where.push('(cp.day_rate IS NULL OR cp.day_rate <= ?)');
+      /*
+       * A HIDDEN RATE IS AN UNKNOWN RATE, not a known one we decline to print.
+       *
+       * Hiding the figure in the view and leaving it in this clause would make it
+       * searchable one query at a time: set the maximum to 700, then 600, then 550, and
+       * watch the profile drop out. The consultant would have been told their rate was
+       * private while anybody patient could read it to the nearest step.
+       *
+       * So a hidden rate behaves exactly like a missing one — which is already included
+       * here, because "no rate given" must not mean "too expensive".
+       */
+      where.push('(cp.rate_visible = 0 OR cp.day_rate IS NULL OR cp.day_rate <= ?)');
       params.push(max);
     }
   }
@@ -142,11 +153,18 @@ const RANK_EXPRESSION = `(
   + LEAST(10, (SELECT COUNT(*) * 2 FROM consultant_certifications cc WHERE cc.user_id = cp.user_id))
 )`;
 
+/*
+ * Ordering by rate must not order by a rate nobody is allowed to see. A hidden figure is
+ * placed with the profiles that have none — the same reasoning as the filter above, and
+ * for the same reason: position in a sorted list is a measurement.
+ */
+const RATE_OR_NULL = 'CASE WHEN cp.rate_visible = 1 THEN cp.day_rate ELSE NULL END';
+
 const SORTS = {
   relevance: `${RANK_EXPRESSION} DESC, cp.updated_at DESC`,
   newest: 'cp.created_at DESC',
-  rate_asc: 'cp.day_rate IS NULL, cp.day_rate ASC',
-  rate_desc: 'cp.day_rate DESC'
+  rate_asc: `${RATE_OR_NULL} IS NULL, ${RATE_OR_NULL} ASC`,
+  rate_desc: `${RATE_OR_NULL} IS NULL, ${RATE_OR_NULL} DESC`
 };
 
 class ConsultantProfile {
@@ -177,7 +195,7 @@ class ConsultantProfile {
     const allowed = [
       'headline', 'bio', 'primary_role', 'seniority', 'years_experience',
       'country', 'city', 'timezone', 'work_mode', 'willing_to_travel',
-      'day_rate', 'currency', 'availability', 'available_from',
+      'day_rate', 'currency', 'rate_visible', 'availability', 'available_from',
       'linkedin_url', 'website_url', 'trailblazer_url'
     ];
 
@@ -248,13 +266,22 @@ class ConsultantProfile {
     return completeness;
   }
 
+  /*
+   * A hidden rate is NULLED IN THE QUERY, not left for each template to remember.
+   *
+   * Three call sites read this list — the directory, the home page and services/search.js —
+   * and the one that forgets the check is the one that leaks. The detail fetch
+   * (findByUserId) still returns the real row, because the owner and an admin are allowed
+   * to see it there and the route decides with `showRate`.
+   */
   static async browse(filters = {}, { limit = 20, offset = 0, sort = 'relevance' } = {}) {
     const { clause, params } = buildFilter(filters);
     const orderBy = SORTS[sort] || SORTS.relevance;
 
     const [rows] = await promisePool.query(
       `SELECT cp.user_id, cp.headline, cp.primary_role, cp.seniority, cp.country, cp.city,
-              cp.work_mode, cp.day_rate, cp.currency, cp.availability, cp.profile_picture,
+              cp.work_mode, ${RATE_OR_NULL} AS day_rate,
+              cp.currency, cp.rate_visible, cp.availability, cp.profile_picture,
               cp.linkedin_verified, cp.completeness, u.name,
               (SELECT COUNT(*) FROM consultant_certifications cc WHERE cc.user_id = cp.user_id) AS certification_count
          FROM consultant_profiles cp JOIN users u ON u.id = cp.user_id

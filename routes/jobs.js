@@ -26,11 +26,26 @@ const { ENGAGEMENT_SLUGS, WORK_MODE_SLUGS, hasDuration } = require('../config/jo
 const router = express.Router();
 
 const SENIORITIES = SENIORITY_LEVELS.map((s) => s.value);
+
+/*
+ * "Posted" windows, as a declared list.
+ *
+ * A board without one makes somebody who checks weekly re-read every role they have already
+ * seen. The values are matched against this list rather than parsed from the query, so the
+ * number that reaches `INTERVAL ? DAY` is always one of four we chose.
+ */
+const POSTED_WINDOWS = [
+  { value: '', label: 'Any time' },
+  { value: '1', label: 'Last 24 hours' },
+  { value: '7', label: 'Last 7 days' },
+  { value: '30', label: 'Last 30 days' }
+];
 const WORK_MODES = WORK_MODE_SLUGS;
 const ENGAGEMENTS = ENGAGEMENT_SLUGS;
 
 /** Pull filters out of the query string, dropping anything not in the taxonomy. */
 function filtersFrom(query) {
+  const posted = POSTED_WINDOWS.some((w) => w.value && w.value === query.posted) ? query.posted : '';
   return {
     q: query.q ? String(query.q).slice(0, 120) : '',
     role: isValidRole(query.role) ? query.role : '',
@@ -39,7 +54,15 @@ function filtersFrom(query) {
     work_mode: WORK_MODES.includes(query.work_mode) ? query.work_mode : '',
     country: /^[A-Z]{2}$/.test(query.country || '') ? query.country : '',
     module: isValidModule(query.module) ? query.module : '',
-    rate_min: query.rate_min || ''
+    rate_min: query.rate_min || '',
+    /*
+     * Both forms of the same validated value, in ONE object: `posted` is what the form
+     * re-selects, `posted_within_days` is what the builder reads. They are derived
+     * together so a list, its count and its facets cannot end up filtered differently —
+     * the same object goes to `Job.browse` and to `Job.facetByRole`.
+     */
+    posted,
+    posted_within_days: posted ? Number(posted) : null
   };
 }
 
@@ -59,6 +82,7 @@ router.get(
       title: res.locals.seo.title,
       jobs: rows,
       filters,
+      postedWindows: POSTED_WINDOWS,
       sort,
       facets,
       roleCategories: ROLE_CATEGORIES,

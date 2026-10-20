@@ -27,7 +27,7 @@ describe('brand assets', () => {
    * logo appears in the header or the browser tab: a mark states affiliation far more
    * loudly than a footnote denies it.
    *
-   * So the mark this site wears is its own — a hub, not a cloud. These tests hold both
+   * So the mark this site wears is its own — an S-cube, not a cloud. These tests hold both
    * halves of that in place: the notice must stay, and the assets must not become a cloud
    * in Salesforce blue the next time somebody redraws them.
    */

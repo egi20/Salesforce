@@ -1448,7 +1448,7 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
   .sf-assistant { display: none !important; }
 }
 
-/* The hub mark beside the wordmark. Fixed box so the navbar cannot reflow while the SVG
+/* The S-cube mark beside the wordmark. Fixed box so the navbar cannot reflow while the SVG
    loads — a brand that jumps on every page load is the first thing people notice. */
 .navbar-hub .navbar-brand .brand-mark {
   width: 28px;

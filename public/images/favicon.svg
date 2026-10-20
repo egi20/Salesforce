@@ -1,19 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 64 64" role="img" aria-label="Salesforce Hub">
   <!--
-    The same mark on a filled tile. A browser tab renders this at 16px against an unknown
-    background, so the detail is dropped and the contrast is carried by the tile rather
-    than by the strokes: the six-node version turns to mush at that size.
+    The same mark on a WHITE tile. A browser tab renders this at 16px against an unknown
+    background, and half the mark is navy: on a dark tab bar that half would vanish and
+    leave a blue fragment. The tile carries the contrast, and the mark is scaled in a
+    little so its corners do not touch the tile's.
   -->
-  <rect width="64" height="64" rx="14" fill="#032d60"/>
-  <g stroke="#6fd3ff" stroke-width="5" stroke-linecap="round" opacity="0.7">
-    <line x1="32" y1="32" x2="32" y2="17"/>
-    <line x1="32" y1="32" x2="47" y2="41"/>
-    <line x1="32" y1="32" x2="17" y2="41"/>
+  <defs>
+    <linearGradient id="fNavy" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b2a5b"/>
+      <stop offset="1" stop-color="#032d60"/>
+    </linearGradient>
+    <linearGradient id="fBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00a1e0"/>
+      <stop offset="1" stop-color="#0176d3"/>
+    </linearGradient>
+    <mask id="fNavyCut" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#fff"/>
+      <g stroke="#000" stroke-width="5" stroke-linecap="round">
+        <line x1="16" y1="26.5" x2="44" y2="42.7"/>
+        <line x1="-4" y1="36" x2="23.5" y2="51.9"/>
+      </g>
+    </mask>
+    <mask id="fBlueCut" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#fff"/>
+      <g stroke="#000" stroke-width="5" stroke-linecap="round">
+        <line x1="30" y1="19.5" x2="47" y2="29.3"/>
+        <line x1="47.5" y1="42.2" x2="66" y2="31.5"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#ffffff"/>
+  <g transform="translate(32 32) scale(0.86) translate(-32 -32)" stroke-linejoin="round" stroke-width="1.5">
+    <path mask="url(#fNavyCut)" d="M6.9 17.5 L19.5 10.2 L37.5 20.6 L37.5 57.8 L32 61 L6.9 46.5 Z" fill="url(#fNavy)" stroke="url(#fNavy)"/>
+    <path mask="url(#fBlueCut)" d="M22.1 8.7 L32 3 L57.1 17.5 L57.1 46.5 L40.5 56.1 L40.5 19.3 Z" fill="url(#fBlue)" stroke="url(#fBlue)"/>
   </g>
-  <g fill="#6fd3ff">
-    <circle cx="32" cy="15" r="7"/>
-    <circle cx="47" cy="43" r="7"/>
-    <circle cx="17" cy="43" r="7"/>
-  </g>
-  <circle cx="32" cy="32" r="8" fill="#00a1e0"/>
 </svg>

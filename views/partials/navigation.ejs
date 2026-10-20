@@ -53,24 +53,10 @@
 
       <ul class="navbar-nav me-auto align-items-lg-center">
         <li class="nav-item">
-          <a class="nav-link <%= path === '/' ? 'active' : '' %>" href="/"><i class="bi bi-house"></i> Home</a>
+          <%# Home IS the community feed, so the forum, stories and challenges live under it %>
+          <%# rather than under a Community menu of their own — the sister site's layout. %>
+          <a class="nav-link <%= path === '/' || startsWith('/community') || startsWith('/success-stories') || startsWith('/challenges') ? 'active' : '' %>" href="/"><i class="bi bi-house"></i> Home</a>
         </li>
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle <%= startsWith('/community') || startsWith('/challenges') ? 'active' : '' %>" href="#" role="button"
-             data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
-            <i class="bi bi-people"></i> Community
-          </a>
-          <ul class="dropdown-menu shadow-sm">
-            <li><a class="dropdown-item" href="/community"><i class="bi bi-chat-square-text"></i> Questions and posts</a></li>
-            <li><a class="dropdown-item" href="/success-stories"><i class="bi bi-stars"></i> Success stories</a></li>
-            <% if (currentUser) { %>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="/challenges"><i class="bi bi-lightning-charge"></i> Daily challenge</a></li>
-              <li><a class="dropdown-item" href="/challenges/leaderboard"><i class="bi bi-trophy"></i> Leaderboard</a></li>
-            <% } %>
-          </ul>
-        </li>
-
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle <%= isConsultantArea ? 'active' : '' %>" href="#" role="button"
              data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
@@ -131,10 +117,9 @@
             <i class="bi bi-tools"></i> Services
           </a>
           <ul class="dropdown-menu shadow-sm">
-            <%# "Tax advisory", not "Tax Optimization": the page introduces a specialist and %>
-            <%# calculates nothing, and a menu promising optimisation is the savings claim %>
-            <%# routes/tax.js exists to refuse, made one click earlier. %>
-            <li><a class="dropdown-item" href="/tax-advisory"><i class="bi bi-signpost-split"></i> Tax Advisory</a></li>
+            <%# Named to match the sister platforms. The label is all that matches: the page %>
+            <%# introduces a specialist and calculates nothing, and it must stay that way. %>
+            <li><a class="dropdown-item" href="/tax-advisory"><i class="bi bi-signpost-split"></i> Tax Optimization</a></li>
             <%# The calculator is linked from the top of /rates, so one entry reaches both. %>
             <li><a class="dropdown-item" href="/rates"><i class="bi bi-graph-up"></i> Rate &amp; Salary Index</a></li>
             <li><a class="dropdown-item" href="/quotes/new"><i class="bi bi-file-earmark-ruled"></i> SOW Generator</a></li>

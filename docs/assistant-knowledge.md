@@ -39,10 +39,15 @@ People name pages by the menu label they see, so these are the labels:
   for a visitor), CV Generator (`/services/document-generator`).
 - **Companies Hub** — Browse Talent (`/consultants`), Get SOW Quote (`/quotes/new`), and the
   three engagement models: Staff Augmentation, Project-Based, Managed Services.
-- **Services** — Tax Advisory (`/tax-advisory`), Rate & Salary Index (`/rates`, which links
+- **Services** — Tax Optimization (`/tax-advisory`; it introduces a specialist and
+  calculates nothing), Rate & Salary Index (`/rates`, which links
   to the calculator), SOW Generator (`/quotes/new`), Document Generator.
 - The company directory (`/companies`) and the agency directory (`/recruiters`) are in the
   footer, under Companies Hub, not in the top menu.
+- There is no Community menu. **Home (`/`) is the community feed** — posts filtered by All,
+  Jobs, Questions, Discussions, Articles and Wins — for visitors and members alike. The
+  forum itself (`/community`), success stories and, once signed in, the daily challenge are
+  in the footer under Community.
 
 ## Pages, and what each is for
 

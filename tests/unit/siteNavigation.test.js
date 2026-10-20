@@ -29,10 +29,21 @@ describe('site navigation', () => {
   const footerPaths = [...FOOTER.matchAll(/\['(\/[^']*)',\s*'/g)].map((m) => m[1]);
 
   test('the footer carries a column for every menu group, under the same name', () => {
-    for (const group of ['Consultant Hub', 'Companies Hub', 'Services', 'Community']) {
+    for (const group of ['Consultant Hub', 'Companies Hub', 'Services']) {
       expect(NAV).toContain(group);
       expect(FOOTER).toContain(`['${group}', [`);
     }
+  });
+
+  test('the community has a way in without a menu of its own', () => {
+    // There is no Community dropdown: Home is the feed. That only holds while the home
+    // route renders the feed for a VISITOR too, and the forum stays linked from the footer
+    // — drop either and the community is reachable from nowhere.
+    const home = fs.readFileSync(path.join(ROOT, 'routes', 'index.js'), 'utf8');
+    expect(home).not.toMatch(/if \(req\.session\.user\) return feedHandler/);
+    expect(home).toMatch(/res\.render\('feed\/index'/);
+    expect(FOOTER).toContain(`['Community', [`);
+    expect(footerPaths).toContain('/community');
   });
 
   test('the footer does not reintroduce the old intent-based names', () => {

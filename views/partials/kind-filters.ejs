@@ -10,11 +10,22 @@
     return s ? base + '?' + s : base;
   };
   const totalCount = Object.values(counts || {}).reduce(function (a, b) { return a + b; }, 0);
+  /*
+   * The home feed adds a Jobs tab. It is not a post kind: its count comes from the jobs
+   * query that tab shows, so "All" stays the count of posts and never adds the two up.
+   */
+  const jobs = typeof jobsTab !== 'undefined' ? jobsTab : null;
+  const allSelected = !filters.kind && !(jobs && jobs.selected);
 %>
 <div class="d-flex flex-wrap gap-2 mb-3">
-  <a class="btn btn-sm <%= filters.kind ? 'btn-outline-primary' : 'btn-primary' %>" href="<%= qs({}) %>">
+  <a class="btn btn-sm <%= allSelected ? 'btn-primary' : 'btn-outline-primary' %>" href="<%= qs({}) %>">
     All <span class="opacity-75">(<%= totalCount %>)</span>
   </a>
+  <% if (jobs) { %>
+    <a class="btn btn-sm <%= jobs.selected ? 'btn-primary' : 'btn-outline-primary' %>" href="<%= qs({ kind: 'jobs' }) %>">
+      <i class="bi bi-briefcase"></i> Jobs <span class="opacity-75">(<%= jobs.total %>)</span>
+    </a>
+  <% } %>
   <% kinds.forEach(function (k) { %>
     <a class="btn btn-sm <%= filters.kind === k.value ? 'btn-primary' : 'btn-outline-primary' %>"
        href="<%= qs({ kind: k.value }) %>">

@@ -31,7 +31,7 @@
           ['/recruiters', 'Recruitment agencies']
         ]],
         ['Services', [
-          ['/tax-advisory', 'Tax Advisory'],
+          ['/tax-advisory', 'Tax Optimization'],
           ['/rates', 'Rate & Salary Index'],
           ['/quotes/new', 'SOW Generator'],
           ['/services/document-generator', 'Document Generator'],
@@ -47,7 +47,9 @@
           ...(currentUser ? [
             ['/community/new?kind=question', 'Ask a Question'],
             ['/community/new?kind=article', 'Share an Article'],
-            ['/challenges', 'Daily challenge']
+            ['/challenges', 'Daily challenge'],
+            // The menu no longer has a Community dropdown, so this is where it lives now.
+            ['/challenges/leaderboard', 'Leaderboard']
           ] : [])
         ]],
         ['Company', [

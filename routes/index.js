@@ -9,15 +9,10 @@ const { PUBLIC_PATHS, canonicalUrl } = require('../config/seoMeta');
 const legal = require('../config/legal');
 const IssueReport = require('../models/IssueReport');
 const { ISSUE_KINDS, LIMITS: ISSUE_LIMITS } = require('../config/issues');
-const { ROLE_CATEGORIES } = require('../config/roleTaxonomy');
-const { CLOUD_FAMILIES } = require('../config/cloudFamilies');
 const Job = require('../models/Job');
-const RateSubmission = require('../models/RateSubmission');
-const ConsultantProfile = require('../models/ConsultantProfile');
 const config = require('../config/config');
 const Post = require('../models/Post');
 const Points = require('../models/Points');
-const Notification = require('../models/Notification');
 const { POST_KINDS, isPostKind, postKind } = require('../config/community');
 const { toPlainText } = require('../utils/sanitize');
 const legalVersions = require('../config/legal-versions');
@@ -25,84 +20,72 @@ const legalVersions = require('../config/legal-versions');
 const router = express.Router();
 
 /**
- * The front door is two different pages.
+ * The front door is the community feed, for everybody.
  *
- * Signed out it is the marketing landing: what this is, and why to join. Signed in that
- * pitch is noise — the person has already joined — so it becomes the community feed, which
- * is the thing worth coming back to daily.
- */
-router.get(
-  '/',
-  asyncHandler(async (req, res, next) => {
-    if (req.session.user) return feedHandler(req, res, next);
-
-    const [latestJobs, featuredConsultants, contributors] = await Promise.all([
-      Job.browse({}, { limit: 6, sort: 'newest' }),
-      // No viewer: this branch runs only when nobody is signed in, so there is no company
-      // identity to filter against. A hidden-company block cannot apply to an anonymous
-      // visitor and the consultant is told exactly that on the page that sets one.
-      ConsultantProfile.browse({}, { limit: 6 }),
-      RateSubmission.totalContributors()
-    ]);
-
-    res.render('index', {
-      title: res.locals.seo.title,
-      latestJobs: latestJobs.rows,
-      totalJobs: latestJobs.total,
-      featuredConsultants: featuredConsultants.rows,
-      totalConsultants: featuredConsultants.total,
-      // Stated as the plain number of people who have contributed, because an
-      // unverifiable scale claim is worse than a small honest one.
-      rateContributors: contributors,
-      roleCategories: ROLE_CATEGORIES,
-      cloudFamilies: CLOUD_FAMILIES
-    });
-  })
-);
-
-/**
- * The signed-in feed.
+ * It used to be two pages: a marketing landing signed out, the feed signed in. The sister
+ * site opens on its feed for a visitor too, and so does this one now — a page of real
+ * questions and answers says more about a community than a hero banner about it, and it
+ * is the page worth coming back to daily.
+ *
+ * What differs by viewer is the SIDEBAR, not the list. Signed in: your standing, the
+ * leaderboard. Signed out: what this is and what an account adds. The leaderboard stays
+ * behind sign-in because it names people next to links to their profiles, and putting
+ * that list on the one page every crawler indexes is a bigger audience than any of them
+ * signed up to be shown to.
  *
  * Deliberately one query set and no personalisation beyond the filters: a feed that tries
  * to guess what someone wants, on a community this size, mostly hides things.
  */
-const feedHandler = asyncHandler(async (req, res) => {
-  const filters = {
-    kind: isPostKind(req.query.kind) ? req.query.kind : '',
-    category_slug: req.query.category ? String(req.query.category).slice(0, 64) : '',
-    unanswered: req.query.unanswered === '1' ? '1' : ''
-  };
+router.get(
+  '/',
+  asyncHandler(async (req, res) => {
+    const viewer = req.session.user || null;
+    /*
+     * "Jobs" is a tab of the feed, not a post kind. It is answered by `Job.browse`, the
+     * same builder `/jobs` uses, rather than by merging jobs into the post query: a UNION
+     * across two tables is a third filter builder, and the count beside the pill has to be
+     * the count that page shows. So "All" means every POST, and the Jobs tab is its own list.
+     */
+    const showJobs = req.query.kind === 'jobs';
+    const filters = {
+      kind: isPostKind(req.query.kind) ? req.query.kind : '',
+      category_slug: req.query.category ? String(req.query.category).slice(0, 64) : '',
+      unanswered: req.query.unanswered === '1' ? '1' : ''
+    };
 
-  const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 15 });
+    const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 15 });
+    const none = Promise.resolve(null);
 
-  const [{ rows: posts, total }, counts, standing, leaderboard, newMembers, unread, latestJobs] = await Promise.all([
-    Post.browse(filters, { limit, offset, sort: 'recent' }),
-    Post.countsByKind(filters),
-    Points.standingFor(req.session.user.id),
-    Points.leaderboard({ days: 30, limit: 6 }),
-    countRecentMembers(),
-    Notification.unreadCount(req.session.user.id),
-    Job.browse({}, { limit: 4, sort: 'newest' })
-  ]);
+    const [postPage, counts, jobPage, newMembers, standing, leaderboard] = await Promise.all([
+      showJobs ? Promise.resolve({ rows: [], total: 0 }) : Post.browse(filters, { limit, offset, sort: 'recent' }),
+      Post.countsByKind(filters),
+      showJobs ? Job.browse({}, { limit, offset, sort: 'newest' }) : Job.browse({}, { limit: 4, sort: 'newest' }),
+      countRecentMembers(),
+      viewer ? Points.standingFor(viewer.id) : none,
+      viewer ? Points.leaderboard({ days: 30, limit: 6 }) : Promise.resolve([])
+    ]);
 
-  res.render('feed/index', {
-    title: 'Home',
-    posts,
-    counts,
-    filters,
-    standing,
-    leaderboard,
-    newMembers,
-    unread,
-    latestJobs: latestJobs.rows,
-    kinds: POST_KINDS,
-    postKind,
-    toPlainText,
-    greeting: greetingFor(new Date()),
-    pagination: paginationMeta({ page, perPage, total }),
-    pageUrl: (p) => pageUrl('/', req.query, p)
-  });
-});
+    res.render('feed/index', {
+      title: viewer ? 'Home' : res.locals.seo.title,
+      posts: postPage.rows,
+      jobs: showJobs ? jobPage.rows : [],
+      showJobs,
+      jobsTotal: jobPage.total,
+      counts,
+      filters,
+      standing,
+      leaderboard,
+      newMembers,
+      latestJobs: showJobs ? [] : jobPage.rows,
+      kinds: POST_KINDS,
+      postKind,
+      toPlainText,
+      greeting: greetingFor(new Date()),
+      pagination: paginationMeta({ page, perPage, total: showJobs ? jobPage.total : postPage.total }),
+      pageUrl: (p) => pageUrl('/', req.query, p)
+    });
+  })
+);
 
 /** People who joined in the last seven days — the "new this week" line. */
 async function countRecentMembers() {

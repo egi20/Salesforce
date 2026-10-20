@@ -85,6 +85,8 @@
   --glass-blur-lg: blur(24px);
   --glass-blur-xl: blur(40px);
 
+  /* An open menu: wider and fainter than the glass shadows, so it floats rather than presses. */
+  --shadow-menu: 0 12px 32px rgba(3, 45, 96, 0.1);
   --glass-shadow:
     0 8px 32px rgba(3, 45, 96, 0.08),
     0 2px 8px rgba(3, 45, 96, 0.04),
@@ -386,11 +388,36 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   box-shadow: 0 2px 20px rgba(3, 45, 96, 0.06);
 }
 
+/*
+ * 80px, matching the sister site. The extra height is padding around the same row, not a
+ * taller row: `min-height` on the container means a collapsed menu still grows below it.
+ */
+.navbar-hub { --bs-navbar-padding-y: 0; }
+.navbar-hub > .container { min-height: 80px; }
+
 .navbar-hub .navbar-brand {
   font-weight: 800;
   font-size: 1.35rem;
   letter-spacing: -0.03em;
   color: var(--primary-navy);
+}
+
+/*
+ * The mark sits on a white tile with a hairline and a soft shadow, so it reads as one
+ * object rather than a loose shape beside the wordmark — and so the navy half of the mark
+ * keeps its edge on the footer's navy ground, where the same tile is reused.
+ */
+.brand-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  background: #fff;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 2px 8px rgba(3, 45, 96, 0.08);
 }
 .navbar-hub .navbar-brand .cloud {
   background: var(--accent-gradient);
@@ -408,7 +435,6 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 .navbar-hub .navbar-nav .nav-link {
   color: var(--text-medium);
   font-weight: 500;
-  border-radius: var(--radius-lg);
   /*
    * Tighter than the 0.8rem it was. Six dropdowns, a brand, a search and two buttons is a
    * lot for one bar, and the alternative to trimming this is collapsing to a hamburger at a
@@ -428,16 +454,35 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   align-items: center;
   gap: 0.4rem;
   white-space: nowrap;
+  position: relative;
 }
 .navbar-hub .nav-link:hover {
-  background: rgba(1, 118, 211, 0.08);
   color: var(--primary-blue);
   text-decoration: none;
 }
-.navbar-hub .nav-link.active {
-  color: var(--primary-blue);
-  background: rgba(1, 118, 211, 0.1);
+.navbar-hub .nav-link.active { color: var(--primary-blue); }
+
+/*
+ * The current section is UNDERLINED, not filled. A pill behind the active item competed
+ * with the pill-shaped Sign Up button at the other end of the bar; an underline marks the
+ * place without looking like something to press. Drawn as a pseudo-element so it sits
+ * inside the link's own padding and moves nothing when it appears.
+ */
+.navbar-hub .navbar-nav .nav-link::after {
+  content: '';
+  position: absolute;
+  left: 0.6rem;
+  right: 0.6rem;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--primary-blue);
+  transform: scaleX(0);
+  transition: transform 0.2s ease;
 }
+.navbar-hub .navbar-nav .nav-link.active::after { transform: scaleX(1); }
+/* The account toggle is a menu, not a section of the site: it is never "where you are". */
+.navbar-hub .navbar-nav .nav-link.d-flex::after { display: none; }
 
 /*
  * AN OPEN MENU IS OPAQUE. This is the one place the frost is wrong.
@@ -455,10 +500,18 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   background: #fff;
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--glass-shadow-lg);
-  padding: var(--space-2);
+  box-shadow: var(--shadow-menu);
+  padding: var(--space-3);
+  min-width: 15rem;
 }
-.navbar-hub .dropdown-item { border-radius: var(--radius-md); padding: 0.5rem 0.75rem; }
+.navbar-hub .dropdown-item {
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.navbar-hub .dropdown-item .bi { color: var(--primary-blue); }
 .navbar-hub .dropdown-item:hover { background: rgba(1, 118, 211, 0.08); color: var(--primary-blue); }
 
 .notif-dot {
@@ -895,7 +948,7 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 
 .footer-hub {
   position: relative;
-  background: var(--primary-navy-dark);
+  background: linear-gradient(180deg, var(--primary-navy) 0%, var(--primary-navy-dark) 100%);
   color: rgba(255, 255, 255, 0.75);
   padding: var(--space-12) 0 var(--space-6);
   /* No top margin. Every page ends in a padded section, and a margin here leaves a bare
@@ -905,7 +958,41 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 }
 .footer-hub::after { content: ''; position: absolute; inset: 0; background: var(--mesh-gradient); pointer-events: none; opacity: 0.6; }
 .footer-hub > .container { position: relative; z-index: 1; }
+/* The accent rule along the top edge: where the page ends and the footer begins. */
+.footer-hub::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-blue-light) 0%, var(--primary-blue) 100%);
+  z-index: 2;
+}
 .footer-hub h3 { color: #fff; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+/* A short rule under each column heading, so a column reads as a group from a distance. */
+.footer-grid h3::after {
+  content: '';
+  display: block;
+  width: 24px;
+  height: 2px;
+  margin-top: 0.5rem;
+  border-radius: 2px;
+  background: var(--primary-blue-light);
+}
+.footer-hub .footer-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: var(--space-3);
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
+  color: #fff;
+  text-decoration: none;
+}
+.footer-hub .footer-logo:hover { color: #fff; text-decoration: none; }
+.footer-disclaimer { color: rgba(255, 255, 255, 0.55); }
 .footer-hub a { color: rgba(255, 255, 255, 0.75); }
 .footer-hub a:hover { color: #fff; }
 
@@ -1224,6 +1311,20 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 }
 
 @media (max-width: 1199.98px) {
+  /* Collapsed, each item is a full-width row, and an underline that wide reads as a
+     divider rather than a marker. A short bar on the left edge says "you are here". */
+  .navbar-hub .navbar-nav .nav-link { padding-left: 0.75rem; }
+  .navbar-hub .navbar-nav .nav-link::after {
+    left: 0;
+    right: auto;
+    top: 0.5rem;
+    bottom: 0.5rem;
+    width: 3px;
+    height: auto;
+    transform: scaleY(0);
+  }
+  .navbar-hub .navbar-nav .nav-link.active::after { transform: scaleY(1); }
+
   /* Collapsed, the bar is a column and the field has the whole row: no reason to cap it. */
   .nav-search { width: 100%; }
   .nav-search .form-control { min-width: 0; max-width: none; flex: 1 1 auto; }
@@ -1244,6 +1345,7 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 @media (min-width: 1200px) and (max-width: 1399.98px) {
   .navbar-hub .navbar-brand { font-size: 1.15rem; }
   .navbar-hub .navbar-nav .nav-link { padding: 0.45rem 0.4rem; gap: 0.3rem; }
+  .navbar-hub .navbar-nav .nav-link::after { left: 0.4rem; right: 0.4rem; }
   .navbar-hub .btn-auth { padding: 0.4rem 0.9rem; }
 
   /*
@@ -1451,9 +1553,9 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 /* The S-cube mark beside the wordmark. Fixed box so the navbar cannot reflow while the SVG
    loads — a brand that jumps on every page load is the first thing people notice. */
 .navbar-hub .navbar-brand .brand-mark {
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
   display: block;
 }
 

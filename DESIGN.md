@@ -11,9 +11,10 @@ site.
 
 ## Brand essence
 
-- **Name:** Salesforce Hub. The wordmark is one word — `Salesforce` in navy, `Hub` in the
-  blue gradient (`.navbar-brand .cloud`), or `.brand-accent` on a dark ground where a
-  gradient would disappear.
+- **Name:** Salesforce Hub. The wordmark is two words with a space, matching the logo —
+  `Salesforce` in navy, `Hub` in the blue gradient (`.navbar-brand .cloud`), or
+  `.brand-accent` on a dark ground where a gradient would disappear. It sits beside the
+  S-cube mark on a white `.brand-tile`, in the header and the footer alike.
 - **Personality:** professional, modern, calm. Premium glassmorphism — frosted white cards
   over soft navy/blue washes. No loud colour, no gimmicks.
 - **Not affiliated with Salesforce, Inc.** The footer says so on every page. Never imply

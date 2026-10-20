@@ -31,6 +31,19 @@ It is not affiliated with Salesforce, Inc.
 
 An account can hold both roles at once.
 
+## Where things are in the menu
+
+People name pages by the menu label they see, so these are the labels:
+
+- **Consultant Hub** — Find Jobs (`/jobs`), Build Profile (`/profile/consultant`, or sign-up
+  for a visitor), CV Generator (`/services/document-generator`).
+- **Companies Hub** — Browse Talent (`/consultants`), Get SOW Quote (`/quotes/new`), and the
+  three engagement models: Staff Augmentation, Project-Based, Managed Services.
+- **Services** — Tax Advisory (`/tax-advisory`), Rate & Salary Index (`/rates`, which links
+  to the calculator), SOW Generator (`/quotes/new`), Document Generator.
+- The company directory (`/companies`) and the agency directory (`/recruiters`) are in the
+  footer, under Companies Hub, not in the top menu.
+
 ## Pages, and what each is for
 
 | Path | What it does |

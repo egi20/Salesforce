@@ -13,6 +13,10 @@ const Job = require('../models/Job');
 const config = require('../config/config');
 const Post = require('../models/Post');
 const Points = require('../models/Points');
+const ConsultantProfile = require('../models/ConsultantProfile');
+const ConsultantHiddenCompany = require('../models/ConsultantHiddenCompany');
+const CompanyProfile = require('../models/CompanyProfile');
+const RateSubmission = require('../models/RateSubmission');
 const { POST_KINDS, isPostKind, postKind } = require('../config/community');
 const { toPlainText } = require('../utils/sanitize');
 const legalVersions = require('../config/legal-versions');
@@ -186,6 +190,103 @@ router.get('/services/:page', (req, res, next) => {
   const model = SERVICE_PAGES[req.params.page];
   res.render('services/engagement-model', { title: model.heading, model });
 });
+
+/*
+ * The two hub landing pages: what each half of the site offers, in one place.
+ *
+ * Every card links to a page that already exists — a landing page is a table of contents,
+ * and a contents entry for a chapter that was never written is a 404 with a nicer label.
+ * Cards behind a sign-in are shown only to the account that can open them, the same rule
+ * the menu follows.
+ *
+ * The figures are counted by the SAME builders the list pages use, so "312 open roles"
+ * here is the number /jobs shows. The consultant count passes a viewer for the same reason
+ * /consultants does: a company that a consultant has hidden from must not be counted to
+ * that company, or the total quietly reveals that somebody is missing.
+ */
+router.get(
+  '/consultant-hub',
+  asyncHandler(async (req, res) => {
+    const user = req.session.user || null;
+    const isConsultant = Boolean(user && user.isConsultant);
+    const [jobs, contributors] = await Promise.all([
+      Job.browse({}, { limit: 1 }),
+      RateSubmission.totalContributors()
+    ]);
+
+    const tools = [
+      { href: '/jobs', icon: 'bi-briefcase', tone: 'icon-blue', title: 'Find Jobs', text: 'Contract and permanent roles, filtered by cloud, role, seniority, work mode and rate.' },
+      { href: isConsultant ? '/profile/consultant' : '/auth/register', icon: 'bi-person-gear', tone: 'icon-navyblue', title: 'Build Profile', text: 'Your clouds, certifications, delivery history and availability, in a profile companies can find. You decide whether it is public, and whether the rate is shown.' },
+      { href: '/services/document-generator', icon: 'bi-file-earmark-person', tone: 'icon-info', title: 'CV Generator', text: 'A formatted CV and rate card rendered from your profile. Nothing is written for you and nothing is stored.' },
+      { href: '/rates', icon: 'bi-graph-up', tone: 'icon-success', title: 'Rate & Salary Index', text: 'Day rates contributed by consultants. No figure is published from fewer than three people.' },
+      { href: '/rates/calculator', icon: 'bi-calculator', tone: 'icon-blue', title: 'Rate calculator', text: 'What a day rate comes to over a year once holidays, illness and the bench are taken out.' },
+      { href: '/tax-advisory', icon: 'bi-signpost-split', tone: 'icon-navyblue', title: 'Tax Optimization', text: 'An introduction to a specialist for your situation. The Hub itself calculates nothing.' }
+    ];
+    if (isConsultant) {
+      tools.push(
+        { href: '/dashboard/applications', icon: 'bi-send', tone: 'icon-info', title: 'Your applications', text: 'Every role you applied to and where each one stands.' },
+        { href: '/rates/submit', icon: 'bi-plus-circle', tone: 'icon-success', title: 'Contribute your rate', text: 'Add your figure to the index. It is never shown on its own.' }
+      );
+    }
+
+    res.render('hubs/show', {
+      title: 'Consultant Hub',
+      model: {
+        icon: 'bi-person-badge',
+        label: 'CONSULTANT HUB',
+        heading: 'Everything for Salesforce consultants',
+        intro: 'Find your next role, show companies what you have delivered, and know what the work is worth — from figures other consultants contributed, not a guess.',
+        stats: [
+          { value: jobs.total, label: jobs.total === 1 ? 'open role' : 'open roles', href: '/jobs' },
+          { value: contributors, label: contributors === 1 ? 'rate contributor' : 'rate contributors', href: '/rates' }
+        ],
+        tools,
+        cta: user ? null : { label: 'Create your profile', href: '/auth/register' }
+      }
+    });
+  })
+);
+
+router.get(
+  '/company-hub',
+  asyncHandler(async (req, res) => {
+    const user = req.session.user || null;
+    const viewer = await ConsultantHiddenCompany.viewerFor(user);
+    const [consultants, companies] = await Promise.all([
+      ConsultantProfile.browse({ viewer }, { limit: 1 }),
+      CompanyProfile.browse({}, { limit: 1 })
+    ]);
+
+    const tools = [
+      { href: '/consultants', icon: 'bi-people', tone: 'icon-blue', title: 'Browse Talent', text: 'Consultants filtered by cloud, certification, seniority, availability and rate.' },
+      { href: '/quotes/new', icon: 'bi-calculator', tone: 'icon-navyblue', title: 'Get SOW Quote', text: 'Pick clouds and modules and get a phased plan, team shape, budget and timeline that add up line by line.' },
+      { href: user && user.isCompany ? '/jobs/new' : '/auth/register', icon: 'bi-plus-square', tone: 'icon-success', title: 'Post a role', text: 'Publish a contract or permanent role and manage applicants through a pipeline.' },
+      { href: '/services/staff-augmentation', icon: 'bi-person-plus', tone: 'icon-info', title: 'Staff Augmentation', text: 'Named consultants inside your team, on your backlog.' },
+      { href: '/services/project-based', icon: 'bi-kanban', tone: 'icon-blue', title: 'Project-Based', text: 'A defined scope delivered to a plan, priced from an estimate.' },
+      { href: '/services/managed-services', icon: 'bi-gear', tone: 'icon-navyblue', title: 'Managed Services', text: 'Ongoing support and improvement after go-live.' },
+      { href: '/recruiters', icon: 'bi-person-rolodex', tone: 'icon-success', title: 'Recruitment agencies', text: 'Agencies that specialise in Salesforce placements, by cloud.' }
+    ];
+    if (user && user.isCompany) {
+      tools.push({ href: '/dashboard/applicants', icon: 'bi-kanban', tone: 'icon-info', title: 'Applicants', text: 'Every application across your roles, by stage.' });
+    }
+
+    res.render('hubs/show', {
+      title: 'Company Hub',
+      model: {
+        icon: 'bi-building',
+        label: 'COMPANY HUB',
+        heading: 'Hire Salesforce talent, or scope the work first',
+        intro: 'Browse consultants directly, post a role, or turn a list of clouds and modules into an estimate and the documents that go with it.',
+        stats: [
+          { value: consultants.total, label: consultants.total === 1 ? 'public consultant profile' : 'public consultant profiles', href: '/consultants' },
+          { value: companies.total, label: companies.total === 1 ? 'company profile' : 'company profiles', href: '/companies' }
+        ],
+        tools,
+        cta: user ? null : { label: 'Create a company account', href: '/auth/register' }
+      }
+    });
+  })
+);
 
 router.get('/about', (req, res) => {
   res.render('about', { title: 'About', legal });

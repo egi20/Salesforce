@@ -15,12 +15,14 @@
        */
       const footerColumns = [
         ['Consultant Hub', [
+          ['/consultant-hub', 'Consultant Hub'],
           ['/jobs', 'Find Jobs'],
           // A visitor builds a profile by signing up; a consultant edits the one they have.
           [currentUser && currentUser.isConsultant ? '/profile/consultant' : '/auth/register', 'Build Profile'],
           ['/services/document-generator', 'CV Generator']
         ]],
         ['Companies Hub', [
+          ['/company-hub', 'Company Hub'],
           ['/consultants', 'Browse Talent'],
           ['/quotes/new', 'Get SOW Quote'],
           ['/services/staff-augmentation', 'Staff Augmentation'],

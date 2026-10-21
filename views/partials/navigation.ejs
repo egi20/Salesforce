@@ -40,11 +40,11 @@
          * document generator is a /services/ page but a tool rather than an engagement
          * model, so it belongs to Services too, and the company test excludes it.
          */
-        const isConsultantArea = (!isCompanyJobPath && startsWith('/jobs'))
+        const isConsultantArea = startsWith('/consultant-hub') || (!isCompanyJobPath && startsWith('/jobs'))
           || (currentUser && startsWith('/profile/consultant'));
         const isServicesArea = startsWith('/quotes') || startsWith('/rates') || startsWith('/tax-advisory')
           || startsWith('/services/document-generator');
-        const isCompanyArea = !isServicesArea && (isCompanyJobPath
+        const isCompanyArea = !isServicesArea && (isCompanyJobPath || startsWith('/company-hub')
           || startsWith('/consultants') || startsWith('/companies') || startsWith('/recruiters')
           || startsWith('/services')
           || (currentUser && (startsWith('/dashboard/jobs')
@@ -63,6 +63,7 @@
             <i class="bi bi-person-badge"></i> Consultant Hub
           </a>
           <ul class="dropdown-menu shadow-sm">
+            <li><a class="dropdown-item" href="/consultant-hub"><i class="bi bi-grid"></i> Consultant Hub</a></li>
             <li><a class="dropdown-item" href="/jobs"><i class="bi bi-briefcase"></i> Find Jobs</a></li>
             <%# A visitor builds a profile by signing up; a consultant edits the one they have. %>
             <li><a class="dropdown-item" href="<%= currentUser && currentUser.isConsultant ? '/profile/consultant' : '/auth/register' %>"><i class="bi bi-person-gear"></i> Build Profile</a></li>
@@ -85,6 +86,7 @@
           <ul class="dropdown-menu shadow-sm">
             <%# The company and agency directories are in the footer: a hiring visitor %>
             <%# comes for talent and a quote, and two more lines here buried both. %>
+            <li><a class="dropdown-item" href="/company-hub"><i class="bi bi-grid"></i> Company Hub</a></li>
             <li><a class="dropdown-item" href="/consultants"><i class="bi bi-people"></i> Browse Talent</a></li>
             <li><a class="dropdown-item" href="/quotes/new"><i class="bi bi-calculator"></i> Get SOW Quote</a></li>
             <li><hr class="dropdown-divider"></li>

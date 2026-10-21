@@ -83,6 +83,28 @@ describe('site navigation', () => {
   });
 });
 
+describe('the hub landing pages', () => {
+  const routes = fs.readFileSync(path.join(ROOT, 'routes', 'index.js'), 'utf8');
+
+  test('each hub has a page, is indexable, and is the first entry of its menu and column', () => {
+    for (const [hub, label] of [['/consultant-hub', 'Consultant Hub'], ['/company-hub', 'Company Hub']]) {
+      expect(routes).toContain(`'${hub}',`);
+      expect(PUBLIC_PATHS).toContain(hub);
+      expect(PAGE_META[hub]).toBeDefined();
+      expect(NAV).toMatch(new RegExp(`href="${hub}"[^>]*>(\\s|<[^>]*>)*${label}`));
+      expect(FOOTER).toContain(`['${hub}', '${label}']`);
+    }
+  });
+
+  test('the consultant count on the company hub passes a viewer', () => {
+    // A company a consultant has hidden from must not see that consultant counted, or the
+    // total quietly reveals that somebody is missing from the list beneath it.
+    const handler = routes.slice(routes.indexOf("'/company-hub'"), routes.indexOf("router.get('/about'"));
+    expect(handler).toMatch(/viewerFor/);
+    expect(handler).toMatch(/ConsultantProfile\.browse\(\{ viewer \}/);
+  });
+});
+
 describe('the engagement-model pages', () => {
   const routes = fs.readFileSync(path.join(ROOT, 'routes', 'index.js'), 'utf8');
 

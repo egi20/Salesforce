@@ -248,7 +248,7 @@ router.get(
 );
 
 router.get(
-  '/company-hub',
+  '/companies-hub',
   asyncHandler(async (req, res) => {
     const user = req.session.user || null;
     const viewer = await ConsultantHiddenCompany.viewerFor(user);
@@ -271,10 +271,10 @@ router.get(
     }
 
     res.render('hubs/show', {
-      title: 'Company Hub',
+      title: 'Companies Hub',
       model: {
         icon: 'bi-building',
-        label: 'COMPANY HUB',
+        label: 'COMPANIES HUB',
         heading: 'Hire Salesforce talent, or scope the work first',
         intro: 'Browse consultants directly, post a role, or turn a list of clouds and modules into an estimate and the documents that go with it.',
         stats: [

@@ -73,8 +73,8 @@ const PAGE_META = {
     description:
       'Everything for Salesforce consultants in one place: open roles, a profile companies can find, a CV generated from it, and day rates contributed by other consultants.'
   },
-  '/company-hub': {
-    title: 'Company Hub — hire Salesforce consultants or scope a project',
+  '/companies-hub': {
+    title: 'Companies Hub — hire Salesforce consultants or scope a project',
     description:
       'Browse Salesforce consultants, post a role, or turn clouds and modules into a phased estimate with SOW, work breakdown and deck — staff augmentation, project-based or managed services.'
   },
@@ -91,7 +91,7 @@ const PAGE_META = {
 // `/tax-advisory` is indexable; `/tax-advisory/enquire` deliberately is not. A form page
 // carries no content a search result can usefully show, and the page above it already
 // links to it.
-const PUBLIC_PATHS = ['/', '/about', '/consultant-hub', '/company-hub',
+const PUBLIC_PATHS = ['/', '/about', '/consultant-hub', '/companies-hub',
   '/services/staff-augmentation', '/services/project-based', '/services/managed-services',
   '/services/document-generator', '/jobs', '/consultants', '/companies', '/rates', '/recruiters', '/success-stories', '/tax-advisory', '/faq', '/contact', '/legal/privacy', '/legal/terms'];
 

@@ -38,7 +38,7 @@ People name pages by the menu label they see, so these are the labels:
 - **Consultant Hub** — the hub page itself (`/consultant-hub`, every consultant tool on one
   page), Find Jobs (`/jobs`), Build Profile (`/profile/consultant`, or sign-up
   for a visitor), CV Generator (`/services/document-generator`).
-- **Companies Hub** — the hub page itself (`/company-hub`, every hiring tool on one page),
+- **Companies Hub** — the hub page itself (`/companies-hub`, every hiring tool on one page),
   Browse Talent (`/consultants`), Get SOW Quote (`/quotes/new`), and the
   three engagement models: Staff Augmentation, Project-Based, Managed Services.
 - **Services** — Tax Optimization (`/tax-advisory`; it introduces a specialist and
@@ -56,7 +56,7 @@ People name pages by the menu label they see, so these are the labels:
 | Path | What it does |
 |---|---|
 | `/consultant-hub` | One page listing every consultant tool: jobs, profile, CV generator, rate index and calculator, tax introduction. |
-| `/company-hub` | One page listing every hiring tool: browse consultants, post a role, scope estimate, engagement models, agencies. |
+| `/companies-hub` | One page listing every hiring tool: browse consultants, post a role, scope estimate, engagement models, agencies. |
 | `/jobs` | Browse open roles. Filter by cloud, role, seniority, work mode, country and rate. |
 | `/jobs/new` | Post a role. Company accounts only. |
 | `/consultants` | The consultant directory. Only profiles their owners have made public appear. |

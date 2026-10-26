@@ -4,8 +4,10 @@
     <a class="navbar-brand d-inline-flex align-items-center gap-2" href="/">
       <%# Decorative: the wordmark beside it already names the site, so a screen reader %>
       <%# announcing both would read it twice. %>
-      <img src="/images/logo-mark.svg" alt="" width="28" height="28" class="brand-mark" aria-hidden="true">
-      <span>Salesforce<span class="cloud">Hub</span></span>
+      <span class="brand-tile" aria-hidden="true">
+        <img src="/images/logo-mark.svg" alt="" width="30" height="30" class="brand-mark">
+      </span>
+      <span>Salesforce <span class="cloud">Hub</span></span>
     </a>
     <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
             aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,49 +35,41 @@
          */
         const companyJobPaths = ['/jobs/new'];
         const isCompanyJobPath = companyJobPaths.some((p) => startsWith(p));
-        const isConsultantArea = (!isCompanyJobPath && startsWith('/jobs'))
-          || startsWith('/rates') || startsWith('/tax-advisory')
+        /*
+         * Rates and tax moved to Services, so they no longer light up Consultant Hub. The
+         * document generator is a /services/ page but a tool rather than an engagement
+         * model, so it belongs to Services too, and the company test excludes it.
+         */
+        const isConsultantArea = startsWith('/consultant-hub') || (!isCompanyJobPath && startsWith('/jobs'))
           || (currentUser && startsWith('/profile/consultant'));
-        const isCompanyArea = isCompanyJobPath
+        const isServicesArea = startsWith('/quotes') || startsWith('/rates') || startsWith('/tax-advisory')
+          || startsWith('/services/document-generator');
+        const isCompanyArea = !isServicesArea && (isCompanyJobPath || startsWith('/companies-hub')
           || startsWith('/consultants') || startsWith('/companies') || startsWith('/recruiters')
           || startsWith('/services')
-          || (currentUser && (startsWith('/quotes') || startsWith('/dashboard/jobs')
-            || startsWith('/dashboard/applicants') || startsWith('/applications')));
+          || (currentUser && (startsWith('/dashboard/jobs')
+            || startsWith('/dashboard/applicants') || startsWith('/applications'))));
       %>
 
       <ul class="navbar-nav me-auto align-items-lg-center">
         <li class="nav-item">
-          <a class="nav-link <%= path === '/' ? 'active' : '' %>" href="/"><i class="bi bi-house"></i> Home</a>
+          <%# Home IS the community feed, so the forum, stories and challenges live under it %>
+          <%# rather than under a Community menu of their own — the sister site's layout. %>
+          <a class="nav-link <%= path === '/' || startsWith('/community') || startsWith('/success-stories') || startsWith('/challenges') ? 'active' : '' %>" href="/"><i class="bi bi-house"></i> Home</a>
         </li>
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle <%= startsWith('/community') || startsWith('/challenges') ? 'active' : '' %>" href="#" role="button"
-             data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
-            <i class="bi bi-people"></i> Community
-          </a>
-          <ul class="dropdown-menu shadow-sm">
-            <li><a class="dropdown-item" href="/community"><i class="bi bi-chat-square-text"></i> Questions and posts</a></li>
-            <li><a class="dropdown-item" href="/success-stories"><i class="bi bi-stars"></i> Success stories</a></li>
-            <% if (currentUser) { %>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="/challenges"><i class="bi bi-lightning-charge"></i> Daily challenge</a></li>
-              <li><a class="dropdown-item" href="/challenges/leaderboard"><i class="bi bi-trophy"></i> Leaderboard</a></li>
-            <% } %>
-          </ul>
-        </li>
-
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle <%= isConsultantArea ? 'active' : '' %>" href="#" role="button"
              data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
             <i class="bi bi-person-badge"></i> Consultant Hub
           </a>
           <ul class="dropdown-menu shadow-sm">
-            <li><a class="dropdown-item" href="/jobs"><i class="bi bi-briefcase"></i> Find work</a></li>
-            <li><a class="dropdown-item" href="/rates"><i class="bi bi-graph-up"></i> Rate index</a></li>
-            <li><a class="dropdown-item" href="/rates/calculator"><i class="bi bi-calculator"></i> Rate calculator</a></li>
-            <li><a class="dropdown-item" href="/tax-advisory"><i class="bi bi-signpost-split"></i> Tax advisory</a></li>
+            <li><a class="dropdown-item" href="/consultant-hub"><i class="bi bi-grid"></i> Consultant Hub</a></li>
+            <li><a class="dropdown-item" href="/jobs"><i class="bi bi-briefcase"></i> Find Jobs</a></li>
+            <%# A visitor builds a profile by signing up; a consultant edits the one they have. %>
+            <li><a class="dropdown-item" href="<%= currentUser && currentUser.isConsultant ? '/profile/consultant' : '/auth/register' %>"><i class="bi bi-person-gear"></i> Build Profile</a></li>
+            <li><a class="dropdown-item" href="/services/document-generator"><i class="bi bi-file-earmark-person"></i> CV Generator</a></li>
             <% if (currentUser && currentUser.isConsultant) { %>
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="/profile/consultant"><i class="bi bi-person-gear"></i> Build your profile</a></li>
               <li><a class="dropdown-item" href="/dashboard/applications"><i class="bi bi-send"></i> Your applications</a></li>
               <li><a class="dropdown-item" href="/dashboard/saved"><i class="bi bi-bookmark"></i> Saved jobs</a></li>
               <li><a class="dropdown-item" href="/rates/submit"><i class="bi bi-plus-circle"></i> Contribute your rate</a></li>
@@ -90,14 +84,16 @@
             <i class="bi bi-building"></i> Companies Hub
           </a>
           <ul class="dropdown-menu shadow-sm">
-            <li><a class="dropdown-item" href="/consultants"><i class="bi bi-people"></i> Find consultants</a></li>
-            <li><a class="dropdown-item" href="/companies"><i class="bi bi-buildings"></i> Companies</a></li>
-            <li><a class="dropdown-item" href="/recruiters"><i class="bi bi-person-rolodex"></i> Recruitment agencies</a></li>
+            <%# The company and agency directories are in the footer: a hiring visitor %>
+            <%# comes for talent and a quote, and two more lines here buried both. %>
+            <li><a class="dropdown-item" href="/companies-hub"><i class="bi bi-grid"></i> Companies Hub</a></li>
+            <li><a class="dropdown-item" href="/consultants"><i class="bi bi-people"></i> Browse Talent</a></li>
+            <li><a class="dropdown-item" href="/quotes/new"><i class="bi bi-calculator"></i> Get SOW Quote</a></li>
             <li><hr class="dropdown-divider"></li>
             <%# How an engagement is shaped. Each one ends at a page that already exists. %>
-            <li><a class="dropdown-item" href="/services/staff-augmentation"><i class="bi bi-people"></i> Staff augmentation</a></li>
-            <li><a class="dropdown-item" href="/services/project-based"><i class="bi bi-kanban"></i> Project-based delivery</a></li>
-            <li><a class="dropdown-item" href="/services/managed-services"><i class="bi bi-gear"></i> Managed services</a></li>
+            <li><a class="dropdown-item" href="/services/staff-augmentation"><i class="bi bi-people"></i> Staff Augmentation</a></li>
+            <li><a class="dropdown-item" href="/services/project-based"><i class="bi bi-kanban"></i> Project-Based</a></li>
+            <li><a class="dropdown-item" href="/services/managed-services"><i class="bi bi-gear"></i> Managed Services</a></li>
             <% if (currentUser && (currentUser.isCompany || currentUser.isRecruiter)) { %>
               <li><hr class="dropdown-divider"></li>
               <%# Posting and its pipeline are `isCompany` in routes/jobs.js and %>
@@ -118,17 +114,22 @@
         </li>
 
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle <%= startsWith('/quotes') ? 'active' : '' %>" href="#" role="button"
+          <a class="nav-link dropdown-toggle <%= isServicesArea ? 'active' : '' %>" href="#" role="button"
              data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
             <i class="bi bi-tools"></i> Services
           </a>
           <ul class="dropdown-menu shadow-sm">
-            <li><a class="dropdown-item" href="/quotes/new"><i class="bi bi-calculator"></i> Scope estimator</a></li>
+            <%# Named to match the sister platforms. The label is all that matches: the page %>
+            <%# introduces a specialist and calculates nothing, and it must stay that way. %>
+            <li><a class="dropdown-item" href="/tax-advisory"><i class="bi bi-signpost-split"></i> Tax Optimization</a></li>
+            <%# The calculator is linked from the top of /rates, so one entry reaches both. %>
+            <li><a class="dropdown-item" href="/rates"><i class="bi bi-graph-up"></i> Rate &amp; Salary Index</a></li>
+            <li><a class="dropdown-item" href="/quotes/new"><i class="bi bi-file-earmark-ruled"></i> SOW Generator</a></li>
+            <li><a class="dropdown-item" href="/services/document-generator"><i class="bi bi-file-earmark-text"></i> Document Generator</a></li>
             <% if (currentUser) { %>
-              <li><a class="dropdown-item" href="/quotes"><i class="bi bi-file-earmark-text"></i> Your quotes</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="/quotes"><i class="bi bi-folder2-open"></i> Your quotes</a></li>
             <% } %>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="/rates"><i class="bi bi-graph-up"></i> Day rate index</a></li>
           </ul>
         </li>
 
@@ -198,8 +199,8 @@
           </li>
         <% } else { %>
           <%# A matched pair: outlined then filled, both pills, neither wrapping. %>
-          <li class="nav-item"><a class="btn btn-outline-primary btn-sm btn-auth" href="/auth/login">Sign in</a></li>
-          <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm btn-auth" href="/auth/register">Sign up</a></li>
+          <li class="nav-item"><a class="btn btn-outline-primary btn-sm btn-auth" href="/auth/login">Sign In</a></li>
+          <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm btn-auth" href="/auth/register">Sign Up</a></li>
         <% } %>
       </ul>
     </div>

@@ -15,37 +15,50 @@
        */
       const footerColumns = [
         ['Consultant Hub', [
-          ['/jobs', 'Find work'],
-          ['/rates', 'Rate index'],
-          ['/rates/calculator', 'Rate calculator'],
-          ['/tax-advisory', 'Tax advisory'],
-          ['/auth/register', 'Build your profile']
+          ['/consultant-hub', 'Consultant Hub'],
+          ['/jobs', 'Find Jobs'],
+          // A visitor builds a profile by signing up; a consultant edits the one they have.
+          [currentUser && currentUser.isConsultant ? '/profile/consultant' : '/auth/register', 'Build Profile'],
+          ['/services/document-generator', 'CV Generator']
         ]],
         ['Companies Hub', [
-          ['/consultants', 'Find consultants'],
-          ['/jobs/new', 'Post a role'],
+          ['/companies-hub', 'Companies Hub'],
+          ['/consultants', 'Browse Talent'],
+          ['/quotes/new', 'Get SOW Quote'],
+          ['/services/staff-augmentation', 'Staff Augmentation'],
+          ['/services/project-based', 'Project-Based'],
+          ['/services/managed-services', 'Managed Services'],
+          // Out of the menu to keep it short, so they live here — not nowhere.
           ['/companies', 'Companies'],
           ['/recruiters', 'Recruitment agencies']
         ]],
         ['Services', [
-          ['/quotes/new', 'Scope estimator'],
-          ['/services/document-generator', 'Document generator'],
-          ['/rates', 'Day rate index'],
+          ['/tax-advisory', 'Tax Optimization'],
+          ['/rates', 'Rate & Salary Index'],
+          ['/quotes/new', 'SOW Generator'],
+          ['/services/document-generator', 'Document Generator'],
           ['/payments', 'Pricing']
         ]],
         ['Community', [
-          ['/community', 'Questions and posts'],
-          ['/success-stories', 'Success stories'],
-          // Signed in only, for the same reason the menu hides it: it answers 401 to a
+          ['/community', 'Forum'],
+          ['/community?kind=article', 'Articles'],
+          ['/success-stories', 'Success Stories'],
+          // Signed in only, for the same reason the menu hides them: each answers 401 to a
           // visitor, and a footer link whose only outcome is a login page is a dead link
           // wearing a name.
-          ...(currentUser ? [['/challenges', 'Daily challenge']] : [])
+          ...(currentUser ? [
+            ['/community/new?kind=question', 'Ask a Question'],
+            ['/community/new?kind=article', 'Share an Article'],
+            ['/challenges', 'Daily challenge'],
+            // The menu no longer has a Community dropdown, so this is where it lives now.
+            ['/challenges/leaderboard', 'Leaderboard']
+          ] : [])
         ]],
         ['Company', [
-          ['/about', 'About'],
+          ['/about', 'About Us'],
           ['/faq', 'FAQ'],
           ['/contact', 'Contact'],
-          ['/report-issue', 'Report a problem']
+          ['/report-issue', 'Report Issue']
         ]],
         ['Legal', [
           ['/legal/privacy', 'Privacy policy'],
@@ -55,9 +68,16 @@
     %>
     <div class="footer-grid">
       <div class="footer-brand">
-        <div class="navbar-brand text-white mb-2 d-block">Salesforce<span class="brand-accent">Hub</span></div>
+        <a class="footer-logo" href="/">
+          <span class="brand-tile" aria-hidden="true">
+            <img src="/images/logo-mark.svg" alt="" width="30" height="30">
+          </span>
+          <span>Salesforce <span class="brand-accent">Hub</span></span>
+        </a>
         <p class="mb-0 footer-blurb">
-          Jobs, talent and contributed day-rate benchmarks for the Salesforce ecosystem.
+          The marketplace for the Salesforce ecosystem: contract and permanent roles,
+          consultants companies can browse, scope estimates that reconcile, and day-rate
+          benchmarks built from figures people contributed.
         </p>
       </div>
       <% footerColumns.forEach(function (col) { %>
@@ -73,9 +93,12 @@
     </div>
     <hr class="footer-rule">
     <div class="d-flex flex-wrap justify-content-between small gap-2">
-      <span>&copy; <%= new Date().getFullYear() %> <%= appName %></span>
-      <span>Not affiliated with Salesforce, Inc. Product names are trademarks of their respective owners.</span>
+      <span>&copy; <%= new Date().getFullYear() %> <%= appName %>. All rights reserved.</span>
+      <span>Built for the Salesforce community</span>
     </div>
+    <%# Its own line, never shortened to fit the row above: it is what makes an independent %>
+    <%# marketplace using the word "Salesforce" defensible. %>
+    <p class="small mb-0 mt-2 footer-disclaimer">Not affiliated with Salesforce, Inc. Product names are trademarks of their respective owners.</p>
   </div>
 </footer>
 

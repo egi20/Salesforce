@@ -1,0 +1,118 @@
+# Salesforce Hub on Render, as a Blueprint: the app and its own MySQL, in one file.
+#
+#   1. Merge this to main.
+#   2. Open https://dashboard.render.com/select-repo?type=blueprint, choose this repo, and
+#      click Apply. Render asks for every value marked `sync: false` below.
+#   3. Once the first deploy is live, point the domain at it (see the end of this file).
+#
+# THE DATABASE RUNS ON RENDER, AS A PRIVATE SERVICE. Render offers no managed MySQL, and this
+# application is MySQL-only. Dynamics Hub runs the same way: the official mysql:8.0 image
+# as a private service with a persistent disk. A private service has no public address, so
+# the connection never leaves Render's private network and needs no TLS — and nothing on
+# the internet can even try the password.
+#
+# Backups are YOURS. A disk is not a backup: it survives a restart, not a mistake. Render
+# takes daily snapshots of a disk, but restoring one restores the whole volume to that day.
+# Run a `mysqldump` from the Render shell before anything you would not want to undo.
+
+services:
+  - type: pserv
+    name: sforcehub-mysql
+    runtime: image
+    image:
+      url: docker.io/library/mysql:8.0
+    region: frankfurt
+    plan: starter
+    disk:
+      name: mysql-data
+      mountPath: /var/lib/mysql
+      sizeGB: 10
+    envVars:
+      # MYSQL_DATABASE and MYSQL_USER are read ONCE, when the image initialises an empty
+      # disk. Changing them afterwards changes nothing in the database.
+      - key: MYSQL_DATABASE
+        value: salesforce_hub
+      - key: MYSQL_USER
+        value: sfhub
+      - key: MYSQL_PASSWORD
+        generateValue: true
+      - key: MYSQL_ROOT_PASSWORD
+        generateValue: true
+
+  - type: web
+    name: sforcehub
+    # The Dockerfile, not Render's Node runtime: it pins Debian rather than musl because
+    # `sharp` ships prebuilt binaries for glibc, and it runs as a non-root user.
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: frankfurt
+    plan: starter
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /healthz
+    # Wait for MySQL first. On the very first deploy the database is still initialising
+    # its disk when the app starts, and `npm start` runs the migrations before it serves —
+    # without the wait, the first deploy fails on a connection refused that says nothing
+    # about why.
+    dockerCommand: sh -c "npm run wait-for-db && npm start"
+    domains:
+      - sforcehub.net
+      - www.sforcehub.net
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # The address links in emails and canonical URLs are built from. It has to be the
+      # https:// domain people actually use, or every emailed link points somewhere else.
+      - key: APP_BASE_URL
+        value: https://sforcehub.net
+      # config/config.js refuses to start in production without it.
+      - key: SESSION_SECRET
+        generateValue: true
+
+      - key: DB_HOST
+        fromService:
+          type: pserv
+          name: sforcehub-mysql
+          property: host
+      - key: DB_PORT
+        value: "3306"
+      - key: DB_USER
+        value: sfhub
+      - key: DB_PASSWORD
+        fromService:
+          type: pserv
+          name: sforcehub-mysql
+          envVarKey: MYSQL_PASSWORD
+      - key: DB_NAME
+        value: salesforce_hub
+      # MySQL can take well over a minute to initialise an empty disk.
+      - key: DB_WAIT_ATTEMPTS
+        value: "90"
+
+      # Asked for when the Blueprint is applied. None has a default here on purpose.
+      - key: SUPPORT_EMAIL
+        sync: false
+      # The privacy policy has to name a real person or company with an address. The site
+      # starts without them and says plainly that they are missing — fill them in before
+      # it takes real users.
+      - key: LEGAL_CONTROLLER_NAME
+        sync: false
+      - key: LEGAL_CONTROLLER_ADDRESS
+        sync: false
+      - key: LEGAL_PRIVACY_EMAIL
+        sync: false
+      # Without a key, email is logged instead of sent, so sign-up verification cannot
+      # complete. Set it before inviting anybody.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+
+# THE DOMAIN, AT GODADDY. Render lists the two domains above under the web service's
+# Settings -> Custom Domains, each with the DNS record it expects. In GoDaddy's DNS for
+# sforcehub.net:
+#   - delete the parked A record for @ and any domain forwarding;
+#   - A      @    -> the IP address Render shows for sforcehub.net;
+#   - CNAME  www  -> the sforcehub-xxxx.onrender.com address Render shows.
+# Then click Verify in Render. It issues the HTTPS certificate itself once both resolve.
+# The session cookie is Secure, so nobody can sign in until that certificate exists.

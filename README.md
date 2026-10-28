@@ -135,6 +135,18 @@ then depends entirely on the buyer landing back on the success page.
 
 ---
 
+## Deploying
+
+Two ways, both kept in the repo:
+
+- **Render** — `render.yaml` is a Blueprint for the app and its own MySQL 8, which runs as
+  a private service with a persistent disk because Render has no managed MySQL. Apply it
+  from the Render dashboard; the file explains the GoDaddy DNS records at the end.
+- **One server** — `deploy/setup.sh` installs Docker, MySQL and Caddy (which gets the HTTPS
+  certificate itself) on a fresh Ubuntu machine.
+
+Either way, back up the database yourself: a disk survives a restart, not a mistake.
+
 ## Decisions worth knowing before you change anything
 
 **The schema is migrations, not self-healing DDL.** Numbered files under

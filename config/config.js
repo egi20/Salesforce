@@ -22,26 +22,6 @@ function required(name, value) {
   return value;
 }
 
-/**
- * TLS to the database, for a managed MySQL that will not accept a plain connection.
- *
- * Off unless DB_SSL is `true`: the bundled docker-compose talks to MySQL over a private
- * network and has no certificate to present. When it is on, the certificate is ALWAYS
- * verified — there is no setting that turns verification off, because an encrypted
- * connection to a server nobody checked is a connection to whoever answered.
- *
- * DB_SSL_CA carries the provider's CA certificate as PEM. A hosting dashboard usually
- * takes a value on one line, so a literal `\n` is turned back into a newline. Without it
- * the system trust store is used, which a provider signing with its own CA will fail —
- * loudly, at the first connection, which is the right way for that mistake to show up.
- */
-function databaseSsl() {
-  const flag = String(process.env.DB_SSL || '').trim().toLowerCase();
-  if (flag !== 'true') return null;
-  const ca = process.env.DB_SSL_CA ? process.env.DB_SSL_CA.replace(/\\n/g, '\n') : undefined;
-  return ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: true };
-}
-
 const sessionSecret = process.env.SESSION_SECRET || DEFAULT_SESSION_SECRET;
 if (isProduction && sessionSecret === DEFAULT_SESSION_SECRET) {
   throw new Error('SESSION_SECRET must be set to a non-default value in production');
@@ -62,8 +42,7 @@ const config = {
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'salesforce_hub',
-    connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT, 10) || 10,
-    ssl: databaseSsl()
+    connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT, 10) || 10
   },
   session: {
     secret: isProduction ? required('SESSION_SECRET', process.env.SESSION_SECRET) : sessionSecret,

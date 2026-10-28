@@ -13,7 +13,6 @@ const pool = mysql.createPool({
   user: config.database.user,
   password: config.database.password,
   database: config.database.database,
-  ...(config.database.ssl ? { ssl: config.database.ssl } : {}),
   waitForConnections: true,
   connectionLimit: config.database.connectionLimit,
   queueLimit: 0,

@@ -124,7 +124,6 @@ async function connect() {
     user: config.database.user,
     password: config.database.password,
     database: config.database.database,
-    ...(config.database.ssl ? { ssl: config.database.ssl } : {}),
     multipleStatements: false,
     charset: 'utf8mb4_unicode_ci'
   });

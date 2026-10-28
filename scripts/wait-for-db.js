@@ -18,8 +18,7 @@ async function tryConnect() {
     port: config.database.port,
     user: config.database.user,
     password: config.database.password,
-    database: config.database.database,
-    ...(config.database.ssl ? { ssl: config.database.ssl } : {})
+    database: config.database.database
   });
   await conn.query('SELECT 1');
   await conn.end();

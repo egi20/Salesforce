@@ -17,7 +17,7 @@ const mysql = require('mysql2/promise');
 const config = require('../config/config');
 
 async function main() {
-  const { host, port, user, password, database, ssl } = config.database;
+  const { host, port, user, password, database } = config.database;
 
   // Identifiers cannot be parameterised, so the name is validated rather than escaped.
   // Anything outside this character set is a configuration mistake, not a value to quote.
@@ -25,7 +25,7 @@ async function main() {
     throw new Error(`DB_NAME "${database}" is not a valid database name (letters, digits and underscore only).`);
   }
 
-  const connection = await mysql.createConnection({ host, port, user, password, ...(ssl ? { ssl } : {}) });
+  const connection = await mysql.createConnection({ host, port, user, password });
   try {
     const [rows] = await connection.query('SHOW DATABASES LIKE ?', [database]);
     if (rows.length) {

@@ -101,7 +101,8 @@ People name pages by the menu label they see, so these are the labels:
 | `/about` | What the Hub is, who runs it, and the things it deliberately does not do — no tax calculation, no generated prose in a member's name, no uploaded documents served back out. |
 | `/faq` | Frequently asked questions. |
 | `/contact` | One address, read by a person. Also where a data request goes. |
-| `/report-issue` | Tell us something is broken or wrong. No account needed. |
+| `/report-issue` | Tell us something is broken or wrong, or suggest something. No account needed. You can say how badly it affects you and attach up to three screenshots, which are deleted 90 days after the report is closed. A suggestion can be offered for the ideas page with a tick box. |
+| `/ideas` | Suggestions people agreed to share, published after somebody here read them, with no names. Signed-in members can vote once on each. |
 | `/legal/privacy`, `/legal/terms` | The policies. |
 
 ## What is free, and what is not

@@ -4,6 +4,7 @@ const multer = require('multer');
 const config = require('../config/config');
 const { returnTo } = require('../utils/returnTo');
 const { verifyDeferred, csrfError } = require('./csrf');
+const { SCREENSHOTS } = require('../config/issues');
 
 /*
  * Every route that accepts a multipart body, as the full path. The CSRF middleware defers
@@ -14,7 +15,8 @@ const { verifyDeferred, csrfError } = require('./csrf');
 const UPLOAD_PATHS = Object.freeze([
   /^\/profile\/consultant\/photo$/,
   /^\/profile\/company\/logo$/,
-  /^\/admin\/stories\/\d+\/photo$/
+  /^\/admin\/stories\/\d+\/photo$/,
+  /^\/report-issue$/
 ]);
 
 function isUploadPath(req) {
@@ -78,4 +80,34 @@ function singleImage(fieldName) {
   });
 }
 
-module.exports = { singleImage, imageUpload, isUploadPath, UPLOAD_PATHS };
+/*
+ * Screenshots on /report-issue (migration 034): a few images, each bounded. Images only —
+ * every one is re-encoded by sharp before it is stored, and a PDF or an office document
+ * from a stranger is exactly what that re-encode exists to keep away from the administrator
+ * who opens the report.
+ *
+ * An upload problem does NOT throw: it is put on `req.uploadError` for the route to say,
+ * because the person's typed report matters more than the picture that failed.
+ */
+const screenshotUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: SCREENSHOTS.maxBytes, files: SCREENSHOTS.maxFiles, fields: 30 },
+  fileFilter: imageFilter
+});
+
+function screenshots(fieldName) {
+  const handler = screenshotUpload.array(fieldName, SCREENSHOTS.maxFiles);
+  return (req, res, next) => handler(req, res, (err) => {
+    if (!verifyDeferred(req)) return next(csrfError());
+    if (err) {
+      req.uploadError =
+        err.code === 'LIMIT_FILE_SIZE' ? `Each screenshot can be at most ${SCREENSHOTS.maxBytes / 1024 / 1024} MB.`
+          : err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE' ? `At most ${SCREENSHOTS.maxFiles} screenshots.`
+            : err.message;
+      req.files = [];
+    }
+    return next();
+  });
+}
+
+module.exports = { singleImage, imageUpload, screenshots, isUploadPath, UPLOAD_PATHS };

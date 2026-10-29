@@ -8,7 +8,8 @@ const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination
 const { PUBLIC_PATHS, canonicalUrl } = require('../config/seoMeta');
 const legal = require('../config/legal');
 const IssueReport = require('../models/IssueReport');
-const { ISSUE_KINDS, LIMITS: ISSUE_LIMITS } = require('../config/issues');
+const { ISSUE_KINDS, ISSUE_SEVERITIES, SCREENSHOTS, LIMITS: ISSUE_LIMITS } = require('../config/issues');
+const { screenshots } = require('../middleware/fileUpload');
 const Job = require('../models/Job');
 const config = require('../config/config');
 const Post = require('../models/Post');
@@ -21,6 +22,7 @@ const { POST_KINDS, isPostKind, postKind } = require('../config/community');
 const { toPlainText } = require('../utils/sanitize');
 const legalVersions = require('../config/legal-versions');
 const SalesAgent = require('../models/SalesAgent');
+const { requireIdParam } = require('../utils/ids');
 const { looksLikeAPerson } = require('../middleware/visitGeo');
 
 const router = express.Router();
@@ -338,6 +340,8 @@ router.get('/report-issue', (req, res) => {
   res.render('reportIssue', {
     title: 'Report a problem',
     kinds: ISSUE_KINDS,
+    severities: ISSUE_SEVERITIES,
+    screenshots: SCREENSHOTS,
     limits: ISSUE_LIMITS,
     // Pre-filled from where they came from, and shown so they can see and change it. Never
     // taken from the Referer header — this app sends `Referrer-Policy: no-referrer`, so it
@@ -346,12 +350,35 @@ router.get('/report-issue', (req, res) => {
   });
 });
 
+/*
+ * The body is multipart, because of the screenshots, so the CSRF check runs once multer has
+ * parsed it (middleware/csrf.js and middleware/fileUpload.js).
+ */
 router.post(
   '/report-issue',
   writeLimiter,
+  screenshots('screenshots'),
   asyncHandler(async (req, res) => {
+    if (req.uploadError) {
+      req.flash('error', `${req.uploadError} Nothing was sent.`);
+      return res.redirect('/report-issue');
+    }
     try {
-      await IssueReport.create(req.body, { userId: req.session.user ? req.session.user.id : null });
+      const created = await IssueReport.create(req.body, { userId: req.session.user ? req.session.user.id : null });
+      const files = Array.isArray(req.files) ? req.files : [];
+      if (files.length) {
+        try {
+          await IssueReport.addAttachments(created.id, files.map((f) => f.buffer));
+        } catch (err) {
+          /*
+           * sharp could not decode it, so it was not an image whatever its name said. The
+           * report itself is already in the queue; say so rather than pretend nothing
+           * arrived, and do not ask for it again.
+           */
+          console.error(`Issue ${created.id}: an attachment was not a readable image (${err.message})`);
+          req.flash('info', 'Your report reached us, but one of the files was not a readable image and was left out.');
+        }
+      }
       req.flash(
         'success',
         req.session.user
@@ -364,6 +391,31 @@ router.post(
       return res.redirect('/report-issue');
     }
     return res.redirect(req.session.user ? '/my-issues' : '/report-issue');
+  })
+);
+
+/**
+ * /ideas — the suggestions people agreed to make public, once an administrator has
+ * published them (ported from SAP Hub). A vote each for signed-in members. No names: both
+ * switches are held by `IssueReport.publicIdeaFilter`, which every read here goes through.
+ */
+router.get(
+  '/ideas',
+  asyncHandler(async (req, res) => {
+    const ideas = await IssueReport.publishedIdeas({ viewerUserId: req.session.user ? req.session.user.id : null });
+    res.render('ideas', { title: 'Ideas', ideas });
+  })
+);
+
+router.post(
+  '/ideas/:id/vote',
+  isAuthenticated,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const result = await IssueReport.toggleIdeaVote(req.params.id, req.session.user.id);
+    if (!result.ok) return res.status(404).render('errors/404', { title: 'Not found' });
+    return res.redirect(`/ideas#idea-${req.params.id}`);
   })
 );
 

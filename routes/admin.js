@@ -7,7 +7,7 @@ const PlacementQuote = require('../models/PlacementQuote');
 const CompanyProfile = require('../models/CompanyProfile');
 const { PLACEMENT_KINDS, PLACEMENT_STATUSES, kindLabel } = require('../config/placements');
 const { CURRENCIES } = require('../config/finance');
-const { ISSUE_KINDS, ISSUE_STATUSES } = require('../config/issues');
+const { ISSUE_KINDS, ISSUE_STATUSES, SCREENSHOTS: ISSUE_SCREENSHOTS } = require('../config/issues');
 const User = require('../models/User');
 const Job = require('../models/Job');
 const Application = require('../models/Application');
@@ -1482,14 +1482,20 @@ router.get(
   asyncHandler(async (req, res) => {
     const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 30 });
     const filters = { status: req.query.status || '', kind: req.query.kind || '', q: req.query.q || '' };
-    const [{ rows, total }, counts] = await Promise.all([
+    const [{ rows, total }, counts, screenshotsDue] = await Promise.all([
       IssueReport.list(filters, { limit, offset }),
-      IssueReport.counts()
+      IssueReport.counts(),
+      IssueReport.attachmentsDueForPurge()
     ]);
+    // Metadata only, for this page's rows: the list query never carries the bytes.
+    const attachments = await IssueReport.attachmentsFor(rows.map((r) => r.id));
 
     res.render('admin/issues', {
       title: 'Reported problems',
       issues: rows,
+      attachments,
+      screenshotsDue,
+      screenshotRetentionDays: ISSUE_SCREENSHOTS.retentionDaysAfterClose,
       counts,
       filters,
       kinds: ISSUE_KINDS,
@@ -1497,6 +1503,59 @@ router.get(
       pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/admin/issues', req.query, p)
     });
+  })
+);
+
+/**
+ * POST /admin/issues/purge-screenshots — delete screenshots past the retention the form and
+ * the privacy policy state. The report text stays; the pictures go. Superadmin, because it
+ * deletes. Registered before `/issues/:id`, which would answer the word with a 404.
+ */
+router.post(
+  '/issues/purge-screenshots',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const removed = await IssueReport.purgeExpiredAttachments();
+    req.flash('success', `${removed} ${removed === 1 ? 'screenshot' : 'screenshots'} past retention deleted.`);
+    return res.redirect('/admin/issues');
+  })
+);
+
+/**
+ * A screenshot attached to a report. Behind the admin guard like the rest of this file,
+ * served as the WebP sharp produced, never cached by a shared cache, and matched on both ids
+ * so one report's URL cannot be walked to another's picture.
+ */
+router.get(
+  '/issues/:id/attachments/:attachmentId',
+  requireIdParam('id'),
+  requireIdParam('attachmentId'),
+  asyncHandler(async (req, res) => {
+    const file = await IssueReport.attachment(req.params.id, req.params.attachmentId);
+    if (!file) return res.status(404).render('errors/404', { title: 'Not found' });
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('Content-Disposition', `inline; filename="issue-${req.params.id}-${req.params.attachmentId}.webp"`);
+    return res.type(file.content_type).send(file.bytes);
+  })
+);
+
+/**
+ * Publish a shared idea on /ideas, or take it down. Only an idea whose sender ticked the
+ * consent box can be published at all — the model's WHERE refuses anything else, whatever
+ * the form posts — and the sender's name never goes with it.
+ */
+router.post(
+  '/issues/:id/publish',
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const on = req.body.published === 'on';
+    const changed = await IssueReport.setIdeaPublished(req.params.id, on, req.session.user.id);
+    req.flash(changed ? 'success' : 'error', changed
+      ? (on ? 'Published on the ideas page.' : 'Taken off the ideas page.')
+      : 'Only an idea whose sender agreed to it can be published.');
+    return res.redirect(returnTo(req, '/admin/issues'));
   })
 );
 

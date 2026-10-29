@@ -56,6 +56,7 @@ const PURGE = Object.freeze([
   // Private activity that is nobody else's record.
   'saved_jobs',
   'post_votes',
+  'idea_votes',
   'challenge_attempts'
 ]);
 

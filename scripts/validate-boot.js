@@ -36,13 +36,14 @@ check('invoice lifecycle and line arithmetic are consistent', () => require('../
 check('legal controller config loads', () => require('../config/legal'));
 check('issue lifecycle is consistent', () => require('../config/issues').assertIssueIntegrity());
 check('placement fee arithmetic is consistent', () => require('../config/placements').assertPlacementIntegrity());
+check('web analytics ids are well-formed', () => require('../config/webAnalytics').assertWebAnalyticsIntegrity());
 check('admin test suite is consistent', () => require('../config/adminTests').assertTestSuiteIntegrity());
 check('country list is non-empty', () => {
   const countries = require('../config/all-countries.json');
   if (!Array.isArray(countries) || countries.length < 100) throw new Error(`only ${countries.length} countries`);
 });
 
-for (const dir of ['models', 'middleware', 'utils', 'routes']) {
+for (const dir of ['models', 'middleware', 'utils', 'services', 'routes']) {
   const full = path.join(__dirname, '..', dir);
   for (const file of fs.readdirSync(full).filter((f) => f.endsWith('.js'))) {
     check(`${dir}/${file} loads`, () => require(path.join(full, file)));

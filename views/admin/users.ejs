@@ -26,12 +26,45 @@
     </div>
   </form>
 
+  <%
+    // Where every form on this page sends the administrator back to: this exact list, with
+    // its search and page, through `returnTo`'s allow-list.
+    const here = currentPath + (Object.keys(query).length ? '?' + new URLSearchParams(query).toString() : '');
+    const isSuper = Boolean(currentUser.isSuperadmin);
+  %>
+  <% if (isSuper && users.length) { %>
+    <%#
+      The bulk form holds no rows of its own: each row's checkbox joins it through the
+      `form` attribute, so every row keeps its own forms. The typed confirmation carries the
+      count, which is the interlock — it works with scripting off.
+    %>
+    <form id="bulkEraseForm" method="post" action="/admin/users/bulk-delete" class="glass-card p-3 mb-3">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="redirectTo" value="<%= here %>">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-8">
+          <label class="form-label small" for="bulkConfirm">Erase the ticked accounts — type <code>ERASE</code> and how many you ticked, e.g. <code>ERASE 3</code></label>
+          <input class="form-control form-control-sm" id="bulkConfirm" name="confirm" autocomplete="off" required>
+          <p class="form-text mb-0">Erasure cannot be undone. Personal data is destroyed; payments, posts and rate figures are kept with nothing tying them to a person. Superadmins and your own account are refused.</p>
+        </div>
+        <div class="col-md-4"><button class="btn btn-sm btn-outline-danger w-100" type="submit">Erase ticked accounts</button></div>
+      </div>
+    </form>
+  <% } %>
+
   <div class="table-responsive glass-card">
     <table class="table align-middle mb-0">
-      <thead><tr><th>User</th><th>Roles</th><th>State</th><th>Joined</th><th class="text-end">Actions</th></tr></thead>
+      <thead><tr><% if (isSuper) { %><th scope="col"><span class="visually-hidden">Select</span></th><% } %><th>User</th><th>Roles</th><th>State</th><th>Joined</th><th class="text-end">Actions</th></tr></thead>
       <tbody>
-        <% users.forEach(function (u) { %>
+        <% users.forEach(function (u) { const erasable = isSuper && u.id !== currentUser.id && !u.is_superadmin && !u.anonymised_at; %>
           <tr>
+            <% if (isSuper) { %>
+              <td>
+                <% if (erasable) { %>
+                  <input class="form-check-input" type="checkbox" name="ids" value="<%= u.id %>" form="bulkEraseForm" aria-label="Select <%= u.email %>">
+                <% } %>
+              </td>
+            <% } %>
             <td>
               <strong><%= u.name %></strong>
               <div class="small text-muted-2"><%= u.email %></div>
@@ -65,6 +98,8 @@
             <td>
               <span class="badge-hub <%= u.is_active ? 'ok' : 'danger' %>"><%= u.is_active ? 'active' : 'disabled' %></span>
               <span class="badge-hub <%= u.email_verified ? 'ok' : 'warn' %>"><%= u.email_verified ? 'verified' : 'unverified' %></span>
+              <% if (u.anonymised_at) { %><span class="badge-hub muted">erased</span><% } %>
+              <% if (u.talent_hidden_at) { %><span class="badge-hub danger" title="Taken out of the consultant directory by an administrator">hidden by us</span><% } %>
             </td>
             <td class="small text-muted-2"><%= new Date(u.created_at).toISOString().slice(0, 10) %></td>
             <td class="text-end text-nowrap">
@@ -73,6 +108,22 @@
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <button class="btn btn-sm btn-outline-primary" type="submit">Verify</button>
                 </form>
+              <% } %>
+              <% if (u.has_consultant_profile && u.id !== currentUser.id && !u.anonymised_at) { %>
+                <%# Moderation, so any administrator: the account keeps working, only the listing goes. %>
+                <details class="d-inline-block text-start">
+                  <summary class="btn btn-sm btn-outline-secondary"><%= u.talent_hidden_at ? 'Put back in directory' : 'Hide from directory' %></summary>
+                  <form method="post" action="/admin/users/<%= u.id %>/talent" class="mt-2">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="redirectTo" value="<%= here %>">
+                    <% if (!u.talent_hidden_at) { %>
+                      <input type="hidden" name="hidden" value="on">
+                      <label class="form-label small" for="talent-reason-<%= u.id %>">Reason (kept in the moderation log)</label>
+                      <input class="form-control form-control-sm mb-1" id="talent-reason-<%= u.id %>" name="reason" maxlength="200">
+                    <% } %>
+                    <button class="btn btn-sm <%= u.talent_hidden_at ? 'btn-outline-success' : 'btn-outline-danger' %>" type="submit"><%= u.talent_hidden_at ? 'Put it back' : 'Take it out' %></button>
+                  </form>
+                </details>
               <% } %>
               <% if (currentUser.isSuperadmin && u.id !== currentUser.id) { %>
                 <form method="post" action="/admin/users/<%= u.id %>/active" class="d-inline">
@@ -84,6 +135,19 @@
                     <button class="btn btn-sm btn-outline-success" type="submit">Enable</button>
                   <% } %>
                 </form>
+              <% } %>
+              <% if (erasable) { %>
+                <%# Confirmed by typing the address: an erased account cannot be handed back. %>
+                <details class="d-inline-block text-start">
+                  <summary class="btn btn-sm btn-outline-danger">Erase</summary>
+                  <form method="post" action="/admin/users/<%= u.id %>/delete" class="mt-2">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="redirectTo" value="<%= here %>">
+                    <label class="form-label small" for="erase-<%= u.id %>">Type <code><%= u.email %></code> to erase this account</label>
+                    <input class="form-control form-control-sm mb-1" id="erase-<%= u.id %>" name="confirm" autocomplete="off" required>
+                    <button class="btn btn-sm btn-danger" type="submit">Erase permanently</button>
+                  </form>
+                </details>
               <% } %>
             </td>
           </tr>

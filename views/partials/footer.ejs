@@ -1,3 +1,4 @@
+<% const wa = (typeof webAnalytics !== 'undefined' && webAnalytics) || {}; %>
 <footer class="footer-hub">
   <div class="container">
     <%
@@ -58,7 +59,8 @@
           ['/about', 'About Us'],
           ['/faq', 'FAQ'],
           ['/contact', 'Contact'],
-          ['/report-issue', 'Report Issue']
+          ['/report-issue', 'Report Issue'],
+          ['/ideas', 'Ideas']
         ]],
         ['Legal', [
           ['/legal/privacy', 'Privacy policy'],
@@ -79,6 +81,15 @@
           consultants companies can browse, scope estimates that reconcile, and day-rate
           benchmarks built from figures people contributed.
         </p>
+        <%# Only accounts saved on /admin/settings: an unset one is not rendered at all. %>
+        <% const social = (typeof socialLinks !== 'undefined' && socialLinks) || []; %>
+        <% if (social.length) { %>
+          <ul class="list-inline footer-social mt-3 mb-0" aria-label="Salesforce Hub elsewhere">
+            <% social.forEach(function (s) { %>
+              <li class="list-inline-item"><a href="<%= s.href %>" rel="noopener" target="_blank" aria-label="<%= s.label %>"><i class="bi <%= s.icon %>" aria-hidden="true"></i></a></li>
+            <% }); %>
+          </ul>
+        <% } %>
       </div>
       <% footerColumns.forEach(function (col) { %>
         <div>
@@ -87,6 +98,13 @@
             <% col[1].forEach(function (link) { %>
               <li><a href="<%= link[0] %>"><%= link[1] %></a></li>
             <% }); %>
+            <% if (col[0] === 'Legal' && wa.ga4Id) { %>
+              <%#
+                A button, not a link: it changes a setting in this browser and goes nowhere.
+                public/js/analytics.js wires it; consent nobody can withdraw is not consent.
+              %>
+              <li><button type="button" class="btn btn-link p-0 footer-link-button" data-analytics-choices>Analytics choices</button></li>
+            <% } %>
           </ul>
         </div>
       <% }); %>
@@ -103,4 +121,9 @@
 </footer>
 
 <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-<script src="/js/main.js"></script>
+<script src="/js/main.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>"></script>
+<% if (wa.ga4Id) { %><script src="/js/analytics.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>"></script><% } %>
+<% if (wa.cloudflareToken && typeof measureVisit !== 'undefined' && measureVisit) { %>
+<%# Cloudflare Web Analytics: no cookie, no identifier, so it needs no consent. Disclosed in the privacy policy. %>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "<%= wa.cloudflareToken %>"}'></script>
+<% } %>

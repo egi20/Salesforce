@@ -72,6 +72,48 @@ class AdminTestRun {
     });
     return byKey;
   }
+
+  /**
+   * The recent runs, newest first, one row per batch — the history the overview links into.
+   * "Was this endpoint broken at 3am and fixed by 9" is the question only past runs answer,
+   * and until now the screen showed only the last one.
+   */
+  static async recent(limit = 20) {
+    const [rows] = await promisePool.query(
+      `SELECT t.run_batch, MIN(t.created_at) AS ran_at, COUNT(*) AS total, SUM(t.passed) AS passed,
+              SUM(t.duration_ms) AS duration_ms, COUNT(DISTINCT t.category) AS categories,
+              MAX(u.name) AS run_by_name
+         FROM admin_test_runs t
+         LEFT JOIN users u ON u.id = t.run_by
+        GROUP BY t.run_batch
+        ORDER BY MAX(t.id) DESC
+        LIMIT ?`,
+      [limit]
+    );
+    return rows.map((r) => ({ ...r, total: Number(r.total), passed: Number(r.passed), duration_ms: Number(r.duration_ms), categories: Number(r.categories) }));
+  }
+
+  /** One run in full: every row of the batch in the order it ran, or null. */
+  static async batch(runBatch) {
+    const [rows] = await promisePool.query(
+      `SELECT t.*, u.name AS run_by_name
+         FROM admin_test_runs t
+         LEFT JOIN users u ON u.id = t.run_by
+        WHERE t.run_batch = ?
+        ORDER BY t.id`,
+      [runBatch]
+    );
+    if (!rows.length) return null;
+    return {
+      runBatch,
+      ranAt: rows[0].created_at,
+      runByName: rows[0].run_by_name,
+      total: rows.length,
+      passed: rows.filter((r) => r.passed).length,
+      durationMs: rows.reduce((n, r) => n + Number(r.duration_ms || 0), 0),
+      results: rows
+    };
+  }
 }
 
 module.exports = AdminTestRun;

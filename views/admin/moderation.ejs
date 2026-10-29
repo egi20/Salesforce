@@ -19,7 +19,8 @@
     </div>
   </div>
 
-  <% if (hidden.posts.length || hidden.replies.length) { %>
+  <% const jobsHidden = hidden.jobs || []; const profilesHidden = hidden.profiles || []; %>
+  <% if (hidden.posts.length || hidden.replies.length || jobsHidden.length || profilesHidden.length) { %>
     <h2 class="h5 mb-3">Currently hidden</h2>
 
     <% if (hidden.posts.length) { %>
@@ -73,6 +74,44 @@
         </div>
       </div>
     <% } %>
+
+    <%#
+      The two takedowns that are not community content. Listed HERE rather than behind an
+      `include_hidden` option on the job or profile builders, because an option like that is
+      how the rule ends up switched off on whichever page forgets to pass it.
+    %>
+    <% [
+      { rows: jobsHidden, title: 'Adverts taken off the board', note: "Whether it is live again is still the advertiser's own status.",
+        link: function (j) { return '/jobs/' + j.slug; }, label: function (j) { return j.title + ' · ' + j.company_name; },
+        action: function (j) { return '/admin/jobs/' + j.id + '/hidden'; } },
+      { rows: profilesHidden, title: 'Profiles out of the directory', note: 'It reappears only if their own publish switch is on.',
+        link: function (p) { return '/consultants/' + p.user_id; }, label: function (p) { return p.member_name + (p.headline ? ' · ' + p.headline : ''); },
+        action: function (p) { return '/admin/users/' + p.user_id + '/talent'; } }
+    ].forEach(function (group) { if (!group.rows.length) return; %>
+      <div class="glass-card mb-3">
+        <div class="card-header"><h3 class="h6 mb-0"><%= group.title %></h3></div>
+        <div class="card-body">
+          <% group.rows.forEach(function (row) { %>
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 border-top py-2">
+              <div class="min-w-0">
+                <a href="<%= group.link(row) %>"><%= group.label(row) %></a>
+                <div class="small text-muted-2">
+                  taken down by <%= row.hidden_by_name || 'a former moderator' %>
+                  on <%= new Date(row.admin_hidden_at).toLocaleDateString('en-GB') %>
+                  <% if (row.admin_hidden_reason) { %> · <%= row.admin_hidden_reason %><% } %>
+                </div>
+              </div>
+              <form method="post" action="<%= group.action(row) %>">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="redirectTo" value="/admin/moderation">
+                <button class="btn btn-sm btn-outline-primary" type="submit">Put it back</button>
+                <span class="form-text ms-2"><%= group.note %></span>
+              </form>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+    <% }); %>
   <% } %>
 
   <h2 class="h5 mb-3">Newest posts</h2>

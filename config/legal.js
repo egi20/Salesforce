@@ -58,6 +58,18 @@ const PROCESSORS = Object.freeze([
     envKey: 'ANTHROPIC_API_KEY'
   },
   {
+    name: 'Google Analytics',
+    purpose:
+      'Counting visits, only for visitors who press "Allow analytics". Receives the pages you open, your approximate location, device and referrer, and sets the _ga cookies. Nothing is sent before you allow it.',
+    envKey: 'GA4_MEASUREMENT_ID'
+  },
+  {
+    name: 'Cloudflare Web Analytics',
+    purpose:
+      'Counting page views without a cookie or an identifier. Receives the page address, referrer, browser and device type and your country, and reports them to us only as totals.',
+    envKey: 'CF_WEB_ANALYTICS_TOKEN'
+  },
+  {
     name: 'Cloudflare Turnstile',
     purpose: 'Checking that a sign-up is not automated. Receives the challenge result, not your form.',
     envKey: 'TURNSTILE_SECRET_KEY'

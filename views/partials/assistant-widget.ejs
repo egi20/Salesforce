@@ -8,19 +8,26 @@
    *
    * Behaviour is in /js/assistant.js. The one thing that MUST stay out of that file is
    * how a reply is rendered: model output is built from DOM nodes only, never innerHTML.
+   *
+   * The launcher is the Hub's own robot mascot (ported from SAP Hub's), with a small "AI"
+   * tag on it so nobody mistakes it for decoration, and its head is the panel's avatar.
+   * Both images are DECORATIVE — alt="" — because the button's aria-label already names
+   * what it opens, and a screen reader announcing "robot" first says nothing useful. Each
+   * URL carries `assetVersion`, so a new mascot is not hidden behind a week of cache.
    */
+  const v = typeof assetVersion !== 'undefined' ? assetVersion : '';
 %>
 <div class="sf-assistant" data-assistant>
   <button type="button" class="sf-assistant-launcher" data-assistant-launcher
-          aria-label="Open the site assistant" aria-expanded="false" aria-controls="sfAssistantPanel">
-    <i class="bi bi-stars" aria-hidden="true"></i>
+          aria-label="Open the Hub assistant, an AI" aria-expanded="false" aria-controls="sfAssistantPanel">
+    <img class="sf-assistant-launcher-img" src="/images/sf-assistant.webp?v=<%= v %>" alt="" width="68" height="78" decoding="async">
     <span class="sf-assistant-launcher-tag" aria-hidden="true">AI</span>
   </button>
 
   <div class="sf-assistant-panel" id="sfAssistantPanel" data-assistant-panel role="dialog"
        aria-label="Site assistant" hidden>
     <div class="sf-assistant-header">
-      <span class="icon-tile icon-blue sf-assistant-avatar"><i class="bi bi-stars"></i></span>
+      <img class="sf-assistant-avatar" src="/images/sf-assistant-head.webp?v=<%= v %>" alt="" width="40" height="40">
       <span class="sf-assistant-title">
         Hub assistant
         <span class="badge-hub cloud">AI</span>

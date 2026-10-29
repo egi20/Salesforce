@@ -56,7 +56,10 @@
       <div class="glass-card mb-3"><div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-start mb-2">
           <h2 class="h6 mb-0">#<%= i.id %> · <%= i.summary %></h2>
-          <span class="badge-hub <%= tone[i.status] || '' %>"><%= i.status %></span>
+          <span>
+            <% if (i.severity) { %><span class="badge-hub <%= i.severity === 'critical' ? 'danger' : i.severity === 'high' ? 'warn' : 'muted' %>"><%= i.severity %></span><% } %>
+            <span class="badge-hub <%= tone[i.status] || '' %>"><%= i.status %></span>
+          </span>
         </div>
 
         <p class="small text-muted-2 mb-2">
@@ -71,9 +74,42 @@
           <% } %>
           <%# Rendered as TEXT, never as a link: the path is something a stranger typed. %>
           <% if (i.page_path) { %> · <code><%= i.page_path %></code><% } %>
+          <% if (i.content_path) { %> · reported content <code><%= i.content_path %></code><% } %>
         </p>
 
         <p class="small mb-3" style="white-space: pre-line"><%= i.detail %></p>
+
+        <% const shots = attachments[i.id] || []; %>
+        <% if (shots.length) { %>
+          <%# Links, not inline images: an administrator opens a stranger's picture on purpose. %>
+          <p class="small mb-3"><i class="bi bi-image"></i>
+            <% shots.forEach(function (a, n) { %>
+              <a href="/admin/issues/<%= i.id %>/attachments/<%= a.id %>" target="_blank" rel="noopener">Screenshot <%= n + 1 %></a>
+              <span class="text-muted-2">(<%= a.width %>×<%= a.height %>)</span><%= n < shots.length - 1 ? ' · ' : '' %>
+            <% }); %>
+          </p>
+        <% } %>
+
+        <% if (i.kind === 'idea') { %>
+          <div class="small mb-3">
+            <% if (!i.publish_consent) { %>
+              <span class="text-muted-2"><i class="bi bi-lock"></i> Not for publishing — the sender did not agree to it.</span>
+            <% } else { %>
+              <form method="post" action="/admin/issues/<%= i.id %>/publish" class="d-inline">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="redirectTo" value="/admin/issues">
+                <% if (i.published_at) { %>
+                  <span class="badge-hub ok">on /ideas · <%= i.votes %> votes</span>
+                  <button class="btn btn-sm btn-link" type="submit">Take it off</button>
+                <% } else { %>
+                  <input type="hidden" name="published" value="on">
+                  <span class="text-muted-2">The sender agreed to publishing.</span>
+                  <button class="btn btn-sm btn-outline-primary" type="submit">Publish on /ideas</button>
+                <% } %>
+              </form>
+            <% } %>
+          </div>
+        <% } %>
 
         <% if (i.response) { %>
           <div class="mb-3 p-3 glass-bg-tinted rounded">
@@ -100,6 +136,21 @@
     <% }); %>
     <%- include('../partials/pagination', { pagination, pageUrl }) %>
   <% } %>
+
+  <div class="glass-card mt-4"><div class="card-body">
+    <h2 class="h6">Screenshots</h2>
+    <p class="small text-muted-2 mb-2">
+      Deleted <%= screenshotRetentionDays %> days after their report is closed, as the form promises.
+      <strong><%= screenshotsDue %></strong> <%= screenshotsDue === 1 ? 'is' : 'are' %> past that now.
+      The report text stays either way.
+    </p>
+    <% if (currentUser.isSuperadmin && screenshotsDue) { %>
+      <form method="post" action="/admin/issues/purge-screenshots">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn btn-sm btn-outline-danger" type="submit">Delete them now</button>
+      </form>
+    <% } %>
+  </div></div>
 
   <p class="small text-muted-2 mt-3 mb-0">
     There is no delete. A report somebody dismissed is evidence that a person complained and

@@ -53,6 +53,15 @@
                 <span class="text-muted-2 small">· <%= p.email %> · <%= p.description %></span>
               </span>
               <strong><%= formatMinor(p.amount_minor, p.currency) %></strong>
+              <% if (currentUser.isSuperadmin) { %>
+                <%# Records a refund already made in Stripe. It moves no money and reverses no commission. %>
+                <form method="post" action="/admin/payments/<%= p.id %>/refunded" class="d-flex gap-2 w-100">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="redirectTo" value="/admin/payments">
+                  <input class="form-control form-control-sm" name="note" maxlength="200" placeholder="Stripe refund reference (optional)" aria-label="Refund note">
+                  <button class="btn btn-sm btn-outline-primary text-nowrap" type="submit">I refunded it in Stripe</button>
+                </form>
+              <% } %>
             </li>
           <% }); %>
         </ul>

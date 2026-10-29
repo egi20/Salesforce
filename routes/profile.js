@@ -203,9 +203,12 @@ router.post(
   writeLimiter,
   asyncHandler(async (req, res) => {
     const wantPublic = req.body.is_public === 'on';
-    const { published, completeness } = await ConsultantProfile.setPublic(req.session.user.id, wantPublic);
+    const { published, completeness, adminHidden } = await ConsultantProfile.setPublic(req.session.user.id, wantPublic);
 
-    if (wantPublic && !published) {
+    if (wantPublic && adminHidden) {
+      // Said plainly: a Publish that silently did nothing is worse than a refusal.
+      req.flash('error', 'An administrator has taken your profile out of the directory, so it cannot be listed. Use Report an issue if you think that is a mistake.');
+    } else if (wantPublic && !published) {
       req.flash(
         'error',
         `Your profile is ${completeness}% complete. It needs ${ConsultantProfile.MIN_COMPLETENESS_TO_PUBLISH}% before it can be listed.`

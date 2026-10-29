@@ -13,12 +13,14 @@
     <% }); %>
   </ul>
 
+  <p class="small text-muted-2">Adverts taken off the board are listed on the <a href="/admin/moderation">moderation screen</a>, where they can be put back.</p>
+
   <% if (jobs.length === 0) { %>
     <div class="empty-state glass-card"><i class="bi bi-briefcase"></i>No <%= status %> jobs.</div>
   <% } else { %>
     <div class="table-responsive glass-card">
       <table class="table align-middle mb-0">
-        <thead><tr><th>Role</th><th>Company</th><th>Posted</th><th class="text-end">Applicants</th></tr></thead>
+        <thead><tr><th>Role</th><th>Company</th><th>Posted</th><th class="text-end">Applicants</th><th class="text-end">Moderation</th></tr></thead>
         <tbody>
           <% jobs.forEach(function (j) { %>
             <tr>
@@ -27,6 +29,24 @@
               <td class="text-muted-2"><%= j.company_name || '—' %></td>
               <td class="small text-muted-2"><%= j.published_at ? new Date(j.published_at).toISOString().slice(0, 10) : '—' %></td>
               <td class="text-end"><%= j.application_count %></td>
+              <td class="text-end">
+                <%#
+                  Taken down, never deleted: the applications and threads belong to other
+                  people. Once hidden it leaves this list (the builder excludes it) and is put
+                  back from the moderation screen.
+                %>
+                <details class="d-inline-block text-start">
+                  <summary class="btn btn-sm btn-outline-danger">Take down</summary>
+                  <form method="post" action="/admin/jobs/<%= j.id %>/hidden" class="mt-2">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="hidden" value="on">
+                    <input type="hidden" name="redirectTo" value="/admin/jobs?status=<%= status %>">
+                    <label class="form-label small" for="job-reason-<%= j.id %>">Reason (kept in the moderation log)</label>
+                    <input class="form-control form-control-sm mb-1" id="job-reason-<%= j.id %>" name="reason" maxlength="200">
+                    <button class="btn btn-sm btn-danger" type="submit">Take it off the board</button>
+                  </form>
+                </details>
+              </td>
             </tr>
           <% }); %>
         </tbody>

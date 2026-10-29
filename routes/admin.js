@@ -7,9 +7,10 @@ const PlacementQuote = require('../models/PlacementQuote');
 const CompanyProfile = require('../models/CompanyProfile');
 const { PLACEMENT_KINDS, PLACEMENT_STATUSES, kindLabel } = require('../config/placements');
 const { CURRENCIES } = require('../config/finance');
-const { ISSUE_KINDS, ISSUE_STATUSES } = require('../config/issues');
+const { ISSUE_KINDS, ISSUE_STATUSES, SCREENSHOTS: ISSUE_SCREENSHOTS } = require('../config/issues');
 const User = require('../models/User');
 const Job = require('../models/Job');
+const Application = require('../models/Application');
 const ErrorLog = require('../models/ErrorLog');
 const RateSubmission = require('../models/RateSubmission');
 const Payment = require('../models/Payment');
@@ -20,7 +21,7 @@ const { budgetStatus } = require('../utils/aiBudget');
 const Moderation = require('../models/Moderation');
 const Post = require('../models/Post');
 const AppSetting = require('../models/AppSetting');
-const { DEFINITIONS: SETTING_DEFINITIONS } = require('../config/settings');
+const { DEFINITIONS: SETTING_DEFINITIONS, KEYS: SETTING_KEYS, coerce: coerceSetting, problemFor: settingProblem } = require('../config/settings');
 const { returnTo } = require('../utils/returnTo');
 const Referral = require('../models/Referral');
 const TaxEnquiry = require('../models/TaxEnquiry');
@@ -30,16 +31,27 @@ const ImageBlob = require('../models/ImageBlob');
 const { singleImage } = require('../middleware/fileUpload');
 const { CLOUD_FAMILIES } = require('../config/cloudFamilies');
 const { TOPICS: ADVISORY_TOPICS, ARRANGEMENTS: ADVISORY_ARRANGEMENTS, STATUSES: ADVISORY_STATUSES, TRANSITIONS: ADVISORY_TRANSITIONS, RETENTION_DAYS: ADVISORY_RETENTION_DAYS } = require('../config/taxAdvisory');
-const { PAYOUT_METHODS, MIN_PAYOUT_MINOR, DEFAULT_RATE_BPS } = require('../config/referrals');
+const { PAYOUT_METHODS, MIN_PAYOUT_MINOR, DEFAULT_RATE_BPS, MAX_RATE_BPS } = require('../config/referrals');
 const { promisePool } = require('../config/database');
 const { isAuthenticated, isAdmin, isSuperadmin } = require('../middleware/auth');
 const { writeLimiter } = require('../middleware/rateLimit');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { requireIdParam } = require('../utils/ids');
+const { requireIdParam, parseId } = require('../utils/ids');
+const { toCsv } = require('../utils/csv');
+const AccountErasure = require('../models/AccountErasure');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
 const { TEST_SUITE, totalTestCount } = require('../config/adminTests');
 const AdminTestRun = require('../models/AdminTestRun');
 const { runSuite } = require('../utils/adminTestRunner');
+const SiteStats = require('../models/SiteStats');
+const SalesAgent = require('../models/SalesAgent');
+const config = require('../config/config');
+const { countryName } = require('../utils/geo');
+const { donutSlices } = require('../utils/donutSlices');
+const webAnalyticsConfig = require('../config/webAnalytics');
+const webAnalyticsService = require('../services/webAnalytics');
+const analyticsDashboard = require('../services/analyticsDashboard');
+const { rangeFrom, rangeQuery, PRESETS: RANGE_PRESETS } = require('../utils/analyticsRange');
 
 const router = express.Router();
 
@@ -171,6 +183,180 @@ router.post(
   })
 );
 
+/* ------------------------------------------------------- erasing an account */
+
+/** The most accounts one bulk erasure may touch: each is its own transaction. */
+const BULK_ERASE_MAX = 50;
+
+/**
+ * Erase an account on somebody's behalf, through `models/AccountErasure.js` and NOTHING
+ * else — it is the single eraser, a test forbids `DELETE FROM users` anywhere outside it,
+ * and it anonymises rather than deletes for the reasons CLAUDE.md gives (a published
+ * percentile, other people's threads, financial records under a retention period).
+ *
+ * SUPERADMIN, and refused on your own account here (the self-service path is
+ * `/profile/close`, which shows the person what goes and what stays). A superadmin target
+ * is refused by `AccountErasure.erase` itself: an erased account cannot sign in, and the
+ * superadmin role is granted and removed only from the server shell, never from this page.
+ */
+async function eraseByAdmin(req, id) {
+  if (id === req.session.user.id) {
+    return { ok: false, message: 'That is your own account. Close it from your own profile, where you can see what goes and what stays.' };
+  }
+  try {
+    await AccountErasure.erase(id, { reason: `admin:${req.session.user.id}` });
+    return { ok: true };
+  } catch (err) {
+    if (!['NOT_FOUND', 'ALREADY_ERASED', 'SUPERADMIN'].includes(err.code)) throw err;
+    return { ok: false, message: err.message };
+  }
+}
+
+/**
+ * POST /admin/users/:id/delete — erase one account.
+ *
+ * Confirmed by TYPING the account's email address, not by a checkbox: an account erased by
+ * accident cannot be handed back, because the whole point is that the data is gone — and
+ * typing the address is what proves the person is looking at the row they think they are.
+ */
+router.post(
+  '/users/:id/delete',
+  isSuperadmin,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const back = returnTo(req, '/admin/users');
+    const target = await User.findById(req.params.id);
+    if (!target) {
+      req.flash('error', 'That account no longer exists.');
+      return res.redirect(back);
+    }
+    const typed = typeof req.body.confirm === 'string' ? req.body.confirm.trim().toLowerCase() : '';
+    if (!typed || typed !== String(target.email).toLowerCase()) {
+      req.flash('error', "Type the account's email address exactly to confirm. Nothing has been changed.");
+      return res.redirect(back);
+    }
+    const result = await eraseByAdmin(req, req.params.id);
+    if (result.ok) {
+      req.flash('success', `Erased ${target.email}. Their personal data is gone; shared records are kept, anonymised.`);
+    } else {
+      req.flash('error', result.message);
+    }
+    return res.redirect(back);
+  })
+);
+
+/**
+ * POST /admin/users/bulk-delete — erase several accounts.
+ *
+ * The confirmation IS the count interlock, so it works without scripting: the person types
+ * `ERASE` and the number of accounts they ticked. A mismatch means the form was not the one
+ * they read, and nothing is erased — the same interlock `Job.bulkSetStatus` holds with its
+ * `expectedCount`. Each id is checked the way `requireIdParam` checks one.
+ */
+router.post(
+  '/users/bulk-delete',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const back = returnTo(req, '/admin/users');
+    const submitted = [].concat(req.body.ids || []);
+    const ids = [...new Set(submitted.map((v) => parseId(String(v))).filter(Boolean))];
+    if (!ids.length || ids.length !== submitted.length || ids.length > BULK_ERASE_MAX) {
+      req.flash('error', ids.length > BULK_ERASE_MAX ? `At most ${BULK_ERASE_MAX} accounts at a time.` : 'Select at least one account.');
+      return res.redirect(back);
+    }
+    const typed = typeof req.body.confirm === 'string' ? req.body.confirm.trim().toUpperCase() : '';
+    if (typed !== `ERASE ${ids.length}`) {
+      req.flash('error', `Type ERASE ${ids.length} to confirm erasing the ${ids.length} selected account${ids.length === 1 ? '' : 's'}. Nothing has been changed.`);
+      return res.redirect(back);
+    }
+
+    let erased = 0;
+    const refused = [];
+    for (const id of ids) {
+      // One at a time: each erasure is its own transaction with its own checks.
+      // eslint-disable-next-line no-await-in-loop
+      const result = await eraseByAdmin(req, id);
+      if (result.ok) erased += 1;
+      else refused.push(`#${id}: ${result.message}`);
+    }
+    if (erased) req.flash('success', `Erased ${erased} account${erased === 1 ? '' : 's'}. Personal data is gone; shared records are kept, anonymised.`);
+    if (refused.length) req.flash('error', `Not erased — ${refused.join(' ')}`);
+    return res.redirect(back);
+  })
+);
+
+/**
+ * POST /admin/users/:id/talent — take a consultant profile out of the directory, or put it
+ * back.
+ *
+ * ADMIN, not superadmin, and deliberately: this is moderation, which is what an ordinary
+ * administrator is for. It is also why it is not the Disable button — the account keeps
+ * working, and the only thing that goes is the public listing. `Moderation.setProfileHidden`
+ * is the single writer, so the decision lands in the same log as every other one.
+ */
+router.post(
+  '/users/:id/talent',
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const back = returnTo(req, '/admin/users');
+    if (req.params.id === req.session.user.id) {
+      req.flash('error', 'That is your own profile.');
+      return res.redirect(back);
+    }
+    const hidden = req.body.hidden === 'on';
+    try {
+      const result = await Moderation.setProfileHidden(req.params.id, hidden, {
+        actorUserId: req.session.user.id,
+        reason: (req.body.reason || '').trim() || null
+      });
+      if (!result.changed) req.flash('info', 'Somebody had already done that.');
+      else req.flash('success', hidden
+        ? 'Taken out of the directory. The account still works; only the public listing is gone.'
+        : 'Our decision is cleared. Whether it appears again is their own publish switch.');
+    } catch (err) {
+      if (err.code !== 'NOT_FOUND') throw err;
+      req.flash('error', err.message);
+    }
+    return res.redirect(back);
+  })
+);
+
+/**
+ * POST /admin/jobs/:id/hidden — take an advert off the board, or put it back.
+ *
+ * NOT "delete the job", and not a status change: the applications made to it, their events
+ * and the conversations anchored to it belong to other people, and an advertiser moves
+ * their own `status` freely, so a moderator writing `closed` there would be overruled by
+ * the next press of Reopen. There is deliberately no admin path that creates or edits an
+ * advert either: an advert written here would name a company that did not write it.
+ */
+router.post(
+  '/jobs/:id/hidden',
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const back = returnTo(req, '/admin/jobs');
+    const hidden = req.body.hidden === 'on';
+    try {
+      const result = await Moderation.setJobHidden(req.params.id, hidden, {
+        actorUserId: req.session.user.id,
+        reason: (req.body.reason || '').trim() || null
+      });
+      if (!result.changed) req.flash('info', 'Somebody had already done that.');
+      else req.flash('success', hidden
+        ? `"${result.job.title}" is off the board. The applications already made to it stay.`
+        : "Our decision is cleared. Whether it is live again is the advertiser's own status.");
+    } catch (err) {
+      if (err.code !== 'NOT_FOUND') throw err;
+      req.flash('error', err.message);
+    }
+    return res.redirect(back);
+  })
+);
+
 router.get(
   '/jobs',
   asyncHandler(async (req, res) => {
@@ -200,6 +386,24 @@ router.get(
       pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/admin/errors', req.query, p)
     });
+  })
+);
+
+/**
+ * GET /admin/errors/export.csv — the rows the screen lists, as a file.
+ *
+ * Without the stack trace (see `ErrorLog.exportRows`), and through `utils/csv.js`, which
+ * neutralises a cell that would run as a spreadsheet formula: the path and the message are
+ * text any stranger can choose by making a request. Same guard as the screen.
+ */
+router.get(
+  '/errors/export.csv',
+  asyncHandler(async (req, res) => {
+    const rows = await ErrorLog.exportRows();
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="errors.csv"');
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.send(toCsv(['created_at', 'status_code', 'method', 'path', 'message', 'user_id'], rows));
   })
 );
 
@@ -246,6 +450,42 @@ router.get(
       pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/admin/payments', req.query, p)
     });
+  })
+);
+
+/**
+ * POST /admin/payments/:id/refunded — record that a refund was actually made (ported from
+ * SAP Hub). The refund queue had no way to be emptied; this is it.
+ *
+ * It clears the flag and writes an event. It does NOT call Stripe and it does NOT reverse
+ * any commission: the refund is issued in Stripe by a person, and a commission is reversed
+ * only by `Referral.adjust`, with a reason the referrer will see. What it does is tell the
+ * administrator the exact commission the payment earned, so that decision is one click
+ * away on /admin/referrals and nobody has to work the figure out.
+ */
+router.post(
+  '/payments/:id/refunded',
+  isSuperadmin,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const back = returnTo(req, '/admin/payments');
+    const note = (req.body.note || '').trim().slice(0, 200) || null;
+    const recorded = await Payment.recordRefund(req.params.id, { actorUserId: req.session.user.id, note });
+    if (!recorded) {
+      req.flash('error', 'That payment is not in a state that can be refunded.');
+      return res.redirect(back);
+    }
+    const earned = await Referral.earnedForPayment(req.params.id);
+    req.flash('success', 'Marked as refunded. The payment stays in the ledger; its status now says so.');
+    if (earned && Number(earned.amount_minor) !== 0) {
+      req.flash(
+        'info',
+        `This payment earned referrer #${earned.referrer_id} ${formatMinor(earned.amount_minor, earned.currency)} of commission. ` +
+          'Nothing was reversed automatically; if it should be, record an adjustment on Referrals with a reason they will see.'
+      );
+    }
+    return res.redirect(back);
   })
 );
 
@@ -435,7 +675,8 @@ router.get(
     res.render('admin/settings', {
       title: 'Settings',
       definitions: SETTING_DEFINITIONS,
-      values: await AppSetting.all()
+      values: await AppSetting.all(),
+      errors: []
     });
   })
 );
@@ -453,6 +694,24 @@ router.post(
   isSuperadmin,
   writeLimiter,
   asyncHandler(async (req, res) => {
+    /*
+     * A link to the wrong host is refused and the form re-renders with what was typed:
+     * saving the rest and silently dropping it would leave a stale icon nobody noticed was
+     * kept. Iterates the DECLARED keys, never the body, for the reason setMany does.
+     */
+    const errors = SETTING_KEYS
+      .map((key) => ({ key, msg: settingProblem(key, coerceSetting(key, req.body[key])) }))
+      .filter((e) => e.msg);
+    if (errors.length) {
+      const typed = {};
+      SETTING_KEYS.forEach((key) => { typed[key] = coerceSetting(key, req.body[key]); });
+      return res.status(422).render('admin/settings', {
+        title: 'Settings',
+        definitions: SETTING_DEFINITIONS,
+        values: typed,
+        errors
+      });
+    }
     await AppSetting.setMany(req.body);
     req.flash('success', 'Settings saved. They take effect within a minute on every instance.');
     return res.redirect('/admin/settings');
@@ -513,13 +772,204 @@ router.get(
     const periods = [...new Set([signups, jobs, applications, posts, quotes, rates]
       .flatMap((s) => s.rows.map((r) => r.period)))].sort();
 
+    /*
+     * The server-side panels, read over the same date range as the provider screens: who
+     * looked (by country), who signed up (by country) and who played the daily challenge.
+     * Aggregates only, never a person. The growth table above stays twelve months whatever
+     * the range: it answers a different question, "is this alive", on a fixed window.
+     */
+    const range = rangeFrom(req.query);
+    const [visitors, signupCountries, challenges] = await Promise.all([
+      SiteStats.visitorsByCountry(range),
+      SiteStats.signupsByCountry(range),
+      SiteStats.challengePlayers(range)
+    ]);
+
     res.render('admin/analytics', {
       title: 'Analytics',
+      range,
+      presets: RANGE_PRESETS,
+      rangeQuery,
+      visitors,
+      signups: signupCountries,
+      challenges,
       periods,
       series: [signups, jobs, applications, posts, quotes, rates].map((s) => ({
         label: s.label,
         byPeriod: Object.fromEntries(s.rows.map((r) => [r.period, r.count]))
       }))
+    });
+  })
+);
+
+/**
+ * POST /admin/analytics/reset-geo — clear the server-side visitor geography so it rebuilds
+ * from real traffic (ported from SAP Hub).
+ *
+ * Superadmin, because it deletes a table's history and nothing undoes it, and confirmed by
+ * TYPING a word rather than a click, the way erasure is: a click is what somebody does by
+ * accident. It never touches sign-ups or the providers' data, only this site's own tally.
+ */
+router.post(
+  '/analytics/reset-geo',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    if (String(req.body.confirm || '').trim().toUpperCase() !== 'RESET') {
+      req.flash('error', 'Type RESET to confirm. Nothing has been cleared.');
+      return res.redirect('/admin/analytics');
+    }
+    const removed = await SiteStats.resetVisitorGeography();
+    req.flash('success', `Visitor geography cleared (${removed} day-and-country rows). It rebuilds from the next page view.`);
+    return res.redirect('/admin/analytics');
+  })
+);
+
+/**
+ * GET /admin/analytics/ga4 and /admin/analytics/cloudflare — the two providers.
+ *
+ * One data shape (services/webAnalytics.js), so the two screens can be read side by side.
+ * A provider that is not configured renders the steps that are missing rather than a 404:
+ * the screen is where somebody goes to find out why there is no data. A failed API call
+ * renders its message — "no data" and "the token is wrong" must not look the same.
+ *
+ * Same guard as /admin/analytics (any administrator): the figures are aggregates and name
+ * nobody, and the API credentials never reach the page.
+ */
+const WEB_ANALYTICS_PROVIDERS = Object.freeze({
+  ga4: {
+    name: 'Google Analytics 4',
+    tagEnabled: webAnalyticsConfig.ga4TagEnabled,
+    reportingEnabled: webAnalyticsConfig.ga4ReportingEnabled,
+    dashboardUrl: 'https://analytics.google.com/'
+  },
+  cloudflare: {
+    name: 'Cloudflare Web Analytics',
+    tagEnabled: webAnalyticsConfig.cloudflareTagEnabled,
+    reportingEnabled: webAnalyticsConfig.cloudflareReportingEnabled,
+    dashboardUrl: 'https://dash.cloudflare.com/?to=/:account/web-analytics'
+  }
+});
+
+Object.entries(WEB_ANALYTICS_PROVIDERS).forEach(([key, provider]) => {
+  router.get(
+    `/analytics/${key}`,
+    asyncHandler(async (req, res) => {
+      const range = rangeFrom(req.query);
+      let report = null;
+      let dashboard = null;
+      let realtime = null;
+      let error = null;
+      if (provider.reportingEnabled()) {
+        try {
+          if (key === 'cloudflare') {
+            /*
+             * The totals come from the summary report, because it is the one that asks the
+             * two diagnostic questions — what the sample interval is, and which hosts have
+             * data when this one has none — and the sections from the dashboard, each its
+             * own request so one refused field empties one card.
+             */
+            const end = new Date(`${range.to}T23:59:59Z`);
+            [report, dashboard] = await Promise.all([
+              webAnalyticsService.cloudflareReport(range.days, { now: end }),
+              analyticsDashboard.cloudflareDashboard(range)
+            ]);
+          } else {
+            [dashboard, realtime] = await Promise.all([
+              analyticsDashboard.ga4Dashboard(range),
+              analyticsDashboard.ga4Realtime().catch((err) => ({ error: err.message }))
+            ]);
+          }
+        } catch (err) {
+          error = err.message;
+        }
+      }
+
+      /*
+       * The site's OWN count for the same days, from `visit_geo_daily`: pages browsers
+       * opened, counted on the server, with no script, no sampling and no consent involved.
+       * It is the yardstick — a provider far below it is losing visitors (blockers,
+       * declined consent), one above it is extrapolating.
+       */
+      const own = await SiteStats.visitorsByCountry(range, { limit: 1 });
+
+      return res.render(`admin/analytics-${key}`, {
+        title: provider.name,
+        serverViews: own.total,
+        providerKey: key,
+        provider: { name: provider.name, dashboardUrl: provider.dashboardUrl },
+        tagEnabled: provider.tagEnabled(),
+        reportingEnabled: provider.reportingEnabled(),
+        range,
+        presets: RANGE_PRESETS,
+        rangeQuery,
+        report,
+        dashboard,
+        realtime,
+        error
+      });
+    })
+  );
+});
+
+/* ------------------------------------------------------- applications oversight */
+
+/** Submitted, never moved, and older than this: the headline figure on the oversight screen. */
+const STALLED_AFTER_DAYS = 14;
+const STALLED_OPTIONS = Object.freeze([7, 14, 30, 90]);
+
+/**
+ * GET /admin/applications — every application on the platform (ported from SAP Hub).
+ *
+ * SUPERADMIN, like `/admin/rates`, and for the same reason: this is the one screen that can
+ * enumerate what candidates sent to employers across every company. It shows the STATE of
+ * each application and never its content — the cover letter and the day rate live on
+ * `/applications/:id`, behind that page's own guard.
+ *
+ * The question it answers is not "who applied", which a company's own board answers better.
+ * It is whether the marketplace is working: a candidate spends an evening on an
+ * application, and a board where those sit untouched for a month is broken in a way no
+ * count of adverts shows. That is what "stalled" is.
+ *
+ * It goes through `Application.buildFilter`, the same builder as the employer's board, with
+ * `ALL_COMPANIES` said out loud. Named query fields only, never a spread of the request.
+ */
+router.get(
+  '/applications',
+  isSuperadmin,
+  asyncHandler(async (req, res) => {
+    const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 50 });
+
+    const stalledDays = STALLED_OPTIONS.includes(Number(req.query.stalled)) ? Number(req.query.stalled) : null;
+    const filters = {
+      status: Application.STATUSES.includes(req.query.status) ? req.query.status : '',
+      q: typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 120) : '',
+      reached: req.query.reached === 'interviewing' ? 'interviewing' : '',
+      hideWithdrawn: req.query.withdrawn !== '1',
+      stalledDays
+    };
+
+    const all = Application.ALL_COMPANIES;
+    const [{ rows, total }, counts, stalled] = await Promise.all([
+      Application.browseForCompany(all, filters, { limit, offset }),
+      Application.countsForCompany(all, { ...filters, stalledDays: null }),
+      // The headline number, deliberately NOT affected by the filters: it is the one figure
+      // somebody opens this screen for.
+      Application.browseForCompany(all, { stalledDays: STALLED_AFTER_DAYS }, { limit: 1, offset: 0 })
+    ]);
+
+    return res.render('admin/applications', {
+      title: 'Applications',
+      applications: rows,
+      total,
+      counts,
+      filters,
+      statuses: Application.STATUSES,
+      stalledOptions: STALLED_OPTIONS,
+      stalledAfterDays: STALLED_AFTER_DAYS,
+      stalledCount: stalled.total,
+      pagination: paginationMeta({ page, perPage, total }),
+      pageUrl: (n) => pageUrl('/admin/applications', req.query, n)
     });
   })
 );
@@ -538,11 +988,47 @@ router.get(
   '/referrals',
   isSuperadmin,
   asyncHandler(async (req, res) => {
+    /*
+     * The Sales agents tab (migration 031): the Hub's own people, whose links are MEASURED
+     * and pay nothing. It lives on this page, as on SAP Hub, because "who brought this
+     * person in" has two answers and an administrator should see both in one place — but
+     * it reads its own table and never touches the commission ledger.
+     */
+    if (req.query.tab === 'agents') {
+      const agents = await SalesAgent.listAll();
+      const [direct, agentPeople, countries] = await Promise.all([
+        SalesAgent.unattributed(),
+        SalesAgent.peopleFor(agents.map((a) => a.user_id)),
+        SalesAgent.countriesByAgent()
+      ]);
+      const countryLabel = (code) => (code ? countryName(code) : 'Unknown');
+      const geoOf = (rows) => ({
+        rows,
+        chart: donutSlices(rows.map((r) => ({ label: countryLabel(r.code), key: r.code, count: r.count })))
+      });
+      const agentCountries = {};
+      Object.entries(countries.byAgent).forEach(([id, rows]) => { agentCountries[id] = geoOf(rows); });
+      return res.render('admin/referrals', {
+        title: 'Sales agents',
+        tab: 'agents',
+        agents,
+        direct,
+        agentPeople,
+        agentCountries,
+        directCountries: geoOf(countries.direct),
+        overallCountries: geoOf(countries.overall),
+        countryLabel,
+        geoNote: 'The country stated on the profile; where none is stated yet, the country of the address they signed up from (marked "sign-up IP").',
+        linkFor: (code) => `${config.app.baseUrl}/s/${code}`
+      });
+    }
+
     const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 30 });
     const { rows, total } = await Referral.listAll({ limit, offset });
 
     res.render('admin/referrals', {
       title: 'Referrals and payouts',
+      tab: 'referrers',
       referrers: rows,
       payoutMethods: PAYOUT_METHODS,
       minPayoutMinor: MIN_PAYOUT_MINOR,
@@ -551,6 +1037,99 @@ router.get(
       pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/admin/referrals', req.query, p)
     });
+  })
+);
+
+/**
+ * POST /admin/referrals/add — put an existing account into the scheme at an agreed rate
+ * (ported from SAP Hub's "Promote existing user"). Members can still join themselves at
+ * /referrals at the standard rate; this is for people the owner signs up directly.
+ *
+ * It never creates an account: a referrer who has never signed in is a code nobody can
+ * look after, and an account made on somebody's behalf has no consent behind it. An
+ * account already in the scheme keeps its code and its rate — "Set" changes a rate, which
+ * applies to introductions from then on. The rate is typed as a percentage because that is
+ * what was agreed, and stored as basis points because that is all the ledger holds.
+ */
+router.post(
+  '/referrals/add',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const emailAddress = typeof req.body.email === 'string' ? req.body.email.trim().slice(0, 255) : '';
+    const rateRaw = String(req.body.rate_percent ?? '').trim();
+    const rateBps = rateRaw === '' ? DEFAULT_RATE_BPS : Math.round(Number(rateRaw) * 100);
+
+    if (!emailAddress) {
+      req.flash('error', 'Give the email address of the account to add.');
+      return res.redirect('/admin/referrals');
+    }
+    if (!Number.isInteger(rateBps) || rateBps < 1 || rateBps > MAX_RATE_BPS) {
+      req.flash('error', `The commission rate must be between 0.01% and ${MAX_RATE_BPS / 100}%.`);
+      return res.redirect('/admin/referrals');
+    }
+    const user = await User.findByEmail(emailAddress);
+    if (!user || !user.is_active) {
+      req.flash('error', 'No active account has that email address. The person must sign up first.');
+      return res.redirect('/admin/referrals');
+    }
+    const existing = await Referral.findByUserId(user.id);
+    if (existing) {
+      req.flash('info', `${user.name || user.email} is already a referrer (code ${existing.code}, ${existing.rate_bps / 100}%). Change the rate below if needed.`);
+      return res.redirect('/admin/referrals');
+    }
+    const referrer = await Referral.enrol(user.id, { rateBps });
+    req.flash('success', `${user.name || user.email} is now a referrer — code ${referrer.code}, ${referrer.rate_bps / 100}% commission.`);
+    return res.redirect('/admin/referrals');
+  })
+);
+
+/**
+ * POST /admin/referrals/agents/add — promote an existing account to sales agent.
+ *
+ * Never creates an account, and never touches the account's roles: an agent is a row in
+ * `sales_agents`, not a user type, so promoting an administrator cannot demote them (the
+ * reference re-typed the account and did). Registered BEFORE `/referrals/:id/...`, because
+ * `requireIdParam` answers a non-numeric id with a 404 rather than passing it on.
+ */
+router.post(
+  '/referrals/agents/add',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const back = '/admin/referrals?tab=agents';
+    const emailAddress = typeof req.body.email === 'string' ? req.body.email.trim().slice(0, 255) : '';
+    if (!emailAddress) {
+      req.flash('error', 'Give the email address of the account to add.');
+      return res.redirect(back);
+    }
+    const user = await User.findByEmail(emailAddress);
+    if (!user || !user.is_active) {
+      req.flash('error', 'No active account has that email address. The person must sign up first.');
+      return res.redirect(back);
+    }
+    const { agent, created } = await SalesAgent.add(user.id, req.session.user.id);
+    if (!created) {
+      req.flash('info', `${user.name || user.email} is already a sales agent (link /s/${agent.code}).`);
+      return res.redirect(back);
+    }
+    req.flash('success', `${user.name || user.email} is now a sales agent. Their link: ${config.app.baseUrl}/s/${agent.code}`);
+    return res.redirect(back);
+  })
+);
+
+/** Pausing a link stops new sign-ups being credited; who it already brought in stays. */
+router.post(
+  '/referrals/agents/:id/active',
+  isSuperadmin,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const changed = await SalesAgent.setActive(req.params.id, req.body.is_active === 'true');
+    req.flash(changed ? 'success' : 'error', changed
+      ? 'Sales agent updated. The people they already brought in are still credited to them.'
+      : 'That account is not a sales agent.');
+    return res.redirect('/admin/referrals?tab=agents');
   })
 );
 
@@ -983,14 +1562,20 @@ router.get(
   asyncHandler(async (req, res) => {
     const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 30 });
     const filters = { status: req.query.status || '', kind: req.query.kind || '', q: req.query.q || '' };
-    const [{ rows, total }, counts] = await Promise.all([
+    const [{ rows, total }, counts, screenshotsDue] = await Promise.all([
       IssueReport.list(filters, { limit, offset }),
-      IssueReport.counts()
+      IssueReport.counts(),
+      IssueReport.attachmentsDueForPurge()
     ]);
+    // Metadata only, for this page's rows: the list query never carries the bytes.
+    const attachments = await IssueReport.attachmentsFor(rows.map((r) => r.id));
 
     res.render('admin/issues', {
       title: 'Reported problems',
       issues: rows,
+      attachments,
+      screenshotsDue,
+      screenshotRetentionDays: ISSUE_SCREENSHOTS.retentionDaysAfterClose,
       counts,
       filters,
       kinds: ISSUE_KINDS,
@@ -998,6 +1583,59 @@ router.get(
       pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/admin/issues', req.query, p)
     });
+  })
+);
+
+/**
+ * POST /admin/issues/purge-screenshots — delete screenshots past the retention the form and
+ * the privacy policy state. The report text stays; the pictures go. Superadmin, because it
+ * deletes. Registered before `/issues/:id`, which would answer the word with a 404.
+ */
+router.post(
+  '/issues/purge-screenshots',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const removed = await IssueReport.purgeExpiredAttachments();
+    req.flash('success', `${removed} ${removed === 1 ? 'screenshot' : 'screenshots'} past retention deleted.`);
+    return res.redirect('/admin/issues');
+  })
+);
+
+/**
+ * A screenshot attached to a report. Behind the admin guard like the rest of this file,
+ * served as the WebP sharp produced, never cached by a shared cache, and matched on both ids
+ * so one report's URL cannot be walked to another's picture.
+ */
+router.get(
+  '/issues/:id/attachments/:attachmentId',
+  requireIdParam('id'),
+  requireIdParam('attachmentId'),
+  asyncHandler(async (req, res) => {
+    const file = await IssueReport.attachment(req.params.id, req.params.attachmentId);
+    if (!file) return res.status(404).render('errors/404', { title: 'Not found' });
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('Content-Disposition', `inline; filename="issue-${req.params.id}-${req.params.attachmentId}.webp"`);
+    return res.type(file.content_type).send(file.bytes);
+  })
+);
+
+/**
+ * Publish a shared idea on /ideas, or take it down. Only an idea whose sender ticked the
+ * consent box can be published at all — the model's WHERE refuses anything else, whatever
+ * the form posts — and the sender's name never goes with it.
+ */
+router.post(
+  '/issues/:id/publish',
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const on = req.body.published === 'on';
+    const changed = await IssueReport.setIdeaPublished(req.params.id, on, req.session.user.id);
+    req.flash(changed ? 'success' : 'error', changed
+      ? (on ? 'Published on the ideas page.' : 'Taken off the ideas page.')
+      : 'Only an idea whose sender agreed to it can be published.');
+    return res.redirect(returnTo(req, '/admin/issues'));
   })
 );
 
@@ -1046,7 +1684,11 @@ router.post(
 router.get(
   '/tests',
   asyncHandler(async (req, res) => {
-    const [lastRun, totalRuns] = await Promise.all([AdminTestRun.lastRun(), AdminTestRun.totalRuns()]);
+    const [lastRun, totalRuns, recentRuns] = await Promise.all([
+      AdminTestRun.lastRun(),
+      AdminTestRun.totalRuns(),
+      AdminTestRun.recent(20)
+    ]);
     const lastResults = lastRun ? await AdminTestRun.resultsFor(lastRun.runBatch) : {};
 
     res.render('admin/tests', {
@@ -1056,6 +1698,7 @@ router.get(
       categoryCount: TEST_SUITE.length,
       lastRun,
       totalRuns,
+      recentRuns,
       lastResults
     });
   })
@@ -1067,7 +1710,8 @@ router.post(
   asyncHandler(async (req, res) => {
     const summary = await runSuite({ runBy: req.session.user.id });
     req.flash('success', `${summary.passed}/${summary.total} tests passed.`);
-    return res.redirect('/admin/tests');
+    // Straight to the run's own page, as SAP Hub does: the failures are what was asked for.
+    return res.redirect(summary.total ? `/admin/tests/runs/${summary.runBatch}` : '/admin/tests');
   })
 );
 
@@ -1084,7 +1728,30 @@ router.post(
     }
     const summary = await runSuite({ category: category.category, runBy: req.session.user.id });
     req.flash('success', `${category.category}: ${summary.passed}/${summary.total} tests passed.`);
-    return res.redirect('/admin/tests');
+    return res.redirect(summary.total ? `/admin/tests/runs/${summary.runBatch}` : '/admin/tests');
+  })
+);
+
+/**
+ * GET /admin/tests/runs/:batch — one past run, every result in the order it ran.
+ *
+ * The parameter is the batch's UUID (`crypto.randomUUID()` in utils/adminTestRunner.js),
+ * not a numeric id, so it is checked against that exact shape rather than `requireIdParam`
+ * — and anything else is a 404 before it reaches SQL, for the same reason.
+ *
+ * There is deliberately no `/tests/switch` here, although SAP Hub has one. This suite has
+ * no disabled tests: the cases are an array in config/adminTests.js and every entry runs, so
+ * turning one off is a change with an author, a diff and a review — not a button that makes
+ * a failing check stop failing.
+ */
+const RUN_BATCH_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+router.get(
+  '/tests/runs/:batch',
+  asyncHandler(async (req, res) => {
+    const run = RUN_BATCH_RE.test(req.params.batch) ? await AdminTestRun.batch(req.params.batch) : null;
+    if (!run) return res.status(404).render('errors/404', { title: 'Not found' });
+    return res.render('admin/test-run', { title: 'Test run', run });
   })
 );
 

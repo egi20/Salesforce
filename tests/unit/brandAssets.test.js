@@ -121,6 +121,17 @@ describe('nothing is loaded from another origin', () => {
    * failure the rule predicts — and the page had been quietly falling back to system fonts.
    */
   const EXTERNAL = /(?:src|href)\s*=\s*["']https?:\/\//i;
+  const webAnalytics = require('../../config/webAnalytics');
+
+  function isConditionalBeacon(file, line) {
+    if (path.relative(VIEWS, file) !== path.join('partials', 'footer.ejs')) return false;
+    const src = (line.match(/src="(https:\/\/[^/"]+)\//) || [])[1];
+    if (!src || !webAnalytics.CLOUDFLARE_HOSTS.script.includes(src)) return false;
+    const lines = fs.readFileSync(file, 'utf8').split('\n');
+    const at = lines.findIndex((l) => l === line);
+    // The guard is within the two lines above (the second is a comment).
+    return lines.slice(Math.max(0, at - 2), at).some((l) => /<% if \(wa\.cloudflareToken && /.test(l));
+  }
 
   it('no template pulls a stylesheet, script or font from another host', () => {
     const offenders = [];
@@ -131,6 +142,12 @@ describe('nothing is loaded from another origin', () => {
         if (/<(?:link|script|img|iframe|source)\b/i.test(line) && EXTERNAL.test(line)) {
           // The video embed allowlist is the one deliberate exception and lives in
           // utils/videoEmbed.js, built at render time — never hardcoded into a template.
+          //
+          // The Cloudflare analytics beacon is the other, and it is narrow on purpose: the
+          // footer only, a host from config/webAnalytics.js, and only inside the guard that
+          // renders it when CF_WEB_ANALYTICS_TOKEN is set. Anything else from another host
+          // still fails here.
+          if (isConditionalBeacon(file, line)) continue;
           offenders.push(`${path.relative(VIEWS, file)}: ${line.trim().slice(0, 100)}`);
         }
       }
@@ -145,10 +162,33 @@ describe('nothing is loaded from another origin', () => {
     for (const directive of ['styleSrc', 'scriptSrc', 'fontSrc', 'connectSrc']) {
       const line = (csp.match(new RegExp(`${directive}:\\s*\\[[^\\]]*\\]`)) || [''])[0];
       expect(line).not.toMatch(/https?:\/\//);
+      /*
+       * And nothing but keywords and the analytics spread. The two analytics providers are
+       * the one sanctioned way a host reaches these directives, and only through
+       * `WEB_ANALYTICS_CSP` from config/webAnalytics.js — so a host typed in here directly,
+       * or a constant from anywhere else, still fails.
+       */
+      const entries = line.replace(/^\w+:\s*\[|\]$/g, '').split(',').map((e) => e.trim()).filter(Boolean);
+      // An empty list would pass the loop below silently.
+      expect(entries.length).toBeGreaterThan(0);
+      for (const entry of entries) {
+        expect(entry).toMatch(/^"'(?:self|unsafe-inline)'"$|^\.\.\.WEB_ANALYTICS_CSP\.(?:script|connect)$/);
+      }
     }
     // frameSrc is the exception: it carries EMBED_HOSTS, shared from utils/videoEmbed.js so
     // the policy and the allowlist cannot drift apart.
     expect(csp).toMatch(/frameSrc/);
+  });
+
+  it('names an analytics host only while that provider is configured', () => {
+    // Unset: the policy is exactly what it was, with no third party at all.
+    const webAnalytics = require('../../config/webAnalytics');
+    expect(webAnalytics.cspAdditions(webAnalytics.load({}))).toEqual({ script: [], connect: [] });
+    // Set: exactly that provider's hosts, and nothing from the other.
+    const cf = webAnalytics.cspAdditions(webAnalytics.load({ CF_WEB_ANALYTICS_TOKEN: 'a'.repeat(32) }));
+    expect([...cf.script, ...cf.connect].every((h) => /cloudflareinsights\.com$/.test(h))).toBe(true);
+    const ga = webAnalytics.cspAdditions(webAnalytics.load({ GA4_MEASUREMENT_ID: 'G-ABC123XYZ' }));
+    expect([...ga.script, ...ga.connect].every((h) => /google(?:tagmanager|-analytics)?\.com$|analytics\.google\.com$/.test(h))).toBe(true);
   });
 
   it('Inter is served from this origin and the stylesheet asks for files that exist', () => {

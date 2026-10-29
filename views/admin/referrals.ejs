@@ -7,6 +7,17 @@
   <%- include('./_tabs', { current: 'referrals' }) %>
   <%- include('../partials/flash') %>
 
+  <%# Two lists, as SAP Hub's referrals screen: people PAID per introduction, and the Hub's
+      own people whose links are MEASURED. ?tab= links, so they work without scripting. %>
+  <ul class="nav nav-tabs mb-4">
+    <li class="nav-item"><a class="nav-link <%= tab === 'agents' ? '' : 'active' %>" href="/admin/referrals"<% if (tab !== 'agents') { %> aria-current="page"<% } %>><i class="bi bi-people me-1"></i>Referrers</a></li>
+    <li class="nav-item"><a class="nav-link <%= tab === 'agents' ? 'active' : '' %>" href="/admin/referrals?tab=agents"<% if (tab === 'agents') { %> aria-current="page"<% } %>><i class="bi bi-person-badge me-1"></i>Sales agents</a></li>
+  </ul>
+
+  <% if (tab === 'agents') { %>
+    <%- include('./_sales-agents') %>
+  <% } else { %>
+
   <div class="glass-card mb-4">
     <div class="card-body">
       <h2 class="h6">What these buttons do</h2>
@@ -33,6 +44,28 @@
       </ul>
     </div>
   </div>
+
+  <%# Add an existing account at an agreed rate. Never creates an account. %>
+  <div class="glass-card mb-4"><div class="card-body">
+    <h2 class="h6 mb-1"><i class="bi bi-person-plus me-1"></i>Add a referrer</h2>
+    <p class="small text-muted-2 mb-3">
+      Put an existing account into the scheme at an agreed rate. Members can also join at
+      <a href="/referrals">/referrals</a> themselves at the standard <%= defaultRateBps / 100 %>%.
+      The person must already have an account.
+    </p>
+    <form method="post" action="/admin/referrals/add" class="row g-2 align-items-end">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="col-md-6">
+        <label class="form-label small" for="add-email">Account email</label>
+        <input class="form-control" id="add-email" name="email" type="email" required autocomplete="off">
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label small" for="add-rate">Commission (%)</label>
+        <input class="form-control" id="add-rate" name="rate_percent" type="number" min="0.01" max="30" step="any" placeholder="<%= defaultRateBps / 100 %>">
+      </div>
+      <div class="col-6 col-md-3"><button class="btn btn-primary w-100" type="submit">Add referrer</button></div>
+    </form>
+  </div></div>
 
   <% if (!referrers.length) { %>
     <div class="glass-card"><div class="card-body"><p class="text-muted-2 mb-0">Nobody has joined the scheme yet.</p></div></div>
@@ -130,7 +163,13 @@
   <% }); %>
 
   <%- include('../partials/pagination') %>
+  <% } %>
 </div>
 </section>
+
+<%# The per-agent modals sit OUTSIDE the glass section: its z-index and the cards'
+    backdrop-filter each make a stacking context that paints a modal under Bootstrap's
+    backdrop — the page dims and no dialog appears. %>
+<% if (tab === 'agents') { %><%- include('./_sales-agent-modals') %><% } %>
 
 <%- include('../partials/layout-end') %>

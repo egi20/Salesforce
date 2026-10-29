@@ -38,6 +38,24 @@ class ErrorLog {
     return { rows, total };
   }
 
+  /**
+   * The rows the screen lists, newest first, for the CSV export. The stack trace is left
+   * out deliberately: it is the one field that can carry a file path, a query fragment or a
+   * value from the request that produced it, and an export is a file that leaves the
+   * machine and gets attached to things. Capped, so a bad week is not a request that reads
+   * the whole table into memory.
+   */
+  static async exportRows({ limit = 5000 } = {}) {
+    const [rows] = await promisePool.query(
+      `SELECT created_at, status_code, method, path, message, user_id
+         FROM error_logs
+        ORDER BY created_at DESC
+        LIMIT ?`,
+      [limit]
+    );
+    return rows;
+  }
+
   static async purgeOlderThan(days = 90) {
     const [result] = await promisePool.query('DELETE FROM error_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)', [days]);
     return result.affectedRows;

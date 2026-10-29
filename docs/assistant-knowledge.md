@@ -78,6 +78,7 @@ People name pages by the menu label they see, so these are the labels:
 | `/payments` | What the two paid things cost. |
 | `/payments/history` | Your payments and invoices. |
 | `/referrals` | The referral scheme: get a link, see what it has earned, set payout details. |
+| `/s/<code>` | A sales agent's personal sign-up link — a member of the Hub's own team. It lands on `/auth/register`. It is not the referral scheme and earns nobody a commission; it only records whose link brought somebody in, once, at sign-up. An agent sees their link and who came through it on `/dashboard`. Agents are added by an administrator; nobody can make themselves one. |
 | `/notifications` | Your notifications. |
 | `/auth/register` | Create a free account. |
 | `/auth/login` | Sign in. |
@@ -93,12 +94,15 @@ People name pages by the menu label they see, so these are the labels:
 | `/services/staff-augmentation`, `/services/project-based`, `/services/managed-services` | The three shapes an engagement can take, and which one fits. Each ends at the consultant directory or the scope estimator. |
 | `/services/document-generator` | What the Hub generates: a quote becomes an SOW, work breakdown and deck; a profile becomes a CV and rate card. Nothing is stored. |
 | `/profile/consultant` | Where a consultant builds their profile. Three optional figures — a day rate, an hourly rate and the salary a permanent role would have to pay. None is calculated from another. One switch hides all three: the profile then reads "Rate on request" to everyone else, while the figures still drive match scores and the rate card. |
+| `/admin/analytics` | Administrators: the site's own counts (visitors and sign-ups by country, the daily challenge, monthly growth), with screens for Google Analytics 4 and Cloudflare Web Analytics beside it where those are configured. |
+| `/admin/applications` | Superadmins only: the state of every application on the site — never its content — and how many have sat untouched. |
 | `/admin/tests` | An administrator's panel that makes real requests against this site's own routes and records what they answered. Admin accounts. |
 | `/dashboard/applicants` | An employer's board: every application across every role they have posted, by stage, with a filter for the role and how recently somebody applied. Company accounts. Moving somebody between stages happens on the application's own page. |
 | `/about` | What the Hub is, who runs it, and the things it deliberately does not do — no tax calculation, no generated prose in a member's name, no uploaded documents served back out. |
 | `/faq` | Frequently asked questions. |
 | `/contact` | One address, read by a person. Also where a data request goes. |
-| `/report-issue` | Tell us something is broken or wrong. No account needed. |
+| `/report-issue` | Tell us something is broken or wrong, or suggest something. No account needed. You can say how badly it affects you and attach up to three screenshots, which are deleted 90 days after the report is closed. A suggestion can be offered for the ideas page with a tick box. |
+| `/ideas` | Suggestions people agreed to share, published after somebody here read them, with no names. Signed-in members can vote once on each. |
 | `/legal/privacy`, `/legal/terms` | The policies. |
 
 ## What is free, and what is not
@@ -132,6 +136,15 @@ never lost; payouts are made by a person against details the referrer supplies, 
 automatically.
 
 ## Rules the site follows that people ask about
+
+- **Analytics, and the cookie question.** The site always counts page views per country
+  per day itself, with no cookie and no identifier. A deployment may also run Cloudflare
+  Web Analytics (no cookie, no consent needed) and Google Analytics 4. GA4 sets cookies, so
+  where it is switched on visitors are asked first — "Allow analytics" or "Decline", the
+  same size — and nothing loads from Google until they allow it. The answer can be changed
+  any time from "Analytics choices" at the foot of every page. Where that link is absent,
+  GA4 is not running. Administrators and the sign-in pages are never measured. Do not say
+  which providers this deployment runs; the privacy policy (`/legal/privacy`) states it.
 
 - **The rate index never publishes a figure derived from fewer than three distinct
   contributors.** Below that floor the sample count is shown and the values are withheld,

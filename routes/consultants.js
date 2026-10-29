@@ -88,7 +88,13 @@ router.get(
     const isSelf = viewer && viewer.id === req.params.id;
 
     // A profile that is not public is visible to its owner and to admins only.
-    if (!profile || (!profile.is_public && !isSelf && !(viewer && viewer.isAdmin))) {
+    /*
+     * TWO switches, not one. `is_public` is the member's; `admin_hidden_at` is a
+     * moderator's (migration 033). Either one closes the page to everybody but its owner
+     * and an administrator.
+     */
+    const publiclyVisible = profile && profile.is_public && !profile.admin_hidden_at;
+    if (!profile || (!publiclyVisible && !isSelf && !(viewer && viewer.isAdmin))) {
       return res.status(404).render('errors/404', { title: 'Not found' });
     }
 

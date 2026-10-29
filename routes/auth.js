@@ -11,6 +11,7 @@ const { isGuest, isAuthenticated } = require('../middleware/auth');
 const { loginLimiter, registerLimiter, passwordLimiter } = require('../middleware/rateLimit');
 const { registrationOpen } = require('../middleware/settingsGates');
 const Referral = require('../models/Referral');
+const SalesAgent = require('../models/SalesAgent');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { safePath } = require('../utils/safeRedirect');
 const { countryFromIp, clientIp, packIp } = require('../utils/geo');
@@ -57,9 +58,13 @@ router.get('/register', isGuest, registrationOpen, (req, res) => {
   // still attributes. It is only ever a code — everything about the referrer is re-read
   // from the database.
   const ref = Referral.normaliseCode(req.query.ref) || req.session.referralCode || '';
+  // A sales agent's code arriving on the URL (`/s/<code>` sends it, and it is the copy an
+  // in-app browser passes on). Shape-checked before it is kept or echoed; first touch wins.
+  const agentCode = SalesAgent.normaliseCode(req.query.a);
+  if (agentCode && !req.session.salesAgentCode) req.session.salesAgentCode = agentCode;
   res.render('auth/register', {
     title: 'Create an account',
-    values: { ref },
+    values: { ref, a: req.session.salesAgentCode || agentCode || '' },
     errors: [],
     redirect: safePath(req.query.redirect, '')
   });
@@ -129,6 +134,13 @@ router.post(
      */
     await Referral.attribute(req.session.referralCode || req.body.ref, user.id);
     delete req.session.referralCode;
+
+    // A sales agent's link, the same way round: the session (from the link followed) before
+    // the posted field. Measured, never paid — this is not the referral scheme. Like the
+    // referral above it never throws: the account already exists.
+    const agentCode = req.session.salesAgentCode || SalesAgent.normaliseCode(req.body.a) || null;
+    if (agentCode) await SalesAgent.attribute(agentCode, user.id);
+    delete req.session.salesAgentCode;
 
     const { token } = await Token.issue('email_verification', user.id);
     email.send({

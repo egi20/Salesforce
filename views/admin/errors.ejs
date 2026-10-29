@@ -7,6 +7,12 @@
   <%- include('./_tabs', { current: 'errors' }) %>
   <%- include('../partials/flash') %>
 
+  <% if (errors.length) { %>
+    <p class="text-end mb-2">
+      <%# Without stack traces, and with formula-like cells neutralised (utils/csv.js). %>
+      <a class="btn btn-sm btn-outline-primary" href="/admin/errors/export.csv"><i class="bi bi-download"></i> Export CSV</a>
+    </p>
+  <% } %>
   <% if (errors.length === 0) { %>
     <div class="empty-state glass-card"><i class="bi bi-check-circle"></i>No errors recorded.</div>
   <% } else { %>

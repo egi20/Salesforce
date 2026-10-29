@@ -22,6 +22,7 @@ const { seoLocals } = require('./config/seoMeta');
 const { assertPaymentIntegrity, WEBHOOK_PATH } = require('./config/payments');
 const assistantConfig = require('./config/assistant');
 const { assertSettingsIntegrity } = require('./config/settings');
+const { socialLinks } = require('./config/social');
 const { assertReferralIntegrity } = require('./config/referrals');
 const { assertLinkedInIntegrity, isConfigured: linkedInConfigured } = require('./config/linkedin');
 const { assertDraftingIntegrity } = require('./config/drafting');
@@ -33,8 +34,10 @@ const { assertPlacementIntegrity } = require('./config/placements');
 const AppSetting = require('./models/AppSetting');
 const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
+const { isUploadPath } = require('./middleware/fileUpload');
 const { notFound, errorHandler, asyncHandler } = require('./middleware/errorHandler');
-const { visitGeo } = require('./middleware/visitGeo');
+const { visitGeo, isOwnTraffic } = require('./middleware/visitGeo');
+const webAnalytics = require('./config/webAnalytics');
 const { attachViewHelpers } = require('./utils/viewHelpers');
 
 // Fail fast rather than degrade silently: a taxonomy with a slug that has no base rate
@@ -85,6 +88,23 @@ assertIssueIntegrity();
 // €47,350.00 at 15.00% is €7,102.50, and their checkout charges €7,103.00.
 assertPlacementIntegrity();
 legal.warnIfUnconfigured();
+// And the analytics ids. A malformed one is not an error anywhere else: the tag loads,
+// reports to nobody, and the admin screen shows an empty month.
+webAnalytics.assertWebAnalyticsIntegrity();
+// Decided once, at boot, from the environment: a provider is either configured for this
+// deployment or it is not, and nothing a request carries can change which hosts the
+// policy names.
+const WEB_ANALYTICS_CSP = webAnalytics.cspAdditions();
+const WEB_ANALYTICS_TAGS = webAnalytics.publicTags();
+
+/*
+ * Our own stylesheet, scripts and mascot are served with a seven-day cache in production,
+ * so a deploy that changes them is invisible to anybody who visited in the last week — a
+ * new launcher image hidden behind last week's, or a chart drawn with last week's CSS. Each
+ * link carries the deployed commit (Render sets RENDER_GIT_COMMIT), so a new release is a
+ * new URL. Ported from SAP Hub.
+ */
+const ASSET_VERSION = (process.env.RENDER_GIT_COMMIT || String(Date.now())).slice(0, 12);
 
 const app = express();
 
@@ -108,13 +128,16 @@ app.use(
         // new Function, and adding a library that needs it is a decision, not an oversight.
         // No CDN is allowed at all: every script, style and font is served from this
         // origin. Adding a host back here means adding a third party to every page.
-        scriptSrc: ["'self'", "'unsafe-inline'"],
+        // ...except the analytics tags, and only for a provider that is configured. See
+        // config/webAnalytics.js: with neither set, these lists are empty and this policy
+        // is exactly what it was. A test asserts both halves.
+        scriptSrc: ["'self'", "'unsafe-inline'", ...WEB_ANALYTICS_CSP.script],
         // No third-party host. DESIGN.md and CLAUDE.md both say the CSP allows no CDN,
         // and until Inter was self-hosted these two lines made that untrue.
         styleSrc: ["'self'", "'unsafe-inline'"],
         fontSrc: ["'self'"],
         imgSrc: ["'self'", 'data:', 'https:'],
-        connectSrc: ["'self'"],
+        connectSrc: ["'self'", ...WEB_ANALYTICS_CSP.connect],
         formAction: ["'self'"],
         // Video embeds on success stories, and NOTHING else. The two hosts are shared from
         // `utils/videoEmbed.js`, which is also the only thing that can produce an embed
@@ -236,7 +259,9 @@ app.use(flash());
  * raw body, which is a stronger check than a token it could not carry anyway: it has no
  * browser, no session and no page to read a token from.
  */
-app.use(csrfProtection({ exempt: (req) => req.path === WEBHOOK_PATH }));
+// Multipart uploads are checked after multer parses them (middleware/csrf.js says why), and
+// only on the paths middleware/fileUpload.js names.
+app.use(csrfProtection({ exempt: (req) => req.path === WEBHOOK_PATH, deferMultipart: isUploadPath }));
 app.use(validateActiveAccount);
 app.use(visitGeo);
 app.use(seoLocals);
@@ -251,7 +276,10 @@ app.use(seoLocals);
  */
 app.use(
   asyncHandler(async (req, res, next) => {
-    res.locals.siteNotice = await AppSetting.get('site_notice');
+    const settings = await AppSetting.all();
+    res.locals.siteNotice = settings.site_notice;
+    // The footer's social icons, saved on /admin/settings and host-checked again here.
+    res.locals.socialLinks = socialLinks(settings);
     next();
   })
 );
@@ -259,11 +287,16 @@ app.use(
 // Locals every template can rely on.
 app.use((req, res, next) => {
   res.locals.appName = config.app.name;
+  res.locals.assetVersion = ASSET_VERSION;
   res.locals.supportEmail = config.app.supportEmail;
   // Decided once per request from the configuration, never from anything the client sends.
   res.locals.assistantEnabled = assistantConfig.isConfigured();
   res.locals.linkedInEnabled = linkedInConfigured();
   res.locals.assistantMaxChars = assistantConfig.MAX_MESSAGE_CHARS;
+  // The public analytics ids, never a secret; empty when no provider is configured.
+  res.locals.webAnalytics = WEB_ANALYTICS_TAGS;
+  // The admin surface and administrators are never measured; see middleware/visitGeo.js.
+  res.locals.measureVisit = !isOwnTraffic(req);
   res.locals.currentUser = req.session.user || null;
   res.locals.currentPath = req.path;
   res.locals.query = req.query;

@@ -48,7 +48,11 @@ function completenessOf(profile, { skillCount = 0, certificationCount = 0, exper
  * @returns {{clause:string, params:Array}}
  */
 function buildFilter(filters = {}) {
-  const where = ['cp.is_public = 1', 'u.is_active = 1'];
+  /*
+   * Two switches: `is_public` is the member's own, `admin_hidden_at` is a moderator's
+   * (migration 033). The directory requires both clear; see `Moderation.setProfileHidden`.
+   */
+  const where = ['cp.is_public = 1', 'cp.admin_hidden_at IS NULL', 'u.is_active = 1'];
   const params = [];
 
   /*
@@ -236,8 +240,20 @@ class ConsultantProfile {
    */
   static async setPublic(userId, isPublic) {
     return withTransaction(async (conn) => {
-      const [[row]] = await conn.query('SELECT completeness FROM consultant_profiles WHERE user_id = ? FOR UPDATE', [userId]);
+      const [[row]] = await conn.query(
+        'SELECT completeness, admin_hidden_at FROM consultant_profiles WHERE user_id = ? FOR UPDATE',
+        [userId]
+      );
       if (!row) throw new Error(`No consultant profile for user ${userId}`);
+
+      /*
+       * A profile an administrator has taken down cannot be put back by its owner. Without
+       * this the member's Publish would succeed and do nothing visible, and nothing on their
+       * screen would tell them a decision had been made.
+       */
+      if (isPublic && row.admin_hidden_at) {
+        return { published: false, completeness: row.completeness, adminHidden: true };
+      }
 
       if (isPublic && row.completeness < MIN_COMPLETENESS_TO_PUBLISH) {
         return { published: false, completeness: row.completeness };

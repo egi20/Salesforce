@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { promisePool, withTransaction } = require('../config/database');
 const config = require('../config/config');
+const { containsPattern } = require('../utils/likePattern');
 
 /**
  * Roles the public registration form is allowed to create.
@@ -304,26 +305,38 @@ class User {
     const params = [];
 
     if (search) {
-      where.push('(email LIKE ? OR name LIKE ?)');
-      params.push(`%${search}%`, `%${search}%`);
+      // Through likePattern, like every other LIKE here: this one predates it, and a search
+      // for `%` was matching every account.
+      const like = containsPattern(search);
+      where.push('(u.email LIKE ? OR u.name LIKE ?)');
+      params.push(like, like);
     }
     if (role && ALL_ROLES.includes(role)) {
       const column = ROLE_FLAG_COLUMN[role];
-      where.push(column ? `(user_type = ? OR ${column} = 1)` : 'user_type = ?');
+      where.push(column ? `(u.user_type = ? OR u.${column} = 1)` : 'u.user_type = ?');
       params.push(role);
     }
 
     const clause = where.join(' AND ');
+    /*
+     * `talent_hidden_at` is the moderator's takedown on a consultant profile (migration
+     * 033), shown beside the account so the button reads "put it back" when it should.
+     * `anonymised_at` marks an erased account, which is offered no actions at all.
+     */
     const [rows] = await promisePool.query(
-      `SELECT id, email, name, user_type, is_consultant, is_company, is_recruiter,
-              is_superadmin, is_active, email_verified, created_at, last_login_at
-         FROM users
+      `SELECT u.id, u.email, u.name, u.user_type, u.is_consultant, u.is_company, u.is_recruiter,
+              u.is_superadmin, u.is_active, u.email_verified, u.created_at, u.last_login_at,
+              u.anonymised_at,
+              cp.user_id IS NOT NULL AS has_consultant_profile,
+              cp.admin_hidden_at AS talent_hidden_at
+         FROM users u
+         LEFT JOIN consultant_profiles cp ON cp.user_id = u.id
         WHERE ${clause}
-        ORDER BY created_at DESC
+        ORDER BY u.created_at DESC
         LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
-    const [[{ total }]] = await promisePool.query(`SELECT COUNT(*) AS total FROM users WHERE ${clause}`, params);
+    const [[{ total }]] = await promisePool.query(`SELECT COUNT(*) AS total FROM users u WHERE ${clause}`, params);
     return { rows, total };
   }
 }

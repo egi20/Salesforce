@@ -77,7 +77,7 @@ class Application {
   static async apply(jobId, consultantUserId, { coverLetter = null, dayRate = null, currency = 'EUR', availableFrom = null }) {
     return withTransaction(async (conn) => {
       const [[job]] = await conn.query(
-        "SELECT id, status, company_user_id, title FROM jobs WHERE id = ? AND status = 'open' FOR UPDATE",
+        "SELECT id, status, company_user_id, title FROM jobs WHERE id = ? AND status = 'open' AND admin_hidden_at IS NULL FOR UPDATE",
         [jobId]
       );
       if (!job) {

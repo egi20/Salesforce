@@ -36,7 +36,9 @@ const { promisePool } = require('../config/database');
 const { isAuthenticated, isAdmin, isSuperadmin } = require('../middleware/auth');
 const { writeLimiter } = require('../middleware/rateLimit');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { requireIdParam } = require('../utils/ids');
+const { requireIdParam, parseId } = require('../utils/ids');
+const { toCsv } = require('../utils/csv');
+const AccountErasure = require('../models/AccountErasure');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
 const { TEST_SUITE, totalTestCount } = require('../config/adminTests');
 const AdminTestRun = require('../models/AdminTestRun');
@@ -181,6 +183,180 @@ router.post(
   })
 );
 
+/* ------------------------------------------------------- erasing an account */
+
+/** The most accounts one bulk erasure may touch: each is its own transaction. */
+const BULK_ERASE_MAX = 50;
+
+/**
+ * Erase an account on somebody's behalf, through `models/AccountErasure.js` and NOTHING
+ * else — it is the single eraser, a test forbids `DELETE FROM users` anywhere outside it,
+ * and it anonymises rather than deletes for the reasons CLAUDE.md gives (a published
+ * percentile, other people's threads, financial records under a retention period).
+ *
+ * SUPERADMIN, and refused on your own account here (the self-service path is
+ * `/profile/close`, which shows the person what goes and what stays). A superadmin target
+ * is refused by `AccountErasure.erase` itself: an erased account cannot sign in, and the
+ * superadmin role is granted and removed only from the server shell, never from this page.
+ */
+async function eraseByAdmin(req, id) {
+  if (id === req.session.user.id) {
+    return { ok: false, message: 'That is your own account. Close it from your own profile, where you can see what goes and what stays.' };
+  }
+  try {
+    await AccountErasure.erase(id, { reason: `admin:${req.session.user.id}` });
+    return { ok: true };
+  } catch (err) {
+    if (!['NOT_FOUND', 'ALREADY_ERASED', 'SUPERADMIN'].includes(err.code)) throw err;
+    return { ok: false, message: err.message };
+  }
+}
+
+/**
+ * POST /admin/users/:id/delete — erase one account.
+ *
+ * Confirmed by TYPING the account's email address, not by a checkbox: an account erased by
+ * accident cannot be handed back, because the whole point is that the data is gone — and
+ * typing the address is what proves the person is looking at the row they think they are.
+ */
+router.post(
+  '/users/:id/delete',
+  isSuperadmin,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const back = returnTo(req, '/admin/users');
+    const target = await User.findById(req.params.id);
+    if (!target) {
+      req.flash('error', 'That account no longer exists.');
+      return res.redirect(back);
+    }
+    const typed = typeof req.body.confirm === 'string' ? req.body.confirm.trim().toLowerCase() : '';
+    if (!typed || typed !== String(target.email).toLowerCase()) {
+      req.flash('error', "Type the account's email address exactly to confirm. Nothing has been changed.");
+      return res.redirect(back);
+    }
+    const result = await eraseByAdmin(req, req.params.id);
+    if (result.ok) {
+      req.flash('success', `Erased ${target.email}. Their personal data is gone; shared records are kept, anonymised.`);
+    } else {
+      req.flash('error', result.message);
+    }
+    return res.redirect(back);
+  })
+);
+
+/**
+ * POST /admin/users/bulk-delete — erase several accounts.
+ *
+ * The confirmation IS the count interlock, so it works without scripting: the person types
+ * `ERASE` and the number of accounts they ticked. A mismatch means the form was not the one
+ * they read, and nothing is erased — the same interlock `Job.bulkSetStatus` holds with its
+ * `expectedCount`. Each id is checked the way `requireIdParam` checks one.
+ */
+router.post(
+  '/users/bulk-delete',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const back = returnTo(req, '/admin/users');
+    const submitted = [].concat(req.body.ids || []);
+    const ids = [...new Set(submitted.map((v) => parseId(String(v))).filter(Boolean))];
+    if (!ids.length || ids.length !== submitted.length || ids.length > BULK_ERASE_MAX) {
+      req.flash('error', ids.length > BULK_ERASE_MAX ? `At most ${BULK_ERASE_MAX} accounts at a time.` : 'Select at least one account.');
+      return res.redirect(back);
+    }
+    const typed = typeof req.body.confirm === 'string' ? req.body.confirm.trim().toUpperCase() : '';
+    if (typed !== `ERASE ${ids.length}`) {
+      req.flash('error', `Type ERASE ${ids.length} to confirm erasing the ${ids.length} selected account${ids.length === 1 ? '' : 's'}. Nothing has been changed.`);
+      return res.redirect(back);
+    }
+
+    let erased = 0;
+    const refused = [];
+    for (const id of ids) {
+      // One at a time: each erasure is its own transaction with its own checks.
+      // eslint-disable-next-line no-await-in-loop
+      const result = await eraseByAdmin(req, id);
+      if (result.ok) erased += 1;
+      else refused.push(`#${id}: ${result.message}`);
+    }
+    if (erased) req.flash('success', `Erased ${erased} account${erased === 1 ? '' : 's'}. Personal data is gone; shared records are kept, anonymised.`);
+    if (refused.length) req.flash('error', `Not erased — ${refused.join(' ')}`);
+    return res.redirect(back);
+  })
+);
+
+/**
+ * POST /admin/users/:id/talent — take a consultant profile out of the directory, or put it
+ * back.
+ *
+ * ADMIN, not superadmin, and deliberately: this is moderation, which is what an ordinary
+ * administrator is for. It is also why it is not the Disable button — the account keeps
+ * working, and the only thing that goes is the public listing. `Moderation.setProfileHidden`
+ * is the single writer, so the decision lands in the same log as every other one.
+ */
+router.post(
+  '/users/:id/talent',
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const back = returnTo(req, '/admin/users');
+    if (req.params.id === req.session.user.id) {
+      req.flash('error', 'That is your own profile.');
+      return res.redirect(back);
+    }
+    const hidden = req.body.hidden === 'on';
+    try {
+      const result = await Moderation.setProfileHidden(req.params.id, hidden, {
+        actorUserId: req.session.user.id,
+        reason: (req.body.reason || '').trim() || null
+      });
+      if (!result.changed) req.flash('info', 'Somebody had already done that.');
+      else req.flash('success', hidden
+        ? 'Taken out of the directory. The account still works; only the public listing is gone.'
+        : 'Our decision is cleared. Whether it appears again is their own publish switch.');
+    } catch (err) {
+      if (err.code !== 'NOT_FOUND') throw err;
+      req.flash('error', err.message);
+    }
+    return res.redirect(back);
+  })
+);
+
+/**
+ * POST /admin/jobs/:id/hidden — take an advert off the board, or put it back.
+ *
+ * NOT "delete the job", and not a status change: the applications made to it, their events
+ * and the conversations anchored to it belong to other people, and an advertiser moves
+ * their own `status` freely, so a moderator writing `closed` there would be overruled by
+ * the next press of Reopen. There is deliberately no admin path that creates or edits an
+ * advert either: an advert written here would name a company that did not write it.
+ */
+router.post(
+  '/jobs/:id/hidden',
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const back = returnTo(req, '/admin/jobs');
+    const hidden = req.body.hidden === 'on';
+    try {
+      const result = await Moderation.setJobHidden(req.params.id, hidden, {
+        actorUserId: req.session.user.id,
+        reason: (req.body.reason || '').trim() || null
+      });
+      if (!result.changed) req.flash('info', 'Somebody had already done that.');
+      else req.flash('success', hidden
+        ? `"${result.job.title}" is off the board. The applications already made to it stay.`
+        : "Our decision is cleared. Whether it is live again is the advertiser's own status.");
+    } catch (err) {
+      if (err.code !== 'NOT_FOUND') throw err;
+      req.flash('error', err.message);
+    }
+    return res.redirect(back);
+  })
+);
+
 router.get(
   '/jobs',
   asyncHandler(async (req, res) => {
@@ -210,6 +386,24 @@ router.get(
       pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/admin/errors', req.query, p)
     });
+  })
+);
+
+/**
+ * GET /admin/errors/export.csv — the rows the screen lists, as a file.
+ *
+ * Without the stack trace (see `ErrorLog.exportRows`), and through `utils/csv.js`, which
+ * neutralises a cell that would run as a spreadsheet formula: the path and the message are
+ * text any stranger can choose by making a request. Same guard as the screen.
+ */
+router.get(
+  '/errors/export.csv',
+  asyncHandler(async (req, res) => {
+    const rows = await ErrorLog.exportRows();
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="errors.csv"');
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.send(toCsv(['created_at', 'status_code', 'method', 'path', 'message', 'user_id'], rows));
   })
 );
 

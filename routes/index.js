@@ -20,6 +20,8 @@ const RateSubmission = require('../models/RateSubmission');
 const { POST_KINDS, isPostKind, postKind } = require('../config/community');
 const { toPlainText } = require('../utils/sanitize');
 const legalVersions = require('../config/legal-versions');
+const SalesAgent = require('../models/SalesAgent');
+const { looksLikeAPerson } = require('../middleware/visitGeo');
 
 const router = express.Router();
 
@@ -436,8 +438,56 @@ router.get(
 
 /** Liveness only: deliberately does not touch the database, so a slow query cannot
  *  make the platform restart a process that is serving fine. */
+/**
+ * GET /s/:code — a sales agent's personal sign-up link (ported from SAP Hub).
+ *
+ * It lands on registration with the code in the URL (`?a=`) as well as in the session: an
+ * in-app browser (LinkedIn, WhatsApp) hands the real browser the URL and never its
+ * cookies, so the URL is the copy that survives "Open in browser". No cookie of its own —
+ * this site sets one cookie and says so in the privacy policy; a second would change what
+ * that sentence means. Same reasoning as `/referrals/go/:code`.
+ *
+ * Counting is STRICTER than attribution and the two are separate on purpose. Every open
+ * stores the code, so a person we decline to count is still credited if they sign up; an
+ * open is COUNTED only once per session and only for something that looks like a person.
+ * Link previews matter most here: pasting a link into a chat makes the chat's servers open
+ * it to draw the card, and they are what made every agent read "3 opens, 0 sign-ups" on
+ * the reference before it filtered them.
+ *
+ * 302, never 301: a cached permanent redirect would stop the opens being counted. An
+ * unknown or paused code still reaches sign-up — a stranger holding a stale link should
+ * not meet an error page for it.
+ *
+ * `/s/` collides with nothing else here: no other route or static directory uses it.
+ */
+// The FETCHERS that draw a link's preview card, by their own names — never the app a person
+// is using. SAP Hub's first version said `linkedin` and `twitter`, which also matched the
+// LinkedIn and X IN-APP BROWSERS ("[LinkedInApp]", "Twitter for iPhone"): a real person
+// tapping an agent's link inside LinkedIn, where agents share it, was credited at sign-up
+// and never counted as an open. LinkedIn's fetcher is LinkedInBot, X's is Twitterbot.
+const LINK_PREVIEW = /whatsapp\/|facebookexternalhit|facebookcatalog|slackbot|slack-imgproxy|telegrambot|discordbot|linkedinbot|twitterbot|skypeuripreview|viber|embedly|vkshare|redditbot|pinterestbot/i;
+
+router.get(
+  '/s/:code',
+  asyncHandler(async (req, res) => {
+    const agent = await SalesAgent.findActiveByCode(req.params.code);
+    if (!agent) return res.redirect(302, '/auth/register');
+    // First touch: a second agent's link later in the same session does not replace it.
+    if (!req.session.salesAgentCode) req.session.salesAgentCode = agent.code;
+    const ua = req.get('user-agent') || '';
+    const counted = Array.isArray(req.session.salesAgentOpens) ? req.session.salesAgentOpens : [];
+    if (looksLikeAPerson(ua) && !LINK_PREVIEW.test(ua) && !counted.includes(agent.code)) {
+      // Capped, because a session is not somewhere to accumulate an unbounded list.
+      req.session.salesAgentOpens = [...counted, agent.code].slice(-10);
+      await SalesAgent.countOpen(agent.user_id);
+    }
+    return res.redirect(302, `/auth/register?a=${encodeURIComponent(agent.code)}`);
+  })
+);
+
 router.get('/healthz', (req, res) => {
   res.json({ ok: true, uptime: Math.round(process.uptime()) });
 });
 
 module.exports = router;
+module.exports.LINK_PREVIEW = LINK_PREVIEW;

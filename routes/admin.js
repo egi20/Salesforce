@@ -41,6 +41,10 @@ const { TEST_SUITE, totalTestCount } = require('../config/adminTests');
 const AdminTestRun = require('../models/AdminTestRun');
 const { runSuite } = require('../utils/adminTestRunner');
 const SiteStats = require('../models/SiteStats');
+const SalesAgent = require('../models/SalesAgent');
+const config = require('../config/config');
+const { countryName } = require('../utils/geo');
+const { donutSlices } = require('../utils/donutSlices');
 const webAnalyticsConfig = require('../config/webAnalytics');
 const webAnalyticsService = require('../services/webAnalytics');
 const analyticsDashboard = require('../services/analyticsDashboard');
@@ -649,11 +653,47 @@ router.get(
   '/referrals',
   isSuperadmin,
   asyncHandler(async (req, res) => {
+    /*
+     * The Sales agents tab (migration 031): the Hub's own people, whose links are MEASURED
+     * and pay nothing. It lives on this page, as on SAP Hub, because "who brought this
+     * person in" has two answers and an administrator should see both in one place — but
+     * it reads its own table and never touches the commission ledger.
+     */
+    if (req.query.tab === 'agents') {
+      const agents = await SalesAgent.listAll();
+      const [direct, agentPeople, countries] = await Promise.all([
+        SalesAgent.unattributed(),
+        SalesAgent.peopleFor(agents.map((a) => a.user_id)),
+        SalesAgent.countriesByAgent()
+      ]);
+      const countryLabel = (code) => (code ? countryName(code) : 'Unknown');
+      const geoOf = (rows) => ({
+        rows,
+        chart: donutSlices(rows.map((r) => ({ label: countryLabel(r.code), key: r.code, count: r.count })))
+      });
+      const agentCountries = {};
+      Object.entries(countries.byAgent).forEach(([id, rows]) => { agentCountries[id] = geoOf(rows); });
+      return res.render('admin/referrals', {
+        title: 'Sales agents',
+        tab: 'agents',
+        agents,
+        direct,
+        agentPeople,
+        agentCountries,
+        directCountries: geoOf(countries.direct),
+        overallCountries: geoOf(countries.overall),
+        countryLabel,
+        geoNote: 'The country stated on the profile; where none is stated yet, the country of the address they signed up from (marked "sign-up IP").',
+        linkFor: (code) => `${config.app.baseUrl}/s/${code}`
+      });
+    }
+
     const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 30 });
     const { rows, total } = await Referral.listAll({ limit, offset });
 
     res.render('admin/referrals', {
       title: 'Referrals and payouts',
+      tab: 'referrers',
       referrers: rows,
       payoutMethods: PAYOUT_METHODS,
       minPayoutMinor: MIN_PAYOUT_MINOR,
@@ -662,6 +702,55 @@ router.get(
       pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/admin/referrals', req.query, p)
     });
+  })
+);
+
+/**
+ * POST /admin/referrals/agents/add — promote an existing account to sales agent.
+ *
+ * Never creates an account, and never touches the account's roles: an agent is a row in
+ * `sales_agents`, not a user type, so promoting an administrator cannot demote them (the
+ * reference re-typed the account and did). Registered BEFORE `/referrals/:id/...`, because
+ * `requireIdParam` answers a non-numeric id with a 404 rather than passing it on.
+ */
+router.post(
+  '/referrals/agents/add',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const back = '/admin/referrals?tab=agents';
+    const emailAddress = typeof req.body.email === 'string' ? req.body.email.trim().slice(0, 255) : '';
+    if (!emailAddress) {
+      req.flash('error', 'Give the email address of the account to add.');
+      return res.redirect(back);
+    }
+    const user = await User.findByEmail(emailAddress);
+    if (!user || !user.is_active) {
+      req.flash('error', 'No active account has that email address. The person must sign up first.');
+      return res.redirect(back);
+    }
+    const { agent, created } = await SalesAgent.add(user.id, req.session.user.id);
+    if (!created) {
+      req.flash('info', `${user.name || user.email} is already a sales agent (link /s/${agent.code}).`);
+      return res.redirect(back);
+    }
+    req.flash('success', `${user.name || user.email} is now a sales agent. Their link: ${config.app.baseUrl}/s/${agent.code}`);
+    return res.redirect(back);
+  })
+);
+
+/** Pausing a link stops new sign-ups being credited; who it already brought in stays. */
+router.post(
+  '/referrals/agents/:id/active',
+  isSuperadmin,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const changed = await SalesAgent.setActive(req.params.id, req.body.is_active === 'true');
+    req.flash(changed ? 'success' : 'error', changed
+      ? 'Sales agent updated. The people they already brought in are still credited to them.'
+      : 'That account is not a sales agent.');
+    return res.redirect('/admin/referrals?tab=agents');
   })
 );
 

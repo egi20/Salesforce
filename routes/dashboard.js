@@ -8,12 +8,17 @@ const ConsultantProfile = require('../models/ConsultantProfile');
 const Skill = require('../models/Skill');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const SalesAgent = require('../models/SalesAgent');
+const config = require('../config/config');
 const { isAuthenticated, isCompany, isConsultant } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
 const { matchScore } = require('../utils/jobMatcher');
 
 const router = express.Router();
+
+/** How many of an agent's sign-ups their own card lists; the count beside it is the full COUNT. */
+const AGENT_LIST_CAP = 50;
 
 router.use(isAuthenticated);
 
@@ -57,12 +62,25 @@ router.get(
       company = { jobs, totalOpen: total, statusCounts };
     }
 
+    /*
+     * A sales agent's own link and who came through it (migration 031). Being an agent is a
+     * row in `sales_agents`, not a role flag, so it is asked here rather than read from the
+     * session — and an account that is not one costs this one indexed lookup.
+     */
+    let salesAgent = null;
+    const agentStats = await SalesAgent.statsFor(user.id);
+    if (agentStats) {
+      const people = (await SalesAgent.peopleFor([user.id], { perAgent: AGENT_LIST_CAP }))[user.id] || [];
+      salesAgent = { ...agentStats, link: `${config.app.baseUrl}/s/${agentStats.code}`, people, cap: AGENT_LIST_CAP };
+    }
+
     res.render('dashboard/index', {
       title: 'Dashboard',
       unreadNotifications: unread,
       savedJobs,
       consultant,
-      company
+      company,
+      salesAgent
     });
   })
 );

@@ -71,7 +71,8 @@ const RETAINED = Object.freeze([
   ['messages', "Half of a conversation somebody else took part in and can still legitimately read."],
   ['commission_ledger', 'Money a DIFFERENT person is owed. The ledger is the balance.'],
   ['site_reviews', 'Published content. Hidden and unpublished exist; delete deliberately does not.'],
-  ['moderation_events', 'An append-only audit trail. "Who did this, when and why" must keep an answer.']
+  ['moderation_events', 'An append-only audit trail. "Who did this, when and why" must keep an answer.'],
+  ['sales_agents, users.sales_agent_id', "Who brought whom in. Once the account is anonymised the agent row is a code and two counters naming nobody, and deleting it would drop the people they brought in out of the agents' figures and the no-link row alike, so the two would no longer add up to every account."]
 ]);
 
 /** The address written onto an erased row. `.invalid` is reserved by RFC 2606 and can never route. */

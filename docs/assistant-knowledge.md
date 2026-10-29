@@ -78,6 +78,7 @@ People name pages by the menu label they see, so these are the labels:
 | `/payments` | What the two paid things cost. |
 | `/payments/history` | Your payments and invoices. |
 | `/referrals` | The referral scheme: get a link, see what it has earned, set payout details. |
+| `/s/<code>` | A sales agent's personal sign-up link — a member of the Hub's own team. It lands on `/auth/register`. It is not the referral scheme and earns nobody a commission; it only records whose link brought somebody in, once, at sign-up. An agent sees their link and who came through it on `/dashboard`. Agents are added by an administrator; nobody can make themselves one. |
 | `/notifications` | Your notifications. |
 | `/auth/register` | Create a free account. |
 | `/auth/login` | Sign in. |

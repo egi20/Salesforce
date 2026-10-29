@@ -185,4 +185,26 @@
     isCurrent.addEventListener('change', syncCurrent);
     syncCurrent();
   }
+
+  /*
+   * Copy-to-clipboard for any button carrying `data-copy` — a sales agent's link, on their
+   * dashboard and on the admin tab. The value is in the attribute, server-escaped, and the
+   * readonly field beside it means the page still works without scripting or without the
+   * Clipboard API (which needs a secure context): the link can be selected by hand.
+   */
+  document.querySelectorAll('[data-copy]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var value = button.getAttribute('data-copy');
+      if (!navigator.clipboard || !value) return;
+      navigator.clipboard.writeText(value).then(function () {
+        var previous = button.getAttribute('aria-label');
+        button.setAttribute('aria-label', 'Copied');
+        button.classList.add('is-copied');
+        setTimeout(function () {
+          if (previous) button.setAttribute('aria-label', previous); else button.removeAttribute('aria-label');
+          button.classList.remove('is-copied');
+        }, 1500);
+      }).catch(function () { /* Nothing to do: the link is on the page to select by hand. */ });
+    });
+  });
 })();

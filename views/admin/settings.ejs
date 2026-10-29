@@ -14,7 +14,22 @@
           <form method="post" action="/admin/settings">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-            <% Object.entries(definitions).forEach(function ([key, def]) { %>
+            <%
+              const fieldError = function (key) {
+                const e = errors.find(function (x) { return x.key === key; });
+                return e ? e.msg : null;
+              };
+              const general = Object.entries(definitions).filter(function ([, def]) { return !def.group; });
+              const social = Object.entries(definitions).filter(function ([, def]) { return def.group === 'social'; });
+            %>
+            <% if (errors.length) { %>
+              <div class="alert alert-danger" role="alert">
+                <p class="mb-1">Nothing was saved:</p>
+                <ul class="mb-0"><% errors.forEach(function (e) { %><li><%= e.msg %></li><% }); %></ul>
+              </div>
+            <% } %>
+
+            <% general.forEach(function ([key, def]) { %>
               <div class="mb-4">
                 <% if (def.type === 'boolean') { %>
                   <div class="form-check form-switch">
@@ -30,6 +45,25 @@
                 <div class="form-text"><%= def.help %></div>
               </div>
             <% }); %>
+
+            <% if (social.length) { %>
+              <hr class="my-4">
+              <h2 class="h6"><i class="bi bi-share me-1" aria-hidden="true"></i>Social links</h2>
+              <p class="small text-muted-2">
+                The Hub's own accounts, shown as icons in the footer. An empty field shows no
+                icon, so a link to an account that was never opened never reaches a page. Each
+                must be an https address on that platform's own host.
+              </p>
+              <% social.forEach(function ([key, def]) { const err = fieldError(key); %>
+                <div class="mb-3">
+                  <label class="form-label" for="<%= key %>"><i class="bi <%= def.icon %> me-1" aria-hidden="true"></i><%= def.label %></label>
+                  <input class="form-control<%= err ? ' is-invalid' : '' %>" type="url" inputmode="url" id="<%= key %>" name="<%= key %>"
+                         value="<%= values[key] %>" maxlength="<%= def.maxLength %>" placeholder="https://…"
+                         <% if (err) { %>aria-invalid="true" aria-describedby="<%= key %>-error"<% } %>>
+                  <% if (err) { %><div class="invalid-feedback" id="<%= key %>-error"><%= err %></div><% } %>
+                </div>
+              <% }); %>
+            <% } %>
 
             <button class="btn btn-primary" type="submit">Save</button>
           </form>

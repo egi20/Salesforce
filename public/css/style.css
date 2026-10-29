@@ -1748,3 +1748,6 @@ body.has-cookie-notice { padding-bottom: 7rem; }
 .country-donut .cd-pct { font-variant-numeric: tabular-nums; text-align: right; }
 .agent-country-btn { white-space: nowrap; }
 .agent-modal-scroll { max-height: 280px; overflow-y: auto; }
+
+/* The Hub's own social accounts in the footer — rendered only for those configured. */
+.footer-social .list-inline-item a { font-size: 1.15rem; display: inline-flex; padding: 0.25rem; }

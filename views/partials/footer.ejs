@@ -80,6 +80,15 @@
           consultants companies can browse, scope estimates that reconcile, and day-rate
           benchmarks built from figures people contributed.
         </p>
+        <%# Only accounts saved on /admin/settings: an unset one is not rendered at all. %>
+        <% const social = (typeof socialLinks !== 'undefined' && socialLinks) || []; %>
+        <% if (social.length) { %>
+          <ul class="list-inline footer-social mt-3 mb-0" aria-label="Salesforce Hub elsewhere">
+            <% social.forEach(function (s) { %>
+              <li class="list-inline-item"><a href="<%= s.href %>" rel="noopener" target="_blank" aria-label="<%= s.label %>"><i class="bi <%= s.icon %>" aria-hidden="true"></i></a></li>
+            <% }); %>
+          </ul>
+        <% } %>
       </div>
       <% footerColumns.forEach(function (col) { %>
         <div>

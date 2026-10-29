@@ -21,7 +21,7 @@ const { budgetStatus } = require('../utils/aiBudget');
 const Moderation = require('../models/Moderation');
 const Post = require('../models/Post');
 const AppSetting = require('../models/AppSetting');
-const { DEFINITIONS: SETTING_DEFINITIONS } = require('../config/settings');
+const { DEFINITIONS: SETTING_DEFINITIONS, KEYS: SETTING_KEYS, coerce: coerceSetting, problemFor: settingProblem } = require('../config/settings');
 const { returnTo } = require('../utils/returnTo');
 const Referral = require('../models/Referral');
 const TaxEnquiry = require('../models/TaxEnquiry');
@@ -639,7 +639,8 @@ router.get(
     res.render('admin/settings', {
       title: 'Settings',
       definitions: SETTING_DEFINITIONS,
-      values: await AppSetting.all()
+      values: await AppSetting.all(),
+      errors: []
     });
   })
 );
@@ -657,6 +658,24 @@ router.post(
   isSuperadmin,
   writeLimiter,
   asyncHandler(async (req, res) => {
+    /*
+     * A link to the wrong host is refused and the form re-renders with what was typed:
+     * saving the rest and silently dropping it would leave a stale icon nobody noticed was
+     * kept. Iterates the DECLARED keys, never the body, for the reason setMany does.
+     */
+    const errors = SETTING_KEYS
+      .map((key) => ({ key, msg: settingProblem(key, coerceSetting(key, req.body[key])) }))
+      .filter((e) => e.msg);
+    if (errors.length) {
+      const typed = {};
+      SETTING_KEYS.forEach((key) => { typed[key] = coerceSetting(key, req.body[key]); });
+      return res.status(422).render('admin/settings', {
+        title: 'Settings',
+        definitions: SETTING_DEFINITIONS,
+        values: typed,
+        errors
+      });
+    }
     await AppSetting.setMany(req.body);
     req.flash('success', 'Settings saved. They take effect within a minute on every instance.');
     return res.redirect('/admin/settings');

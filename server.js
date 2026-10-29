@@ -22,6 +22,7 @@ const { seoLocals } = require('./config/seoMeta');
 const { assertPaymentIntegrity, WEBHOOK_PATH } = require('./config/payments');
 const assistantConfig = require('./config/assistant');
 const { assertSettingsIntegrity } = require('./config/settings');
+const { socialLinks } = require('./config/social');
 const { assertReferralIntegrity } = require('./config/referrals');
 const { assertLinkedInIntegrity, isConfigured: linkedInConfigured } = require('./config/linkedin');
 const { assertDraftingIntegrity } = require('./config/drafting');
@@ -263,7 +264,10 @@ app.use(seoLocals);
  */
 app.use(
   asyncHandler(async (req, res, next) => {
-    res.locals.siteNotice = await AppSetting.get('site_notice');
+    const settings = await AppSetting.all();
+    res.locals.siteNotice = settings.site_notice;
+    // The footer's social icons, saved on /admin/settings and host-checked again here.
+    res.locals.socialLinks = socialLinks(settings);
     next();
   })
 );

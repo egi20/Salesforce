@@ -51,6 +51,13 @@ describe('render.yaml', () => {
   });
 
   test('the app waits for the database before it migrates', () => {
-    expect(web.dockerCommand).toMatch(/wait-for-db.*&&.*npm start/);
+    // Render splits the command on spaces and does NOT honour quotes, so anything that
+    // needs a shell (`&&`, quoting) has to live in an npm script. `sh -c "a && b"` reached
+    // the shell as one quoted word and exited 127 on the first real deploy.
+    expect(web.dockerCommand).not.toMatch(/["'&|;]/);
+    const script = web.dockerCommand.match(/^npm run (\S+)$/);
+    expect(script).not.toBeNull();
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+    expect(pkg.scripts[script[1]]).toMatch(/wait-for-db.*&&.*npm start/);
   });
 });

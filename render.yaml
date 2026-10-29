@@ -54,7 +54,11 @@ services:
     # its disk when the app starts, and `npm start` runs the migrations before it serves —
     # without the wait, the first deploy fails on a connection refused that says nothing
     # about why.
-    dockerCommand: sh -c "npm run wait-for-db && npm start"
+    #
+    # An npm script, never `sh -c "..."` here: Render splits this line on spaces without
+    # honouring the quotes, so the shell received the whole sentence, quotes included, as
+    # the name of one program and the first deploy exited 127 with "not found".
+    dockerCommand: npm run start:after-db
     domains:
       - sforcehub.net
       - www.sforcehub.net

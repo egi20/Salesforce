@@ -46,6 +46,23 @@ describe('role escalation boundary', () => {
   });
 });
 
+describe('adminPrimaryRole', () => {
+  it('keeps admin when it is granted alongside a marketplace role', () => {
+    // Taxonomy order puts consultant first; without this the admin a superadmin had just
+    // ticked was dropped, because `admin` exists only as the primary type.
+    expect(User.adminPrimaryRole(['consultant', 'admin'])).toBe('admin');
+  });
+
+  it('honours an explicit primary that is in the set, and ignores one that is not', () => {
+    expect(User.adminPrimaryRole(['consultant', 'company'], 'company')).toBe('company');
+    expect(User.adminPrimaryRole(['consultant'], 'admin')).toBe('consultant');
+  });
+
+  it('removing admin really removes it', () => {
+    expect(User.adminPrimaryRole(['company'])).toBe('company');
+  });
+});
+
 describe('resolvePrimaryRole', () => {
   it('keeps an existing primary role rather than reordering it', () => {
     expect(User.resolvePrimaryRole(['consultant', 'company'], 'company')).toBe('company');

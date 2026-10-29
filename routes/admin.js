@@ -58,6 +58,10 @@ router.get(
          (SELECT COUNT(*) FROM jobs)                               AS jobs,
          (SELECT COUNT(*) FROM jobs WHERE status = 'open')         AS open_jobs,
          (SELECT COUNT(*) FROM applications)                       AS applications,
+         (SELECT COUNT(*) FROM quotes)                             AS quotes,
+         (SELECT COUNT(*) FROM posts WHERE hidden_at IS NULL)      AS posts,
+         (SELECT COUNT(*) FROM payments WHERE needs_refund = 1)    AS refunds_due,
+         (SELECT COUNT(*) FROM issue_reports WHERE status <> 'closed') AS open_issues,
          (SELECT COUNT(*) FROM error_logs WHERE created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)) AS recent_errors`
     );
 
@@ -110,6 +114,21 @@ router.post(
   asyncHandler(async (req, res) => {
     if (req.params.id === req.session.user.id) {
       req.flash('error', 'You cannot change your own roles here.');
+      return res.redirect('/admin/users');
+    }
+
+    /*
+     * A superadmin's roles are not edited here. Superadmin is granted only from a shell
+     * (`npm run create-admin`), so the people who hold it are decided by whoever can run
+     * commands on the server — not by one superadmin clicking on another's row.
+     */
+    const target = await User.findById(req.params.id);
+    if (!target) {
+      req.flash('error', 'That account no longer exists.');
+      return res.redirect('/admin/users');
+    }
+    if (target.is_superadmin) {
+      req.flash('error', 'A superadmin is managed from the server shell, not from this page.');
       return res.redirect('/admin/users');
     }
 

@@ -5,6 +5,7 @@
   sub: 'Agreeing a fee. The figure typed here is the figure charged — nothing recomputes it later.'
 }) %>
 <section class="glass-section pb-5"><div class="container">
+  <%- include('./_tabs', { current: 'placements' }) %>
   <%- include('../partials/flash') %>
 
   <% const tone = { agreed: 'cloud', paid: 'ok', cancelled: 'muted' }; %>

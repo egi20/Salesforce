@@ -1503,7 +1503,11 @@ router.post(
 router.get(
   '/tests',
   asyncHandler(async (req, res) => {
-    const [lastRun, totalRuns] = await Promise.all([AdminTestRun.lastRun(), AdminTestRun.totalRuns()]);
+    const [lastRun, totalRuns, recentRuns] = await Promise.all([
+      AdminTestRun.lastRun(),
+      AdminTestRun.totalRuns(),
+      AdminTestRun.recent(20)
+    ]);
     const lastResults = lastRun ? await AdminTestRun.resultsFor(lastRun.runBatch) : {};
 
     res.render('admin/tests', {
@@ -1513,6 +1517,7 @@ router.get(
       categoryCount: TEST_SUITE.length,
       lastRun,
       totalRuns,
+      recentRuns,
       lastResults
     });
   })
@@ -1524,7 +1529,8 @@ router.post(
   asyncHandler(async (req, res) => {
     const summary = await runSuite({ runBy: req.session.user.id });
     req.flash('success', `${summary.passed}/${summary.total} tests passed.`);
-    return res.redirect('/admin/tests');
+    // Straight to the run's own page, as SAP Hub does: the failures are what was asked for.
+    return res.redirect(summary.total ? `/admin/tests/runs/${summary.runBatch}` : '/admin/tests');
   })
 );
 
@@ -1541,7 +1547,30 @@ router.post(
     }
     const summary = await runSuite({ category: category.category, runBy: req.session.user.id });
     req.flash('success', `${category.category}: ${summary.passed}/${summary.total} tests passed.`);
-    return res.redirect('/admin/tests');
+    return res.redirect(summary.total ? `/admin/tests/runs/${summary.runBatch}` : '/admin/tests');
+  })
+);
+
+/**
+ * GET /admin/tests/runs/:batch — one past run, every result in the order it ran.
+ *
+ * The parameter is the batch's UUID (`crypto.randomUUID()` in utils/adminTestRunner.js),
+ * not a numeric id, so it is checked against that exact shape rather than `requireIdParam`
+ * — and anything else is a 404 before it reaches SQL, for the same reason.
+ *
+ * There is deliberately no `/tests/switch` here, although SAP Hub has one. This suite has
+ * no disabled tests: the cases are an array in config/adminTests.js and every entry runs, so
+ * turning one off is a change with an author, a diff and a review — not a button that makes
+ * a failing check stop failing.
+ */
+const RUN_BATCH_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+router.get(
+  '/tests/runs/:batch',
+  asyncHandler(async (req, res) => {
+    const run = RUN_BATCH_RE.test(req.params.batch) ? await AdminTestRun.batch(req.params.batch) : null;
+    if (!run) return res.status(404).render('errors/404', { title: 'Not found' });
+    return res.render('admin/test-run', { title: 'Test run', run });
   })
 );
 

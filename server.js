@@ -34,6 +34,7 @@ const { assertPlacementIntegrity } = require('./config/placements');
 const AppSetting = require('./models/AppSetting');
 const { validateActiveAccount } = require('./middleware/auth');
 const { csrfProtection } = require('./middleware/csrf');
+const { isUploadPath } = require('./middleware/fileUpload');
 const { notFound, errorHandler, asyncHandler } = require('./middleware/errorHandler');
 const { visitGeo, isOwnTraffic } = require('./middleware/visitGeo');
 const webAnalytics = require('./config/webAnalytics');
@@ -249,7 +250,9 @@ app.use(flash());
  * raw body, which is a stronger check than a token it could not carry anyway: it has no
  * browser, no session and no page to read a token from.
  */
-app.use(csrfProtection({ exempt: (req) => req.path === WEBHOOK_PATH }));
+// Multipart uploads are checked after multer parses them (middleware/csrf.js says why), and
+// only on the paths middleware/fileUpload.js names.
+app.use(csrfProtection({ exempt: (req) => req.path === WEBHOOK_PATH, deferMultipart: isUploadPath }));
 app.use(validateActiveAccount);
 app.use(visitGeo);
 app.use(seoLocals);

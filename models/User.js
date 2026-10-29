@@ -79,6 +79,20 @@ function resolvePrimaryRole(roles, existingPrimary = null) {
   return roles[0] || 'consultant';
 }
 
+/**
+ * The primary `user_type` for an ADMIN role change.
+ *
+ * `admin` exists only as a primary type — there is no `is_admin` flag — so a role set that
+ * includes it must make it primary. Left to `resolvePrimaryRole`, ticking "consultant" and
+ * "admin" together picked the first in taxonomy order, `consultant`, and the admin role a
+ * superadmin had just granted was silently dropped.
+ */
+function adminPrimaryRole(roles, requested = null) {
+  if (requested && roles.includes(requested)) return requested;
+  if (roles.includes('admin')) return 'admin';
+  return resolvePrimaryRole(roles);
+}
+
 function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
@@ -97,6 +111,8 @@ class User {
   static unionRoles = unionRoles;
 
   static resolvePrimaryRole = resolvePrimaryRole;
+
+  static adminPrimaryRole = adminPrimaryRole;
 
   static hashToken = hashToken;
 
@@ -232,7 +248,7 @@ class User {
   /** Admin-only: set the exact role set, including removal and privileged roles. */
   static async adminSetRoles(userId, roles, { primary = null } = {}) {
     const finalRoles = ALL_ROLES.filter((r) => (roles || []).includes(r));
-    const primaryRole = primary && finalRoles.includes(primary) ? primary : resolvePrimaryRole(finalRoles);
+    const primaryRole = adminPrimaryRole(finalRoles, primary);
 
     await promisePool.query(
       `UPDATE users

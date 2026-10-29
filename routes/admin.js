@@ -113,6 +113,21 @@ router.post(
       return res.redirect('/admin/users');
     }
 
+    /*
+     * A superadmin's roles are not edited here. Superadmin is granted only from a shell
+     * (`npm run create-admin`), so the people who hold it are decided by whoever can run
+     * commands on the server — not by one superadmin clicking on another's row.
+     */
+    const target = await User.findById(req.params.id);
+    if (!target) {
+      req.flash('error', 'That account no longer exists.');
+      return res.redirect('/admin/users');
+    }
+    if (target.is_superadmin) {
+      req.flash('error', 'A superadmin is managed from the server shell, not from this page.');
+      return res.redirect('/admin/users');
+    }
+
     const submitted = Array.isArray(req.body.roles) ? req.body.roles : [req.body.roles].filter(Boolean);
     const roles = await User.adminSetRoles(req.params.id, submitted, { primary: req.body.primary || null });
     req.flash('success', `Roles set to: ${roles.join(', ') || 'none'}.`);

@@ -31,7 +31,7 @@ const ImageBlob = require('../models/ImageBlob');
 const { singleImage } = require('../middleware/fileUpload');
 const { CLOUD_FAMILIES } = require('../config/cloudFamilies');
 const { TOPICS: ADVISORY_TOPICS, ARRANGEMENTS: ADVISORY_ARRANGEMENTS, STATUSES: ADVISORY_STATUSES, TRANSITIONS: ADVISORY_TRANSITIONS, RETENTION_DAYS: ADVISORY_RETENTION_DAYS } = require('../config/taxAdvisory');
-const { PAYOUT_METHODS, MIN_PAYOUT_MINOR, DEFAULT_RATE_BPS } = require('../config/referrals');
+const { PAYOUT_METHODS, MIN_PAYOUT_MINOR, DEFAULT_RATE_BPS, MAX_RATE_BPS } = require('../config/referrals');
 const { promisePool } = require('../config/database');
 const { isAuthenticated, isAdmin, isSuperadmin } = require('../middleware/auth');
 const { writeLimiter } = require('../middleware/rateLimit');
@@ -450,6 +450,42 @@ router.get(
       pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/admin/payments', req.query, p)
     });
+  })
+);
+
+/**
+ * POST /admin/payments/:id/refunded — record that a refund was actually made (ported from
+ * SAP Hub). The refund queue had no way to be emptied; this is it.
+ *
+ * It clears the flag and writes an event. It does NOT call Stripe and it does NOT reverse
+ * any commission: the refund is issued in Stripe by a person, and a commission is reversed
+ * only by `Referral.adjust`, with a reason the referrer will see. What it does is tell the
+ * administrator the exact commission the payment earned, so that decision is one click
+ * away on /admin/referrals and nobody has to work the figure out.
+ */
+router.post(
+  '/payments/:id/refunded',
+  isSuperadmin,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const back = returnTo(req, '/admin/payments');
+    const note = (req.body.note || '').trim().slice(0, 200) || null;
+    const recorded = await Payment.recordRefund(req.params.id, { actorUserId: req.session.user.id, note });
+    if (!recorded) {
+      req.flash('error', 'That payment is not in a state that can be refunded.');
+      return res.redirect(back);
+    }
+    const earned = await Referral.earnedForPayment(req.params.id);
+    req.flash('success', 'Marked as refunded. The payment stays in the ledger; its status now says so.');
+    if (earned && Number(earned.amount_minor) !== 0) {
+      req.flash(
+        'info',
+        `This payment earned referrer #${earned.referrer_id} ${formatMinor(earned.amount_minor, earned.currency)} of commission. ` +
+          'Nothing was reversed automatically; if it should be, record an adjustment on Referrals with a reason they will see.'
+      );
+    }
+    return res.redirect(back);
   })
 );
 
@@ -1001,6 +1037,50 @@ router.get(
       pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/admin/referrals', req.query, p)
     });
+  })
+);
+
+/**
+ * POST /admin/referrals/add — put an existing account into the scheme at an agreed rate
+ * (ported from SAP Hub's "Promote existing user"). Members can still join themselves at
+ * /referrals at the standard rate; this is for people the owner signs up directly.
+ *
+ * It never creates an account: a referrer who has never signed in is a code nobody can
+ * look after, and an account made on somebody's behalf has no consent behind it. An
+ * account already in the scheme keeps its code and its rate — "Set" changes a rate, which
+ * applies to introductions from then on. The rate is typed as a percentage because that is
+ * what was agreed, and stored as basis points because that is all the ledger holds.
+ */
+router.post(
+  '/referrals/add',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const emailAddress = typeof req.body.email === 'string' ? req.body.email.trim().slice(0, 255) : '';
+    const rateRaw = String(req.body.rate_percent ?? '').trim();
+    const rateBps = rateRaw === '' ? DEFAULT_RATE_BPS : Math.round(Number(rateRaw) * 100);
+
+    if (!emailAddress) {
+      req.flash('error', 'Give the email address of the account to add.');
+      return res.redirect('/admin/referrals');
+    }
+    if (!Number.isInteger(rateBps) || rateBps < 1 || rateBps > MAX_RATE_BPS) {
+      req.flash('error', `The commission rate must be between 0.01% and ${MAX_RATE_BPS / 100}%.`);
+      return res.redirect('/admin/referrals');
+    }
+    const user = await User.findByEmail(emailAddress);
+    if (!user || !user.is_active) {
+      req.flash('error', 'No active account has that email address. The person must sign up first.');
+      return res.redirect('/admin/referrals');
+    }
+    const existing = await Referral.findByUserId(user.id);
+    if (existing) {
+      req.flash('info', `${user.name || user.email} is already a referrer (code ${existing.code}, ${existing.rate_bps / 100}%). Change the rate below if needed.`);
+      return res.redirect('/admin/referrals');
+    }
+    const referrer = await Referral.enrol(user.id, { rateBps });
+    req.flash('success', `${user.name || user.email} is now a referrer — code ${referrer.code}, ${referrer.rate_bps / 100}% commission.`);
+    return res.redirect('/admin/referrals');
   })
 );
 

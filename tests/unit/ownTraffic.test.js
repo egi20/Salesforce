@@ -28,3 +28,14 @@ describe('the Hub measures visitors, not itself', () => {
     expect(read('middleware/visitGeo.js')).toContain('if (isOwnTraffic(req)) return;');
   });
 });
+
+describe('resetting the visitor tally', () => {
+  const admin = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'routes', 'admin.js'), 'utf8');
+  it('is superadmin, typed, and touches only visit_geo_daily', () => {
+    const at = admin.indexOf("'/analytics/reset-geo',");
+    expect(admin.slice(at, at + 60)).toMatch(/isSuperadmin,/);
+    expect(admin.slice(at, at + 600)).toMatch(/!== 'RESET'/);
+    const model = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'models', 'SiteStats.js'), 'utf8');
+    expect(model.match(/DELETE FROM \w+/g)).toEqual(['DELETE FROM visit_geo_daily']);
+  });
+});

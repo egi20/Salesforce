@@ -18,7 +18,20 @@
   <% const n = function (v) { return Number(v || 0).toLocaleString('en-GB'); }; %>
   <div class="row g-3 mb-4">
     <div class="col-lg-6"><div class="glass-card h-100"><div class="card-body">
-      <h2 class="h6 mb-1"><i class="bi bi-globe-americas"></i> Visitors by country <span class="badge-hub">Server-side</span></h2>
+      <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+        <h2 class="h6 mb-0"><i class="bi bi-globe-americas"></i> Visitors by country <span class="badge-hub">Server-side</span></h2>
+        <% if (currentUser.isSuperadmin) { %>
+          <details class="text-end">
+            <summary class="btn btn-sm btn-outline-danger"><i class="bi bi-arrow-counterclockwise"></i> Reset</summary>
+            <form method="post" action="/admin/analytics/reset-geo" class="mt-2 text-start">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <label class="form-label small" for="resetGeo">Clears every day of this tally; it cannot be brought back. Type <code>RESET</code>.</label>
+              <input class="form-control form-control-sm mb-1" id="resetGeo" name="confirm" autocomplete="off" required>
+              <button class="btn btn-sm btn-danger" type="submit">Clear visitor geography</button>
+            </form>
+          </details>
+        <% } %>
+      </div>
       <p class="small text-muted-2 mb-3">
         <%= n(visitors.total) %> page views in this range, by the country of the request. Counts
         everybody who opened a page — including those who decline analytics — so it runs higher

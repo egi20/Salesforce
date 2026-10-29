@@ -78,6 +78,17 @@ class SiteStats {
       }))
     };
   }
+
+  /**
+   * Wipe the server-side visitor geography so it rebuilds from real traffic. It counted the
+   * administrators themselves until `isOwnTraffic` was added, and a superadmin may clear it
+   * once, deliberately, rather than read around that history forever. It holds counts and
+   * nothing else, so there is no audit row to keep: what goes is a tally, not a record.
+   */
+  static async resetVisitorGeography() {
+    const [result] = await promisePool.query('DELETE FROM visit_geo_daily');
+    return result.affectedRows;
+  }
 }
 
 module.exports = SiteStats;

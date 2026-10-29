@@ -748,6 +748,29 @@ router.get(
 );
 
 /**
+ * POST /admin/analytics/reset-geo — clear the server-side visitor geography so it rebuilds
+ * from real traffic (ported from SAP Hub).
+ *
+ * Superadmin, because it deletes a table's history and nothing undoes it, and confirmed by
+ * TYPING a word rather than a click, the way erasure is: a click is what somebody does by
+ * accident. It never touches sign-ups or the providers' data, only this site's own tally.
+ */
+router.post(
+  '/analytics/reset-geo',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    if (String(req.body.confirm || '').trim().toUpperCase() !== 'RESET') {
+      req.flash('error', 'Type RESET to confirm. Nothing has been cleared.');
+      return res.redirect('/admin/analytics');
+    }
+    const removed = await SiteStats.resetVisitorGeography();
+    req.flash('success', `Visitor geography cleared (${removed} day-and-country rows). It rebuilds from the next page view.`);
+    return res.redirect('/admin/analytics');
+  })
+);
+
+/**
  * GET /admin/analytics/ga4 and /admin/analytics/cloudflare — the two providers.
  *
  * One data shape (services/webAnalytics.js), so the two screens can be read side by side.

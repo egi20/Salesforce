@@ -267,6 +267,6 @@ describe('the consent gate in public/js/analytics.js', () => {
 
   it('is only ever served when GA4 is configured, and the tag only rendered when measured', () => {
     const footer = fs.readFileSync(path.join(__dirname, '../../views/partials/footer.ejs'), 'utf8');
-    expect(footer).toMatch(/<% if \(wa\.ga4Id\) \{ %><script src="\/js\/analytics\.js"><\/script><% \} %>/);
+    expect(footer).toMatch(/<% if \(wa\.ga4Id\) \{ %><script src="\/js\/analytics\.js\?v=[^"]*"><\/script><% \} %>/);
   });
 });

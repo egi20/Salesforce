@@ -1398,21 +1398,25 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 .sf-assistant { position: fixed; right: var(--space-5); bottom: var(--space-5); z-index: 1045; }
 
 .sf-assistant-launcher {
-  width: 3.5rem;
-  height: 3.5rem;
+  /* The mascot is the button: transparent, so the robot's own outline is the shape. */
+  width: 68px;
+  height: 78px;
+  padding: 0;
   border: 0;
-  border-radius: var(--radius-full);
-  background: var(--grad-navyblue);
-  color: #fff;
-  font-size: 1.35rem;
-  box-shadow: 0 10px 28px rgba(3, 45, 96, 0.35);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  background: transparent;
   position: relative;
+  cursor: pointer;
   transition: var(--transition-normal);
 }
-.sf-assistant-launcher:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(3, 45, 96, 0.42); }
+.sf-assistant-launcher-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 10px rgba(3, 45, 96, 0.45)) drop-shadow(0 0 12px rgba(1, 118, 211, 0.35));
+}
+.sf-assistant-launcher:hover,
+.sf-assistant-launcher:focus-visible { transform: translateY(-3px) scale(1.04); }
 
 /* The label says "AI" in words, not by implication. A floating orb that turns out to be
    a language model is a small dishonesty people notice. */
@@ -1433,7 +1437,7 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 .sf-assistant-panel {
   position: absolute;
   right: 0;
-  bottom: 4.25rem;
+  bottom: 5.25rem;
   width: min(22rem, calc(100vw - 2 * var(--space-5)));
   max-height: min(32rem, calc(100vh - 8rem));
   display: flex;
@@ -1454,7 +1458,7 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border-color);
 }
-.sf-assistant-avatar { width: 2rem; height: 2rem; font-size: 0.9rem; flex-shrink: 0; }
+.sf-assistant-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-navy); object-fit: cover; flex-shrink: 0; }
 .sf-assistant-title { font-weight: 600; flex-grow: 1; display: flex; align-items: center; gap: var(--space-2); }
 .sf-assistant-close { border: 0; background: transparent; color: var(--text-light); line-height: 1; }
 .sf-assistant-close:hover { color: var(--text-dark); }
@@ -1543,7 +1547,9 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 
 @media (max-width: 575.98px) {
   .sf-assistant { right: var(--space-3); bottom: var(--space-3); }
-  .sf-assistant-panel { width: calc(100vw - 2 * var(--space-3)); }
+  .sf-assistant-panel { width: calc(100vw - 2 * var(--space-3)); bottom: 4.5rem; }
+  /* Smaller on a phone, so the robot does not sit over a form's last button. */
+  .sf-assistant-launcher { width: 56px; height: 64px; }
 }
 
 @media print {

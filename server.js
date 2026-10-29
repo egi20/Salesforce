@@ -97,6 +97,15 @@ webAnalytics.assertWebAnalyticsIntegrity();
 const WEB_ANALYTICS_CSP = webAnalytics.cspAdditions();
 const WEB_ANALYTICS_TAGS = webAnalytics.publicTags();
 
+/*
+ * Our own stylesheet, scripts and mascot are served with a seven-day cache in production,
+ * so a deploy that changes them is invisible to anybody who visited in the last week — a
+ * new launcher image hidden behind last week's, or a chart drawn with last week's CSS. Each
+ * link carries the deployed commit (Render sets RENDER_GIT_COMMIT), so a new release is a
+ * new URL. Ported from SAP Hub.
+ */
+const ASSET_VERSION = (process.env.RENDER_GIT_COMMIT || String(Date.now())).slice(0, 12);
+
 const app = express();
 
 if (config.isProduction) {
@@ -278,6 +287,7 @@ app.use(
 // Locals every template can rely on.
 app.use((req, res, next) => {
   res.locals.appName = config.app.name;
+  res.locals.assetVersion = ASSET_VERSION;
   res.locals.supportEmail = config.app.supportEmail;
   // Decided once per request from the configuration, never from anything the client sends.
   res.locals.assistantEnabled = assistantConfig.isConfigured();

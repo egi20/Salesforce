@@ -133,6 +133,15 @@ automatically.
 
 ## Rules the site follows that people ask about
 
+- **Analytics, and the cookie question.** The site always counts page views per country
+  per day itself, with no cookie and no identifier. A deployment may also run Cloudflare
+  Web Analytics (no cookie, no consent needed) and Google Analytics 4. GA4 sets cookies, so
+  where it is switched on visitors are asked first — "Allow analytics" or "Decline", the
+  same size — and nothing loads from Google until they allow it. The answer can be changed
+  any time from "Analytics choices" at the foot of every page. Where that link is absent,
+  GA4 is not running. Administrators and the sign-in pages are never measured. Do not say
+  which providers this deployment runs; the privacy policy (`/legal/privacy`) states it.
+
 - **The rate index never publishes a figure derived from fewer than three distinct
   contributors.** Below that floor the sample count is shown and the values are withheld,
   and a suppressed month appears as a gap rather than a zero.

@@ -111,6 +111,22 @@ services:
         sync: false
       - key: EMAIL_FROM
         sync: false
+      # Web analytics. Every one may stay empty, which switches the provider off entirely:
+      # no script, no CSP host, nothing in the privacy policy. See .env.example.
+      - key: GA4_MEASUREMENT_ID
+        sync: false
+      - key: GA4_PROPERTY_ID
+        sync: false
+      - key: GA4_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: CF_WEB_ANALYTICS_TOKEN
+        sync: false
+      - key: CF_WEB_ANALYTICS_SITE_TAG
+        sync: false
+      - key: CF_ACCOUNT_ID
+        sync: false
+      - key: CF_API_TOKEN
+        sync: false
 
 # THE DOMAIN, AT GODADDY. Render lists the two domains above under the web service's
 # Settings -> Custom Domains, each with the DNS record it expects. In GoDaddy's DNS for

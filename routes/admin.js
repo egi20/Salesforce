@@ -40,6 +40,11 @@ const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination
 const { TEST_SUITE, totalTestCount } = require('../config/adminTests');
 const AdminTestRun = require('../models/AdminTestRun');
 const { runSuite } = require('../utils/adminTestRunner');
+const SiteStats = require('../models/SiteStats');
+const webAnalyticsConfig = require('../config/webAnalytics');
+const webAnalyticsService = require('../services/webAnalytics');
+const analyticsDashboard = require('../services/analyticsDashboard');
+const { rangeFrom, rangeQuery, PRESETS: RANGE_PRESETS } = require('../utils/analyticsRange');
 
 const router = express.Router();
 
@@ -513,8 +518,27 @@ router.get(
     const periods = [...new Set([signups, jobs, applications, posts, quotes, rates]
       .flatMap((s) => s.rows.map((r) => r.period)))].sort();
 
+    /*
+     * The server-side panels, read over the same date range as the provider screens: who
+     * looked (by country), who signed up (by country) and who played the daily challenge.
+     * Aggregates only, never a person. The growth table above stays twelve months whatever
+     * the range: it answers a different question, "is this alive", on a fixed window.
+     */
+    const range = rangeFrom(req.query);
+    const [visitors, signupCountries, challenges] = await Promise.all([
+      SiteStats.visitorsByCountry(range),
+      SiteStats.signupsByCountry(range),
+      SiteStats.challengePlayers(range)
+    ]);
+
     res.render('admin/analytics', {
       title: 'Analytics',
+      range,
+      presets: RANGE_PRESETS,
+      rangeQuery,
+      visitors,
+      signups: signupCountries,
+      challenges,
       periods,
       series: [signups, jobs, applications, posts, quotes, rates].map((s) => ({
         label: s.label,
@@ -523,6 +547,93 @@ router.get(
     });
   })
 );
+
+/**
+ * GET /admin/analytics/ga4 and /admin/analytics/cloudflare — the two providers.
+ *
+ * One data shape (services/webAnalytics.js), so the two screens can be read side by side.
+ * A provider that is not configured renders the steps that are missing rather than a 404:
+ * the screen is where somebody goes to find out why there is no data. A failed API call
+ * renders its message — "no data" and "the token is wrong" must not look the same.
+ *
+ * Same guard as /admin/analytics (any administrator): the figures are aggregates and name
+ * nobody, and the API credentials never reach the page.
+ */
+const WEB_ANALYTICS_PROVIDERS = Object.freeze({
+  ga4: {
+    name: 'Google Analytics 4',
+    tagEnabled: webAnalyticsConfig.ga4TagEnabled,
+    reportingEnabled: webAnalyticsConfig.ga4ReportingEnabled,
+    dashboardUrl: 'https://analytics.google.com/'
+  },
+  cloudflare: {
+    name: 'Cloudflare Web Analytics',
+    tagEnabled: webAnalyticsConfig.cloudflareTagEnabled,
+    reportingEnabled: webAnalyticsConfig.cloudflareReportingEnabled,
+    dashboardUrl: 'https://dash.cloudflare.com/?to=/:account/web-analytics'
+  }
+});
+
+Object.entries(WEB_ANALYTICS_PROVIDERS).forEach(([key, provider]) => {
+  router.get(
+    `/analytics/${key}`,
+    asyncHandler(async (req, res) => {
+      const range = rangeFrom(req.query);
+      let report = null;
+      let dashboard = null;
+      let realtime = null;
+      let error = null;
+      if (provider.reportingEnabled()) {
+        try {
+          if (key === 'cloudflare') {
+            /*
+             * The totals come from the summary report, because it is the one that asks the
+             * two diagnostic questions — what the sample interval is, and which hosts have
+             * data when this one has none — and the sections from the dashboard, each its
+             * own request so one refused field empties one card.
+             */
+            const end = new Date(`${range.to}T23:59:59Z`);
+            [report, dashboard] = await Promise.all([
+              webAnalyticsService.cloudflareReport(range.days, { now: end }),
+              analyticsDashboard.cloudflareDashboard(range)
+            ]);
+          } else {
+            [dashboard, realtime] = await Promise.all([
+              analyticsDashboard.ga4Dashboard(range),
+              analyticsDashboard.ga4Realtime().catch((err) => ({ error: err.message }))
+            ]);
+          }
+        } catch (err) {
+          error = err.message;
+        }
+      }
+
+      /*
+       * The site's OWN count for the same days, from `visit_geo_daily`: pages browsers
+       * opened, counted on the server, with no script, no sampling and no consent involved.
+       * It is the yardstick — a provider far below it is losing visitors (blockers,
+       * declined consent), one above it is extrapolating.
+       */
+      const own = await SiteStats.visitorsByCountry(range, { limit: 1 });
+
+      return res.render(`admin/analytics-${key}`, {
+        title: provider.name,
+        serverViews: own.total,
+        providerKey: key,
+        provider: { name: provider.name, dashboardUrl: provider.dashboardUrl },
+        tagEnabled: provider.tagEnabled(),
+        reportingEnabled: provider.reportingEnabled(),
+        range,
+        presets: RANGE_PRESETS,
+        rangeQuery,
+        report,
+        dashboard,
+        realtime,
+        error
+      });
+    })
+  );
+});
 
 /* ----------------------------------------------------------------- referrals */
 

@@ -5,6 +5,7 @@
   sub: 'What people noticed. The error log is what the server noticed; these barely overlap.'
 }) %>
 <section class="glass-section pb-5"><div class="container">
+  <%- include('./_tabs', { current: 'issues' }) %>
   <%- include('../partials/flash') %>
 
   <% const tone = { new: 'cloud', open: 'warn', closed: 'muted' }; %>

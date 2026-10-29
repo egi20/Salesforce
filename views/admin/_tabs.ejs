@@ -1,0 +1,49 @@
+<%
+  /*
+   * The admin tab strip, the same arrangement as the SAP Hub admin panel.
+   *
+   * It replaces a list of links on the overview page, which meant every section was two
+   * clicks from every other and you could only tell where you were from the page title.
+   *
+   * `current` is the path segment, e.g. 'users'. The superadmin-only screens are not
+   * rendered for an ordinary admin at all — a tab that answers 403 is a tab that teaches
+   * people to ignore the navigation. `super` here must match the guard on the route, which
+   * a test checks.
+   */
+  const adminTabs = [
+    { href: '/admin', key: '', label: 'Overview', icon: 'bi-speedometer2', super: false },
+    { href: '/admin/users', key: 'users', label: 'Users', icon: 'bi-people', super: false },
+    { href: '/admin/jobs', key: 'jobs', label: 'Jobs', icon: 'bi-briefcase', super: false },
+    { href: '/admin/moderation', key: 'moderation', label: 'Moderation', icon: 'bi-shield-check', super: false },
+    { href: '/admin/issues', key: 'issues', label: 'Issues', icon: 'bi-flag', super: false },
+    { href: '/admin/stories', key: 'stories', label: 'Stories', icon: 'bi-journal-text', super: false },
+    { href: '/admin/reviews', key: 'reviews', label: 'Reviews', icon: 'bi-star', super: false },
+    { href: '/admin/payments', key: 'payments', label: 'Payments', icon: 'bi-credit-card', super: false },
+    { href: '/admin/analytics', key: 'analytics', label: 'Analytics', icon: 'bi-graph-up', super: false },
+    { href: '/admin/ai', key: 'ai', label: 'Assistant', icon: 'bi-chat-dots', super: false },
+    { href: '/admin/errors', key: 'errors', label: 'Errors', icon: 'bi-bug', super: false },
+    { href: '/admin/tests', key: 'tests', label: 'Tests', icon: 'bi-check2-square', super: false },
+    { href: '/admin/referrals', key: 'referrals', label: 'Referrals', icon: 'bi-people-fill', super: true },
+    { href: '/admin/rates', key: 'rates', label: 'Rates', icon: 'bi-cash-coin', super: true },
+    { href: '/admin/tax-advisory', key: 'tax-advisory', label: 'Tax enquiries', icon: 'bi-signpost-split', super: true },
+    { href: '/admin/placements', key: 'placements', label: 'Placements', icon: 'bi-person-check', super: true },
+    { href: '/admin/finance', key: 'finance', label: 'Finance', icon: 'bi-receipt', super: true },
+    { href: '/crm', key: 'crm', label: 'Sales leads', icon: 'bi-person-lines-fill', super: true },
+    { href: '/admin/settings', key: 'settings', label: 'Settings', icon: 'bi-sliders', super: true }
+  ];
+  const isSuper = Boolean(currentUser && currentUser.isSuperadmin);
+%>
+<nav class="admin-tabs mb-4" aria-label="Admin sections">
+  <ul class="nav nav-pills flex-wrap gap-1">
+    <% adminTabs.filter(function (t) { return isSuper || !t.super; }).forEach(function (t) { %>
+      <li class="nav-item">
+        <a class="nav-link <%= t.key === current ? 'active' : '' %>" href="<%= t.href %>"
+           <%- t.key === current ? 'aria-current="page"' : '' %>>
+          <i class="bi <%= t.icon %>"></i> <%= t.label %><% if (t.super) { %>
+            <span class="badge rounded-pill text-bg-dark ms-1" title="Superadmin only">S</span>
+          <% } %>
+        </a>
+      </li>
+    <% }); %>
+  </ul>
+</nav>

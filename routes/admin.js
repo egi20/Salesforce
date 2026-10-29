@@ -58,6 +58,10 @@ router.get(
          (SELECT COUNT(*) FROM jobs)                               AS jobs,
          (SELECT COUNT(*) FROM jobs WHERE status = 'open')         AS open_jobs,
          (SELECT COUNT(*) FROM applications)                       AS applications,
+         (SELECT COUNT(*) FROM quotes)                             AS quotes,
+         (SELECT COUNT(*) FROM posts WHERE hidden_at IS NULL)      AS posts,
+         (SELECT COUNT(*) FROM payments WHERE needs_refund = 1)    AS refunds_due,
+         (SELECT COUNT(*) FROM issue_reports WHERE status <> 'closed') AS open_issues,
          (SELECT COUNT(*) FROM error_logs WHERE created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)) AS recent_errors`
     );
 

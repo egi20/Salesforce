@@ -10,6 +10,7 @@ const { CURRENCIES } = require('../config/finance');
 const { ISSUE_KINDS, ISSUE_STATUSES } = require('../config/issues');
 const User = require('../models/User');
 const Job = require('../models/Job');
+const Application = require('../models/Application');
 const ErrorLog = require('../models/ErrorLog');
 const RateSubmission = require('../models/RateSubmission');
 const Payment = require('../models/Payment');
@@ -638,6 +639,68 @@ Object.entries(WEB_ANALYTICS_PROVIDERS).forEach(([key, provider]) => {
     })
   );
 });
+
+/* ------------------------------------------------------- applications oversight */
+
+/** Submitted, never moved, and older than this: the headline figure on the oversight screen. */
+const STALLED_AFTER_DAYS = 14;
+const STALLED_OPTIONS = Object.freeze([7, 14, 30, 90]);
+
+/**
+ * GET /admin/applications — every application on the platform (ported from SAP Hub).
+ *
+ * SUPERADMIN, like `/admin/rates`, and for the same reason: this is the one screen that can
+ * enumerate what candidates sent to employers across every company. It shows the STATE of
+ * each application and never its content — the cover letter and the day rate live on
+ * `/applications/:id`, behind that page's own guard.
+ *
+ * The question it answers is not "who applied", which a company's own board answers better.
+ * It is whether the marketplace is working: a candidate spends an evening on an
+ * application, and a board where those sit untouched for a month is broken in a way no
+ * count of adverts shows. That is what "stalled" is.
+ *
+ * It goes through `Application.buildFilter`, the same builder as the employer's board, with
+ * `ALL_COMPANIES` said out loud. Named query fields only, never a spread of the request.
+ */
+router.get(
+  '/applications',
+  isSuperadmin,
+  asyncHandler(async (req, res) => {
+    const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 50 });
+
+    const stalledDays = STALLED_OPTIONS.includes(Number(req.query.stalled)) ? Number(req.query.stalled) : null;
+    const filters = {
+      status: Application.STATUSES.includes(req.query.status) ? req.query.status : '',
+      q: typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 120) : '',
+      reached: req.query.reached === 'interviewing' ? 'interviewing' : '',
+      hideWithdrawn: req.query.withdrawn !== '1',
+      stalledDays
+    };
+
+    const all = Application.ALL_COMPANIES;
+    const [{ rows, total }, counts, stalled] = await Promise.all([
+      Application.browseForCompany(all, filters, { limit, offset }),
+      Application.countsForCompany(all, { ...filters, stalledDays: null }),
+      // The headline number, deliberately NOT affected by the filters: it is the one figure
+      // somebody opens this screen for.
+      Application.browseForCompany(all, { stalledDays: STALLED_AFTER_DAYS }, { limit: 1, offset: 0 })
+    ]);
+
+    return res.render('admin/applications', {
+      title: 'Applications',
+      applications: rows,
+      total,
+      counts,
+      filters,
+      statuses: Application.STATUSES,
+      stalledOptions: STALLED_OPTIONS,
+      stalledAfterDays: STALLED_AFTER_DAYS,
+      stalledCount: stalled.total,
+      pagination: paginationMeta({ page, perPage, total }),
+      pageUrl: (n) => pageUrl('/admin/applications', req.query, n)
+    });
+  })
+);
 
 /* ----------------------------------------------------------------- referrals */
 

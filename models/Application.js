@@ -1,6 +1,14 @@
 'use strict';
 
 const { promisePool, withTransaction } = require('../config/database');
+const { containsPattern } = require('../utils/likePattern');
+
+/**
+ * The scope that means "every company", said out loud. A Symbol, so no value from a request,
+ * a session or a database row can ever equal it by accident — only code that imports it.
+ * Used by exactly one route, the superadmin oversight screen.
+ */
+const ALL_COMPANIES = Symbol('all companies');
 
 /**
  * The hiring pipeline state machine.
@@ -33,7 +41,24 @@ function isTerminal(status) {
   return TERMINAL.includes(status);
 }
 
+/*
+ * The joins every query over `buildFilter` carries — the list, its total and its counts —
+ * so a clause naming the candidate or the company resolves identically in all three. A
+ * count with fewer joins than its list is the first thing to disagree with the page.
+ */
+const SCOPE_JOINS = `JOIN jobs j ON j.id = a.job_id
+         JOIN users u ON u.id = a.consultant_user_id
+         LEFT JOIN company_profiles comp ON comp.user_id = j.company_user_id`;
+
 class Application {
+  static get ALL_COMPANIES() {
+    return ALL_COMPANIES;
+  }
+
+  static get STATUSES() {
+    return Object.keys(TRANSITIONS);
+  }
+
   static get TRANSITIONS() {
     return TRANSITIONS;
   }
@@ -210,7 +235,7 @@ class Application {
   }
 
   /**
-   * THE ONLY FILTER BUILDER FOR AN EMPLOYER'S APPLICATIONS.
+   * THE ONLY FILTER BUILDER FOR APPLICATIONS SEEN FROM THE HIRING SIDE.
    *
    * The board, its per-status counts and its paginated list all go through this, so the
    * number on a tab is provably the number of rows behind it. Two builders would let a
@@ -220,14 +245,31 @@ class Application {
    * `companyUserId` is not a filter, it is the scope: it is always applied and it comes
    * from the session, never from the query string. Everything else is optional and is
    * dropped when it is not one of the declared values.
+   *
+   * The superadmin oversight screen (`/admin/applications`) passes `ALL_COMPANIES` instead,
+   * and that is the ONLY way to widen it. A missing scope throws rather than quietly meaning
+   * "everybody": a forgotten argument must never become every company's pipeline behind one
+   * URL. This is not the `include_hidden` escape hatch the job and profile builders refuse —
+   * it cannot reveal anything a scoped call would hide, it only widens whose rows count.
    */
   static buildFilter(companyUserId, filters = {}) {
-    const where = ['j.company_user_id = ?'];
-    const params = [companyUserId];
+    const where = [];
+    const params = [];
+    if (companyUserId === ALL_COMPANIES) {
+      // No company clause: the oversight screen, on purpose.
+    } else if (companyUserId) {
+      where.push('j.company_user_id = ?');
+      params.push(companyUserId);
+    } else {
+      throw new Error('An application filter must be scoped to a company, or say ALL_COMPANIES.');
+    }
 
     if (filters.status && Object.prototype.hasOwnProperty.call(TRANSITIONS, filters.status)) {
       where.push('a.status = ?');
       params.push(filters.status);
+    } else if (filters.hideWithdrawn) {
+      // Somebody who pulled out is not in play. One checkbox away, never gone.
+      where.push("a.status <> 'withdrawn'");
     }
     if (filters.jobId) {
       where.push('a.job_id = ?');
@@ -239,8 +281,35 @@ class Application {
       where.push('a.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)');
       params.push(filters.sinceDays);
     }
+    if (filters.q) {
+      // Through likePattern, like every LIKE here: a search for `%` is a search for a
+      // per-cent sign, not a full scan of the applications table. The advert and the
+      // company are searched too, because the oversight screen is looking for "what
+      // happened to that role" at least as often as for a person.
+      const like = containsPattern(filters.q);
+      where.push('(u.name LIKE ? OR j.title LIKE ? OR comp.company_name LIKE ?)');
+      params.push(like, like, like);
+    }
+    /*
+     * "Has reached this stage", from the append-only event log rather than the current
+     * status: somebody who interviewed and was then turned down HAS interviewed.
+     */
+    if (filters.reached && Object.prototype.hasOwnProperty.call(TRANSITIONS, filters.reached)) {
+      where.push('EXISTS (SELECT 1 FROM application_events ae WHERE ae.application_id = a.id AND ae.to_status = ?)');
+      params.push(filters.reached);
+    }
+    /*
+     * STALLED: submitted, never moved, and older than this many days. "Never moved" is read
+     * from the event log rather than from `updated_at`, which any unrelated write refreshes.
+     */
+    if (Number.isInteger(filters.stalledDays) && filters.stalledDays > 0) {
+      where.push("a.status = 'submitted'");
+      where.push('a.created_at < DATE_SUB(NOW(), INTERVAL ? DAY)');
+      params.push(filters.stalledDays);
+      where.push('NOT EXISTS (SELECT 1 FROM application_events ae2 WHERE ae2.application_id = a.id AND ae2.from_status IS NOT NULL)');
+    }
 
-    return { clause: where.join(' AND '), params };
+    return { clause: where.length ? where.join(' AND ') : '1 = 1', params };
   }
 
   /** One page of an employer's applications, across every role they have posted. */
@@ -253,10 +322,12 @@ class Application {
               j.id AS job_id, j.title AS job_title, j.slug AS job_slug,
               u.name AS consultant_name,
               cp.headline, cp.primary_role, cp.seniority, cp.country, cp.profile_picture,
-              cp.linkedin_verified
+              cp.linkedin_verified,
+              comp.company_name,
+              (SELECT MAX(ae.created_at) FROM application_events ae
+                WHERE ae.application_id = a.id AND ae.from_status IS NOT NULL) AS last_moved_at
          FROM applications a
-         JOIN jobs j ON j.id = a.job_id
-         JOIN users u ON u.id = a.consultant_user_id
+         ${SCOPE_JOINS}
          LEFT JOIN consultant_profiles cp ON cp.user_id = a.consultant_user_id
         WHERE ${clause}
         ORDER BY a.updated_at DESC, a.id DESC
@@ -265,7 +336,7 @@ class Application {
     );
 
     const [[{ total }]] = await promisePool.query(
-      `SELECT COUNT(*) AS total FROM applications a JOIN jobs j ON j.id = a.job_id WHERE ${clause}`,
+      `SELECT COUNT(*) AS total FROM applications a ${SCOPE_JOINS} WHERE ${clause}`,
       params
     );
     return { rows, total };
@@ -281,7 +352,7 @@ class Application {
     const { clause, params } = Application.buildFilter(companyUserId, { ...filters, status: '' });
     const [rows] = await promisePool.query(
       `SELECT a.status, COUNT(*) AS count
-         FROM applications a JOIN jobs j ON j.id = a.job_id
+         FROM applications a ${SCOPE_JOINS}
         WHERE ${clause}
         GROUP BY a.status`,
       params

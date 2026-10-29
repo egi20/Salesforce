@@ -10,8 +10,8 @@
   <%# Two lists, as SAP Hub's referrals screen: people PAID per introduction, and the Hub's
       own people whose links are MEASURED. ?tab= links, so they work without scripting. %>
   <ul class="nav nav-tabs mb-4">
-    <li class="nav-item"><a class="nav-link <%= tab === 'agents' ? '' : 'active' %>" href="/admin/referrals" <%- tab === 'agents' ? '' : 'aria-current="page"' %>><i class="bi bi-people me-1"></i>Referrers</a></li>
-    <li class="nav-item"><a class="nav-link <%= tab === 'agents' ? 'active' : '' %>" href="/admin/referrals?tab=agents" <%- tab === 'agents' ? 'aria-current="page"' : '' %>><i class="bi bi-person-badge me-1"></i>Sales agents</a></li>
+    <li class="nav-item"><a class="nav-link <%= tab === 'agents' ? '' : 'active' %>" href="/admin/referrals"<% if (tab !== 'agents') { %> aria-current="page"<% } %>><i class="bi bi-people me-1"></i>Referrers</a></li>
+    <li class="nav-item"><a class="nav-link <%= tab === 'agents' ? 'active' : '' %>" href="/admin/referrals?tab=agents"<% if (tab === 'agents') { %> aria-current="page"<% } %>><i class="bi bi-person-badge me-1"></i>Sales agents</a></li>
   </ul>
 
   <% if (tab === 'agents') { %>

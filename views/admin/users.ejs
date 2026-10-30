@@ -1,162 +1,427 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { icon: 'bi-people', heading: 'Users', sub: 'Role changes here are the only way to remove a role or grant a privileged one.' }) %>
+<%- include('../partials/page-header', { icon: 'bi-people', heading: 'Users', sub: 'Manage platform users' }) %>
+
+<%
+  const isSuper = Boolean(currentUser && currentUser.isSuperadmin);
+  // The checkbox column is there only for somebody who can use what it selects for.
+  const colCount = isSuper ? 13 : 12;
+  // SAP Hub's vocabulary. There is no "Partners": migration 027 removed that role on purpose.
+  const typeOptions = [
+    ['', 'All User Types'], ['consultant', 'Consultants'], ['company', 'Companies'],
+    ['recruiter', 'Recruiters'], ['admin', 'Admins']
+  ];
+  const roleLabelOf = function (r) { return r.charAt(0).toUpperCase() + r.slice(1); };
+%>
 
 <section class="glass-section pb-5">
-<div class="container">
+<%# Wider than the site's container: thirteen columns do not fit in 1140px without the actions falling off the edge. -%>
+<div class="container-fluid admin-wide admin-users-page">
+  <p class="mb-2"><a class="link-secondary text-decoration-none" href="/admin"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Dashboard</a></p>
   <%- include('./_tabs', { current: 'users' }) %>
   <%- include('../partials/flash') %>
 
-  <form class="glass-card p-3 mb-3" method="get">
-    <div class="row g-2 align-items-end">
-      <div class="col-md-6">
-        <label class="form-label" for="q">Search</label>
-        <input class="form-control" id="q" name="q" value="<%= query.q || '' %>" placeholder="Name or email">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" for="role">Role</label>
-        <select class="form-select" id="role" name="role">
-          <option value="">Any</option>
-          <% roles.forEach(function (r) { %>
-            <option value="<%= r %>" <%= query.role === r ? 'selected' : '' %>><%= r %></option>
-          <% }); %>
-        </select>
-      </div>
-      <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Search</button></div>
-    </div>
-  </form>
-
-  <%
-    // Where every form on this page sends the administrator back to: this exact list, with
-    // its search and page, through `returnTo`'s allow-list.
-    const here = currentPath + (Object.keys(query).length ? '?' + new URLSearchParams(query).toString() : '');
-    const isSuper = Boolean(currentUser.isSuperadmin);
-  %>
-  <% if (isSuper && users.length) { %>
-    <%#
-      The bulk form holds no rows of its own: each row's checkbox joins it through the
-      `form` attribute, so every row keeps its own forms. The typed confirmation carries the
-      count, which is the interlock — it works with scripting off.
-    %>
-    <form id="bulkEraseForm" method="post" action="/admin/users/bulk-delete" class="glass-card p-3 mb-3">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <input type="hidden" name="redirectTo" value="<%= here %>">
-      <div class="row g-2 align-items-end">
-        <div class="col-md-8">
-          <label class="form-label small" for="bulkConfirm">Erase the ticked accounts — type <code>ERASE</code> and how many you ticked, e.g. <code>ERASE 3</code></label>
-          <input class="form-control form-control-sm" id="bulkConfirm" name="confirm" autocomplete="off" required>
-          <p class="form-text mb-0">Erasure cannot be undone. Personal data is destroyed; payments, posts and rate figures are kept with nothing tying them to a person. Superadmins and your own account are refused.</p>
+  <div class="glass-card mb-3">
+    <div class="card-body p-3">
+      <form class="row g-2 align-items-center" method="get" action="/admin/users">
+        <div class="col-lg-4">
+          <label class="visually-hidden" for="q">Search by email, name or ID</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+            <input class="form-control" type="search" id="q" name="q" value="<%= filters.search %>"
+                   placeholder="Search by email, name or ID..." maxlength="190">
+          </div>
         </div>
-        <div class="col-md-4"><button class="btn btn-sm btn-outline-danger w-100" type="submit">Erase ticked accounts</button></div>
-      </div>
-    </form>
-  <% } %>
-
-  <div class="table-responsive glass-card">
-    <table class="table align-middle mb-0">
-      <thead><tr><% if (isSuper) { %><th scope="col"><span class="visually-hidden">Select</span></th><% } %><th>User</th><th>Roles</th><th>State</th><th>Joined</th><th class="text-end">Actions</th></tr></thead>
-      <tbody>
-        <% users.forEach(function (u) { const erasable = isSuper && u.id !== currentUser.id && !u.is_superadmin && !u.anonymised_at; %>
-          <tr>
-            <% if (isSuper) { %>
-              <td>
-                <% if (erasable) { %>
-                  <input class="form-check-input" type="checkbox" name="ids" value="<%= u.id %>" form="bulkEraseForm" aria-label="Select <%= u.email %>">
-                <% } %>
-              </td>
-            <% } %>
-            <td>
-              <strong><%= u.name %></strong>
-              <div class="small text-muted-2"><%= u.email %></div>
-            </td>
-            <td>
-              <span class="badge-hub cloud"><%= u.user_type %></span>
-              <% if (u.is_consultant) { %><span class="badge-hub">consultant</span><% } %>
-              <% if (u.is_company) { %><span class="badge-hub">company</span><% } %>
-              <% if (u.is_recruiter) { %><span class="badge-hub">recruiter</span><% } %>
-              <% if (u.is_superadmin) { %><span class="badge-hub danger">superadmin</span><% } %>
-              <%# The only way to grant or remove admin. Superadmin is never offered here: it is %>
-              <%# granted from the server shell, so this page cannot mint another one. %>
-              <% if (currentUser.isSuperadmin && u.id !== currentUser.id && !u.is_superadmin) { %>
-                <details class="mt-2">
-                  <summary class="small">Change roles</summary>
-                  <form method="post" action="/admin/users/<%= u.id %>/roles" class="mt-2">
-                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                    <% roles.forEach(function (r) {
-                         const has = r === 'admin' ? u.user_type === 'admin' : Boolean(u['is_' + r]); %>
-                      <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" name="roles" value="<%= r %>"
-                               id="role-<%= u.id %>-<%= r %>" <%= has ? 'checked' : '' %>>
-                        <label class="form-check-label small" for="role-<%= u.id %>-<%= r %>"><%= r %></label>
-                      </div>
-                    <% }); %>
-                    <button class="btn btn-sm btn-outline-primary mt-1" type="submit">Save roles</button>
-                  </form>
-                </details>
-              <% } %>
-            </td>
-            <td>
-              <span class="badge-hub <%= u.is_active ? 'ok' : 'danger' %>"><%= u.is_active ? 'active' : 'disabled' %></span>
-              <span class="badge-hub <%= u.email_verified ? 'ok' : 'warn' %>"><%= u.email_verified ? 'verified' : 'unverified' %></span>
-              <% if (u.anonymised_at) { %><span class="badge-hub muted">erased</span><% } %>
-              <% if (u.talent_hidden_at) { %><span class="badge-hub danger" title="Taken out of the consultant directory by an administrator">hidden by us</span><% } %>
-            </td>
-            <td class="small text-muted-2"><%= new Date(u.created_at).toISOString().slice(0, 10) %></td>
-            <td class="text-end text-nowrap">
-              <% if (!u.email_verified) { %>
-                <form method="post" action="/admin/users/<%= u.id %>/verify" class="d-inline">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <button class="btn btn-sm btn-outline-primary" type="submit">Verify</button>
-                </form>
-              <% } %>
-              <% if (u.has_consultant_profile && u.id !== currentUser.id && !u.anonymised_at) { %>
-                <%# Moderation, so any administrator: the account keeps working, only the listing goes. %>
-                <details class="d-inline-block text-start">
-                  <summary class="btn btn-sm btn-outline-secondary"><%= u.talent_hidden_at ? 'Put back in directory' : 'Hide from directory' %></summary>
-                  <form method="post" action="/admin/users/<%= u.id %>/talent" class="mt-2">
-                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                    <input type="hidden" name="redirectTo" value="<%= here %>">
-                    <% if (!u.talent_hidden_at) { %>
-                      <input type="hidden" name="hidden" value="on">
-                      <label class="form-label small" for="talent-reason-<%= u.id %>">Reason (kept in the moderation log)</label>
-                      <input class="form-control form-control-sm mb-1" id="talent-reason-<%= u.id %>" name="reason" maxlength="200">
-                    <% } %>
-                    <button class="btn btn-sm <%= u.talent_hidden_at ? 'btn-outline-success' : 'btn-outline-danger' %>" type="submit"><%= u.talent_hidden_at ? 'Put it back' : 'Take it out' %></button>
-                  </form>
-                </details>
-              <% } %>
-              <% if (currentUser.isSuperadmin && u.id !== currentUser.id) { %>
-                <form method="post" action="/admin/users/<%= u.id %>/active" class="d-inline">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <% if (u.is_active) { %>
-                    <button class="btn btn-sm btn-outline-danger" type="submit">Disable</button>
-                  <% } else { %>
-                    <input type="hidden" name="is_active" value="on">
-                    <button class="btn btn-sm btn-outline-success" type="submit">Enable</button>
-                  <% } %>
-                </form>
-              <% } %>
-              <% if (erasable) { %>
-                <%# Confirmed by typing the address: an erased account cannot be handed back. %>
-                <details class="d-inline-block text-start">
-                  <summary class="btn btn-sm btn-outline-danger">Erase</summary>
-                  <form method="post" action="/admin/users/<%= u.id %>/delete" class="mt-2">
-                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                    <input type="hidden" name="redirectTo" value="<%= here %>">
-                    <label class="form-label small" for="erase-<%= u.id %>">Type <code><%= u.email %></code> to erase this account</label>
-                    <input class="form-control form-control-sm mb-1" id="erase-<%= u.id %>" name="confirm" autocomplete="off" required>
-                    <button class="btn btn-sm btn-danger" type="submit">Erase permanently</button>
-                  </form>
-                </details>
-              <% } %>
-            </td>
-          </tr>
-        <% }); %>
-      </tbody>
-    </table>
+        <div class="col-6 col-lg-2">
+          <label class="visually-hidden" for="role">User type</label>
+          <select class="form-select" id="role" name="role">
+            <% typeOptions.forEach(function (o) { %>
+              <option value="<%= o[0] %>" <%= filters.role === o[0] ? 'selected' : '' %>><%= o[1] %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="col-6 col-lg-2">
+          <label class="visually-hidden" for="status">Status</label>
+          <select class="form-select" id="status" name="status">
+            <option value="">All Status</option>
+            <option value="active" <%= filters.status === 'active' ? 'selected' : '' %>>Active</option>
+            <option value="inactive" <%= filters.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+            <%# What "Delete" leaves: an account AccountErasure has anonymised. Out of Active and Inactive. -%>
+            <option value="deleted" <%= filters.status === 'deleted' ? 'selected' : '' %>>Deleted (erased)</option>
+          </select>
+        </div>
+        <div class="col-6 col-lg-2">
+          <label class="visually-hidden" for="talent">Talent</label>
+          <select class="form-select" id="talent" name="talent">
+            <option value="">All Talent</option>
+            <option value="listed" <%= filters.talent === 'listed' ? 'selected' : '' %>>Listed</option>
+            <option value="hidden" <%= filters.talent === 'hidden' ? 'selected' : '' %>>Hidden</option>
+          </select>
+        </div>
+        <div class="col-6 col-lg-2 d-grid">
+          <button class="btn btn-primary" type="submit"><i class="bi bi-funnel" aria-hidden="true"></i> Filter</button>
+        </div>
+      </form>
+    </div>
   </div>
-  <%- include('../partials/pagination') %>
+
+  <% if (!users.length) { %>
+    <div class="glass-card"><div class="card-body text-center py-5">
+      <p class="text-muted-2 mb-0">No account matches that.</p>
+    </div></div>
+  <% } else { %>
+    <div class="glass-card">
+      <% if (isSuper) { %>
+        <%#
+          The bulk form holds no rows of its own: each row's checkbox joins it through the
+          `form` attribute, so every row keeps its own forms. The typed `ERASE <n>` inside the
+          dialog IS the count interlock, and the server compares it with the ids it received —
+          a selection that changed between reading and pressing is refused, not acted on.
+        -%>
+        <form id="bulkEraseForm" method="post" action="/admin/users/bulk-delete">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="redirectTo" value="<%= here %>">
+        </form>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 pt-3 pb-2">
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" id="selectAllUsers" data-select-all>
+            <label class="form-check-label" for="selectAllUsers">Select all</label>
+          </div>
+          <button class="btn btn-sm btn-outline-danger" type="button" data-bulk-open
+                  data-bs-toggle="modal" data-bs-target="#bulkDeleteModal">
+            <i class="bi bi-trash" aria-hidden="true"></i> <span>Delete Selected (<span data-bulk-count>0</span>)</span>
+          </button>
+        </div>
+      <% } %>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 admin-users-table">
+          <thead>
+            <tr>
+              <% if (isSuper) { %>
+                <th scope="col"><input class="form-check-input" type="checkbox" aria-label="Select all users on this page" data-select-all></th>
+              <% } %>
+              <th scope="col">ID</th>
+              <th scope="col">First Name</th>
+              <th scope="col">Last Name</th>
+              <th scope="col">Email</th>
+              <th scope="col">Type</th>
+              <th scope="col">Country</th>
+              <th scope="col">Status</th>
+              <th scope="col">Verified</th>
+              <th scope="col">Talent</th>
+              <th scope="col">Last Login</th>
+              <th scope="col">Registered</th>
+              <th scope="col" class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% users.forEach(function (u) { %>
+              <%
+                const theirRoles = u.roles || [];
+                const isSelf = currentUser && currentUser.id === u.id;
+                const isErased = Boolean(u.anonymised_at);
+                const names = nameColumns(u);
+                const isConsultantAccount = theirRoles.includes('consultant');
+                const country = u.stated_country ? String(u.stated_country).toUpperCase() : '';
+                // No action on your own row, none on an erased one, and nothing that changes
+                // roles or erases on a superadmin's: that role is held and removed from the
+                // server shell, and the routes refuse it whatever this page offers.
+                const actionable = !isSelf && !isErased;
+                const canRoles = isSuper && actionable && !u.is_superadmin;
+                const canErase = isSuper && actionable && !u.is_superadmin;
+                const canTalent = actionable && Boolean(u.has_consultant_profile);
+              %>
+              <tr>
+                <% if (isSuper) { %>
+                  <td>
+                    <% if (canErase) { %>
+                      <input class="form-check-input" type="checkbox" name="ids" value="<%= u.id %>"
+                             form="bulkEraseForm" aria-label="Select user <%= u.email %>" data-row-select>
+                    <% } %>
+                  </td>
+                <% } %>
+                <td class="text-muted-2"><%= u.id %></td>
+                <td><%= names.first %></td>
+                <td><%= names.last %></td>
+                <td class="text-nowrap">
+                  <%= u.email %>
+                  <% if (isSelf) { %> <span class="badge-hub muted">you</span><% } %>
+                </td>
+                <td>
+                  <span class="badge-hub cloud"><%= u.user_type %></span>
+                  <% theirRoles.filter(function (r) { return r !== u.user_type; }).forEach(function (r) { %>
+                    <span class="badge-hub muted"><%= r %></span>
+                  <% }); %>
+                  <% if (u.is_superadmin) { %><span class="badge-hub danger">superadmin</span><% } %>
+                </td>
+                <td class="text-nowrap">
+                  <%#
+                    The country the member STATED on a profile, never `signup_country`. That
+                    one is derived from the address a request arrived from and they have never
+                    seen it; a VPN, a holiday and an office abroad all produce the wrong
+                    answer and nothing on this screen could tell.
+                  -%>
+                  <% if (country) { %>
+                    <span title="<%= countryName(country) || country %>"><%= flagEmoji(country) %> <%= country %></span>
+                  <% } else { %>—<% } %>
+                </td>
+                <td>
+                  <% if (isErased) { %>
+                    <span class="badge-hub muted" title="Erased <%= fullTimestamp(u.anonymised_at) %>">Deleted</span>
+                  <% } else if (u.is_active) { %>
+                    <span class="badge-hub ok">Active</span>
+                  <% } else { %>
+                    <span class="badge-hub danger">Inactive</span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (u.email_verified) { %>
+                    <i class="bi bi-check-circle text-success" title="Verified" aria-hidden="true"></i><span class="visually-hidden">Verified</span>
+                  <% } else { %>
+                    <i class="bi bi-dash-circle text-muted-2" title="Not verified" aria-hidden="true"></i><span class="visually-hidden">Not verified</span>
+                  <% } %>
+                </td>
+                <td>
+                  <%#
+                    Listed means exactly what /consultants shows: a published profile, an
+                    active account, not taken down by us — the directory's own conditions,
+                    read from ConsultantProfile.LISTED_CONDITIONS by the query.
+                  -%>
+                  <% if (isErased) { %>
+                    <span title="An erased account has no profile left to list">—</span>
+                  <% } else if (!isConsultantAccount) { %>
+                    <span title="Only consultants appear in Browse Talent">—</span>
+                  <% } else if (Number(u.talent_listed)) { %>
+                    <span class="badge-hub ok" title="Listed on Browse Talent (published profile, active account)"><i class="bi bi-people-fill" aria-hidden="true"></i> Listed</span>
+                  <% } else if (u.talent_hidden_at) { %>
+                    <span class="badge-hub danger" title="Taken out of Browse Talent by an administrator">Hidden by us</span>
+                  <% } else { %>
+                    <span class="badge-hub muted" title="Not shown on Browse Talent (needs an active account and a published profile)">Hidden</span>
+                  <% } %>
+                </td>
+                <td class="small text-nowrap">
+                  <% if (u.last_login_at) { %>
+                    <span title="<%= fullTimestamp(u.last_login_at) %>"><%= shortDate(u.last_login_at) %></span>
+                  <% } else { %>
+                    <span class="text-muted-2">Never</span>
+                  <% } %>
+                </td>
+                <td class="small text-nowrap"><span title="<%= fullTimestamp(u.created_at) %>"><%= shortDate(u.created_at) %></span></td>
+                <td class="text-end text-nowrap admin-user-actions">
+                  <% if (actionable) { %>
+                    <% if (!u.email_verified) { %>
+                      <form class="d-inline" method="post" action="/admin/users/<%= u.id %>/verify">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <input type="hidden" name="redirectTo" value="<%= here %>">
+                        <button class="btn btn-sm btn-outline-secondary" type="submit" title="Mark verified" aria-label="Mark <%= u.email %> verified"><i class="bi bi-patch-check" aria-hidden="true"></i></button>
+                      </form>
+                    <% } %>
+
+                    <% if (isSuper) { %>
+                      <form class="d-inline" method="post" action="/admin/users/<%= u.id %>/active">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <input type="hidden" name="redirectTo" value="<%= here %>">
+                        <% if (u.is_active) { %>
+                          <button class="btn btn-sm btn-outline-warning" type="submit" title="Deactivate" aria-label="Deactivate <%= u.email %>"><i class="bi bi-pause-fill" aria-hidden="true"></i></button>
+                        <% } else { %>
+                          <input type="hidden" name="is_active" value="on">
+                          <button class="btn btn-sm btn-outline-success" type="submit" title="Activate" aria-label="Activate <%= u.email %>"><i class="bi bi-play-fill" aria-hidden="true"></i></button>
+                        <% } %>
+                      </form>
+                    <% } %>
+
+                    <% if (canRoles) { %>
+                      <button class="btn btn-sm btn-outline-primary" type="button"
+                              data-bs-toggle="collapse" data-bs-target="#roles-<%= u.id %>"
+                              aria-expanded="false" aria-controls="roles-<%= u.id %>"
+                              title="Roles" aria-label="Roles of <%= u.email %>"><i class="bi bi-person-gear" aria-hidden="true"></i></button>
+                    <% } %>
+
+                    <%#
+                      Taking a profile out of the directory is MODERATION, not a deactivation:
+                      the account keeps working and only the public listing goes. So any
+                      administrator, and it writes the moderator's column rather than the
+                      member's publish switch, so they cannot undo it by pressing Publish.
+                    -%>
+                    <% if (canTalent) { %>
+                      <button class="btn btn-sm btn-outline-secondary" type="button"
+                              data-bs-toggle="collapse" data-bs-target="#talent-<%= u.id %>"
+                              aria-expanded="false" aria-controls="talent-<%= u.id %>"
+                              title="Directory listing" aria-label="Directory listing of <%= u.email %>"><i class="bi <%= u.talent_hidden_at ? 'bi-eye' : 'bi-eye-slash' %>" aria-hidden="true"></i></button>
+                    <% } %>
+
+                    <% if (canErase) { %>
+                      <button class="btn btn-sm btn-outline-danger" type="button" title="Delete User"
+                              aria-label="Delete user <%= u.email %>"
+                              data-bs-toggle="modal" data-bs-target="#deleteUserModal-<%= u.id %>">
+                        <i class="bi bi-trash" aria-hidden="true"></i>
+                      </button>
+                    <% } %>
+                  <% } %>
+                </td>
+              </tr>
+
+              <% if (canRoles) { %>
+                <%# The only way to grant or remove admin. Superadmin is never offered here: it is
+                    granted from the server shell, so this page cannot mint another one. %>
+                <tr class="collapse admin-user-panel" id="roles-<%= u.id %>">
+                  <td colspan="<%= colCount %>" class="bg-body-tertiary">
+                    <form class="row g-2 align-items-end" method="post" action="/admin/users/<%= u.id %>/roles">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <input type="hidden" name="redirectTo" value="<%= here %>">
+                      <div class="col-md-7">
+                        <span class="form-label d-block">Roles of <%= u.email %></span>
+                        <% roles.forEach(function (r) { %>
+                          <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="roles" value="<%= r %>"
+                                   id="role-<%= u.id %>-<%= r %>" <%= theirRoles.includes(r) ? 'checked' : '' %>>
+                            <label class="form-check-label" for="role-<%= u.id %>-<%= r %>"><%= r %></label>
+                          </div>
+                        <% }); %>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label" for="primary-<%= u.id %>">Primary</label>
+                        <select class="form-select form-select-sm" id="primary-<%= u.id %>" name="primary">
+                          <% roles.forEach(function (r) { %>
+                            <option value="<%= r %>" <%= u.user_type === r ? 'selected' : '' %>><%= roleLabelOf(r) %></option>
+                          <% }); %>
+                        </select>
+                      </div>
+                      <div class="col-md-2 d-grid">
+                        <button class="btn btn-sm btn-primary" type="submit">Save roles</button>
+                      </div>
+                      <div class="col-12">
+                        <p class="small text-muted-2 mb-0">
+                          This is the only place a role can be removed or a privileged one granted.
+                          It takes effect on that account’s next request.
+                        </p>
+                      </div>
+                    </form>
+                  </td>
+                </tr>
+              <% } %>
+
+              <% if (canTalent) { %>
+                <tr class="collapse admin-user-panel" id="talent-<%= u.id %>">
+                  <td colspan="<%= colCount %>" class="bg-body-tertiary">
+                    <form class="row g-2 align-items-end" method="post" action="/admin/users/<%= u.id %>/talent">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <input type="hidden" name="redirectTo" value="<%= here %>">
+                      <% if (u.talent_hidden_at) { %>
+                        <div class="col-md-8">
+                          <span class="form-label d-block">Directory listing of <%= u.email %></span>
+                        </div>
+                        <div class="col-md-4 d-grid">
+                          <button class="btn btn-sm btn-outline-success" type="submit">Put it back</button>
+                        </div>
+                      <% } else { %>
+                        <input type="hidden" name="hidden" value="on">
+                        <div class="col-md-8">
+                          <label class="form-label" for="talent-reason-<%= u.id %>">Why (kept in the moderation log)</label>
+                          <input class="form-control form-control-sm" id="talent-reason-<%= u.id %>" name="reason" maxlength="200">
+                        </div>
+                        <div class="col-md-4 d-grid">
+                          <button class="btn btn-sm btn-outline-danger" type="submit">Take it out of the directory</button>
+                        </div>
+                      <% } %>
+                      <div class="col-12">
+                        <p class="small text-muted-2 mb-0">
+                          <%# Said here because it is the difference between this and Deactivate. -%>
+                          <% if (u.talent_hidden_at) { %>
+                            Putting it back only clears our decision. Whether it appears again
+                            is still their own publish switch and the completeness floor.
+                          <% } else { %>
+                            The account keeps working — applications, messages and community
+                            all stay. Only the public listing and the search result go. They
+                            cannot undo this from their own settings.
+                          <% } %>
+                        </p>
+                      </div>
+                    </form>
+                  </td>
+                </tr>
+              <% } %>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <%# A `title` does not exist on a touch screen, so the icons are named here too. -%>
+    <p class="small text-muted-2 mt-2 mb-0">
+      <i class="bi bi-patch-check" aria-hidden="true"></i> Mark verified ·
+      <i class="bi bi-pause-fill" aria-hidden="true"></i> Deactivate / <i class="bi bi-play-fill" aria-hidden="true"></i> Activate ·
+      <i class="bi bi-person-gear" aria-hidden="true"></i> Roles ·
+      <i class="bi bi-eye-slash" aria-hidden="true"></i> Directory listing ·
+      <i class="bi bi-trash" aria-hidden="true"></i> Delete user
+    </p>
+    <% if (pagination.totalPages <= 1) { %>
+      <p class="small text-muted-2 mt-3 mb-0">Showing <%= users.length %> of <%= pagination.total %> user(s)</p>
+    <% } %>
+    <%- include('../partials/pagination', { showingLabel: 'Showing ' + users.length + ' of ' + pagination.total + ' user(s)' }) %>
+  <% } %>
 </div>
 </section>
+
+<%# Outside the section: its backdrop-filter makes a stacking context, and a modal inside one sits UNDER Bootstrap's backdrop. -%>
+<% if (isSuper && users.length) { %>
+  <%#
+    One dialog per erasable row rather than one shared dialog re-pointed by script: each
+    carries its own action and its own typed confirmation, so nothing has to rewrite a form
+    target at the moment somebody is about to destroy an account. What "Delete" does is said
+    BEFORE the button, because it is not a DELETE — it is AccountErasure.
+  -%>
+  <% users.forEach(function (u) { %>
+    <% if (!(currentUser.id === u.id) && !u.anonymised_at && !u.is_superadmin) { %>
+      <div class="modal fade admin-user-modal" id="deleteUserModal-<%= u.id %>" tabindex="-1" aria-labelledby="deleteUserTitle-<%= u.id %>" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <form class="modal-content" method="post" action="/admin/users/<%= u.id %>/delete">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="redirectTo" value="<%= here %>">
+            <div class="modal-header">
+              <h2 class="modal-title h5" id="deleteUserTitle-<%= u.id %>">Confirm Delete User</h2>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cancel"></button>
+            </div>
+            <div class="modal-body">
+              <p>Are you sure you want to delete the user "<strong><%= u.email %></strong>"?</p>
+              <p class="text-danger mb-2"><strong>Warning:</strong> This action cannot be undone.</p>
+              <p class="small text-muted-2 mb-3">Personal data is destroyed. Payments, posts and rate figures are kept with nothing tying them to a person — they belong to other people, to an aggregate, or to the books.</p>
+              <%# Typed, not ticked: an account erased by accident cannot be handed back. -%>
+              <label class="form-label small" for="erase-<%= u.id %>">Type <code><%= u.email %></code> to confirm</label>
+              <input class="form-control form-control-sm" id="erase-<%= u.id %>" name="confirm" autocomplete="off" required>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-danger">Delete User</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    <% } %>
+  <% }); %>
+
+  <div class="modal fade admin-user-modal" id="bulkDeleteModal" tabindex="-1" aria-labelledby="bulkDeleteTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="bulkDeleteTitle">Delete Selected Users</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cancel"></button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete <strong data-bulk-count>0</strong> selected user(s)?</p>
+          <p class="text-danger mb-2"><strong>Warning:</strong> This action cannot be undone.</p>
+          <p class="small text-muted-2 mb-3">Each one is erased the same way as a single delete. Superadmins and your own account are refused and named.</p>
+          <label class="form-label small" for="bulkConfirm">Type <code>ERASE</code> and how many you ticked, e.g. <code>ERASE <span data-bulk-count>3</span></code></label>
+          <input class="form-control form-control-sm" id="bulkConfirm" name="confirm" form="bulkEraseForm" autocomplete="off" required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger" form="bulkEraseForm">Delete Selected</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="/js/admin-users.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>" defer></script>
+<% } %>
 
 <%- include('../partials/layout-end') %>

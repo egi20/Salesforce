@@ -428,7 +428,7 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 
 /*
  * `.navbar-nav` is in the selector deliberately. Bootstrap sets the horizontal padding with
- * `.navbar-expand-xl .navbar-nav .nav-link`, three classes, so a two-class rule here loses
+ * `.navbar-expand-lg .navbar-nav .nav-link`, three classes, so a two-class rule here loses
  * and the padding below is silently ignored — which is exactly what happened the first time
  * this was trimmed.
  */
@@ -1253,7 +1253,7 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
  * collapses anyway and the field is simply full width, because a search squeezed to nothing
  * on a phone is a search nobody uses.
  */
-@media (min-width: 1200px) {
+@media (min-width: 992px) {
   /*
    * The open field is taken OUT OF FLOW and opens leftwards over the menu.
    *
@@ -1310,7 +1310,7 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
   font-size: 0.9375rem;
 }
 
-@media (max-width: 1199.98px) {
+@media (max-width: 991.98px) {
   /* Collapsed, each item is a full-width row, and an underline that wide reads as a
      divider rather than a marker. A short bar on the left edge says "you are here". */
   .navbar-hub .navbar-nav .nav-link { padding-left: 0.75rem; }
@@ -1333,16 +1333,21 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 /*
  * THE NARROW END OF THE EXPANDED BAR.
  *
- * The menu expands at 1200px, and at exactly 1200px it did not fit: brand, six items, the
+ * The menu expanded at 1200px, and at exactly 1200px it did not fit: brand, six items, the
  * search and two buttons measured 1196px inside a 1140px container, so "Sign up" hung off
  * the right edge. Collapsing to a hamburger instead would hide a menu at a width where a
  * laptop plainly has room for one.
+ *
+ * It now expands at 992px, as SAP Hub's does — until then everything from 992 to 1199px,
+ * which is most small laptops and a landscape tablet, got only the hamburger. Bootstrap's
+ * container there is 960px, 180px less than the bar was measured against, so that range has
+ * a second, tighter band below.
  *
  * So the band between the expand breakpoint and a comfortable width trims what costs
  * nothing to read: the padding around each item and a little off the wordmark. Nothing is
  * hidden and nothing moves.
  */
-@media (min-width: 1200px) and (max-width: 1399.98px) {
+@media (min-width: 992px) and (max-width: 1399.98px) {
   .navbar-hub .navbar-brand { font-size: 1.15rem; }
   .navbar-hub .navbar-nav .nav-link { padding: 0.45rem 0.4rem; gap: 0.3rem; }
   .navbar-hub .navbar-nav .nav-link::after { left: 0.4rem; right: 0.4rem; }
@@ -1365,6 +1370,22 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
     white-space: nowrap;
     border: 0;
   }
+}
+
+/*
+ * 992px to 1199px: the 960px container. Measured signed out at 992px with only the band
+ * above, the bar was 41px too wide and "Sign Up" hung off the edge exactly as it once did at
+ * 1200px. The cuts are the same kind — a slightly smaller label, less padding round each
+ * item, a smaller wordmark, a closer search button — and again nothing is hidden: every item
+ * keeps its icon and its full label, because a menu that drops words to fit is a different
+ * menu at every width.
+ */
+@media (min-width: 992px) and (max-width: 1199.98px) {
+  .navbar-hub .navbar-brand { font-size: 1.05rem; margin-right: 0.5rem; }
+  .navbar-hub .navbar-nav .nav-link { padding: 0.45rem 0.3rem; gap: 0.25rem; font-size: 0.875rem; }
+  .navbar-hub .navbar-nav .nav-link::after { left: 0.3rem; right: 0.3rem; }
+  .navbar-hub .nav-search { margin-right: 0.5rem !important; }
+  .navbar-hub .btn-auth { padding: 0.35rem 0.75rem; font-size: 0.875rem; }
 }
 
 /* ============================================================================
@@ -1757,3 +1778,20 @@ body.has-cookie-notice { padding-bottom: 7rem; }
 
 /* The Hub's own social accounts in the footer — rendered only for those configured. */
 .footer-social .list-inline-item a { font-size: 1.15rem; display: inline-flex; padding: 0.25rem; }
+
+/* /admin/users, ported from SAP Hub. Wider than the site's container: thirteen columns do not
+   fit in 1140px without the actions falling off the edge. */
+.admin-wide { max-width: 1640px; padding-left: 1.5rem; padding-right: 1.5rem; }
+@media (max-width: 575.98px) { .admin-wide { padding-left: 1rem; padding-right: 1rem; } }
+.admin-users-table { font-size: 0.875rem; }
+.admin-users-table th { white-space: nowrap; font-weight: 600; }
+.admin-users-table td { padding-top: 0.6rem; padding-bottom: 0.6rem; }
+.admin-user-actions { white-space: nowrap; }
+.admin-user-actions form { display: inline-block; }
+.admin-user-actions .btn { padding: 0.3rem 0.55rem; margin-left: 0.15rem; }
+/* The roles and listing panels open with Bootstrap's collapse and the delete dialogs are
+   modals, and both need scripting. Without it `.js-reveal` is never set, so the panels are
+   simply open and the dialogs sit in the page as ordinary forms — every action still works. */
+html:not(.js-reveal) .admin-users-page .admin-user-panel.collapse { display: table-row; }
+html:not(.js-reveal) .admin-user-modal { display: block; position: static; opacity: 1; }
+html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }

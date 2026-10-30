@@ -47,6 +47,7 @@ const SiteStats = require('../models/SiteStats');
 const SalesAgent = require('../models/SalesAgent');
 const config = require('../config/config');
 const { countryName } = require('../utils/geo');
+const { nameColumns, flagEmoji, shortDate, fullTimestamp } = require('../utils/adminUserDisplay');
 const { donutSlices } = require('../utils/donutSlices');
 const webAnalyticsConfig = require('../config/webAnalytics');
 const webAnalyticsService = require('../services/webAnalytics');
@@ -93,23 +94,79 @@ router.get(
   })
 );
 
+/* -------------------------------------------------------------------- users */
+
+/*
+ * The vocabularies the user screen's filters accept, the same set as SAP Hub's screen. Anything
+ * else in the query string is dropped rather than passed on, so the builder only ever sees a
+ * value it was written for. There is no `partner`: migration 027 removed that role.
+ */
+const USER_STATUSES = Object.freeze(['active', 'inactive', 'deleted']);
+const TALENT_FILTERS = Object.freeze(['listed', 'hidden']);
+const USERS_PER_PAGE = 20;
+
+function userFiltersFrom(query) {
+  return {
+    search: typeof query.q === 'string' ? query.q.trim().slice(0, 190) : '',
+    role: User.ALL_ROLES.includes(query.role) ? query.role : '',
+    status: USER_STATUSES.includes(query.status) ? query.status : '',
+    talent: TALENT_FILTERS.includes(query.talent) ? query.talent : ''
+  };
+}
+
+/*
+ * The query string a filtered list is addressed by, rebuilt from the VALIDATED filters
+ * rather than echoed from `req.query` — so `here`, the page links and the redirect after
+ * an action all name the same list, and none of them carries a parameter nobody checked.
+ */
+function userListQuery(filters) {
+  const q = {};
+  if (filters.search) q.q = filters.search;
+  if (filters.role) q.role = filters.role;
+  if (filters.status) q.status = filters.status;
+  if (filters.talent) q.talent = filters.talent;
+  return q;
+}
+
+/*
+ * Where an action on this screen sends the administrator back to: the list they were on,
+ * with its filters and page, as carried by the form's `redirectTo`. `returnTo` already
+ * refuses anything that is not a same-origin path; this narrows it to the user list itself,
+ * because every form that posts here was rendered by that list and a value naming any other
+ * page was not written by it.
+ */
+function backToUsers(req) {
+  const back = returnTo(req, '/admin/users');
+  return back === '/admin/users' || back.startsWith('/admin/users?') ? back : '/admin/users';
+}
+
 router.get(
   '/users',
   asyncHandler(async (req, res) => {
-    const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 30 });
-    const { rows, total } = await User.list({
-      search: req.query.q || '',
-      role: req.query.role || '',
-      limit,
-      offset
-    });
+    const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: USERS_PER_PAGE });
+    const filters = userFiltersFrom(req.query);
+    const { rows, total } = await User.list({ ...filters, limit, offset });
+    const listQuery = userListQuery(filters);
 
     res.render('admin/users', {
       title: 'Users',
-      users: rows,
+      /*
+       * Roles are derived by `User.rolesOf`, never re-derived in the template. The flags and
+       * the primary `user_type` do not line up one-to-one — `admin` has no flag column of its
+       * own — so a view that read the columns directly would disagree with the guards about
+       * who is what.
+       */
+      users: rows.map((row) => ({ ...row, roles: User.rolesOf(row) })),
       roles: User.ALL_ROLES,
+      filters,
+      nameColumns,
+      flagEmoji,
+      shortDate,
+      fullTimestamp,
+      // Every form on the page carries this back, so an action never loses the filter.
+      here: pageUrl('/admin/users', listQuery, page),
       pagination: paginationMeta({ page, perPage, total }),
-      pageUrl: (p) => pageUrl('/admin/users', req.query, p)
+      pageUrl: (p) => pageUrl('/admin/users', listQuery, p)
     });
   })
 );
@@ -124,9 +181,10 @@ router.post(
   requireIdParam('id'),
   writeLimiter,
   asyncHandler(async (req, res) => {
+    const back = backToUsers(req);
     if (req.params.id === req.session.user.id) {
       req.flash('error', 'You cannot change your own roles here.');
-      return res.redirect('/admin/users');
+      return res.redirect(back);
     }
 
     /*
@@ -137,17 +195,17 @@ router.post(
     const target = await User.findById(req.params.id);
     if (!target) {
       req.flash('error', 'That account no longer exists.');
-      return res.redirect('/admin/users');
+      return res.redirect(back);
     }
     if (target.is_superadmin) {
       req.flash('error', 'A superadmin is managed from the server shell, not from this page.');
-      return res.redirect('/admin/users');
+      return res.redirect(back);
     }
 
     const submitted = Array.isArray(req.body.roles) ? req.body.roles : [req.body.roles].filter(Boolean);
     const roles = await User.adminSetRoles(req.params.id, submitted, { primary: req.body.primary || null });
     req.flash('success', `Roles set to: ${roles.join(', ') || 'none'}.`);
-    return res.redirect('/admin/users');
+    return res.redirect(back);
   })
 );
 
@@ -157,13 +215,14 @@ router.post(
   requireIdParam('id'),
   writeLimiter,
   asyncHandler(async (req, res) => {
+    const back = backToUsers(req);
     if (req.params.id === req.session.user.id) {
       req.flash('error', 'You cannot deactivate your own account.');
-      return res.redirect('/admin/users');
+      return res.redirect(back);
     }
     await User.setActive(req.params.id, req.body.is_active === 'on');
     req.flash('success', 'Account updated.');
-    return res.redirect('/admin/users');
+    return res.redirect(back);
   })
 );
 
@@ -179,7 +238,7 @@ router.post(
   asyncHandler(async (req, res) => {
     await User.setEmailVerified(req.params.id);
     req.flash('success', 'Email marked as verified.');
-    return res.redirect('/admin/users');
+    return res.redirect(backToUsers(req));
   })
 );
 
@@ -225,7 +284,7 @@ router.post(
   requireIdParam('id'),
   writeLimiter,
   asyncHandler(async (req, res) => {
-    const back = returnTo(req, '/admin/users');
+    const back = backToUsers(req);
     const target = await User.findById(req.params.id);
     if (!target) {
       req.flash('error', 'That account no longer exists.');
@@ -259,7 +318,7 @@ router.post(
   isSuperadmin,
   writeLimiter,
   asyncHandler(async (req, res) => {
-    const back = returnTo(req, '/admin/users');
+    const back = backToUsers(req);
     const submitted = [].concat(req.body.ids || []);
     const ids = [...new Set(submitted.map((v) => parseId(String(v))).filter(Boolean))];
     if (!ids.length || ids.length !== submitted.length || ids.length > BULK_ERASE_MAX) {
@@ -301,7 +360,7 @@ router.post(
   requireIdParam('id'),
   writeLimiter,
   asyncHandler(async (req, res) => {
-    const back = returnTo(req, '/admin/users');
+    const back = backToUsers(req);
     if (req.params.id === req.session.user.id) {
       req.flash('error', 'That is your own profile.');
       return res.redirect(back);

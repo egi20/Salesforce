@@ -1757,3 +1757,20 @@ body.has-cookie-notice { padding-bottom: 7rem; }
 
 /* The Hub's own social accounts in the footer — rendered only for those configured. */
 .footer-social .list-inline-item a { font-size: 1.15rem; display: inline-flex; padding: 0.25rem; }
+
+/* /admin/users, ported from SAP Hub. Wider than the site's container: thirteen columns do not
+   fit in 1140px without the actions falling off the edge. */
+.admin-wide { max-width: 1640px; padding-left: 1.5rem; padding-right: 1.5rem; }
+@media (max-width: 575.98px) { .admin-wide { padding-left: 1rem; padding-right: 1rem; } }
+.admin-users-table { font-size: 0.875rem; }
+.admin-users-table th { white-space: nowrap; font-weight: 600; }
+.admin-users-table td { padding-top: 0.6rem; padding-bottom: 0.6rem; }
+.admin-user-actions { white-space: nowrap; }
+.admin-user-actions form { display: inline-block; }
+.admin-user-actions .btn { padding: 0.3rem 0.55rem; margin-left: 0.15rem; }
+/* The roles and listing panels open with Bootstrap's collapse and the delete dialogs are
+   modals, and both need scripting. Without it `.js-reveal` is never set, so the panels are
+   simply open and the dialogs sit in the page as ordinary forms — every action still works. */
+html:not(.js-reveal) .admin-users-page .admin-user-panel.collapse { display: table-row; }
+html:not(.js-reveal) .admin-user-modal { display: block; position: static; opacity: 1; }
+html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }

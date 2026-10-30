@@ -37,6 +37,9 @@ site.
 
 Rules:
 
+- **The page header and the washes are sky blue with navy text** (`--sky-gradient`, `--sky-wash`,
+  `--sky-text`). That is how the site reads as sky blue while staying readable: navy on the
+  deepest sky stop is 8.47:1. Never put white text on the sky gradient.
 - **`#00A1E0` must never sit behind white text.** It scores 2.93:1. Cyan is an accent, a
   gradient stop, and a ring colour — never a button fill. This is the one place this
   system deliberately diverges from the one it was ported from, whose primary button has

@@ -44,16 +44,29 @@
   --navy-gradient: linear-gradient(135deg, #032d60 0%, #0b5cab 100%);
   --hero-gradient: linear-gradient(135deg, #01203f 0%, #032d60 45%, #0b5cab 100%);
 
+  /*
+   * SKY. The page header and the washes behind content are a light sky blue, taken from the
+   * cyan accent, with NAVY text on them — never white. White on #00A1E0 is 2.93:1; navy on
+   * the deepest stop of this gradient is 8.47:1 and the sub text 5.41:1. Light sky with dark
+   * text is what makes the site read as sky blue and stay readable; Salesforce's cyan behind
+   * white text would do neither, and copying their logo colour outright would also say
+   * "official" more loudly than the footer's disclaimer says otherwise.
+   */
+  --sky-gradient: linear-gradient(135deg, #e3f5fd 0%, #bfe8fa 55%, #8fd6f5 100%);
+  --sky-wash: #eef9fe;
+  --sky-text: #032d60;     /* 8.47:1 on the deepest stop */
+  --sky-text-soft: #1f4e79; /* 5.41:1 on the deepest stop */
+
   --mesh-gradient:
     radial-gradient(at 40% 20%, rgba(0, 161, 224, 0.15) 0, transparent 50%),
     radial-gradient(at 80% 0%, rgba(1, 118, 211, 0.12) 0, transparent 50%),
     radial-gradient(at 0% 50%, rgba(3, 45, 96, 0.08) 0, transparent 50%);
 
   --glass-mesh-bg:
-    radial-gradient(ellipse at 15% 0%, rgba(1, 118, 211, 0.22) 0%, transparent 55%),
-    radial-gradient(ellipse at 85% 100%, rgba(0, 161, 224, 0.2) 0%, transparent 55%),
-    radial-gradient(ellipse at 0% 65%, rgba(3, 45, 96, 0.12) 0%, transparent 45%),
-    radial-gradient(ellipse at 100% 35%, rgba(111, 211, 255, 0.16) 0%, transparent 45%);
+    radial-gradient(ellipse at 15% 0%, rgba(0, 161, 224, 0.30) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 100%, rgba(111, 211, 255, 0.35) 0%, transparent 55%),
+    radial-gradient(ellipse at 0% 65%, rgba(0, 161, 224, 0.18) 0%, transparent 45%),
+    radial-gradient(ellipse at 100% 35%, rgba(111, 211, 255, 0.22) 0%, transparent 45%);
 
   /* Sanctioned accents. ONLY for .icon-tile colour modifiers. */
   --grad-blue: linear-gradient(135deg, #0176d3 0%, #00a1e0 100%);
@@ -191,7 +204,7 @@
 body {
   font-family: var(--font-sans);
   color: var(--text-medium);
-  background: var(--bg-white);
+  background: var(--sky-wash);
   font-size: 15px;
   line-height: 1.6;
   overflow-x: hidden;
@@ -610,8 +623,8 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 
 .hero {
   position: relative;
-  background: var(--hero-gradient);
-  color: #fff;
+  background: var(--sky-gradient);
+  color: var(--sky-text);
   padding: var(--space-16) 0 var(--space-12);
   overflow: hidden;
 }
@@ -623,14 +636,14 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   pointer-events: none;
 }
 .hero > .container { position: relative; z-index: 1; }
-.hero h1, .hero h2, .hero h3 { color: #fff; }
-.hero p { color: rgba(255, 255, 255, 0.85); }
-.hero a:not(.btn) { color: #fff; text-decoration: underline; }
+.hero h1, .hero h2, .hero h3 { color: var(--sky-text); }
+.hero p { color: var(--sky-text-soft); }
+.hero a:not(.btn) { color: var(--sky-text); text-decoration: underline; }
 
 .page-header {
   position: relative;
-  background: var(--navy-gradient);
-  color: #fff;
+  background: var(--sky-gradient);
+  color: var(--sky-text);
   padding: var(--space-10) 0 var(--space-8);
   /* No bottom margin: the washed section that follows supplies the gap. A margin here
      leaves a bare white strip between the navy band and the wash. */
@@ -645,9 +658,9 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   pointer-events: none;
 }
 .page-header > .container { position: relative; z-index: 1; }
-.page-header h1 { color: #fff; margin: 0; }
-.page-header p { color: rgba(255, 255, 255, 0.85); margin: var(--space-2) 0 0; max-width: 62ch; }
-.page-header a { color: #fff; text-decoration: underline; }
+.page-header h1 { color: var(--sky-text); margin: 0; }
+.page-header p { color: var(--sky-text-soft); margin: var(--space-2) 0 0; max-width: 62ch; }
+.page-header a { color: var(--sky-text); text-decoration: underline; }
 
 .section-badge {
   display: inline-flex;
@@ -655,9 +668,11 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   gap: var(--space-2);
   padding: 0.35rem 0.9rem;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #fff;
+  /* On the sky header. The darker blue, not --primary-blue: at this size the badge is small
+     bold text, and --primary-blue on the near-white fill measured 4.14:1. */
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(0, 161, 224, 0.35);
+  color: var(--primary-blue-dark);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -948,8 +963,13 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 
 .footer-hub {
   position: relative;
-  background: linear-gradient(180deg, var(--primary-navy) 0%, var(--primary-navy-dark) 100%);
-  color: rgba(255, 255, 255, 0.75);
+  /*
+   * Bluer than the navy it was, to sit under the sky pages, but it starts from #0b5cab and
+   * not from the CTA blue: the links are small text, and on #0176d3 they measured 3.28:1.
+   * Here they are 5.33:1 at the top of the footer and higher as it darkens.
+   */
+  background: linear-gradient(180deg, var(--primary-navy-light) 0%, var(--primary-navy) 100%);
+  color: rgba(255, 255, 255, 0.85);
   padding: var(--space-12) 0 var(--space-6);
   /* No top margin. Every page ends in a padded section, and a margin here leaves a bare
      white seam between the washed content and the footer. */
@@ -992,8 +1012,8 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
   text-decoration: none;
 }
 .footer-hub .footer-logo:hover { color: #fff; text-decoration: none; }
-.footer-disclaimer { color: rgba(255, 255, 255, 0.55); }
-.footer-hub a { color: rgba(255, 255, 255, 0.75); }
+.footer-disclaimer { color: rgba(255, 255, 255, 0.75); } /* the bluer footer needs more than .55 to clear 4.5:1 */
+.footer-hub a { color: rgba(255, 255, 255, 0.85); }
 .footer-hub a:hover { color: #fff; }
 
 /* The owner's actions belong to the card above them, which carries its own bottom

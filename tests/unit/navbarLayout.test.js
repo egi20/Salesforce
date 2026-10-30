@@ -14,7 +14,7 @@ const NAV = fs.readFileSync(path.join(ROOT, 'views', 'partials', 'navigation.ejs
  * image, and the plain links standing taller than the dropdowns beside them. None of them
  * is visible to a unit test that renders a template, because all three are layout, and the
  * first fix for the padding was silently ignored for a week: Bootstrap sets it with
- * `.navbar-expand-xl .navbar-nav .nav-link`, three classes, so the two-class rule written
+ * `.navbar-expand-lg .navbar-nav .nav-link`, three classes, so the two-class rule written
  * here lost the cascade and nothing said so.
  *
  * These assertions pin the parts of the arrangement that a later edit would undo without
@@ -23,7 +23,7 @@ const NAV = fs.readFileSync(path.join(ROOT, 'views', 'partials', 'navigation.ejs
  */
 describe('navbar layout', () => {
   test('the nav-link rule out-specifies the Bootstrap rule that sets its padding', () => {
-    // Bootstrap: `.navbar-expand-xl .navbar-nav .nav-link { padding-left/right }` — three
+    // Bootstrap: `.navbar-expand-lg .navbar-nav .nav-link { padding-left/right }` — three
     // classes. A `.navbar-hub .nav-link` rule is two and loses, so the padding written here
     // would never apply and the bar would overflow at its own breakpoint.
     expect(CSS).toMatch(/\.navbar-hub \.navbar-nav \.nav-link \{/);
@@ -51,7 +51,7 @@ describe('navbar layout', () => {
   test('the expanded search is out of flow, so opening it moves nothing', () => {
     // Expanding it in flow only moved the overflow from the resting state to the focused
     // one — the open field pushed "Sign up" off the right edge.
-    const wide = CSS.match(/@media \(min-width: 1200px\) \{[\s\S]*?\n\}/)[0];
+    const wide = CSS.match(/@media \(min-width: 992px\) \{\n {2}\/\*\n {3}\* The open field[\s\S]*?\n\}/)[0];
     expect(wide).toMatch(/\.nav-search \{ position: relative; \}/);
     expect(wide).toMatch(/position:\s*absolute/);
   });
@@ -78,7 +78,7 @@ describe('navbar layout', () => {
   test('the account name is clipped, never removed, when the bar is tight', () => {
     // `display: none` would leave the dropdown toggle with an empty-alt avatar and no
     // accessible name at all.
-    const band = CSS.match(/@media \(min-width: 1200px\) and \(max-width: 1399\.98px\) \{[\s\S]*?\n\}/)[0];
+    const band = CSS.match(/@media \(min-width: 992px\) and \(max-width: 1399\.98px\) \{[\s\S]*?\n\}/)[0];
     expect(band).toMatch(/\.nav-user-name \{/);
     expect(band).not.toMatch(/\.nav-user-name \{[^}]*display:\s*none/);
     expect(band).toMatch(/clip:\s*rect\(0, 0, 0, 0\)/);
@@ -88,7 +88,21 @@ describe('navbar layout', () => {
   test('the menu expands at the width the media queries are written for', () => {
     // `navbar-expand-lg` with rules written at 1200px is two breakpoints disagreeing, and
     // the disagreement is a band where the bar is expanded and none of its sizing applies.
-    expect(NAV).toMatch(/navbar navbar-expand-xl navbar-hub/);
-    expect(CSS).toMatch(/@media \(max-width: 1199\.98px\)/);
+    // It expands at 992px, as SAP Hub's does; at `xl` everything from 992 to 1199px got only
+    // the hamburger. Every width rule for the bar has to move with it.
+    expect(NAV).toMatch(/navbar navbar-expand-lg navbar-hub/);
+    expect(CSS).toMatch(/@media \(max-width: 991\.98px\) \{\n {2}\/\* Collapsed, each item/);
+    expect(CSS).not.toMatch(/navbar-expand-xl/);
+    expect(NAV).not.toMatch(/navbar-expand-xl/);
+  });
+
+  test('the 960px container has its own band, and it hides nothing', () => {
+    // Measured in a browser at 992px before this band existed, "Sign Up" hung 41px off the
+    // right edge — the overflow the 1200px band was written for, one container size down.
+    // The fix trims size and padding; dropping a label or an icon would be a different menu
+    // at every width, and a hidden item is one somebody cannot find.
+    const band = CSS.match(/@media \(min-width: 992px\) and \(max-width: 1199\.98px\) \{[\s\S]*?\n\}/)[0];
+    expect(band).toMatch(/\.navbar-hub \.navbar-nav \.nav-link \{/);
+    expect(band).not.toMatch(/display:\s*none|visibility:\s*hidden/);
   });
 });

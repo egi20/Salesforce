@@ -17,7 +17,7 @@
   var STORAGE_KEY = 'sfAssistantHistory';
   var MAX_TURNS = 12;
   var GREETING =
-    'Hi — I can help you find your way around: jobs, consultants, the rate index, '
+    'Hi, I\'m Sorca — I can help you find your way around: jobs, consultants, the rate index, '
     + 'the scope estimator and the community. What are you looking for?';
   var ERROR_FALLBACK = 'Something went wrong. Please try again in a moment.';
 

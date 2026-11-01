@@ -21,7 +21,9 @@ describe('the assistant mascot', () => {
     expect(out).toMatch(/<img class="sf-assistant-launcher-img" src="\/images\/sf-assistant\.webp\?v=abc123" alt=""/);
     expect(out).toMatch(/<img class="sf-assistant-avatar" src="\/images\/sf-assistant-head\.webp\?v=abc123" alt=""/);
     expect(out).toContain('class="sf-assistant-launcher-tag"');
-    expect(out).toMatch(/aria-label="Open the Hub assistant, an AI"/);
+    expect(out).toMatch(/aria-label="Open Sorca, the Hub&#39;s AI assistant"|aria-label="Open Sorca, the Hub's AI assistant"/);
+    // The name the owner chose is what the panel shows.
+    expect(out).toMatch(/class="sf-assistant-title">\s*Sorca/);
   });
 
   test('every image is decorative and carries its size, so nothing reflows while it loads', async () => {
@@ -41,8 +43,8 @@ describe('the assistant mascot', () => {
     const full = await sharp(path.join(ROOT, 'public', 'images', 'sf-assistant.webp')).metadata();
     const head = await sharp(path.join(ROOT, 'public', 'images', 'sf-assistant-head.webp')).metadata();
     expect([full.format, full.hasAlpha, head.format, head.hasAlpha]).toEqual(['webp', true, 'webp', true]);
-    // 68x78 in the markup; the file is 313x360. A launcher drawn at another ratio squashes him.
-    expect(Math.abs(full.width / full.height - 68 / 78)).toBeLessThan(0.01);
+    // 59x78 in the markup; the file is 271x360. A launcher drawn at another ratio squashes Sorca.
+    expect(Math.abs(full.width / full.height - 59 / 78)).toBeLessThan(0.01);
     expect(head.width).toBe(head.height);
   });
 

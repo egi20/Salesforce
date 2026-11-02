@@ -846,16 +846,18 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 .hub-hero-free { color: var(--primary-blue-bright); font-weight: 600; margin: var(--space-3) 0 0; }
 .hub-hero-free .bi { margin-right: 0.35rem; }
 
-.hub-hero-art { position: relative; width: 300px; height: 300px; }
+/* Sized to fill its half of the hero: at 300px it sat small against the right edge and
+   left a wide empty band between it and the text. */
+.hub-hero-art { position: relative; width: 400px; height: 400px; }
 .hub-hero-glow {
   position: absolute;
-  inset: 30px;
+  inset: 20px;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(111, 211, 255, 0.35), transparent 70%);
 }
 .hub-hero-tile {
   position: absolute;
-  inset: 70px;
+  inset: 95px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -864,24 +866,26 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   box-shadow: 0 24px 60px rgba(1, 32, 63, 0.45);
   animation: hub-float 6s ease-in-out infinite;
 }
-.hub-hero-tile img { width: 100px; height: 100px; }
+.hub-hero-tile img { width: 150px; height: 150px; }
 .hub-hero-chip {
   position: absolute;
-  width: 56px;
-  height: 56px;
+  width: 68px;
+  height: 68px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 1rem;
   background: var(--accent-gradient);
   color: #fff;
-  font-size: 1.4rem;
+  font-size: 1.7rem;
   box-shadow: 0 12px 28px rgba(1, 32, 63, 0.4);
   animation: hub-float 6s ease-in-out infinite;
 }
-.hub-hero-chip.chip-a { top: 18px; left: 22px; animation-delay: -1.5s; }
-.hub-hero-chip.chip-b { top: 46px; right: 8px; animation-delay: -3s; }
-.hub-hero-chip.chip-c { bottom: 22px; left: 50px; animation-delay: -4.5s; }
+.hub-hero-chip.chip-a { top: 30px; left: 30px; animation-delay: -1.5s; }
+.hub-hero-chip.chip-b { top: 64px; right: 14px; animation-delay: -3s; }
+.hub-hero-chip.chip-c { bottom: 34px; left: 64px; animation-delay: -4.5s; }
+/* Between the expand breakpoint and a wide screen the half-column is narrower than 400px. */
+@media (max-width: 1199.98px) { .hub-hero-art { transform: scale(0.8); } }
 @keyframes hub-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 @media (prefers-reduced-motion: reduce) {
   .hub-hero-tile, .hub-hero-chip { animation: none; }
@@ -941,6 +945,7 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   }
   .social-rail a:hover, .social-rail a:focus-visible { background: var(--primary-blue); color: #fff; }
 }
+@media (min-width: 1200px) { .social-rail-empty { border: 1px dashed rgba(3, 45, 96, 0.35); border-left: 0; } .social-rail-empty a { color: var(--primary-blue); } }
 @media print { .social-rail { display: none !important; } }
 
 /* A card that is a link says so: "Explore" with an arrow that moves on hover. */

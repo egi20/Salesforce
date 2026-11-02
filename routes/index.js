@@ -18,6 +18,7 @@ const ConsultantProfile = require('../models/ConsultantProfile');
 const ConsultantHiddenCompany = require('../models/ConsultantHiddenCompany');
 const CompanyProfile = require('../models/CompanyProfile');
 const RateSubmission = require('../models/RateSubmission');
+const { CLOUD_FAMILIES } = require('../config/cloudFamilies');
 const { POST_KINDS, isPostKind, postKind } = require('../config/community');
 const { toPlainText } = require('../utils/sanitize');
 const legalVersions = require('../config/legal-versions');
@@ -218,6 +219,13 @@ router.get('/services/:page', (req, res, next) => {
  */
 const HEADLINE_MIN = Object.freeze({ roles: 10, companies: 20, consultants: 20, contributors: 100 });
 
+/*
+ * How many clouds and product areas the Hub's catalogue covers. A catalogue fact rather
+ * than a usage figure, so it needs no threshold — and it is derived from
+ * config/cloudFamilies.js, so adding a cloud moves it without anybody editing this.
+ */
+const CLOUDS_COVERED = { value: CLOUD_FAMILIES.length, min: 0, label: 'clouds and products covered', href: '/jobs' };
+
 function headlineStats(candidates) {
   return candidates.filter((c) => c.value >= c.min).map(({ value, label, href }) => ({ value, label, href }));
 }
@@ -239,10 +247,13 @@ router.get(
   asyncHandler(async (req, res) => {
     const user = req.session.user || null;
     const isConsultant = Boolean(user && user.isConsultant);
-    const [jobs, contributors, companies] = await Promise.all([
+    // The consultant count passes a viewer for the same reason /consultants does.
+    const viewer = await ConsultantHiddenCompany.viewerFor(user);
+    const [jobs, contributors, companies, consultants] = await Promise.all([
       Job.browse({}, { limit: 1 }),
       RateSubmission.totalContributors(),
-      CompanyProfile.browse({}, { limit: 1 })
+      CompanyProfile.browse({}, { limit: 1 }),
+      ConsultantProfile.browse({ viewer }, { limit: 1 })
     ]);
 
     /*
@@ -269,8 +280,10 @@ router.get(
 
     const stats = headlineStats([
       { value: jobs.total, min: HEADLINE_MIN.roles, label: 'open roles', href: '/jobs' },
+      { value: consultants.total, min: HEADLINE_MIN.consultants, label: 'consultants on the Hub', href: '/consultants' },
       { value: companies.total, min: HEADLINE_MIN.companies, label: 'companies on the Hub', href: '/companies' },
-      { value: contributors, min: HEADLINE_MIN.contributors, label: 'rate contributors', href: '/rates' }
+      { value: contributors, min: HEADLINE_MIN.contributors, label: 'rate contributors', href: '/rates' },
+      CLOUDS_COVERED
     ]);
 
     res.render('hubs/show', {
@@ -345,8 +358,9 @@ router.get(
           { label: 'Get SOW Quote', href: '/quotes/new', icon: 'bi-calculator' }
         ],
         stats: headlineStats([
-          { value: consultants.total, min: HEADLINE_MIN.consultants, label: 'consultant profiles', href: '/consultants' },
-          { value: companies.total, min: HEADLINE_MIN.companies, label: 'companies on the Hub', href: '/companies' }
+          { value: consultants.total, min: HEADLINE_MIN.consultants, label: 'consultants on the Hub', href: '/consultants' },
+          { value: companies.total, min: HEADLINE_MIN.companies, label: 'companies on the Hub', href: '/companies' },
+          CLOUDS_COVERED
         ]),
         tools,
         benefitsHeading: 'Why companies use Salesforce Hub',
@@ -371,6 +385,30 @@ router.get(
 router.get('/about', (req, res) => {
   res.render('about', { title: 'About', legal });
 });
+
+/*
+ * The blog is the community's ARTICLES, not a second store of posts.
+ *
+ * Dynamics Hub's /blog is a page with one article written into the template. Here an article
+ * is already a first-class post kind, written by people who work on the platform and listed
+ * by the one builder every post list uses — so "Blog" is that list under the name visitors
+ * look for, and it can never be an empty page waiting for somebody to edit a template.
+ */
+router.get(
+  '/blog',
+  asyncHandler(async (req, res) => {
+    const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 12 });
+    const { rows, total } = await Post.browse({ kind: 'article' }, { limit, offset, sort: 'newest' });
+    res.render('blog', {
+      title: 'Blog',
+      posts: rows,
+      postKind,
+      toPlainText,
+      pagination: paginationMeta({ page, perPage, total }),
+      pageUrl: (p) => pageUrl('/blog', req.query, p)
+    });
+  })
+);
 
 router.get('/faq', (req, res) => {
   res.render('faq', { title: 'Frequently asked questions' });

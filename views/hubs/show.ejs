@@ -14,7 +14,7 @@
 <section class="hub-hero">
   <div class="container">
     <div class="row align-items-center g-4">
-      <div class="col-lg-7">
+      <div class="col-lg-6">
         <span class="hub-hero-badge mb-3"><i class="bi <%= model.icon %>"></i> <%= model.label %></span>
         <h1><%= model.heading %></h1>
         <p class="lead"><%= model.intro %></p>
@@ -40,10 +40,10 @@
         <% } %>
       </div>
       <%# Decorative: the brand mark on its tile, larger. Hidden from assistive tech. %>
-      <div class="col-lg-5 d-none d-lg-flex justify-content-center" aria-hidden="true">
+      <div class="col-lg-6 d-none d-lg-flex justify-content-center" aria-hidden="true">
         <div class="hub-hero-art">
           <span class="hub-hero-glow"></span>
-          <span class="hub-hero-tile"><img src="/images/logo-mark.svg" alt="" width="132" height="132"></span>
+          <span class="hub-hero-tile"><img src="/images/logo-mark.svg" alt="" width="150" height="150"></span>
           <span class="hub-hero-chip chip-a"><i class="bi <%= model.tools[0].icon %>"></i></span>
           <span class="hub-hero-chip chip-b"><i class="bi <%= model.tools[1].icon %>"></i></span>
           <span class="hub-hero-chip chip-c"><i class="bi <%= model.tools[3].icon %>"></i></span>

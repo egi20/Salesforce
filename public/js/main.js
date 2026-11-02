@@ -342,6 +342,77 @@
   }
 
   /*
+   * The job board's filters apply as soon as one changes. The Apply button stays for the
+   * no-script case and for the rate box, which applies on change (blur or Enter) rather than
+   * on every keystroke — a request per digit typed is a request per digit typed.
+   * Controls tied to the form by `form="jobFilters"` (the sort select) apply too.
+   */
+  var autoForm = document.querySelector('form[data-auto-apply]');
+  if (autoForm) {
+    var autoSubmit = function (event) {
+      var t = event.target;
+      if (!t || t.type === 'search' || t.hasAttribute('data-filter-list')) return;
+      if (t.form !== autoForm) return;
+      autoForm.requestSubmit ? autoForm.requestSubmit() : autoForm.submit();
+    };
+    document.addEventListener('change', autoSubmit);
+  }
+
+  /* Fold a disclosure that is open by default (for the no-script case) on a narrow screen. */
+  document.querySelectorAll('details[data-fold-below]').forEach(function (d) {
+    if (window.innerWidth < Number(d.getAttribute('data-fold-below'))) d.open = false;
+  });
+
+  /* Narrow a long checkbox list as you type; a group with nothing left hides its heading. */
+  document.querySelectorAll('input[data-filter-list]').forEach(function (input) {
+    var list = document.querySelector(input.getAttribute('data-filter-list'));
+    if (!list) return;
+    input.addEventListener('input', function () {
+      var term = input.value.trim().toLowerCase();
+      list.querySelectorAll('[data-filter-group]').forEach(function (group) {
+        var any = false;
+        group.querySelectorAll('[data-filter-item]').forEach(function (item) {
+          var match = !term || item.textContent.toLowerCase().indexOf(term) !== -1;
+          item.hidden = !match;
+          if (match) any = true;
+        });
+        group.hidden = !any;
+      });
+    });
+  });
+
+  /*
+   * Save / unsave a job from a card without leaving the board. Without scripting the form
+   * posts and the route redirects back to the same filtered page.
+   */
+  document.querySelectorAll('form[data-save-job]').forEach(function (form) {
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var savedField = form.querySelector('input[name="saved"]');
+      var button = form.querySelector('.btn-save');
+      var icon = button.querySelector('.bi');
+      button.disabled = true;
+      apiFetch(form.action, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ saved: savedField.value })
+      })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (!data || !data.success) { form.submit(); return; }
+          savedField.value = data.saved ? 'true' : 'false';
+          button.classList.toggle('is-saved', data.saved);
+          button.setAttribute('aria-pressed', data.saved ? 'true' : 'false');
+          button.setAttribute('aria-label', data.saved ? 'Remove from saved jobs' : 'Save this job');
+          button.title = data.saved ? 'Saved' : 'Save';
+          icon.className = 'bi ' + (data.saved ? 'bi-bookmark-star-fill' : 'bi-bookmark-star');
+        })
+        .catch(function () { form.submit(); })
+        .finally(function () { button.disabled = false; });
+    });
+  });
+
+  /*
    * Copy-to-clipboard for any button carrying `data-copy` — a sales agent's link, on their
    * dashboard and on the admin tab. The value is in the attribute, server-escaped, and the
    * readonly field beside it means the page still works without scripting or without the

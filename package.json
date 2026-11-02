@@ -9,8 +9,9 @@
   },
   "scripts": {
     "start": "npm run migrate && npm run sync:categories && node server.js",
-    "dev": "nodemon server.js",
+    "dev": "npm run migrate && nodemon server.js",
     "db:create": "node scripts/create-database.js",
+    "db:reset": "node scripts/reset-database.js && npm run migrate && npm run sync:categories && npm run seed",
     "migrate": "node scripts/migrate.js up",
     "migrate:status": "node scripts/migrate.js status",
     "sync:categories": "node scripts/sync-categories.js",

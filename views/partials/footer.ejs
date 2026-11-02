@@ -20,7 +20,8 @@
           ['/jobs', 'Find Jobs'],
           // A visitor builds a profile by signing up; a consultant edits the one they have.
           [currentUser && currentUser.isConsultant ? '/profile/consultant' : '/auth/register', 'Build Profile'],
-          ['/services/document-generator', 'CV Generator']
+          ['/services/document-generator', 'CV Generator'],
+          ['/rates/calculator', 'Rate calculator']
         ]],
         ['Companies Hub', [
           ['/companies-hub', 'Companies Hub'],
@@ -41,6 +42,8 @@
           ['/payments', 'Pricing']
         ]],
         ['Community', [
+          // Home IS the feed (the menu has no Community dropdown), so it is named as one here.
+          ['/', 'Home Feed'],
           ['/community', 'Forum'],
           ['/community?kind=article', 'Articles'],
           ['/success-stories', 'Success Stories'],

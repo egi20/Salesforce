@@ -1,23 +1,53 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { icon: model.icon, heading: model.heading, label: model.label }) %>
+<%
+  /*
+   * A hub is a landing page, so it opens with a hero rather than the in-app page header —
+   * DESIGN.md's rule for landing pages. The intro sits INSIDE the hero with the heading:
+   * splitting them across the sky header and the section below it read as a background
+   * that stopped halfway through the sentence.
+   *
+   * Dark navy rather than the sky header, with white text: --hero-gradient's lightest stop
+   * is #0b5cab, 6.6:1 against white. Cyan never sits behind the text.
+   */
+%>
+<section class="hub-hero">
+  <div class="container">
+    <div class="row align-items-center g-4">
+      <div class="col-lg-7">
+        <span class="hub-hero-badge mb-3"><i class="bi <%= model.icon %>"></i> <%= model.label %></span>
+        <h1><%= model.heading %></h1>
+        <p class="lead"><%= model.intro %></p>
+        <% if (model.freeNote) { %>
+          <p class="hub-hero-free"><i class="bi bi-check-circle-fill"></i> <%= model.freeNote %></p>
+        <% } %>
+        <div class="d-flex flex-wrap gap-3 mt-4">
+          <% model.actions.forEach(function (a, i) { %>
+            <a class="btn btn-lg <%= i === 0 ? 'btn-primary' : 'btn-outline-light' %>" href="<%= a.href %>">
+              <i class="bi <%= a.icon %>"></i> <%= a.label %>
+            </a>
+          <% }); %>
+        </div>
+      </div>
+      <%# Decorative: the brand mark on its tile, larger. Hidden from assistive tech. %>
+      <div class="col-lg-5 d-none d-lg-flex justify-content-center" aria-hidden="true">
+        <div class="hub-hero-art">
+          <span class="hub-hero-glow"></span>
+          <span class="hub-hero-tile"><img src="/images/logo-mark.svg" alt="" width="132" height="132"></span>
+          <span class="hub-hero-chip chip-a"><i class="bi <%= model.tools[0].icon %>"></i></span>
+          <span class="hub-hero-chip chip-b"><i class="bi <%= model.tools[1].icon %>"></i></span>
+          <span class="hub-hero-chip chip-c"><i class="bi <%= model.tools[3].icon %>"></i></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
 <section class="glass-section pb-5">
 <div class="container">
-  <div class="row g-4 align-items-center mb-4">
-    <div class="col-lg-8">
-      <p class="lead mb-0"><%= model.intro %></p>
-    </div>
-    <% if (model.cta) { %>
-      <div class="col-lg-4 text-lg-end">
-        <a class="btn btn-primary" href="<%= model.cta.href %>"><%= model.cta.label %></a>
-      </div>
-    <% } %>
-  </div>
-
   <%# Plain counts, each linking to the list it counts. No "growing fast", no percentages: %>
   <%# a small honest number is worth more than a claim nobody can check. %>
-  <div class="row g-3 mb-5">
+  <div class="row g-3 mb-5 hub-stats">
     <% model.stats.forEach(function (s) { %>
       <div class="col-6 col-lg-3">
         <a class="stat-tile d-block text-reset" href="<%= s.href %>">
@@ -31,17 +61,46 @@
   <div class="row g-3">
     <% model.tools.forEach(function (t) { %>
       <div class="col-md-6 col-lg-4">
-        <a class="glass-card d-block h-100 text-reset" href="<%= t.href %>">
-          <div class="card-body">
+        <a class="glass-card hub-tool d-flex flex-column h-100 text-reset" href="<%= t.href %>">
+          <div class="card-body d-flex flex-column">
             <span class="icon-tile icon-tile-sm <%= t.tone %> mb-3"><i class="bi <%= t.icon %>"></i></span>
             <h2 class="h5 mb-2"><%= t.title %></h2>
-            <p class="small text-muted-2 mb-0"><%= t.text %></p>
+            <p class="small text-muted-2 mb-3"><%= t.text %></p>
+            <%# Says the card is a link, which a card on its own does not. %>
+            <span class="hub-tool-more mt-auto">Explore <i class="bi bi-arrow-right"></i></span>
           </div>
         </a>
       </div>
     <% }); %>
   </div>
 </div>
+</section>
+
+<section class="hub-benefits">
+  <div class="container">
+    <h2 class="text-center mb-4"><%= model.benefitsHeading %></h2>
+    <div class="row g-4">
+      <% model.benefits.forEach(function (b) { %>
+        <div class="col-md-6">
+          <div class="d-flex gap-3">
+            <span class="icon-tile icon-tile-sm icon-navyblue flex-shrink-0"><i class="bi <%= b.icon %>"></i></span>
+            <div>
+              <h3 class="h6 mb-1"><%= b.title %></h3>
+              <p class="small text-muted-2 mb-0"><%= b.text %></p>
+            </div>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+</section>
+
+<section class="hub-closing">
+  <div class="container text-center">
+    <h2><%= model.closing.heading %></h2>
+    <p class="lead mx-auto"><%= model.closing.text %></p>
+    <a class="btn btn-lg btn-light" href="<%= model.closing.cta.href %>"><%= model.closing.cta.label %></a>
+  </div>
 </section>
 
 <%- include('../partials/layout-end') %>

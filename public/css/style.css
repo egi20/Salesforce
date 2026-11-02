@@ -805,6 +805,120 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 .page-header p { color: var(--sky-text-soft); margin: var(--space-2) 0 0; max-width: 62ch; }
 .page-header a { color: var(--sky-text); text-decoration: underline; }
 
+/*
+ * THE HUB LANDING PAGES (Consultant Hub, Companies Hub).
+ *
+ * Dark, unlike the sky page header, because a hub is a landing page and was reported as
+ * looking unfinished next to Dynamics Hub's: the heading sat in one band and its intro in
+ * another. Heading, intro, the "free" line and both actions now live in one block.
+ * White text on --hero-gradient: the lightest stop, #0b5cab, is 6.6:1.
+ */
+.hub-hero {
+  position: relative;
+  background: var(--hero-gradient);
+  color: #fff;
+  padding: var(--space-16) 0;
+  overflow: hidden;
+}
+.hub-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 85% 30%, rgba(111, 211, 255, 0.18), transparent 45%);
+  pointer-events: none;
+}
+.hub-hero > .container { position: relative; z-index: 1; }
+.hub-hero h1 { color: #fff; margin-bottom: var(--space-4); }
+.hub-hero .lead { color: rgba(255, 255, 255, 0.88); max-width: 40rem; }
+.hub-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+/* --primary-blue-bright is an accent on dark grounds only (DESIGN.md): 8.9:1 on navy. */
+.hub-hero-free { color: var(--primary-blue-bright); font-weight: 600; margin: var(--space-3) 0 0; }
+.hub-hero-free .bi { margin-right: 0.35rem; }
+
+.hub-hero-art { position: relative; width: 300px; height: 300px; }
+.hub-hero-glow {
+  position: absolute;
+  inset: 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(111, 211, 255, 0.35), transparent 70%);
+}
+.hub-hero-tile {
+  position: absolute;
+  inset: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 2rem;
+  box-shadow: 0 24px 60px rgba(1, 32, 63, 0.45);
+  animation: hub-float 6s ease-in-out infinite;
+}
+.hub-hero-tile img { width: 100px; height: 100px; }
+.hub-hero-chip {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  background: var(--accent-gradient);
+  color: #fff;
+  font-size: 1.4rem;
+  box-shadow: 0 12px 28px rgba(1, 32, 63, 0.4);
+  animation: hub-float 6s ease-in-out infinite;
+}
+.hub-hero-chip.chip-a { top: 18px; left: 22px; animation-delay: -1.5s; }
+.hub-hero-chip.chip-b { top: 46px; right: 8px; animation-delay: -3s; }
+.hub-hero-chip.chip-c { bottom: 22px; left: 50px; animation-delay: -4.5s; }
+@keyframes hub-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@media (prefers-reduced-motion: reduce) {
+  .hub-hero-tile, .hub-hero-chip { animation: none; }
+}
+
+/* A card that is a link says so: "Explore" with an arrow that moves on hover. */
+.hub-tool { transition: var(--transition-fast); }
+.hub-tool:hover { transform: translateY(-3px); box-shadow: var(--glass-shadow-lg); }
+.hub-tool-more { color: var(--primary-blue); font-weight: 600; font-size: 0.9rem; }
+.hub-tool-more .bi { display: inline-block; transition: transform 0.2s ease; }
+.hub-tool:hover .hub-tool-more .bi,
+.hub-tool:focus-visible .hub-tool-more .bi { transform: translateX(4px); }
+
+.hub-benefits { background: #fff; padding: var(--space-16) 0; }
+.hub-benefits h2 { color: var(--primary-navy); }
+
+.hub-closing {
+  background: var(--navy-gradient);
+  color: #fff;
+  padding: var(--space-16) 0;
+}
+.hub-closing h2 { color: #fff; margin-bottom: var(--space-3); }
+.hub-closing .lead { color: rgba(255, 255, 255, 0.88); max-width: 42rem; margin-bottom: var(--space-6); }
+.hub-closing .btn-light { color: var(--primary-navy); font-weight: 600; }
+
+@media (max-width: 767.98px) {
+  .hub-hero, .hub-benefits, .hub-closing { padding: var(--space-10) 0; }
+}
+
+/*
+ * The dropdown toggles' caret. Bootstrap draws it as `.dropdown-toggle::after`, which the
+ * active-section underline above takes over, so the three hub menus looked like plain
+ * links. The chevron is an element instead, and turns when its menu is open.
+ */
+.navbar-hub .nav-caret { font-size: 0.7rem; margin-left: 0.15rem; transition: transform 0.2s ease; }
+.navbar-hub .dropdown-toggle[aria-expanded="true"] .nav-caret { transform: rotate(180deg); }
+
 .section-badge {
   display: inline-flex;
   align-items: center;

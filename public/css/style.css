@@ -399,16 +399,24 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   -webkit-backdrop-filter: var(--glass-blur-lg);
   border-bottom: 1px solid var(--glass-border);
   box-shadow: 0 2px 20px rgba(3, 45, 96, 0.06);
-  padding-top: 0.85rem;
-  padding-bottom: 0.85rem;
 }
 
 /*
- * 80px, matching the sister site. The extra height is padding around the same row, not a
- * taller row: `min-height` on the container means a collapsed menu still grows below it.
+ * 80px plus the hairline, matching Dynamics Hub's 81px. The extra height is padding around
+ * the same row, not a taller row: `min-height` on the container means a collapsed menu
+ * still grows below it.
+ *
+ * The padding is zeroed explicitly, not only through `--bs-navbar-padding-y`: the rule above
+ * used to add 0.85rem top and bottom on top of the 80px, and the bar measured 108px while
+ * this comment said 80.
  */
-.navbar-hub { --bs-navbar-padding-y: 0; }
+.navbar-hub { --bs-navbar-padding-y: 0; padding-top: 0; padding-bottom: 0; }
 .navbar-hub > .container { min-height: 80px; }
+@media (max-width: 991.98px) {
+  /* The bar has no padding of its own now, so the opened menu needs its own bottom edge —
+     otherwise the last button sits flush against the hairline. */
+  .navbar-hub .navbar-collapse { padding-bottom: 1rem; }
+}
 
 .navbar-hub .navbar-brand {
   font-weight: 800;

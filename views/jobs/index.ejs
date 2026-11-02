@@ -46,6 +46,7 @@
 
   <div class="row g-4">
     <aside class="col-lg-3">
+      <div class="job-sidebar" data-sticky-sidebar>
       <%# On a phone the filters fold behind one button so the roles are not pushed a screen %>
       <%# down; main.js folds it on load there. Without scripting it stays open everywhere. %>
       <details class="filter-disclosure" open data-fold-below="992">
@@ -54,7 +55,12 @@
         <div class="filter-panel-body">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h2 class="mb-0">Filters</h2>
-            <% if (activeFilterCount) { %><a class="small" href="/jobs">Clear all (<%= activeFilterCount %>)</a><% } %>
+            <%# Always there, so it is where people look for it; inert when nothing is set. %>
+            <% if (activeFilterCount) { %>
+              <a class="small fw-semibold" href="/jobs">Clear all (<%= activeFilterCount %>)</a>
+            <% } else { %>
+              <span class="small text-muted-2" aria-disabled="true">Clear all</span>
+            <% } %>
           </div>
 
           <fieldset class="filter-group">
@@ -67,9 +73,16 @@
                 <div class="filter-subgroup" data-filter-group>
                   <div class="filter-subhead"><%= cat.category %></div>
                   <% cat.roles.forEach(function (r) { const id = 'role-' + r.value; %>
-                    <div class="form-check" data-filter-item>
-                      <input class="form-check-input" type="checkbox" name="role" value="<%= r.value %>" id="<%= id %>" <%= has(filters.role, r.value) ? 'checked' : '' %>>
-                      <label class="form-check-label" for="<%= id %>"><%= r.label %><% if (roleCounts[r.value]) { %> <span class="text-muted-2">(<%= roleCounts[r.value] %>)</span><% } %></label>
+                    <%
+                      /* A role with no open roles under the other filters is shown as (0) and
+                         cannot be ticked — a click that can only produce an empty list is a
+                         click wasted. One already ticked stays live, so it can be unticked. */
+                      const count = roleCounts[r.value] || 0;
+                      const ticked = has(filters.role, r.value);
+                    %>
+                    <div class="form-check <%= count === 0 && !ticked ? 'is-empty' : '' %>" data-filter-item>
+                      <input class="form-check-input" type="checkbox" name="role" value="<%= r.value %>" id="<%= id %>" <%= ticked ? 'checked' : '' %> <%= count === 0 && !ticked ? 'disabled' : '' %>>
+                      <label class="form-check-label" for="<%= id %>"><%= r.label %> <span class="filter-count">(<%= count %>)</span></label>
                     </div>
                   <% }); %>
                 </div>
@@ -156,9 +169,10 @@
           </fieldset>
         </div>
 
-        <%# Stays at the bottom of the panel however far its body scrolls. %>
-        <div class="filter-panel-actions">
-          <button class="btn btn-primary w-100" type="submit">Apply filters</button>
+        <%# For the no-script case only: with scripting every change applies itself, and %>
+        <%# main.js removes this. %>
+        <div class="filter-panel-actions" data-no-script-only>
+          <button class="btn btn-primary w-100" type="submit">Show <%= pagination.total %> role<%= pagination.total === 1 ? '' : 's' %></button>
         </div>
       </form>
       </details>
@@ -171,6 +185,7 @@
           <a class="btn btn-outline-primary btn-sm w-100"
              href="<%= currentUser && currentUser.isConsultant ? '/profile/consultant' : '/services/document-generator' %>">Build my free CV</a>
         </div>
+      </div>
       </div>
     </aside>
 
@@ -194,6 +209,14 @@
           <i class="bi bi-stars"></i>
           <span>Add your main role to your profile and we will show the roles that match you best.
             <a href="/profile/consultant">Complete your profile</a></span>
+        </div>
+      <% } else if (currentUser && !currentUser.isConsultant && pagination.page === 1) { %>
+        <div class="match-teaser glass-card mb-4">
+          <div class="card-body d-flex flex-column flex-md-row align-items-md-center gap-3">
+            <span class="icon-tile icon-tile-sm icon-navyblue flex-shrink-0"><i class="bi bi-stars"></i></span>
+            <p class="mb-0 flex-grow-1"><strong>Recommendations are for consultant profiles.</strong> Add the consultant role to this account and every role gets a match score against your profile.</p>
+            <a class="btn btn-outline-primary btn-sm flex-shrink-0" href="/profile/settings">Set up a consultant profile</a>
+          </div>
         </div>
       <% } else if (!currentUser && pagination.page === 1) { %>
         <div class="match-teaser glass-card mb-4">

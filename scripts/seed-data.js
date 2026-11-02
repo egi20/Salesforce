@@ -80,11 +80,50 @@ const { catalogueVersion } = require('../config/estimation');
 const { dailySetFor, serverDate } = require('../config/challenges');
 const { PRIVACY_VERSION } = require('../config/legal-versions');
 const { sync: syncCategories } = require('./sync-categories');
-const { ROLE_SLUGS, baseDayRate, roleLabel } = require('../config/roleTaxonomy');
+const { ROLE_SLUGS, ROLE_CATEGORIES, baseDayRate, roleLabel } = require('../config/roleTaxonomy');
 const { ALL_MODULES } = require('../config/cloudFamilies');
 const { ALL_CERTIFICATIONS } = require('../config/certifications');
 
 const SEED_PASSWORD = process.env.SEED_PASSWORD || 'Password123';
+
+/*
+ * Job descriptions that differ from card to card.
+ *
+ * Every seeded role used to carry the same two sentences, so the board's two-line preview
+ * read identically down the whole page and the site looked fake at a glance. These are
+ * assembled from the row's own facts — company, role, clouds, shape — plus a programme and a
+ * set of duties chosen by the role's category, deterministically from the index so a seed is
+ * reproducible. Still invented: the production guard above is what keeps them off a live site.
+ */
+const PROGRAMMES = [
+  'a multi-country rollout replacing three legacy CRMs',
+  'the second phase of a programme that went live in the spring',
+  'a greenfield implementation for a newly merged business',
+  'an org consolidation after an acquisition',
+  'a service transformation with a hard regulatory deadline',
+  'a re-platforming of quoting and billing ahead of a new pricing model'
+];
+const DUTIES_BY_CATEGORY = {
+  'Functional Consultants': 'run discovery workshops, turn requirements into user stories, configure the solution and take the business through UAT',
+  'Technical Roles': 'build and review Apex, LWC and Flow, own the integration patterns and keep the deployment pipeline green',
+  'AI & Agentforce': 'design agents and prompt templates, ground them in Data Cloud and measure them against real cases before go-live',
+  'Architecture & Leadership': 'own the target architecture, the data model and the integration landscape, and make the trade-offs the delivery team builds on',
+  'Program & Business': 'own the plan, the RAID log and the steering pack, and keep a multi-vendor team delivering to one roadmap',
+  'HR & Recruitment': 'build the hiring pipeline for the programme and work with delivery leads on the profiles they actually need'
+};
+const CATEGORY_BY_ROLE = Object.fromEntries(ROLE_CATEGORIES.flatMap((c) => c.roles.map((r) => [r.value, c.category])));
+
+function jobDescription({ companyName, role, seniority, moduleLabels, isContract, durationMonths, workMode, index }) {
+  const duties = DUTIES_BY_CATEGORY[CATEGORY_BY_ROLE[role]] || 'work with the delivery team from design through handover';
+  const clouds = moduleLabels.length ? moduleLabels.join(', ') : 'the core platform';
+  const shape = isContract
+    ? `This is a ${durationMonths}-month contract, ${workMode === 'remote' ? 'fully remote' : workMode === 'hybrid' ? 'hybrid with two days a week on site' : 'on site with the client team'}.`
+    : `This is a permanent role in a team that ${index % 2 ? 'is growing its Salesforce practice' : 'owns the platform end to end'}.`;
+  const level = seniority === 'mid' ? 'mid-level' : seniority;
+  return `${companyName} needs a ${level} ${roleLabel(role)} for ${PROGRAMMES[index % PROGRAMMES.length]}, working across ${clouds}.\n\n` +
+    `You will ${duties}. ${shape}\n\n` +
+    'Tell us about a programme you delivered on these clouds and what you would do differently next time.';
+}
 
 const SKILL_POOL = [
   'Apex', 'SOQL', 'LWC', 'Aura', 'Flow', 'CPQ', 'Billing', 'Sales Cloud', 'Service Cloud',
@@ -309,14 +348,23 @@ async function seed() {
     const minDay = Math.round(base * 0.85);
     const maxDay = Math.round(base * 1.25);
 
+    // Chosen before the row is written, so the description can name the clouds it is tagged with.
+    const jobModules = pick(ALL_MODULES, randomInt(1, 3));
     const job = await Job.create(company.id, {
       // `roleLabel`, not the slug with its hyphens swapped for spaces: that produced
       // "pmo — 11 month contract" and "cpq consultant" in lower case on every card. The
       // seniority is a field of its own and already renders as its own badge.
       title: `${roleLabel(role)} — ${shape}`,
-      description:
-        'We are looking for an experienced practitioner to join an ongoing programme.\n\n' +
-        'You will work with the delivery team on design, build and handover.',
+      description: jobDescription({
+        companyName: COMPANIES[i % COMPANIES.length][0],
+        role,
+        seniority,
+        moduleLabels: jobModules.map((m) => m.label),
+        isContract,
+        durationMonths,
+        workMode,
+        index: i
+      }),
       role,
       seniority,
       engagement_type: isContract ? 'contract' : 'permanent',
@@ -350,7 +398,7 @@ async function seed() {
     }
 
     await Skill.setForJob(job.id, pick(skills, randomInt(2, 6)).map((s) => s.id));
-    await Job.setModules(job.id, pick(ALL_MODULES, randomInt(1, 3)).map((m) => m.value));
+    await Job.setModules(job.id, jobModules.map((m) => m.value));
     jobCount += 1;
   }
   console.log(`  ${jobCount} jobs`);

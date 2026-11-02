@@ -358,6 +358,28 @@
     document.addEventListener('change', autoSubmit);
   }
 
+  /* Controls that exist only for the no-script case (an Apply button) go when scripting runs. */
+  document.querySelectorAll('[data-no-script-only]').forEach(function (el) { el.remove(); });
+
+  /*
+   * A sticky sidebar taller than the window: stick it by its BOTTOM edge instead, so it
+   * scrolls with the page until its end is visible and then holds. Shorter than the window,
+   * the CSS `top` applies unchanged.
+   */
+  var stickySidebar = document.querySelector('[data-sticky-sidebar]');
+  if (stickySidebar) {
+    var placeSidebar = function () {
+      stickySidebar.style.top = '';
+      if (window.innerWidth < 992) return;
+      var room = window.innerHeight - stickySidebar.offsetHeight - 16;
+      var cssTop = parseFloat(getComputedStyle(stickySidebar).top) || 0;
+      if (room < cssTop) stickySidebar.style.top = room + 'px';
+    };
+    placeSidebar();
+    window.addEventListener('resize', placeSidebar);
+    stickySidebar.addEventListener('toggle', placeSidebar, true);
+  }
+
   /* Fold a disclosure that is open by default (for the no-script case) on a narrow screen. */
   document.querySelectorAll('details[data-fold-below]').forEach(function (d) {
     if (window.innerWidth < Number(d.getAttribute('data-fold-below'))) d.open = false;

@@ -74,10 +74,29 @@ function sanitizeRichText(html) {
   return asParagraphs(clean);
 }
 
-/** Strip all markup, e.g. for meta descriptions and list previews. */
+/*
+ * sanitize-html returns HTML even with every tag stripped: "&" comes back as "&amp;". The
+ * result of toPlainText is TEXT, and every caller prints it through `<%= %>` or textContent,
+ * which escape it again — so cards and notifications read "Work Orders &amp; Service". The
+ * entities sanitize-html itself produces are turned back into characters here, ampersand
+ * LAST so "&amp;lt;" stays the literal text "&lt;" instead of becoming "<".
+ *
+ * Because the output is plain text, it must never be printed with `<%- %>`.
+ */
+function decodeEntities(text) {
+  return text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0*39;|&#x0*27;/gi, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&');
+}
+
+/** Strip all markup, e.g. for meta descriptions and list previews. Returns TEXT. */
 function toPlainText(html, maxLength = 0) {
   if (!html) return '';
-  const text = sanitizeHtml(String(html), { allowedTags: [], allowedAttributes: {} })
+  const text = decodeEntities(sanitizeHtml(String(html), { allowedTags: [], allowedAttributes: {} }))
     .replace(/\s+/g, ' ')
     .trim();
   if (maxLength > 0 && text.length > maxLength) {

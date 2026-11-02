@@ -887,6 +887,62 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   .hub-hero-tile, .hub-hero-chip { animation: none; }
 }
 
+/* The counts sit under the actions, separated by a hairline, as one row of figures. */
+.hub-hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  margin: var(--space-8) 0 0;
+  padding-top: var(--space-6);
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+.hub-hero-stats a { color: #fff; text-decoration: none; display: flex; flex-direction: column; }
+.hub-hero-stats a:hover span { text-decoration: underline; }
+.hub-hero-stats strong { font-size: 1.75rem; font-weight: 800; line-height: 1.1; }
+.hub-hero-stats span {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/*
+ * The social rail: fixed to the left edge, vertically centred, on wide screens only — on a
+ * phone it would sit on top of the content, and the footer row carries the same links.
+ */
+.social-rail { display: none; }
+@media (min-width: 1200px) {
+  .social-rail {
+    position: fixed;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1020;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid rgba(3, 45, 96, 0.08);
+    border-left: 0;
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+    box-shadow: var(--shadow-menu);
+  }
+  .social-rail a {
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    color: var(--primary-navy);
+    font-size: 1.1rem;
+    transition: var(--transition-fast);
+  }
+  .social-rail a:hover, .social-rail a:focus-visible { background: var(--primary-blue); color: #fff; }
+}
+@media print { .social-rail { display: none !important; } }
+
 /* A card that is a link says so: "Explore" with an arrow that moves on hover. */
 .hub-tool { transition: var(--transition-fast); }
 .hub-tool:hover { transform: translateY(-3px); box-shadow: var(--glass-shadow-lg); }

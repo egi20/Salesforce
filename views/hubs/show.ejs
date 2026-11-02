@@ -28,6 +28,16 @@
             </a>
           <% }); %>
         </div>
+        <%# Plain counts inside the hero, each linking to the list it counts. A figure too %>
+        <%# small to say anything is left out by the route (HEADLINE_MIN), so this row can %>
+        <%# be absent altogether — two lonely tiles beside empty space read as unfinished. %>
+        <% if (model.stats.length) { %>
+          <ul class="hub-hero-stats list-unstyled">
+            <% model.stats.forEach(function (st) { %>
+              <li><a href="<%= st.href %>"><strong><%= st.value %></strong> <span><%= st.label %></span></a></li>
+            <% }); %>
+          </ul>
+        <% } %>
       </div>
       <%# Decorative: the brand mark on its tile, larger. Hidden from assistive tech. %>
       <div class="col-lg-5 d-none d-lg-flex justify-content-center" aria-hidden="true">
@@ -45,19 +55,6 @@
 
 <section class="glass-section pb-5">
 <div class="container">
-  <%# Plain counts, each linking to the list it counts. No "growing fast", no percentages: %>
-  <%# a small honest number is worth more than a claim nobody can check. %>
-  <div class="row g-3 mb-5 hub-stats">
-    <% model.stats.forEach(function (s) { %>
-      <div class="col-6 col-lg-3">
-        <a class="stat-tile d-block text-reset" href="<%= s.href %>">
-          <div class="value"><%= s.value %></div>
-          <div class="label"><%= s.label %></div>
-        </a>
-      </div>
-    <% }); %>
-  </div>
-
   <div class="row g-3">
     <% model.tools.forEach(function (t) { %>
       <div class="col-md-6 col-lg-4">

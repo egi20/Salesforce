@@ -209,13 +209,18 @@ router.get('/services/:page', (req, res, next) => {
  * that company, or the total quietly reveals that somebody is missing.
  */
 /*
- * A contributor count is shown only once it says something. "24 rate contributors" on a
- * landing page reads as "nobody uses this", which is the opposite of what a small honest
- * number is for; below this the tile shows the open roles' companies instead. The index
- * itself still publishes from three people up — this is a display threshold for a
- * headline figure, not the privacy floor, and it never lowers that floor.
+ * A headline count is shown only once it says something. "6 companies" or "24 rate
+ * contributors" on a landing page reads as "nobody uses this", which is the opposite of
+ * what a small honest number is for, so each figure carries the minimum at which it is
+ * worth printing and is left out below it; with none left, the row is not rendered. This
+ * is a display threshold for a headline, not the rate index's privacy floor, which still
+ * publishes from three people up and is never lowered by anything here.
  */
-const CONTRIBUTOR_HEADLINE_MIN = 100;
+const HEADLINE_MIN = Object.freeze({ roles: 10, companies: 20, consultants: 20, contributors: 100 });
+
+function headlineStats(candidates) {
+  return candidates.filter((c) => c.value >= c.min).map(({ value, label, href }) => ({ value, label, href }));
+}
 
 /*
  * What each hub says about safety. Every line is something the code does, named in
@@ -224,7 +229,9 @@ const CONTRIBUTOR_HEADLINE_MIN = 100;
 const PRIVACY_BENEFIT = {
   icon: 'bi-shield-check',
   title: 'Secure and private',
-  text: 'Passwords are hashed, every form is protected against forgery, and you can download or erase your data from your account at any time.'
+  // Not "encrypted": passwords are hashed, but nothing here encrypts the rest of the data
+  // at rest, and a reassurance that is not true is worse than a plain one.
+  text: 'Your password is never stored in readable form, your profile is only as public as you choose, and you can download or delete your data any time.'
 };
 
 router.get(
@@ -260,10 +267,11 @@ router.get(
       );
     }
 
-    const stats = [{ value: jobs.total, label: jobs.total === 1 ? 'open role' : 'open roles', href: '/jobs' }];
-    stats.push(contributors >= CONTRIBUTOR_HEADLINE_MIN
-      ? { value: contributors, label: 'rate contributors', href: '/rates' }
-      : { value: companies.total, label: companies.total === 1 ? 'company on the Hub' : 'companies on the Hub', href: '/companies' });
+    const stats = headlineStats([
+      { value: jobs.total, min: HEADLINE_MIN.roles, label: 'open roles', href: '/jobs' },
+      { value: companies.total, min: HEADLINE_MIN.companies, label: 'companies on the Hub', href: '/companies' },
+      { value: contributors, min: HEADLINE_MIN.contributors, label: 'rate contributors', href: '/rates' }
+    ]);
 
     res.render('hubs/show', {
       title: 'Consultant Hub',
@@ -292,7 +300,7 @@ router.get(
           text: 'Build your free profile, get found by companies hiring for your clouds, and know what your work is worth. Salesforce Hub is free for consultants.',
           cta: isConsultant
             ? { label: 'Browse open roles', href: '/jobs' }
-            : user ? { label: 'Add the consultant role', href: '/profile/settings' } : { label: 'Create your free account', href: '/auth/register' }
+            : user ? { label: 'Set up your consultant profile', href: '/profile/settings' } : { label: 'Create your free profile', href: '/auth/register' }
         }
       }
     });
@@ -336,10 +344,10 @@ router.get(
           { label: 'Browse Talent', href: '/consultants', icon: 'bi-people' },
           { label: 'Get SOW Quote', href: '/quotes/new', icon: 'bi-calculator' }
         ],
-        stats: [
-          { value: consultants.total, label: consultants.total === 1 ? 'public consultant profile' : 'public consultant profiles', href: '/consultants' },
-          { value: companies.total, label: companies.total === 1 ? 'company profile' : 'company profiles', href: '/companies' }
-        ],
+        stats: headlineStats([
+          { value: consultants.total, min: HEADLINE_MIN.consultants, label: 'consultant profiles', href: '/consultants' },
+          { value: companies.total, min: HEADLINE_MIN.companies, label: 'companies on the Hub', href: '/companies' }
+        ]),
         tools,
         benefitsHeading: 'Why companies use Salesforce Hub',
         benefits: [
@@ -353,7 +361,7 @@ router.get(
           text: 'Browse public profiles, post a role, or scope the work first — browsing and posting cost nothing.',
           cta: user && user.isCompany
             ? { label: 'Post a role', href: '/jobs/new' }
-            : user ? { label: 'Browse talent', href: '/consultants' } : { label: 'Create a company account', href: '/auth/register' }
+            : user ? { label: 'Browse talent', href: '/consultants' } : { label: 'Create your free company account', href: '/auth/register' }
         }
       }
     });

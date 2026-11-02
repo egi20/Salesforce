@@ -21,6 +21,8 @@
           // A visitor builds a profile by signing up; a consultant edits the one they have.
           [currentUser && currentUser.isConsultant ? '/profile/consultant' : '/auth/register', 'Build Profile'],
           ['/services/document-generator', 'CV Generator'],
+          // A consultant's tool first; it stays under Services too, as it does in the menu.
+          ['/rates', 'Rate & Salary Index'],
           ['/rates/calculator', 'Rate calculator']
         ]],
         ['Companies Hub', [

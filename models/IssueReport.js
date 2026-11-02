@@ -1,8 +1,11 @@
 'use strict';
 
+const sharp = require('sharp');
 const { promisePool } = require('../config/database');
 const { containsPattern } = require('../utils/likePattern');
-const { LIMITS, isIssueKind, isIssueStatus, canTransition } = require('../config/issues');
+const {
+  LIMITS, isIssueKind, isIssueStatus, canTransition, ISSUE_SEVERITY_VALUES, SCREENSHOTS, IDEA_KIND, CONTENT_KIND
+} = require('../config/issues');
 
 /**
  * Reports from people that something is wrong.
@@ -91,10 +94,18 @@ class IssueReport {
     // typed address beside a signed-in report is a second copy of something we already hold.
     const contactEmail = userId ? null : email || null;
 
+    // Optional, from a declared list; an idea is not a fault, so it has none.
+    const severity = kind !== IDEA_KIND && ISSUE_SEVERITY_VALUES.includes(input.severity) ? input.severity : null;
+    // The content being reported, only for that kind, and only as a path on this site.
+    const contentPath = kind === CONTENT_KIND ? pagePath(input.content_path) : null;
+    // An unticked box posts nothing, so absence is refusal and is never defaulted.
+    const publishConsent = kind === IDEA_KIND && input.publish_consent === 'on' ? 1 : 0;
+
     const [result] = await promisePool.query(
-      `INSERT INTO issue_reports (user_id, page_path, kind, summary, detail, contact_email)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [userId, pagePath(input.page_path), kind, summary, detail, contactEmail]
+      `INSERT INTO issue_reports
+         (user_id, page_path, content_path, kind, severity, summary, detail, contact_email, publish_consent)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, pagePath(input.page_path), contentPath, kind, severity, summary, detail, contactEmail, publishConsent]
     );
     return { id: result.insertId };
   }
@@ -112,10 +123,12 @@ class IssueReport {
   static async list(filters = {}, { limit = 50, offset = 0 } = {}) {
     const { clause, params } = IssueReport.buildFilter(filters);
     const [rows] = await promisePool.query(
-      `SELECT i.*, u.name AS reporter_name, u.email AS reporter_email
+      `SELECT i.*, u.name AS reporter_name, u.email AS reporter_email,
+              (SELECT COUNT(*) FROM issue_report_attachments a WHERE a.issue_id = i.id) AS attachment_count,
+              (SELECT COUNT(*) FROM idea_votes v WHERE v.issue_id = i.id) AS votes
          FROM issue_reports i LEFT JOIN users u ON u.id = i.user_id
         WHERE ${clause}
-        ORDER BY FIELD(i.status, 'new', 'open', 'closed'), i.created_at DESC
+        ORDER BY FIELD(i.status, 'new', 'open', 'closed'), (i.severity = 'critical') DESC, i.created_at DESC
         LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
@@ -151,13 +164,136 @@ class IssueReport {
     await promisePool.query(
       `UPDATE issue_reports
           SET status = ?,
+              closed_at = CASE WHEN ? = 'closed' THEN NOW() ELSE closed_at END,
               response = COALESCE(?, response),
               responded_at = CASE WHEN ? IS NULL THEN responded_at ELSE NOW() END,
               responded_by = CASE WHEN ? IS NULL THEN responded_by ELSE ? END
         WHERE id = ?`,
-      [to, answer, answer, answer, actorUserId, id]
+      [to, to, answer, answer, answer, actorUserId, id]
     );
     return true;
+  }
+
+  /* ------------------------------------------------------------ screenshots */
+
+  /**
+   * Store screenshots on a report. Each buffer is re-encoded by sharp first — that is the
+   * sanitiser, as for profile photographs, and it also drops EXIF, location included — and
+   * bounded on its long side, which keeps a 4K screenshot readable at a few hundred
+   * kilobytes. Anything that is not an image fails to decode and throws.
+   */
+  static async addAttachments(issueId, buffers) {
+    for (const buffer of buffers.slice(0, SCREENSHOTS.maxFiles)) {
+      // eslint-disable-next-line no-await-in-loop
+      const { data, info } = await sharp(buffer)
+        .rotate()
+        .resize(SCREENSHOTS.maxEdgePx, SCREENSHOTS.maxEdgePx, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 85 })
+        .toBuffer({ resolveWithObject: true });
+      // eslint-disable-next-line no-await-in-loop
+      await promisePool.query(
+        `INSERT INTO issue_report_attachments (issue_id, content_type, bytes, byte_size, width, height)
+         VALUES (?, 'image/webp', ?, ?, ?, ?)`,
+        [issueId, data, data.length, info.width, info.height]
+      );
+    }
+  }
+
+  /** Metadata for the queue, keyed by report — never the bytes. */
+  static async attachmentsFor(issueIds) {
+    const out = {};
+    if (!issueIds.length) return out;
+    const [rows] = await promisePool.query(
+      `SELECT id, issue_id, byte_size, width, height FROM issue_report_attachments
+        WHERE issue_id IN (?) ORDER BY id`,
+      [issueIds]
+    );
+    rows.forEach((r) => { (out[r.issue_id] = out[r.issue_id] || []).push(r); });
+    return out;
+  }
+
+  /** One screenshot's bytes, matched on BOTH ids so one report's URL cannot reach another's. */
+  static async attachment(issueId, attachmentId) {
+    const [rows] = await promisePool.query(
+      'SELECT content_type, bytes FROM issue_report_attachments WHERE issue_id = ? AND id = ? LIMIT 1',
+      [issueId, attachmentId]
+    );
+    return rows[0] || null;
+  }
+
+  /** Delete screenshots past the stated retention after closing. The report text stays. */
+  static async purgeExpiredAttachments(days = SCREENSHOTS.retentionDaysAfterClose) {
+    const [result] = await promisePool.query(
+      `DELETE a FROM issue_report_attachments a
+         JOIN issue_reports i ON i.id = a.issue_id
+        WHERE i.status = 'closed' AND i.closed_at IS NOT NULL AND i.closed_at < DATE_SUB(NOW(), INTERVAL ? DAY)`,
+      [days]
+    );
+    return result.affectedRows;
+  }
+
+  /** How many are due to go, so the promise on the form is checkable rather than claimed. */
+  static async attachmentsDueForPurge(days = SCREENSHOTS.retentionDaysAfterClose) {
+    const [[row]] = await promisePool.query(
+      `SELECT COUNT(*) AS total FROM issue_report_attachments a
+         JOIN issue_reports i ON i.id = a.issue_id
+        WHERE i.status = 'closed' AND i.closed_at IS NOT NULL AND i.closed_at < DATE_SUB(NOW(), INTERVAL ? DAY)`,
+      [days]
+    );
+    return Number(row.total);
+  }
+
+  /* ------------------------------------------------------------------ ideas */
+
+  /**
+   * THE one definition of "a published idea": its kind, its sender's consent, and an
+   * administrator's decision. Every public read and every vote goes through this fragment,
+   * so no page can show an idea that is missing one of the three.
+   */
+  static publicIdeaFilter() {
+    return { clause: 'i.kind = ? AND i.publish_consent = 1 AND i.published_at IS NOT NULL', params: [IDEA_KIND] };
+  }
+
+  /** Publish or unpublish. The WHERE refuses an idea sent without consent, whatever is posted. */
+  static async setIdeaPublished(id, published, adminUserId) {
+    const [result] = await promisePool.query(
+      `UPDATE issue_reports
+          SET published_at = CASE WHEN ? = 1 THEN NOW() ELSE NULL END, published_by = ?
+        WHERE id = ? AND kind = ? AND publish_consent = 1`,
+      [published ? 1 : 0, published ? adminUserId : null, id, IDEA_KIND]
+    );
+    return result.affectedRows === 1;
+  }
+
+  /** Published ideas with their vote counts and whether the viewer voted. No names, no emails. */
+  static async publishedIdeas({ viewerUserId = null, limit = 100 } = {}) {
+    const { clause, params } = IssueReport.publicIdeaFilter();
+    const [rows] = await promisePool.query(
+      `SELECT i.id, i.summary, i.detail, i.status, i.response, i.published_at,
+              (SELECT COUNT(*) FROM idea_votes v WHERE v.issue_id = i.id) AS votes,
+              EXISTS (SELECT 1 FROM idea_votes v WHERE v.issue_id = i.id AND v.user_id = ?) AS my_vote
+         FROM issue_reports i
+        WHERE ${clause}
+        ORDER BY votes DESC, i.published_at DESC
+        LIMIT ?`,
+      [viewerUserId || 0, ...params, limit]
+    );
+    return rows.map((r) => ({ ...r, votes: Number(r.votes), my_vote: Boolean(Number(r.my_vote)) }));
+  }
+
+  /**
+   * Vote, or take the vote back. Refused for anything that is not a published idea, so a
+   * vote cannot be cast on a report nobody was meant to see — or used to discover which ids
+   * are ideas waiting to be published.
+   */
+  static async toggleIdeaVote(id, userId) {
+    const { clause, params } = IssueReport.publicIdeaFilter();
+    const [[idea]] = await promisePool.query(`SELECT i.id FROM issue_reports i WHERE i.id = ? AND ${clause}`, [id, ...params]);
+    if (!idea) return { ok: false };
+    const [removed] = await promisePool.query('DELETE FROM idea_votes WHERE issue_id = ? AND user_id = ?', [id, userId]);
+    if (removed.affectedRows) return { ok: true, voted: false };
+    await promisePool.query('INSERT IGNORE INTO idea_votes (issue_id, user_id) VALUES (?, ?)', [id, userId]);
+    return { ok: true, voted: true };
   }
 
   static async findById(id) {

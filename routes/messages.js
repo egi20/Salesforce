@@ -133,13 +133,13 @@ router.post(
         // The employer may only open a thread with a consultant who has chosen to be
         // listed. A hidden profile is not a mailbox.
         const profile = await ConsultantProfile.findByUserId(recipientId);
-        if (!profile || !profile.is_public) {
+        if (!profile || !profile.is_public || profile.admin_hidden_at) {
           req.flash('error', 'That consultant is not listed in the directory.');
           return res.redirect('/messages');
         }
       } else if (recipientOwnsJob) {
         // A consultant may contact the advertiser of an open job, and nobody else.
-        if (job.status !== 'open') {
+        if (job.status !== 'open' || job.admin_hidden_at) {
           req.flash('error', 'That role is no longer open.');
           return res.redirect('/messages');
         }

@@ -9,7 +9,7 @@
 %>
 <% if (assistantEnabled) { %>
   <%- include('assistant-widget') %>
-  <script src="/js/assistant.js" defer></script>
+  <script src="/js/assistant.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>" defer></script>
 <% } %>
 </body>
 </html>

@@ -239,6 +239,23 @@ class Referral {
    * `unpaidMinor` is what a payout would settle; `lifetimeEarnedMinor` is what has ever
    * been credited. Both are derived, so neither can disagree with the history.
    */
+  /**
+   * What a payment earned, if anything — read-only, for the refund screen.
+   *
+   * A refund does NOT reverse a commission here, by design (CLAUDE.md, "No automatic
+   * clawback"): `adjust` does, with a person and a reason the referrer will see. SAP Hub
+   * reverses from the refund button; this repo shows the administrator the exact figure
+   * instead, so the decision is still theirs and nobody has to work the number out.
+   */
+  static async earnedForPayment(paymentId) {
+    const [[row]] = await promisePool.query(
+      `SELECT referrer_id, amount_minor, currency FROM commission_ledger
+        WHERE payment_id = ? AND entry_type = 'earned' LIMIT 1`,
+      [paymentId]
+    );
+    return row || null;
+  }
+
   static async balanceFor(referrerId) {
     const [[row]] = await promisePool.query(
       `SELECT

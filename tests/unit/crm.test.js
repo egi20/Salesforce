@@ -425,8 +425,12 @@ describe('the CSV export', () => {
   test('neutralises a cell that a spreadsheet would execute', () => {
     // =HYPERLINK(...) in a company name is a real injection path out of an export, and the
     // reference does not guard it.
+    // The rule now lives in utils/csv.js, shared with the error-log export, so the route
+    // must go through it and the helper must carry the guard.
     const route = sqlOf('../../routes/crm');
-    expect(route).toMatch(/\^\[=\+\\-@/);
+    expect(route).toMatch(/toCsv\(headers, rows\)/);
+    expect(sqlOf('../../utils/csv')).toMatch(/\^\[=\+\\-@/);
+    expect(require('../../utils/csv').csvCell('=HYPERLINK("x")')).toBe('"\'=HYPERLINK(""x"")"');
   });
 
   test('goes through the same builder the screen used', () => {

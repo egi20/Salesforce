@@ -1,47 +1,48 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Salesforce Hub">
   <!--
-    THE HUB MARK. Original, and deliberately NOT a cloud.
+    THE S-CUBE MARK. Original, and still deliberately NOT a cloud.
 
     This site's own footer says "Not affiliated with Salesforce, Inc." — so the one shape
-    it must not wear is Salesforce's. Their logo is a cloud, and a cloud in their blue on a
-    site called Salesforce Hub states affiliation more loudly than any footer denies it.
+    it must not wear is Salesforce's. A cube read as an "S" beside a block of the same
+    cube is the site's own; a cloud in their blue would state affiliation more loudly than
+    any footer denies it.
 
-    So the mark says what the site IS: a hub. A centre with people connected to it — the
-    marketplace, not the platform it serves.
+    Drawn as vectors from the supplied raster rather than embedded: the PNG carries an
+    opaque white background, which shows as a box on any ground that is not white, and a
+    bitmap embedded in an SVG is exactly what tests/unit/brandAssets.test.js refuses.
+
+    The slots are MASKS, not white strokes, so they are genuinely transparent on whatever
+    the mark sits on. Every edge runs at the 30-degree isometric angle of the hexagon.
   -->
   <defs>
-    <linearGradient id="hubGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0176d3"/>
+    <linearGradient id="sNavy" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b2a5b"/>
       <stop offset="1" stop-color="#032d60"/>
     </linearGradient>
+    <linearGradient id="sBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00a1e0"/>
+      <stop offset="1" stop-color="#0176d3"/>
+    </linearGradient>
+    <!-- One mask per face: a shared one let the S's slot cut a groove through the blue. -->
+    <mask id="sNavyCut" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#fff"/>
+      <g stroke="#000" stroke-width="5" stroke-linecap="round">
+        <line x1="16" y1="26.5" x2="44" y2="42.7"/>
+        <line x1="-4" y1="36" x2="23.5" y2="51.9"/>
+      </g>
+    </mask>
+    <mask id="sBlueCut" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#fff"/>
+      <g stroke="#000" stroke-width="5" stroke-linecap="round">
+        <line x1="30" y1="19.5" x2="47" y2="29.3"/>
+        <line x1="47.5" y1="42.2" x2="66" y2="31.5"/>
+      </g>
+    </mask>
   </defs>
 
-  <!--
-    The spokes, drawn under the nodes so the joins are covered.
-
-    Solid and 5.5 wide, not a hairline at 55% opacity: rendered at the navbar's real 28px
-    and magnified, the thin version disappeared into haze and left six dots floating
-    round a circle. "Connected" is the whole idea of the mark, so the connections have to
-    survive the size it is actually used at.
-  -->
-  <g stroke="#7fb9e8" stroke-width="5.5" stroke-linecap="round">
-    <line x1="32" y1="32" x2="32" y2="12"/>
-    <line x1="32" y1="32" x2="49" y2="22"/>
-    <line x1="32" y1="32" x2="49" y2="42"/>
-    <line x1="32" y1="32" x2="32" y2="52"/>
-    <line x1="32" y1="32" x2="15" y2="42"/>
-    <line x1="32" y1="32" x2="15" y2="22"/>
+  <!-- A stroke in the fill's own gradient rounds the corners without a path per corner. -->
+  <g stroke-linejoin="round" stroke-width="1.5">
+    <path mask="url(#sNavyCut)" d="M6.9 17.5 L19.5 10.2 L37.5 20.6 L37.5 57.8 L32 61 L6.9 46.5 Z" fill="url(#sNavy)" stroke="url(#sNavy)"/>
+    <path mask="url(#sBlueCut)" d="M22.1 8.7 L32 3 L57.1 17.5 L57.1 46.5 L40.5 56.1 L40.5 19.3 Z" fill="url(#sBlue)" stroke="url(#sBlue)"/>
   </g>
-
-  <g fill="url(#hubGrad)">
-    <circle cx="32" cy="12" r="6"/>
-    <circle cx="49" cy="22" r="6"/>
-    <circle cx="49" cy="42" r="6"/>
-    <circle cx="32" cy="52" r="6"/>
-    <circle cx="15" cy="42" r="6"/>
-    <circle cx="15" cy="22" r="6"/>
-  </g>
-
-  <circle cx="32" cy="32" r="9.5" fill="#032d60"/>
-  <circle cx="32" cy="32" r="4" fill="#00a1e0"/>
 </svg>

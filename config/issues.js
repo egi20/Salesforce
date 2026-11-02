@@ -18,6 +18,37 @@ const ISSUE_KINDS = Object.freeze([
 
 const ISSUE_KIND_VALUES = Object.freeze(ISSUE_KINDS.map((k) => k.value));
 
+/*
+ * How badly it hurts (migration 034). Optional: NULL is "did not say", which is a different
+ * fact from "low". `critical` is for the site being down or data being lost, and the queue
+ * puts it first. Not asked of an idea, which is not a fault.
+ */
+const ISSUE_SEVERITIES = Object.freeze([
+  { value: 'low', label: 'A nuisance — I can work around it' },
+  { value: 'normal', label: 'It gets in my way' },
+  { value: 'high', label: 'I cannot do what I came to do' },
+  { value: 'critical', label: 'The site is down, or data is being lost' }
+]);
+const ISSUE_SEVERITY_VALUES = Object.freeze(ISSUE_SEVERITIES.map((s) => s.value));
+
+/*
+ * Screenshots (migration 034). Images only, re-encoded by sharp, at most a few, and deleted
+ * this many days after the report is CLOSED — the report text stays as the record of what
+ * was reported, but a picture can carry anything that was on somebody's screen. Stated on
+ * the form and in the privacy policy, and checkable on /admin/issues.
+ */
+const SCREENSHOTS = Object.freeze({
+  maxFiles: 3,
+  maxBytes: 8 * 1024 * 1024,
+  maxEdgePx: 2000,
+  retentionDaysAfterClose: 90
+});
+
+/** The one kind that can be published on /ideas, with its sender's consent. */
+const IDEA_KIND = 'idea';
+/** The kind whose report names a page of content somebody posted. */
+const CONTENT_KIND = 'content';
+
 /**
  * The lifecycle. `closed` is terminal.
  *
@@ -90,12 +121,21 @@ function assertIssueIntegrity() {
   }
 
   if (!ISSUE_KINDS.length) throw new Error('at least one issue kind is needed');
+  // The two kinds the code branches on must exist, or a branch is silently dead.
+  for (const kind of [IDEA_KIND, CONTENT_KIND]) {
+    if (!ISSUE_KIND_VALUES.includes(kind)) throw new Error(`issue kind ${kind} is referenced but not declared`);
+  }
   return true;
 }
 
 module.exports = {
   ISSUE_KINDS,
   ISSUE_KIND_VALUES,
+  ISSUE_SEVERITIES,
+  ISSUE_SEVERITY_VALUES,
+  SCREENSHOTS,
+  IDEA_KIND,
+  CONTENT_KIND,
   ISSUE_TRANSITIONS,
   ISSUE_STATUSES,
   LIMITS,

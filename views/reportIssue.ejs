@@ -9,7 +9,8 @@
     <%- include('partials/flash') %>
 
     <div class="glass-card mb-4"><div class="card-body p-4">
-      <form method="post" action="/report-issue">
+      <%# Multipart, because of the screenshots; the token is checked once multer has parsed it. %>
+      <form method="post" action="/report-issue" enctype="multipart/form-data">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
         <div class="mb-3">
@@ -19,6 +20,17 @@
               <option value="<%= k.value %>"><%= k.label %></option>
             <% }); %>
           </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="severity">How badly does it affect you</label>
+          <select class="form-select" id="severity" name="severity">
+            <option value="">Prefer not to say</option>
+            <% severities.forEach(function (s) { %>
+              <option value="<%= s.value %>"><%= s.label %></option>
+            <% }); %>
+          </select>
+          <div class="form-text">Not asked of a suggestion. "The site is down" goes to the top of the queue.</div>
         </div>
 
         <div class="mb-3">
@@ -43,6 +55,35 @@
           <div class="form-text">Optional. A path on this site, like <code>/jobs</code>.</div>
         </div>
 
+        <div class="mb-3">
+          <label class="form-label" for="content_path">The post or profile you are reporting</label>
+          <input class="form-control" id="content_path" name="content_path"
+                 maxlength="<%= limits.pagePath %>" placeholder="/community/a-post">
+          <div class="form-text">Only for "A problem with something somebody posted". A path on this site.</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="screenshots">Screenshots</label>
+          <input class="form-control" id="screenshots" name="screenshots" type="file" multiple
+                 accept="image/png,image/jpeg,image/webp,image/gif">
+          <div class="form-text">
+            Optional: up to <%= screenshots.maxFiles %> images of <%= screenshots.maxBytes / 1024 / 1024 %> MB each.
+            They are re-encoded on arrival, which also strips location and camera details, and
+            deleted <%= screenshots.retentionDaysAfterClose %> days after the report is closed.
+            Crop out anything private first.
+          </div>
+        </div>
+
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="publish_consent" name="publish_consent">
+          <label class="form-check-label" for="publish_consent">
+            If this is a suggestion, it may be shown on the <a href="/ideas">ideas page</a> for others to vote on
+          </label>
+          <div class="form-text">
+            Only after somebody here has read it, and never with your name. Unticked, it stays between you and us.
+          </div>
+        </div>
+
         <% if (!currentUser) { %>
           <div class="mb-3">
             <label class="form-label" for="contact_email">Your email</label>
@@ -64,9 +105,9 @@
     <div class="glass-card"><div class="card-body p-4">
       <h2 class="h6 mb-2">What this collects</h2>
       <p class="small text-muted-2 mb-0">
-        Exactly what you typed above, and your account if you are signed in. No address, no
-        browser details, nothing captured automatically — a bug report is not a reason to
-        start logging visitors. You can report without an account: the most useful report we
+        Exactly what you typed above, any screenshots you chose, and your account if you are
+        signed in. No address, no browser details, nothing captured automatically — a bug
+        report is not a reason to start logging visitors. You can report without an account: the most useful report we
         can get is from somebody who could not finish signing up.
       </p>
     </div></div>

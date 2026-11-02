@@ -19,7 +19,7 @@ const Points = require('./Points');
  * be a second place that forgot the counter, the points, or the log.
  */
 
-const SUBJECT_TYPES = Object.freeze(['post', 'reply', 'rate_submission']);
+const SUBJECT_TYPES = Object.freeze(['post', 'reply', 'rate_submission', 'consultant_profile', 'job']);
 
 /** Append-only. An undo is another row, never an edit to this one. */
 async function logEvent(conn, { subjectType, subjectId, action, actorUserId, subjectUserId, reason }) {
@@ -242,6 +242,108 @@ class Moderation {
     });
   }
 
+  /**
+   * Take a consultant profile out of the directory, or clear that decision.
+   *
+   * A DIFFERENT COLUMN FROM `is_public` (migration 033): the member owns that one, and a
+   * moderator writing to it would be overruled the next time they pressed Publish. The
+   * account keeps working; only the public listing goes. `ConsultantProfile.buildFilter`
+   * requires both columns clear, so the directory, the search source and the matches all
+   * drop the profile without any of them knowing why.
+   */
+  static async setProfileHidden(userId, hidden, { actorUserId, reason = null } = {}) {
+    return withTransaction(async (conn) => {
+      const [[profile]] = await conn.query(
+        'SELECT user_id, admin_hidden_at FROM consultant_profiles WHERE user_id = ? FOR UPDATE',
+        [userId]
+      );
+      if (!profile) {
+        const err = new Error('That consultant profile no longer exists.');
+        err.code = 'NOT_FOUND';
+        throw err;
+      }
+      // Two moderators pressing the same button is a normal thing to happen.
+      if (Boolean(profile.admin_hidden_at) === Boolean(hidden)) return { changed: false };
+
+      const eventId = await logEvent(conn, {
+        subjectType: 'consultant_profile',
+        subjectId: userId,
+        action: hidden ? 'hide' : 'restore',
+        actorUserId,
+        subjectUserId: userId,
+        reason
+      });
+
+      if (hidden) {
+        await conn.query(
+          `UPDATE consultant_profiles
+              SET admin_hidden_at = NOW(), admin_hidden_by_user_id = ?, admin_hidden_reason = ?
+            WHERE user_id = ?`,
+          [actorUserId || null, reason ? String(reason).slice(0, 200) : null, userId]
+        );
+      } else {
+        /*
+         * Restoring clears the moderator's column and NOTHING ELSE. Whether the profile
+         * then appears is still the member's own `is_public` and the completeness floor —
+         * an administrator undoing a removal does not publish somebody's profile for them.
+         */
+        await conn.query(
+          `UPDATE consultant_profiles
+              SET admin_hidden_at = NULL, admin_hidden_by_user_id = NULL, admin_hidden_reason = NULL
+            WHERE user_id = ?`,
+          [userId]
+        );
+      }
+      return { changed: true, eventId };
+    });
+  }
+
+  /**
+   * Take a job advert off the board, or clear that decision.
+   *
+   * A DIFFERENT COLUMN FROM `status`, for the reason the profile one is different from
+   * `is_public`: the advertiser moves their own status freely. Nothing is deleted — the
+   * applications, their events and the conversations anchored to the advert belong to other
+   * people, which is also why this is not "delete the job".
+   */
+  static async setJobHidden(jobId, hidden, { actorUserId, reason = null } = {}) {
+    return withTransaction(async (conn) => {
+      const [[job]] = await conn.query(
+        'SELECT id, title, slug, company_user_id, admin_hidden_at FROM jobs WHERE id = ? FOR UPDATE',
+        [jobId]
+      );
+      if (!job) {
+        const err = new Error('That advert no longer exists.');
+        err.code = 'NOT_FOUND';
+        throw err;
+      }
+      if (Boolean(job.admin_hidden_at) === Boolean(hidden)) return { changed: false, job };
+
+      const eventId = await logEvent(conn, {
+        subjectType: 'job',
+        subjectId: jobId,
+        action: hidden ? 'hide' : 'restore',
+        actorUserId,
+        subjectUserId: job.company_user_id,
+        reason
+      });
+
+      if (hidden) {
+        await conn.query(
+          'UPDATE jobs SET admin_hidden_at = NOW(), admin_hidden_by_user_id = ?, admin_hidden_reason = ? WHERE id = ?',
+          [actorUserId || null, reason ? String(reason).slice(0, 200) : null, jobId]
+        );
+      } else {
+        // Clears our decision and nothing else: whether it is live is still its `status`.
+        await conn.query(
+          'UPDATE jobs SET admin_hidden_at = NULL, admin_hidden_by_user_id = NULL, admin_hidden_reason = NULL WHERE id = ?',
+          [jobId]
+        );
+      }
+      return { changed: true, job, eventId };
+    });
+  }
+
   /** The log, newest first. Read-only everywhere: there is no update or delete path. */
   static async events({ limit = 50, offset = 0, subjectUserId = null } = {}) {
     const where = subjectUserId ? 'e.subject_user_id = ?' : '1 = 1';
@@ -292,7 +394,39 @@ class Moderation {
       [limit]
     );
 
-    return { posts, replies };
+    /*
+     * The two takedowns that are not community content. Listed HERE rather than behind an
+     * `include_hidden` option on `Job.buildFilter` or `ConsultantProfile.buildFilter`,
+     * because an option like that is how the rule ends up switched off on whichever page
+     * forgets to pass it. This is the one screen allowed to see them.
+     */
+    const [jobs] = await promisePool.query(
+      `SELECT j.id, j.title, j.slug, j.status, j.admin_hidden_at, j.admin_hidden_reason,
+              COALESCE(NULLIF(TRIM(cp.company_name), ''), u.name) AS company_name,
+              hider.name AS hidden_by_name
+         FROM jobs j
+         JOIN users u ON u.id = j.company_user_id
+         LEFT JOIN company_profiles cp ON cp.user_id = j.company_user_id
+         LEFT JOIN users hider ON hider.id = j.admin_hidden_by_user_id
+        WHERE j.admin_hidden_at IS NOT NULL
+        ORDER BY j.admin_hidden_at DESC
+        LIMIT ?`,
+      [limit]
+    );
+
+    const [profiles] = await promisePool.query(
+      `SELECT p.user_id, p.headline, p.admin_hidden_at, p.admin_hidden_reason,
+              u.name AS member_name, hider.name AS hidden_by_name
+         FROM consultant_profiles p
+         JOIN users u ON u.id = p.user_id
+         LEFT JOIN users hider ON hider.id = p.admin_hidden_by_user_id
+        WHERE p.admin_hidden_at IS NOT NULL
+        ORDER BY p.admin_hidden_at DESC
+        LIMIT ?`,
+      [limit]
+    );
+
+    return { posts, replies, jobs, profiles };
   }
 }
 

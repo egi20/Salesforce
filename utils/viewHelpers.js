@@ -4,6 +4,8 @@ const { sanitizeRichText, toPlainText, jsonForScript } = require('./sanitize');
 const { roleLabel, seniorityLabel } = require('../config/roleTaxonomy');
 const { moduleLabel, familyLabel } = require('../config/cloudFamilies');
 const { engagementLabel, workModeLabel, rateUnit } = require('../config/jobTaxonomy');
+const { countryName } = require('./geo');
+const chartColors = require('./chartColors');
 
 /**
  * The functions every template may call, in ONE place.
@@ -14,7 +16,7 @@ const { engagementLabel, workModeLabel, rateUnit } = require('../config/jobTaxon
  * "seniorityLabel is not defined" thrown from inside a partial — a failure that says
  * nothing about what is wrong.
  *
- * Every entry is a PURE function of its argument. Nothing here reads the request, the
+ * Every entry is a PURE function of its argument (or, for `chartColors`, a frozen constant). Nothing here reads the request, the
  * session or the database: a helper that did would be per-request state living on a
  * module-level object, which is one request's data answering another's.
  */
@@ -28,7 +30,11 @@ const VIEW_HELPERS = Object.freeze({
   familyLabel,
   engagementLabel,
   workModeLabel,
-  rateUnit
+  rateUnit,
+  countryName,
+  // The admin charts' palette. A constant rather than a function, and frozen, so no render
+  // can change what the next one draws with.
+  chartColors
 });
 
 /** Copy them onto a response's locals. */

@@ -89,7 +89,13 @@ describe('storage round trip', () => {
     expect(defaults()).toEqual({
       registration_open: true,
       site_notice: '',
-      community_read_only: false
+      community_read_only: false,
+      // No social account is shown until one is saved (config/social.js).
+      social_linkedin: '',
+      social_x: '',
+      social_youtube: '',
+      social_instagram: '',
+      social_tiktok: ''
     });
   });
 });

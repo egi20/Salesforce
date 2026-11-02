@@ -136,3 +136,29 @@ describe('the panel view', () => {
     for (const form of forms) expect(form).toContain('_csrf');
   });
 });
+
+describe('run history', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const admin = fs.readFileSync(path.join(__dirname, '..', '..', 'routes', 'admin.js'), 'utf8');
+
+  it('a run page is reached only by a well-formed batch id, checked before SQL', () => {
+    const at = admin.indexOf("'/tests/runs/:batch'");
+    expect(at).toBeGreaterThan(-1);
+    expect(admin.slice(at, at + 400)).toMatch(/RUN_BATCH_RE\.test\(req\.params\.batch\) \?/);
+  });
+
+  it('has no switch to turn a test off: every case in config runs', () => {
+    expect(admin).not.toMatch(/'\/tests\/switch'/);
+  });
+
+  it('lists recent runs from the results table, newest first', async () => {
+    const { promisePool } = require('../../config/database');
+    const AdminTestRun = require('../../models/AdminTestRun');
+    const spy = jest.spyOn(promisePool, 'query').mockResolvedValue([[{ run_batch: 'b', total: '3', passed: '2', duration_ms: '10', categories: '1' }]]);
+    const [row] = await AdminTestRun.recent(5);
+    expect(row).toMatchObject({ total: 3, passed: 2 });
+    expect(spy.mock.calls[0][0]).toMatch(/GROUP BY t\.run_batch/);
+    spy.mockRestore();
+  });
+});

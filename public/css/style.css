@@ -44,16 +44,29 @@
   --navy-gradient: linear-gradient(135deg, #032d60 0%, #0b5cab 100%);
   --hero-gradient: linear-gradient(135deg, #01203f 0%, #032d60 45%, #0b5cab 100%);
 
+  /*
+   * SKY. The page header and the washes behind content are a light sky blue, taken from the
+   * cyan accent, with NAVY text on them — never white. White on #00A1E0 is 2.93:1; navy on
+   * the deepest stop of this gradient is 8.47:1 and the sub text 5.41:1. Light sky with dark
+   * text is what makes the site read as sky blue and stay readable; Salesforce's cyan behind
+   * white text would do neither, and copying their logo colour outright would also say
+   * "official" more loudly than the footer's disclaimer says otherwise.
+   */
+  --sky-gradient: linear-gradient(135deg, #e3f5fd 0%, #bfe8fa 55%, #8fd6f5 100%);
+  --sky-wash: #eef9fe;
+  --sky-text: #032d60;     /* 8.47:1 on the deepest stop */
+  --sky-text-soft: #1f4e79; /* 5.41:1 on the deepest stop */
+
   --mesh-gradient:
     radial-gradient(at 40% 20%, rgba(0, 161, 224, 0.15) 0, transparent 50%),
     radial-gradient(at 80% 0%, rgba(1, 118, 211, 0.12) 0, transparent 50%),
     radial-gradient(at 0% 50%, rgba(3, 45, 96, 0.08) 0, transparent 50%);
 
   --glass-mesh-bg:
-    radial-gradient(ellipse at 15% 0%, rgba(1, 118, 211, 0.22) 0%, transparent 55%),
-    radial-gradient(ellipse at 85% 100%, rgba(0, 161, 224, 0.2) 0%, transparent 55%),
-    radial-gradient(ellipse at 0% 65%, rgba(3, 45, 96, 0.12) 0%, transparent 45%),
-    radial-gradient(ellipse at 100% 35%, rgba(111, 211, 255, 0.16) 0%, transparent 45%);
+    radial-gradient(ellipse at 15% 0%, rgba(0, 161, 224, 0.30) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 100%, rgba(111, 211, 255, 0.35) 0%, transparent 55%),
+    radial-gradient(ellipse at 0% 65%, rgba(0, 161, 224, 0.18) 0%, transparent 45%),
+    radial-gradient(ellipse at 100% 35%, rgba(111, 211, 255, 0.22) 0%, transparent 45%);
 
   /* Sanctioned accents. ONLY for .icon-tile colour modifiers. */
   --grad-blue: linear-gradient(135deg, #0176d3 0%, #00a1e0 100%);
@@ -85,6 +98,8 @@
   --glass-blur-lg: blur(24px);
   --glass-blur-xl: blur(40px);
 
+  /* An open menu: wider and fainter than the glass shadows, so it floats rather than presses. */
+  --shadow-menu: 0 12px 32px rgba(3, 45, 96, 0.1);
   --glass-shadow:
     0 8px 32px rgba(3, 45, 96, 0.08),
     0 2px 8px rgba(3, 45, 96, 0.04),
@@ -189,7 +204,7 @@
 body {
   font-family: var(--font-sans);
   color: var(--text-medium);
-  background: var(--bg-white);
+  background: var(--sky-wash);
   font-size: 15px;
   line-height: 1.6;
   overflow-x: hidden;
@@ -388,11 +403,36 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   padding-bottom: 0.85rem;
 }
 
+/*
+ * 80px, matching the sister site. The extra height is padding around the same row, not a
+ * taller row: `min-height` on the container means a collapsed menu still grows below it.
+ */
+.navbar-hub { --bs-navbar-padding-y: 0; }
+.navbar-hub > .container { min-height: 80px; }
+
 .navbar-hub .navbar-brand {
   font-weight: 800;
   font-size: 1.35rem;
   letter-spacing: -0.03em;
   color: var(--primary-navy);
+}
+
+/*
+ * The mark sits on a white tile with a hairline and a soft shadow, so it reads as one
+ * object rather than a loose shape beside the wordmark — and so the navy half of the mark
+ * keeps its edge on the footer's navy ground, where the same tile is reused.
+ */
+.brand-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  background: #fff;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 2px 8px rgba(3, 45, 96, 0.08);
 }
 .navbar-hub .navbar-brand .cloud {
   background: var(--accent-gradient);
@@ -404,21 +444,25 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 .navbar-hub .navbar-nav {
   gap: 0.2rem;
 }
-@media (min-width: 1200px) {
-  .navbar-hub .navbar-nav.mx-xl-auto { gap: 0.35rem; }
+@media (min-width: 992px) {
+  .navbar-hub .navbar-nav.mx-lg-auto { gap: 0.35rem; }
 }
 
 /*
  * `.navbar-nav` is in the selector deliberately. Bootstrap sets the horizontal padding with
- * `.navbar-expand-xl .navbar-nav .nav-link`, three classes, so a two-class rule here loses
+ * `.navbar-expand-lg .navbar-nav .nav-link`, three classes, so a two-class rule here loses
  * and the padding below is silently ignored — which is exactly what happened the first time
  * this was trimmed.
  */
 .navbar-hub .navbar-nav .nav-link {
   color: var(--text-medium);
   font-weight: 500;
-  border-radius: var(--radius-lg);
-  padding: 0.5rem 0.9rem;
+  /*
+   * Tighter than the 0.8rem it was. Six dropdowns, a brand, a search and two buttons is a
+   * lot for one bar, and the alternative to trimming this is collapsing to a hamburger at a
+   * width where there is visibly room for a menu.
+   */
+  padding: 0.45rem 0.6rem;
   transition: var(--transition-fast);
   /*
    * Icon and label on ONE line.
@@ -432,16 +476,35 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   align-items: center;
   gap: 0.4rem;
   white-space: nowrap;
+  position: relative;
 }
 .navbar-hub .nav-link:hover {
-  background: rgba(1, 118, 211, 0.08);
   color: var(--primary-blue);
   text-decoration: none;
 }
-.navbar-hub .nav-link.active {
-  color: var(--primary-blue);
-  background: rgba(1, 118, 211, 0.1);
+.navbar-hub .nav-link.active { color: var(--primary-blue); }
+
+/*
+ * The current section is UNDERLINED, not filled. A pill behind the active item competed
+ * with the pill-shaped Sign Up button at the other end of the bar; an underline marks the
+ * place without looking like something to press. Drawn as a pseudo-element so it sits
+ * inside the link's own padding and moves nothing when it appears.
+ */
+.navbar-hub .navbar-nav .nav-link::after {
+  content: '';
+  position: absolute;
+  left: 0.6rem;
+  right: 0.6rem;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--primary-blue);
+  transform: scaleX(0);
+  transition: transform 0.2s ease;
 }
+.navbar-hub .navbar-nav .nav-link.active::after { transform: scaleX(1); }
+/* The account toggle is a menu, not a section of the site: it is never "where you are". */
+.navbar-hub .navbar-nav .nav-link.d-flex::after { display: none; }
 
 /*
  * AN OPEN MENU IS OPAQUE. This is the one place the frost is wrong.
@@ -459,10 +522,18 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   background: #fff;
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--glass-shadow-lg);
-  padding: var(--space-2);
+  box-shadow: var(--shadow-menu);
+  padding: var(--space-3);
+  min-width: 15rem;
 }
-.navbar-hub .dropdown-item { border-radius: var(--radius-md); padding: 0.5rem 0.75rem; }
+.navbar-hub .dropdown-item {
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.navbar-hub .dropdown-item .bi { color: var(--primary-blue); }
 .navbar-hub .dropdown-item:hover { background: rgba(1, 118, 211, 0.08); color: var(--primary-blue); }
 
 .navbar-hub .avatar {
@@ -687,8 +758,8 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
 
 .hero {
   position: relative;
-  background: var(--hero-gradient);
-  color: #fff;
+  background: var(--sky-gradient);
+  color: var(--sky-text);
   padding: var(--space-16) 0 var(--space-12);
   overflow: hidden;
 }
@@ -700,14 +771,14 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   pointer-events: none;
 }
 .hero > .container { position: relative; z-index: 1; }
-.hero h1, .hero h2, .hero h3 { color: #fff; }
-.hero p { color: rgba(255, 255, 255, 0.85); }
-.hero a:not(.btn) { color: #fff; text-decoration: underline; }
+.hero h1, .hero h2, .hero h3 { color: var(--sky-text); }
+.hero p { color: var(--sky-text-soft); }
+.hero a:not(.btn) { color: var(--sky-text); text-decoration: underline; }
 
 .page-header {
   position: relative;
-  background: var(--navy-gradient);
-  color: #fff;
+  background: var(--sky-gradient);
+  color: var(--sky-text);
   padding: var(--space-10) 0 var(--space-8);
   /* No bottom margin: the washed section that follows supplies the gap. A margin here
      leaves a bare white strip between the navy band and the wash. */
@@ -722,9 +793,9 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   pointer-events: none;
 }
 .page-header > .container { position: relative; z-index: 1; }
-.page-header h1 { color: #fff; margin: 0; }
-.page-header p { color: rgba(255, 255, 255, 0.85); margin: var(--space-2) 0 0; max-width: 62ch; }
-.page-header a { color: #fff; text-decoration: underline; }
+.page-header h1 { color: var(--sky-text); margin: 0; }
+.page-header p { color: var(--sky-text-soft); margin: var(--space-2) 0 0; max-width: 62ch; }
+.page-header a { color: var(--sky-text); text-decoration: underline; }
 
 .section-badge {
   display: inline-flex;
@@ -732,9 +803,11 @@ a.glass-card:hover, .glass-card-hover:hover { transform: translateY(-4px); text-
   gap: var(--space-2);
   padding: 0.35rem 0.9rem;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #fff;
+  /* On the sky header. The darker blue, not --primary-blue: at this size the badge is small
+     bold text, and --primary-blue on the near-white fill measured 4.14:1. */
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(0, 161, 224, 0.35);
+  color: var(--primary-blue-dark);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -1025,8 +1098,13 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 
 .footer-hub {
   position: relative;
-  background: var(--primary-navy-dark);
-  color: rgba(255, 255, 255, 0.75);
+  /*
+   * Bluer than the navy it was, to sit under the sky pages, but it starts from #0b5cab and
+   * not from the CTA blue: the links are small text, and on #0176d3 they measured 3.28:1.
+   * Here they are 5.33:1 at the top of the footer and higher as it darkens.
+   */
+  background: linear-gradient(180deg, var(--primary-navy-light) 0%, var(--primary-navy) 100%);
+  color: rgba(255, 255, 255, 0.85);
   padding: var(--space-12) 0 var(--space-6);
   /* No top margin. Every page ends in a padded section, and a margin here leaves a bare
      white seam between the washed content and the footer. */
@@ -1035,8 +1113,42 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 }
 .footer-hub::after { content: ''; position: absolute; inset: 0; background: var(--mesh-gradient); pointer-events: none; opacity: 0.6; }
 .footer-hub > .container { position: relative; z-index: 1; }
+/* The accent rule along the top edge: where the page ends and the footer begins. */
+.footer-hub::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-blue-light) 0%, var(--primary-blue) 100%);
+  z-index: 2;
+}
 .footer-hub h3 { color: #fff; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
-.footer-hub a { color: rgba(255, 255, 255, 0.75); }
+/* A short rule under each column heading, so a column reads as a group from a distance. */
+.footer-grid h3::after {
+  content: '';
+  display: block;
+  width: 24px;
+  height: 2px;
+  margin-top: 0.5rem;
+  border-radius: 2px;
+  background: var(--primary-blue-light);
+}
+.footer-hub .footer-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: var(--space-3);
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
+  color: #fff;
+  text-decoration: none;
+}
+.footer-hub .footer-logo:hover { color: #fff; text-decoration: none; }
+.footer-disclaimer { color: rgba(255, 255, 255, 0.75); } /* the bluer footer needs more than .55 to clear 4.5:1 */
+.footer-hub a { color: rgba(255, 255, 255, 0.85); }
 .footer-hub a:hover { color: #fff; }
 
 /* The owner's actions belong to the card above them, which carries its own bottom
@@ -1316,7 +1428,7 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
   color: var(--text-light);
 }
 
-@media (max-width: 1199.98px) {
+@media (max-width: 991.98px) {
   .nav-search-panel { position: static; width: 100%; margin-top: 0.5rem; box-shadow: none; }
 }
 
@@ -1335,21 +1447,44 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
   font-size: 0.9375rem;
 }
 
+@media (max-width: 991.98px) {
+  /* Collapsed, each item is a full-width row, and an underline that wide reads as a
+     divider rather than a marker. A short bar on the left edge says "you are here". */
+  .navbar-hub .navbar-nav .nav-link { padding-left: 0.75rem; }
+  .navbar-hub .navbar-nav .nav-link::after {
+    left: 0;
+    right: auto;
+    top: 0.5rem;
+    bottom: 0.5rem;
+    width: 3px;
+    height: auto;
+    transform: scaleY(0);
+  }
+  .navbar-hub .navbar-nav .nav-link.active::after { transform: scaleY(1); }
+
+}
+
 /*
  * THE NARROW END OF THE EXPANDED BAR.
  *
- * The menu expands at 1200px, and at exactly 1200px it did not fit: brand, six items, the
+ * The menu expanded at 1200px, and at exactly 1200px it did not fit: brand, six items, the
  * search and two buttons measured 1196px inside a 1140px container, so "Sign up" hung off
  * the right edge. Collapsing to a hamburger instead would hide a menu at a width where a
  * laptop plainly has room for one.
+ *
+ * It now expands at 992px, as SAP Hub's does — until then everything from 992 to 1199px,
+ * which is most small laptops and a landscape tablet, got only the hamburger. Bootstrap's
+ * container there is 960px, 180px less than the bar was measured against, so that range has
+ * a second, tighter band below.
  *
  * So the band between the expand breakpoint and a comfortable width trims what costs
  * nothing to read: the padding around each item and a little off the wordmark. Nothing is
  * hidden and nothing moves.
  */
-@media (min-width: 1200px) and (max-width: 1399.98px) {
+@media (min-width: 992px) and (max-width: 1399.98px) {
   .navbar-hub .navbar-brand { font-size: 1.15rem; }
   .navbar-hub .navbar-nav .nav-link { padding: 0.45rem 0.4rem; gap: 0.3rem; }
+  .navbar-hub .navbar-nav .nav-link::after { left: 0.4rem; right: 0.4rem; }
   .navbar-hub .btn-auth { padding: 0.4rem 0.9rem; }
 
   /*
@@ -1369,6 +1504,22 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
     white-space: nowrap;
     border: 0;
   }
+}
+
+/*
+ * 992px to 1199px: the 960px container. Measured signed out at 992px with only the band
+ * above, the bar was 41px too wide and "Sign Up" hung off the edge exactly as it once did at
+ * 1200px. The cuts are the same kind — a slightly smaller label, less padding round each
+ * item, a smaller wordmark, a closer search button — and again nothing is hidden: every item
+ * keeps its icon and its full label, because a menu that drops words to fit is a different
+ * menu at every width.
+ */
+@media (min-width: 992px) and (max-width: 1199.98px) {
+  .navbar-hub .navbar-brand { font-size: 1.05rem; margin-right: 0.5rem; }
+  .navbar-hub .navbar-nav .nav-link { padding: 0.45rem 0.3rem; gap: 0.25rem; font-size: 0.875rem; }
+  .navbar-hub .navbar-nav .nav-link::after { left: 0.3rem; right: 0.3rem; }
+  .navbar-hub .nav-search { margin-right: 0.5rem !important; }
+  .navbar-hub .btn-auth { padding: 0.35rem 0.75rem; font-size: 0.875rem; }
 }
 
 /* ============================================================================
@@ -1402,21 +1553,25 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 .sf-assistant { position: fixed; right: var(--space-5); bottom: var(--space-5); z-index: 1045; }
 
 .sf-assistant-launcher {
-  width: 3.5rem;
-  height: 3.5rem;
+  /* The mascot is the button: transparent, so the robot's own outline is the shape. */
+  width: 68px;
+  height: 78px;
+  padding: 0;
   border: 0;
-  border-radius: var(--radius-full);
-  background: var(--grad-navyblue);
-  color: #fff;
-  font-size: 1.35rem;
-  box-shadow: 0 10px 28px rgba(3, 45, 96, 0.35);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  background: transparent;
   position: relative;
+  cursor: pointer;
   transition: var(--transition-normal);
 }
-.sf-assistant-launcher:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(3, 45, 96, 0.42); }
+.sf-assistant-launcher-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 10px rgba(3, 45, 96, 0.45)) drop-shadow(0 0 12px rgba(1, 118, 211, 0.35));
+}
+.sf-assistant-launcher:hover,
+.sf-assistant-launcher:focus-visible { transform: translateY(-3px) scale(1.04); }
 
 /* The label says "AI" in words, not by implication. A floating orb that turns out to be
    a language model is a small dishonesty people notice. */
@@ -1437,7 +1592,7 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 .sf-assistant-panel {
   position: absolute;
   right: 0;
-  bottom: 4.25rem;
+  bottom: 5.25rem;
   width: min(22rem, calc(100vw - 2 * var(--space-5)));
   max-height: min(32rem, calc(100vh - 8rem));
   display: flex;
@@ -1458,7 +1613,7 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border-color);
 }
-.sf-assistant-avatar { width: 2rem; height: 2rem; font-size: 0.9rem; flex-shrink: 0; }
+.sf-assistant-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-navy); object-fit: cover; flex-shrink: 0; }
 .sf-assistant-title { font-weight: 600; flex-grow: 1; display: flex; align-items: center; gap: var(--space-2); }
 .sf-assistant-close { border: 0; background: transparent; color: var(--text-light); line-height: 1; }
 .sf-assistant-close:hover { color: var(--text-dark); }
@@ -1547,19 +1702,21 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 
 @media (max-width: 575.98px) {
   .sf-assistant { right: var(--space-3); bottom: var(--space-3); }
-  .sf-assistant-panel { width: calc(100vw - 2 * var(--space-3)); }
+  .sf-assistant-panel { width: calc(100vw - 2 * var(--space-3)); bottom: 4.5rem; }
+  /* Smaller on a phone, so the robot does not sit over a form's last button. */
+  .sf-assistant-launcher { width: 56px; height: 64px; }
 }
 
 @media print {
   .sf-assistant { display: none !important; }
 }
 
-/* The hub mark beside the wordmark. Fixed box so the navbar cannot reflow while the SVG
+/* The S-cube mark beside the wordmark. Fixed box so the navbar cannot reflow while the SVG
    loads — a brand that jumps on every page load is the first thing people notice. */
 .navbar-hub .navbar-brand .brand-mark {
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
   display: block;
 }
 
@@ -1693,3 +1850,82 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
   outline: 2px solid var(--primary-blue);
   outline-offset: 1px;
 }
+
+/* ============================================================================
+   ADMIN ANALYTICS, THE ANALYTICS CONSENT BAR, SALES AGENTS (ported from SAP Hub)
+   ========================================================================== */
+
+/* A headline figure on the analytics and sales-agent screens. */
+.stat-value { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; color: var(--primary-navy); }
+
+/* The ranked lists on the analytics screens: one bar per row, scaled to the largest. */
+.analytics-bar { display: block; height: 4px; margin-top: 3px; border-radius: var(--radius-full); background: var(--grad-navyblue); opacity: 0.55; }
+.analytics-scroll { max-height: 420px; overflow-y: auto; }
+.live-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--grad-success); vertical-align: middle; }
+
+/* "Analytics choices" in the footer is a button, because it changes a setting and goes
+   nowhere; it is dressed as the links beside it. */
+.footer-hub .footer-link-button { color: inherit; opacity: 0.85; text-decoration: none; font-size: inherit; vertical-align: baseline; border: 0; }
+.footer-hub .footer-link-button:hover, .footer-hub .footer-link-button:focus { opacity: 1; text-decoration: underline; }
+
+/*
+ * The analytics consent bar. Appended to <body> by public/js/analytics.js, and only when
+ * GA4 is configured — without it this site has nothing to ask about. Opaque, not glass:
+ * it floats over arbitrary page content (DESIGN.md, "Where the wash goes").
+ */
+.cookie-notice {
+  position: fixed; left: 1rem; right: 1rem; bottom: 1rem; z-index: 1040;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem;
+  max-width: 56rem; margin: 0 auto; padding: 0.875rem 1rem;
+  border-radius: 0.75rem; border: 1px solid var(--border-color);
+  background: #fff; box-shadow: var(--shadow-menu);
+}
+.cookie-notice-text { margin: 0; flex: 1 1 18rem; font-size: 0.9rem; line-height: 1.45; }
+.cookie-notice-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.cookie-notice .btn { flex: 0 0 auto; }
+/* The bar is fixed, so it cannot push anything out of its way: `body` reserves the space
+   while it is up, or the form buttons underneath are unreachable until it is answered. */
+body.has-cookie-notice { padding-bottom: 7rem; }
+@media (min-width: 576px) { body.has-cookie-notice { padding-bottom: 5.5rem; } }
+@media (max-width: 575.98px) {
+  .cookie-notice { padding: 0.625rem 0.75rem; gap: 0.5rem; left: 0.5rem; right: 0.5rem; bottom: 0.5rem; }
+  .cookie-notice-text { font-size: 0.8125rem; line-height: 1.35; flex-basis: 100%; }
+}
+@media print { .cookie-notice { display: none !important; } }
+
+/* Sales agents: the country ring (views/admin/_country-donut.ejs). Slice colours are SVG
+   attributes from utils/chartColors.js, so nothing here is a hex. */
+.country-donut .cd-track { stroke: var(--border-color); }
+.country-donut .cd-total { font-size: 6px; font-weight: 700; fill: var(--primary-navy); }
+.country-donut .cd-total-label { font-size: 2.6px; fill: var(--text-light); text-transform: uppercase; letter-spacing: .08em; }
+.country-donut .cd-legend { flex: 1 1 215px; min-width: 215px; max-width: 340px; max-height: 200px; overflow-y: auto; }
+.country-donut .cd-row {
+  display: grid; grid-template-columns: 9px 1fr auto 42px; align-items: center; gap: .45rem;
+  padding: .17rem .3rem; font-size: .8rem;
+}
+.country-donut .cd-row + .cd-row { border-top: 1px solid var(--border-color); }
+.country-donut .cd-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.country-donut .cd-count { font-variant-numeric: tabular-nums; font-weight: 600; }
+.country-donut .cd-pct { font-variant-numeric: tabular-nums; text-align: right; }
+.agent-country-btn { white-space: nowrap; }
+.agent-modal-scroll { max-height: 280px; overflow-y: auto; }
+
+/* The Hub's own social accounts in the footer — rendered only for those configured. */
+.footer-social .list-inline-item a { font-size: 1.15rem; display: inline-flex; padding: 0.25rem; }
+
+/* /admin/users, ported from SAP Hub. Wider than the site's container: thirteen columns do not
+   fit in 1140px without the actions falling off the edge. */
+.admin-wide { max-width: 1640px; padding-left: 1.5rem; padding-right: 1.5rem; }
+@media (max-width: 575.98px) { .admin-wide { padding-left: 1rem; padding-right: 1rem; } }
+.admin-users-table { font-size: 0.875rem; }
+.admin-users-table th { white-space: nowrap; font-weight: 600; }
+.admin-users-table td { padding-top: 0.6rem; padding-bottom: 0.6rem; }
+.admin-user-actions { white-space: nowrap; }
+.admin-user-actions form { display: inline-block; }
+.admin-user-actions .btn { padding: 0.3rem 0.55rem; margin-left: 0.15rem; }
+/* The roles and listing panels open with Bootstrap's collapse and the delete dialogs are
+   modals, and both need scripting. Without it `.js-reveal` is never set, so the panels are
+   simply open and the dialogs sit in the page as ordinary forms — every action still works. */
+html:not(.js-reveal) .admin-users-page .admin-user-panel.collapse { display: table-row; }
+html:not(.js-reveal) .admin-user-modal { display: block; position: static; opacity: 1; }
+html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }

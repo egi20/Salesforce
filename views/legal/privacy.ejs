@@ -49,6 +49,23 @@
             has no effect on anything.</li>
       </ul>
 
+      <h2 class="h6" id="links">Links that brought you here</h2>
+      <p>If you created your account after following a member's referral link, or the personal
+         sign-up link of one of our team, we record against your account whose link it was. It is
+         recorded once, at sign-up, and only the first such link counts. A referral link can earn
+         its member a commission on what you later buy; a team member's link earns nothing and is
+         only used to see how people find us. The number of times a team member's link is opened
+         is kept as a count and a time, with nothing about who opened it.</p>
+
+      <h2 class="h6" id="reports">Problem reports and ideas</h2>
+      <p>What you type into <a href="/report-issue">Report a problem</a> is kept so we can act on
+         it and answer you. Screenshots you attach are re-encoded on arrival, which removes
+         location and camera details, and are deleted 90 days after the report is closed; the
+         text stays as the record of what was reported. A suggestion is shown on the
+         <a href="/ideas">ideas page</a> only if you ticked the box that allows it and somebody
+         here published it, and never with your name. Votes on ideas are counted, never shown
+         against anybody.</p>
+
       <h2 class="h6">How long it is kept</h2>
       <p>Your account and everything on it, for as long as the account exists — you can end
          that yourself at any time. Payment records for as long as tax law requires,
@@ -63,11 +80,43 @@
          be a benchmark nobody could trust, and once the link is gone the figure identifies
          nobody.</p>
 
-      <h2 class="h6">Visitor analytics</h2>
+      <%#
+        Written as a statement of what exists on THIS deployment. Every sentence about an
+        analytics provider is rendered only while that provider is configured
+        (config/webAnalytics.js), because a policy describing a tag that is not on the page
+        — or missing one that is — is wrong in a document people rely on.
+      %>
+      <% const wa = (typeof webAnalytics !== 'undefined' && webAnalytics) || {}; %>
+      <h2 class="h6" id="cookies">Cookies</h2>
+      <p>This site sets <strong><%= wa.ga4Id ? 'one cookie of its own' : 'one cookie' %></strong>,
+         the one that keeps you signed in. It holds a random session identifier and nothing
+         else, and it is strictly necessary for a function you asked for, so we do not ask you
+         to consent to it. There is no advertising cookie.</p>
+      <% if (wa.ga4Id) { %>
+      <p><strong>Google Analytics, only if you allow it.</strong> When you first visit we ask
+         whether we may count your visit with Google Analytics. If you choose "Allow
+         analytics", Google sets the cookies <code>_ga</code> and <code>_ga_*</code>, which
+         keep a random identifier for up to two years so that repeat visits can be told apart,
+         and the pages you open, your approximate location, device and the site that referred
+         you are sent to Google, which processes them on our behalf. If you choose "Decline",
+         nothing is loaded from Google and no such cookie is set. You can change your answer at
+         any time with "Analytics choices" at the foot of every page; withdrawing removes the
+         cookies. Your answer is kept in your browser's local storage, not in a cookie.
+         Administrators and the sign-in pages are never measured.</p>
+      <% } %>
+
+      <h2 class="h6" id="analytics">Visitor analytics</h2>
       <p>We count page views per country per day. No path, identifier or address is kept
-         alongside that count, so it cannot be traced back to a person. There is no
-         third-party analytics on this site and no advertising or tracking cookie — the only
-         cookie is the one that keeps you signed in.</p>
+         alongside that count, so it cannot be traced back to a person.
+         <% if (!wa.ga4Id && !wa.cloudflareToken) { %>There is no third-party analytics on
+         this site and no tracking cookie.<% } %></p>
+      <% if (wa.cloudflareToken) { %>
+      <p>We also use <strong>Cloudflare Web Analytics</strong>, which runs for every visitor
+         because it sets no cookie and keeps no identifier: it cannot recognise you on a
+         second visit. For each page view it receives the address of the page, the site that
+         referred you, your browser and device type, the country your connection comes from
+         and how long the page took to load, and reports them to us only as totals.</p>
+      <% } %>
 
       <h2 class="h6">Who else receives it</h2>
       <% if (processors.length) { %>

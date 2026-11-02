@@ -1,6 +1,7 @@
 'use strict';
 
 const express = require('express');
+const { toCsv } = require('../utils/csv');
 
 const countries = require('../config/all-countries.json');
 const CrmLead = require('../models/CrmLead');
@@ -224,16 +225,8 @@ router.get(
       'last_activity_at', 'created_at'
     ];
 
-    // A cell starting with =, +, - or @ is executed as a formula when the file is opened
-    // in a spreadsheet, so it is prefixed with a quote. This is a real injection path out
-    // of a CSV export and the reference does not guard it.
-    const cell = (value) => {
-      const raw = value === null || value === undefined ? '' : String(value);
-      const safe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
-      return `"${safe.replace(/"/g, '""')}"`;
-    };
-
-    const csv = [headers.join(','), ...rows.map((r) => headers.map((h) => cell(r[h])).join(','))].join('\r\n');
+    // Formula-injection escaping lives in utils/csv.js, shared with the error-log export.
+    const csv = toCsv(headers, rows);
 
     res.set('Content-Type', 'text/csv; charset=utf-8');
     res.set('Content-Disposition', 'attachment; filename="leads.csv"');

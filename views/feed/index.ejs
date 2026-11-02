@@ -5,27 +5,44 @@
     <%- include('../partials/flash') %>
 
     <div class="mb-4">
-      <h1 class="mb-1"><%= greeting %>, <%= currentUser.name.split(' ')[0] %></h1>
-      <p class="text-muted-2 mb-0">The community kept busy while you were away — here's the latest.</p>
+      <% if (currentUser) { %>
+        <h1 class="mb-1"><%= greeting %>, <%= currentUser.name.split(' ')[0] %></h1>
+        <p class="text-muted-2 mb-0">The community kept busy while you were away — here's the latest.</p>
+      <% } else { %>
+        <h1 class="mb-1"><%= greeting %> — the Salesforce community, live</h1>
+        <p class="text-muted-2 mb-0">Questions, articles, discussions and open roles from people who work on the platform.</p>
+      <% } %>
     </div>
 
-    <%- include('../partials/composer') %>
+    <% if (currentUser) { %>
+      <%- include('../partials/composer') %>
+    <% } %>
 
     <div class="row g-4">
       <div class="col-lg-8">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-          <%- include('../partials/kind-filters', { filterBase: '/' }) %>
+          <%- include('../partials/kind-filters', { filterBase: '/', jobsTab: { selected: showJobs, total: jobsTotal } }) %>
           <a class="btn btn-navy btn-sm mb-3" href="/community">
             <i class="bi bi-people"></i> Community home <i class="bi bi-arrow-right"></i>
           </a>
         </div>
 
-        <% if (posts.length === 0) { %>
+        <% if (showJobs) { %>
+          <% if (jobs.length === 0) { %>
+            <div class="empty-state glass-card"><i class="bi bi-briefcase"></i>No open roles right now.</div>
+          <% } else { %>
+            <% jobs.forEach(function (job) { %>
+              <%- include('../partials/job-card', { job: job }) %>
+            <% }); %>
+            <%- include('../partials/pagination') %>
+          <% } %>
+        <% } else if (posts.length === 0) { %>
           <div class="empty-state glass-card">
             <i class="bi bi-chat-square-text"></i>
             <p class="mb-1">Nothing here yet.</p>
             <p class="small mb-3">Be the first — a question counts as much as an article.</p>
-            <a class="btn btn-primary" href="/community/new">Write the first post</a>
+            <%# A visitor is sent to sign up, not to a form that would bounce them to a login. %>
+            <a class="btn btn-primary" href="<%= currentUser ? '/community/new' : '/auth/register' %>">Write the first post</a>
           </div>
         <% } else { %>
           <% posts.forEach(function (post) { %>
@@ -36,6 +53,45 @@
       </div>
 
       <aside class="col-lg-4">
+        <% if (!currentUser) { %>
+          <div class="glass-card mb-3">
+            <div class="card-body">
+              <h2 class="h5 mb-2">New here?</h2>
+              <p class="small text-muted-2 mb-3">
+                Salesforce Hub is a marketplace and a community for people who work on the
+                Salesforce platform: contract and permanent roles, a consultant directory,
+                scope estimates and day-rate benchmarks contributed by consultants.
+              </p>
+              <ul class="list-unstyled small mb-0">
+                <li class="mb-1"><a href="/jobs"><i class="bi bi-briefcase"></i> Browse open roles</a></li>
+                <li class="mb-1"><a href="/consultants"><i class="bi bi-people"></i> Browse consultants</a></li>
+                <li class="mb-1"><a href="/rates"><i class="bi bi-graph-up"></i> See what the work pays</a></li>
+                <li><a href="/about"><i class="bi bi-info-circle"></i> About the Hub</a></li>
+              </ul>
+            </div>
+          </div>
+
+          <%# Each line is something the guards actually require an account for, so the box %>
+          <%# promises nothing a visitor could already do. %>
+          <div class="glass-card mb-3">
+            <div class="card-body">
+              <h2 class="h5 mb-2">Why sign in?</h2>
+              <ul class="small mb-3 ps-3">
+                <li>Ask questions, write articles and reply to people</li>
+                <li>Apply to roles and save the ones you want to come back to</li>
+                <li>Publish a consultant profile companies can find</li>
+                <li>Message people about a role or an application</li>
+                <li>Contribute your rate to the index, anonymously</li>
+              </ul>
+              <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-primary btn-sm" href="/auth/register">Sign Up</a>
+                <a class="btn btn-outline-primary btn-sm" href="/auth/login">Sign In</a>
+              </div>
+            </div>
+          </div>
+        <% } %>
+
+        <% if (standing) { %>
         <div class="glass-card mb-3">
           <div class="card-body">
             <div class="d-flex align-items-center gap-3">
@@ -56,6 +112,7 @@
             </div>
           </div>
         </div>
+        <% } %>
 
         <div class="glass-card mb-3">
           <div class="card-body">
@@ -88,6 +145,8 @@
           </div>
         <% } %>
 
+        <%# Not on the Jobs tab, where the list beside it already is the latest roles. %>
+        <% if (!showJobs) { %>
         <div class="glass-card">
           <div class="card-body">
             <h2 class="h6 text-uppercase text-muted-2 mb-2" style="letter-spacing:.06em">Latest roles</h2>
@@ -106,6 +165,7 @@
             <% } %>
           </div>
         </div>
+        <% } %>
       </aside>
     </div>
   </div>

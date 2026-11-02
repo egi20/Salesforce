@@ -183,6 +183,33 @@ class Payment {
    * `stripeEventId` makes a redelivery an INSERT IGNORE no-op, so history does not grow
    * a duplicate line every time Stripe retries.
    */
+  /**
+   * Record that a refund was MADE — in Stripe, by a person. This does not move money, and
+   * nothing here calls Stripe: a button that did would be a second system of record for the
+   * same fact, and when two disagree about a refund the wrong one is always the one that is
+   * not the payment processor.
+   *
+   * Guarded on `status = 'paid'` rather than on the queue flag (as SAP Hub settled): the
+   * flag marks money that could not be fulfilled, but a fulfilled payment can be refunded
+   * too — a complaint, a duplicate — and before this there was no way to record it at all.
+   * The status and the flag move in one statement, so the ledger says what happened.
+   *
+   * @returns {Promise<boolean>} false when the payment was not in a refundable state.
+   */
+  static async recordRefund(id, { actorUserId = null, note = null } = {}) {
+    const [result] = await promisePool.query(
+      "UPDATE payments SET status = 'refunded', needs_refund = 0 WHERE id = ? AND status = 'paid'",
+      [id]
+    );
+    if (result.affectedRows !== 1) return false;
+    await Payment.recordEvent({
+      paymentId: id,
+      eventType: 'refund_recorded',
+      detail: `refunded outside the app by user ${actorUserId || 'unknown'}${note ? ` — ${note}` : ''}`
+    });
+    return true;
+  }
+
   static async recordEvent({ paymentId = null, eventType, stripeEventId = null, detail = null }) {
     try {
       const [result] = await promisePool.query(

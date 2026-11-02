@@ -15,6 +15,23 @@ function countryFromIp(ip) {
   return lookup && lookup.country ? lookup.country : null;
 }
 
+/*
+ * ISO code -> country name, from the one list every country select on the site is built
+ * from (`config/all-countries.json`), so a name shown here can never be one a form could
+ * not have produced. The visitor and sign-up tables store a two-letter code, and an
+ * analytics panel reading "AL 41" asks the reader to already know the abbreviation.
+ */
+const COUNTRY_NAMES = new Map(require('../config/all-countries.json').map((c) => [c.code, c.name]));
+
+/**
+ * The country's name, or the code itself when it is not one we know — a row holding
+ * something unexpected should still render as the fact it holds, not disappear.
+ */
+function countryName(code) {
+  if (!code) return null;
+  return COUNTRY_NAMES.get(String(code).toUpperCase()) || code;
+}
+
 /**
  * The client IP, honouring `X-Forwarded-For` only when Express has been told to trust
  * the proxy. Reading the header unconditionally would let any client spoof its origin.
@@ -58,4 +75,4 @@ function expandIpv6(address) {
   return groups.some((g) => !Number.isInteger(g) || g < 0 || g > 0xffff) ? null : groups;
 }
 
-module.exports = { countryFromIp, clientIp, packIp };
+module.exports = { countryFromIp, countryName, clientIp, packIp };

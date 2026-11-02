@@ -60,8 +60,10 @@ describe('hiding a profile from named companies', () => {
     for (const file of ['routes/consultants.js', 'routes/search.js']) {
       expect(sqlOf(file)).toMatch(/viewerFor/);
     }
-    // The signed-out homepage panel has no viewer to pass and the comment says so.
-    expect(read('routes/index.js')).toMatch(/No viewer: this branch runs only when nobody is signed in/);
+    // The homepage used to carry a signed-out consultant panel with no viewer to pass. It
+    // is the community feed now and lists no consultants; one added back must pass a viewer.
+    const home = read('routes/index.js');
+    if (/ConsultantProfile\.browse/.test(home)) expect(home).toMatch(/viewerFor/);
   });
 
   it('normalises a typed company name so one block is one row', () => {

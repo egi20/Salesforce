@@ -72,6 +72,6 @@ describe('the points key for a moderation action', () => {
   });
 
   it('names the subject types it knows about', () => {
-    expect(Moderation.SUBJECT_TYPES).toEqual(['post', 'reply', 'rate_submission']);
+    expect(Moderation.SUBJECT_TYPES).toEqual(['post', 'reply', 'rate_submission', 'consultant_profile', 'job']);
   });
 });

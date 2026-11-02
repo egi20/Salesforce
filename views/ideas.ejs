@@ -1,0 +1,49 @@
+<%- include('partials/layout-start') %>
+<%- include('partials/page-header', {
+  icon: 'bi-lightbulb',
+  heading: 'Ideas',
+  sub: 'Suggestions people sent and agreed to share. Vote for the ones you want.'
+}) %>
+<section class="glass-section pb-5"><div class="container">
+  <div class="row justify-content-center"><div class="col-lg-8">
+    <%- include('partials/flash') %>
+
+    <p class="text-muted-2">
+      Each one was sent through <a href="/report-issue">Report a problem</a> by somebody who
+      ticked "it may be shown", and was read by a person here before it appeared. Names are
+      never shown. <% if (!currentUser) { %><a href="/auth/login">Sign in</a> to vote.<% } %>
+    </p>
+
+    <% if (!ideas.length) { %>
+      <div class="glass-card"><div class="card-body"><p class="text-muted-2 mb-0">Nothing published yet. <a href="/report-issue">Send the first idea.</a></p></div></div>
+    <% } %>
+
+    <% ideas.forEach(function (idea) { %>
+      <div class="glass-card mb-3" id="idea-<%= idea.id %>"><div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div class="min-w-0">
+            <h2 class="h6 mb-1"><%= idea.summary %></h2>
+            <%# Plain text, escaped: a published idea is still a stranger's words. %>
+            <p class="small mb-2" style="white-space: pre-line"><%= idea.detail %></p>
+            <% if (idea.status === 'closed') { %><span class="badge-hub ok">done or decided</span><% } %>
+            <% if (idea.response) { %>
+              <p class="small text-muted-2 mb-0"><strong>Our answer:</strong> <%= idea.response %></p>
+            <% } %>
+          </div>
+          <div class="text-center">
+            <div class="stat-value"><%= idea.votes %></div>
+            <div class="small text-muted-2"><%= idea.votes === 1 ? 'vote' : 'votes' %></div>
+            <% if (currentUser) { %>
+              <form method="post" action="/ideas/<%= idea.id %>/vote" class="mt-1">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-sm <%= idea.my_vote ? 'btn-primary' : 'btn-outline-primary' %>" type="submit"
+                        aria-pressed="<%= idea.my_vote ? 'true' : 'false' %>"><%= idea.my_vote ? 'Voted' : 'Vote' %></button>
+              </form>
+            <% } %>
+          </div>
+        </div>
+      </div></div>
+    <% }); %>
+  </div></div>
+</div></section>
+<%- include('partials/layout-end') %>

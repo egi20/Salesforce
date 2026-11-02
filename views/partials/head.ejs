@@ -8,7 +8,7 @@
  * There was no favicon at all, so every tab showed the browser's blank page glyph.
  *
  * The SVG is the modern icon and scales to any density; the 180px PNG is the iOS
- * home-screen icon, which ignores SVG. Both are the hub mark, not a cloud — this site's
+ * home-screen icon, which ignores SVG. Both are the S-cube mark, not a cloud — this site's
  * footer says it is not affiliated with Salesforce, and a Salesforce cloud in the tab
  * would contradict that on every page at once.
  */
@@ -24,10 +24,16 @@
 <meta property="og:type" content="website">
 <meta property="og:image" content="<%= seo.ogImage %>">
 <meta name="csrf-token" content="<%= csrfToken %>">
+<% if (typeof webAnalytics !== 'undefined' && webAnalytics && webAnalytics.ga4Id) { %>
+<%# Read by public/js/analytics.js, which loads gtag ONLY after the visitor allows it. %>
+<meta name="ga4-id" content="<%= webAnalytics.ga4Id %>">
+<%# The consent question still works here; only the tag is never loaded (middleware/visitGeo.js). %>
+<% if (typeof measureVisit !== 'undefined' && !measureVisit) { %><meta name="analytics-measure" content="off"><% } %>
+<% } %>
 <link rel="stylesheet" href="/css/inter.css">
 <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="/vendor/bootstrap-icons/bootstrap-icons.min.css">
-<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/style.css?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>">
 <script>
   /* Before first paint: tells the stylesheet that scroll reveals are safe to hide.
      Without JavaScript this never runs and .animate-on-scroll content stays visible. */

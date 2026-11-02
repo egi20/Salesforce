@@ -54,12 +54,15 @@ const OWNED = Object.freeze({
   posts: 'author_user_id',
   post_replies: 'author_user_id',
   post_votes: 'user_id',
+  idea_votes: 'user_id',
+  issue_reports: 'user_id',
   challenge_attempts: 'user_id',
   quotes: 'owner_user_id',
   payments: 'user_id',
   invoices: 'user_id',
   site_reviews: 'user_id',
-  referrers: 'user_id'
+  referrers: 'user_id',
+  sales_agents: 'user_id'
 });
 
 /** Columns never exported from any table, whatever it is called there. */

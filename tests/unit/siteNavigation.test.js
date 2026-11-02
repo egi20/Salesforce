@@ -35,12 +35,15 @@ describe('site navigation', () => {
     }
   });
 
-  test('community stays reachable from the footer although the menu has no Community group', () => {
-    // The header's groups mirror Dynamics Hub's, which has no Community dropdown. The
-    // footer keeps the column — like "Company" — so the pages are still linked from every
-    // page rather than reachable only from the home page.
+  test('the community has a way in without a menu of its own', () => {
+    // There is no Community dropdown: Home is the feed. That only holds while the home
+    // route renders the feed for a VISITOR too, and the forum stays linked from the footer
+    // — drop either and the community is reachable from nowhere.
+    const home = fs.readFileSync(path.join(ROOT, 'routes', 'index.js'), 'utf8');
+    expect(home).not.toMatch(/if \(req\.session\.user\) return feedHandler/);
+    expect(home).toMatch(/res\.render\('feed\/index'/);
     expect(FOOTER).toContain(`['Community', [`);
-    expect(footerPaths).toEqual(expect.arrayContaining(['/community', '/success-stories']));
+    expect(footerPaths).toContain('/community');
   });
 
   test('the footer does not reintroduce the old intent-based names', () => {
@@ -77,6 +80,28 @@ describe('site navigation', () => {
   test('the trademark disclaimer stays in the last row', () => {
     // It is what makes an independent marketplace using the word "Salesforce" defensible.
     expect(FOOTER).toMatch(/Not affiliated with Salesforce, Inc\./);
+  });
+});
+
+describe('the hub landing pages', () => {
+  const routes = fs.readFileSync(path.join(ROOT, 'routes', 'index.js'), 'utf8');
+
+  test('each hub has a page, is indexable, and is the first entry of its menu and column', () => {
+    for (const [hub, label] of [['/consultant-hub', 'Consultant Hub'], ['/companies-hub', 'Companies Hub']]) {
+      expect(routes).toContain(`'${hub}',`);
+      expect(PUBLIC_PATHS).toContain(hub);
+      expect(PAGE_META[hub]).toBeDefined();
+      expect(NAV).toMatch(new RegExp(`href="${hub}"[^>]*>(\\s|<[^>]*>)*${label}`));
+      expect(FOOTER).toContain(`['${hub}', '${label}']`);
+    }
+  });
+
+  test('the consultant count on the company hub passes a viewer', () => {
+    // A company a consultant has hidden from must not see that consultant counted, or the
+    // total quietly reveals that somebody is missing from the list beneath it.
+    const handler = routes.slice(routes.indexOf("'/companies-hub'"), routes.indexOf("router.get('/about'"));
+    expect(handler).toMatch(/viewerFor/);
+    expect(handler).toMatch(/ConsultantProfile\.browse\(\{ viewer \}/);
   });
 });
 

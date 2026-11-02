@@ -47,8 +47,18 @@ function completenessOf(profile, { skillCount = 0, certificationCount = 0, exper
  *
  * @returns {{clause:string, params:Array}}
  */
+/*
+ * What "in the directory" means, stated once. Two switches: `is_public` is the member's own,
+ * `admin_hidden_at` is a moderator's (migration 033), and the account must be active. Exported
+ * so the Talent column on /admin/users reads the directory's own rule rather than restating
+ * it — a restated copy is the one that drifts, and "Listed" on that screen would then name
+ * people a reader of /consultants cannot find.
+ */
+const LISTED_CONDITIONS = Object.freeze(['cp.is_public = 1', 'cp.admin_hidden_at IS NULL', 'u.is_active = 1']);
+
 function buildFilter(filters = {}) {
-  const where = ['cp.is_public = 1', 'u.is_active = 1'];
+  // The directory requires every listed condition; see `Moderation.setProfileHidden`.
+  const where = [...LISTED_CONDITIONS];
   const params = [];
 
   /*
@@ -185,6 +195,8 @@ class ConsultantProfile {
 
   static buildFilter = buildFilter;
 
+  static LISTED_CONDITIONS = LISTED_CONDITIONS;
+
   static async findByUserId(userId) {
     const [rows] = await promisePool.query(
       `SELECT cp.*, u.name, u.email, u.email_verified
@@ -236,8 +248,20 @@ class ConsultantProfile {
    */
   static async setPublic(userId, isPublic) {
     return withTransaction(async (conn) => {
-      const [[row]] = await conn.query('SELECT completeness FROM consultant_profiles WHERE user_id = ? FOR UPDATE', [userId]);
+      const [[row]] = await conn.query(
+        'SELECT completeness, admin_hidden_at FROM consultant_profiles WHERE user_id = ? FOR UPDATE',
+        [userId]
+      );
       if (!row) throw new Error(`No consultant profile for user ${userId}`);
+
+      /*
+       * A profile an administrator has taken down cannot be put back by its owner. Without
+       * this the member's Publish would succeed and do nothing visible, and nothing on their
+       * screen would tell them a decision had been made.
+       */
+      if (isPublic && row.admin_hidden_at) {
+        return { published: false, completeness: row.completeness, adminHidden: true };
+      }
 
       if (isPublic && row.completeness < MIN_COMPLETENESS_TO_PUBLISH) {
         return { published: false, completeness: row.completeness };

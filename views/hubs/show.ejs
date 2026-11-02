@@ -1,0 +1,47 @@
+<%- include('../partials/layout-start') %>
+
+<%- include('../partials/page-header', { icon: model.icon, heading: model.heading, label: model.label }) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <div class="row g-4 align-items-center mb-4">
+    <div class="col-lg-8">
+      <p class="lead mb-0"><%= model.intro %></p>
+    </div>
+    <% if (model.cta) { %>
+      <div class="col-lg-4 text-lg-end">
+        <a class="btn btn-primary" href="<%= model.cta.href %>"><%= model.cta.label %></a>
+      </div>
+    <% } %>
+  </div>
+
+  <%# Plain counts, each linking to the list it counts. No "growing fast", no percentages: %>
+  <%# a small honest number is worth more than a claim nobody can check. %>
+  <div class="row g-3 mb-5">
+    <% model.stats.forEach(function (s) { %>
+      <div class="col-6 col-lg-3">
+        <a class="stat-tile d-block text-reset" href="<%= s.href %>">
+          <div class="value"><%= s.value %></div>
+          <div class="label"><%= s.label %></div>
+        </a>
+      </div>
+    <% }); %>
+  </div>
+
+  <div class="row g-3">
+    <% model.tools.forEach(function (t) { %>
+      <div class="col-md-6 col-lg-4">
+        <a class="glass-card d-block h-100 text-reset" href="<%= t.href %>">
+          <div class="card-body">
+            <span class="icon-tile icon-tile-sm <%= t.tone %> mb-3"><i class="bi <%= t.icon %>"></i></span>
+            <h2 class="h5 mb-2"><%= t.title %></h2>
+            <p class="small text-muted-2 mb-0"><%= t.text %></p>
+          </div>
+        </a>
+      </div>
+    <% }); %>
+  </div>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

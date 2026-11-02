@@ -11,9 +11,10 @@ site.
 
 ## Brand essence
 
-- **Name:** Salesforce Hub. The wordmark is one word — `Salesforce` in navy, `Hub` in the
-  blue gradient (`.navbar-brand .cloud`), or `.brand-accent` on a dark ground where a
-  gradient would disappear.
+- **Name:** Salesforce Hub. The wordmark is two words with a space, matching the logo —
+  `Salesforce` in navy, `Hub` in the blue gradient (`.navbar-brand .cloud`), or
+  `.brand-accent` on a dark ground where a gradient would disappear. It sits beside the
+  S-cube mark on a white `.brand-tile`, in the header and the footer alike.
 - **Personality:** professional, modern, calm. Premium glassmorphism — frosted white cards
   over soft navy/blue washes. No loud colour, no gimmicks.
 - **Not affiliated with Salesforce, Inc.** The footer says so on every page. Never imply
@@ -36,6 +37,9 @@ site.
 
 Rules:
 
+- **The page header and the washes are sky blue with navy text** (`--sky-gradient`, `--sky-wash`,
+  `--sky-text`). That is how the site reads as sky blue while staying readable: navy on the
+  deepest sky stop is 8.47:1. Never put white text on the sky gradient.
 - **`#00A1E0` must never sit behind white text.** It scores 2.93:1. Cyan is an accent, a
   gradient stop, and a ring colour — never a button fill. This is the one place this
   system deliberately diverges from the one it was ported from, whose primary button has

@@ -228,7 +228,9 @@
         </div>
       <% } %>
 
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <%# The list and everything describing it, faded while a new filter loads (main.js). %>
+      <div class="job-results" data-results aria-live="polite">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
         <p class="mb-0 text-muted-2"><strong><%= pagination.total %></strong> role<%= pagination.total === 1 ? '' : 's' %> found</p>
         <div class="d-flex align-items-center gap-2">
           <label class="form-label mb-0 small" for="sort">Sort</label>
@@ -240,16 +242,43 @@
         </div>
       </div>
 
+      <%
+        /*
+         * What is narrowing the list, where the list is: somebody who scrolled past the sidebar
+         * can see it and undo one filter at a time. Each × is a plain link to the same page
+         * minus that one value, so it works without scripting.
+         */
+      %>
+      <% if (activeChips.length) { %>
+        <div class="active-filters d-flex flex-wrap align-items-center gap-2 mb-3" aria-label="Active filters">
+          <% activeChips.forEach(function (c) { %>
+            <a class="filter-chip" href="<%= c.href %>" aria-label="Remove filter: <%= c.label %>">
+              <%= c.label %> <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </a>
+          <% }); %>
+          <a class="small fw-semibold ms-1" href="/jobs">Clear all</a>
+        </div>
+      <% } else { %>
+        <div class="mb-3"></div>
+      <% } %>
+
       <% if (jobs.length === 0) { %>
         <div class="empty-state glass-card">
           <i class="bi bi-search"></i>
-          <p class="mb-1">No roles match these filters.</p>
-          <a href="/jobs">Clear the filters</a>
+          <% if (activeChips.length) { %>
+            <p class="fw-semibold mb-1">No roles match <%= activeChips.length === 1 ? 'this filter' : 'these ' + activeChips.length + ' filters' %>.</p>
+            <p class="small mb-3">Remove one of the filters above to widen the search, or start again from every open role.</p>
+            <a class="btn btn-primary btn-sm" href="/jobs">Clear filters</a>
+          <% } else { %>
+            <p class="fw-semibold mb-1">There are no open roles right now.</p>
+            <p class="small mb-0">New roles appear here as soon as companies publish them.</p>
+          <% } %>
         </div>
       <% } else { %>
         <% jobs.forEach(function (job) { %><%- include('../partials/job-card', { job: job }) %><% }); %>
         <%- include('../partials/pagination') %>
       <% } %>
+      </div>
     </div>
   </div>
 </div>

@@ -358,6 +358,25 @@
     document.addEventListener('change', autoSubmit);
   }
 
+  /*
+   * Loading cue for the board: whatever reloads the list — the filter form, a chip's ×,
+   * "Clear all", a page link — fades the current results until the new page lands.
+   * `pageshow` clears it again when the browser restores this page from its back cache.
+   */
+  var results = document.querySelector('[data-results]');
+  if (results) {
+    var markLoading = function () { results.classList.add('is-loading'); };
+    if (autoForm) autoForm.addEventListener('submit', markLoading);
+    document.addEventListener('click', function (event) {
+      var link = event.target.closest && event.target.closest('a[href^="/jobs"]');
+      if (!link || event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey) return;
+      if (link.closest('.job-card') && !link.closest('.pagination')) return;
+      if (/^\/jobs\/[^?]/.test(link.getAttribute('href'))) return; // a job page, not the list
+      markLoading();
+    });
+    window.addEventListener('pageshow', function () { results.classList.remove('is-loading'); });
+  }
+
   /* Controls that exist only for the no-script case (an Apply button) go when scripting runs. */
   document.querySelectorAll('[data-no-script-only]').forEach(function (el) { el.remove(); });
 

@@ -1329,6 +1329,49 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 .job-search-field .form-control { padding-left: 2.6rem; }
 .popular-roles .badge-hub.is-active { background: var(--primary-blue); color: #fff; }
 
+/* The filters in force, above the list. Each chip is a link that removes its one value. */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid rgba(1, 118, 211, 0.35);
+  color: var(--primary-navy);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+.filter-chip .bi { font-size: 0.7rem; color: var(--text-light); }
+.filter-chip:hover, .filter-chip:focus-visible { border-color: var(--primary-blue); color: var(--primary-blue-dark); }
+.filter-chip:hover .bi { color: var(--primary-blue-dark); }
+
+/*
+ * While the next filtered list loads, the current one fades and a thin bar runs along its
+ * top — so a click visibly did something before the new page arrives. Purely a cue: the
+ * navigation is a normal page load, and the class is gone the moment it lands.
+ */
+.job-results { position: relative; transition: opacity 0.2s ease; }
+.job-results.is-loading { opacity: 0.45; pointer-events: none; }
+.job-results.is-loading::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 0;
+  height: 3px;
+  width: 35%;
+  border-radius: 3px;
+  background: var(--primary-blue);
+  animation: results-loading 1s ease-in-out infinite;
+}
+@keyframes results-loading { 0% { left: 0; width: 15%; } 50% { left: 40%; width: 45%; } 100% { left: 100%; width: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .job-results { transition: none; }
+  .job-results.is-loading::before { animation: none; width: 100%; }
+}
+
 /* Job cards. The title link is stretched over the card; the save control sits above it. */
 .job-card { position: relative; transition: var(--transition-fast); }
 .job-card:hover { box-shadow: var(--glass-shadow-lg); transform: translateY(-2px); }

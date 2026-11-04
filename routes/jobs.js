@@ -14,14 +14,17 @@ const { writeLimiter } = require('../middleware/rateLimit');
 const { JOB_FEATURE_DAYS, JOB_FEATURE_PRICE_MINOR, formatMinor } = require('../config/payments');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
-const { ROLE_CATEGORIES, isValidRole, ROLE_SLUGS, SENIORITY_LEVELS } = require('../config/roleTaxonomy');
-const { CLOUD_FAMILIES, ALL_MODULES, isValidModule } = require('../config/cloudFamilies');
+const { ROLE_CATEGORIES, isValidRole, ROLE_SLUGS, SENIORITY_LEVELS, roleLabel, seniorityLabel } = require('../config/roleTaxonomy');
+const { CLOUD_FAMILIES, ALL_MODULES, isValidModule, moduleLabel } = require('../config/cloudFamilies');
 const { jobPostingJsonLd } = require('../config/seoMeta');
 const { matchScore, WEIGHTS } = require('../utils/jobMatcher');
 const { sanitizeRichText } = require('../utils/sanitize');
 const { returnTo } = require('../utils/returnTo');
 const countries = require('../config/all-countries.json');
-const { ENGAGEMENT_SLUGS, WORK_MODE_SLUGS, hasDuration } = require('../config/jobTaxonomy');
+
+const COUNTRY_CODES = new Set(countries.map((c) => c.code));
+const { ENGAGEMENT_SLUGS, WORK_MODE_SLUGS, hasDuration, engagementLabel, workModeLabel } = require('../config/jobTaxonomy');
+const { countryName } = require('../utils/geo');
 
 const router = express.Router();
 
@@ -63,7 +66,9 @@ function filtersFrom(query) {
     seniority: listFrom(query.seniority, (v) => SENIORITIES.includes(v)),
     engagement_type: listFrom(query.engagement_type, (v) => ENGAGEMENTS.includes(v)),
     work_mode: listFrom(query.work_mode, (v) => WORK_MODES.includes(v)),
-    country: listFrom(query.country, (v) => /^[A-Z]{2}$/.test(v)),
+    // A real code from the country list, not any two capitals: "XX" passed the old shape check,
+    // reached the query and showed up as a filter chip.
+    country: listFrom(query.country, (v) => COUNTRY_CODES.has(v)),
     module: isValidModule(query.module) ? query.module : '',
     rate_min: query.rate_min || '',
     /*
@@ -75,6 +80,54 @@ function filtersFrom(query) {
     posted,
     posted_within_days: posted ? Number(posted) : null
   };
+}
+
+/*
+ * The filters in force, as removable chips above the list — so somebody who scrolled past
+ * the sidebar can still see what is narrowing the list and undo one thing at a time.
+ *
+ * Built from the VALIDATED filters, never from the raw query: a value the builder dropped
+ * must not appear as though it were applied. Each chip's link is the current URL minus that
+ * one value (and minus the page number, since page 4 of a wider list means nothing here).
+ */
+const CHIP_FIELDS = [
+  ['role', roleLabel],
+  ['country', countryName],
+  ['seniority', (v) => seniorityLabel(v, { full: true })],
+  ['work_mode', workModeLabel],
+  ['engagement_type', engagementLabel]
+];
+
+function urlWithout(filters, sort, key, value) {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(filters)) {
+    if (k === 'posted_within_days') continue;
+    for (const item of Array.isArray(v) ? v : [v]) {
+      if (item === '' || item === null || item === undefined) continue;
+      if (k === key && (value === undefined || String(item) === String(value))) continue;
+      params.append(k, item);
+    }
+  }
+  if (sort && sort !== 'newest') params.set('sort', sort);
+  const qs = params.toString();
+  return qs ? `/jobs?${qs}` : '/jobs';
+}
+
+function activeChipsFor(filters, sort) {
+  const chips = [];
+  if (filters.q) chips.push({ label: `“${filters.q}”`, href: urlWithout(filters, sort, 'q') });
+  for (const [key, label] of CHIP_FIELDS) {
+    for (const value of filters[key]) chips.push({ label: label(value), href: urlWithout(filters, sort, key, value) });
+  }
+  if (filters.module) chips.push({ label: moduleLabel(filters.module), href: urlWithout(filters, sort, 'module') });
+  if (filters.posted) {
+    const w = POSTED_WINDOWS.find((x) => x.value === filters.posted);
+    chips.push({ label: w ? w.label : filters.posted, href: urlWithout(filters, sort, 'posted') });
+  }
+  if (filters.rate_min && Number(filters.rate_min) > 0) {
+    chips.push({ label: `Day rate from ${Math.round(Number(filters.rate_min))}`, href: urlWithout(filters, sort, 'rate_min') });
+  }
+  return chips;
 }
 
 /*
@@ -154,6 +207,7 @@ router.get(
       if (!countryOptions.some((c) => c.code === code)) countryOptions.push({ code, count: 0 });
     }
     const roleCounts = Object.fromEntries(facets.map((f) => [f.role, f.count]));
+    const chips = activeChipsFor(filters, sort);
 
     res.render('jobs/index', {
       title: res.locals.seo.title,
@@ -170,8 +224,8 @@ router.get(
       returnUrl: req.originalUrl,
       roleCategories: ROLE_CATEGORIES,
       cloudFamilies: CLOUD_FAMILIES,
-      activeFilterCount: ['role', 'seniority', 'engagement_type', 'work_mode', 'country']
-        .reduce((n, k) => n + filters[k].length, 0) + ['q', 'module', 'posted', 'rate_min'].filter((k) => filters[k]).length,
+      activeChips: chips,
+      activeFilterCount: chips.length,
       pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/jobs', req.query, p)
     });

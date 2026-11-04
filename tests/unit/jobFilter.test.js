@@ -131,3 +131,14 @@ describe('several values in one job filter field', () => {
     expect(params[0].length).toBeLessThanOrEqual(30);
   });
 });
+
+describe('the board validates countries against the country list', () => {
+  it('accepts a real code and nothing that merely looks like one', () => {
+    // "XX" passed a two-capitals shape check, reached the query and was shown as a filter chip.
+    const fs = require('fs');
+    const path = require('path');
+    const source = fs.readFileSync(path.join(__dirname, '..', '..', 'routes', 'jobs.js'), 'utf8');
+    expect(source).toMatch(/country: listFrom\(query\.country, \(v\) => COUNTRY_CODES\.has\(v\)\)/);
+    expect(source).not.toMatch(/country: listFrom\(query\.country, \(v\) => \/\^\[A-Z\]\{2\}\$\/\.test\(v\)\)/);
+  });
+});

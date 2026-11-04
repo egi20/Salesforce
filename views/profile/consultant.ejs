@@ -207,8 +207,8 @@
           <div class="col-12">
             <label class="form-label" for="bio">Professional bio</label>
             <textarea class="form-control" id="bio" name="bio" rows="6" maxlength="1000" data-char-count="#bioCount"
-                      placeholder="What you deliver, on which clouds, for what kind of client."><%= profile.bio || '' %></textarea>
-            <p class="form-text mb-0"><span id="bioCount"><%= String(profile.bio || '').length %></span> / 1,000 characters</p>
+                      placeholder="What you deliver, on which clouds, for what kind of client."><%= richTextToEditable(profile.bio) %></textarea>
+            <p class="form-text mb-0"><span id="bioCount"><%= richTextToEditable(profile.bio).length %></span> / 1,000 characters. A blank line starts a new paragraph.</p>
           </div>
         </div>
 

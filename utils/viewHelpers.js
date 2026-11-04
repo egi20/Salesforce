@@ -1,6 +1,6 @@
 'use strict';
 
-const { sanitizeRichText, toPlainText, jsonForScript } = require('./sanitize');
+const { sanitizeRichText, toPlainText, richTextToEditable, jsonForScript } = require('./sanitize');
 const { roleLabel, seniorityLabel } = require('../config/roleTaxonomy');
 const { moduleLabel, familyLabel } = require('../config/cloudFamilies');
 const { engagementLabel, workModeLabel, rateUnit } = require('../config/jobTaxonomy');
@@ -25,6 +25,7 @@ const chartColors = require('./chartColors');
 const VIEW_HELPERS = Object.freeze({
   sanitizeRichText,
   toPlainText,
+  richTextToEditable,
   jsonForScript,
   roleLabel,
   seniorityLabel,

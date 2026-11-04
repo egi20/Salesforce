@@ -15,7 +15,7 @@ const { singleImage, singleCv, singleDocument } = require('../middleware/fileUpl
 const { extractText } = require('../utils/cvText');
 const { importFromText } = require('../utils/cvImport');
 const { requireIdParam } = require('../utils/ids');
-const { sanitizeRichText } = require('../utils/sanitize');
+const { sanitizeRichText, plainTextToRichText } = require('../utils/sanitize');
 const { ROLE_CATEGORIES, ROLE_SLUGS } = require('../config/roleTaxonomy');
 const { CERTIFICATIONS } = require('../config/certifications');
 const { AVAILABILITY, isValidAvailability } = require('../config/availability');
@@ -178,7 +178,10 @@ async function renderProfilePage(req, res) {
     const sectionsDone = {
       basics: Boolean(profile.headline && profile.bio && profile.primary_role && profile.country),
       salesforce: clouds.length >= 1 && skills.length >= 3,
-      work: Boolean((profile.day_rate || profile.annual_salary) && (profile.open_to_contract || profile.open_to_permanent)),
+      // The same rule the save flashes as "Still needed": each type of work chosen has its figure.
+      work: Boolean((profile.open_to_contract || profile.open_to_permanent)
+        && (!profile.open_to_contract || profile.day_rate)
+        && (!profile.open_to_permanent || profile.annual_salary)),
       privacy: Boolean(profile.is_public),
       projects: projects.length >= 1 || experiences.length >= 1,
       documents: documents.length >= 1,
@@ -269,7 +272,8 @@ router.post(
 
     await ConsultantProfile.update(req.session.user.id, {
       headline: req.body.headline || null,
-      bio: sanitizeRichText(req.body.bio || ''),
+      // Typed as plain text in a textarea; escaped and split into paragraphs, never parsed.
+      bio: plainTextToRichText(req.body.bio || ''),
       primary_role: req.body.primary_role || null,
       seniority: req.body.seniority || null,
       years_experience: req.body.years_experience || null,

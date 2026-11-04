@@ -82,7 +82,7 @@
                     %>
                     <div class="form-check <%= count === 0 && !ticked ? 'is-empty' : '' %>" data-filter-item>
                       <input class="form-check-input" type="checkbox" name="role" value="<%= r.value %>" id="<%= id %>" <%= ticked ? 'checked' : '' %> <%= count === 0 && !ticked ? 'disabled' : '' %>>
-                      <label class="form-check-label" for="<%= id %>"><%= r.label %> <span class="filter-count">(<%= count %>)</span></label>
+                      <label class="form-check-label" for="<%= id %>"><%= r.label %><% if (!ticked) { %> <span class="filter-count">(<%= count %>)</span><% } %></label>
                     </div>
                   <% }); %>
                 </div>
@@ -96,10 +96,18 @@
               <p class="small text-muted-2 mb-0">No roles name a country under these filters.</p>
             <% } else { %>
               <div class="filter-scroll filter-scroll-sm">
-                <% countryOptions.forEach(function (c) { const id = 'country-' + c.code; %>
+                <%
+                  /*
+                   * A count is how many roles that box would ADD, under the other groups'
+                   * filters (the usual facet rule). On a box already ticked it read as a
+                   * contradiction — "Albania (0)" beside Albania + Junior, when Albania has roles
+                   * but none junior — so a ticked box shows no count; the list itself answers.
+                   */
+                %>
+                <% countryOptions.forEach(function (c) { const id = 'country-' + c.code; const ticked = has(filters.country, c.code); %>
                   <div class="form-check">
                     <input class="form-check-input" type="checkbox" name="country" value="<%= c.code %>" id="<%= id %>" <%= has(filters.country, c.code) ? 'checked' : '' %>>
-                    <label class="form-check-label" for="<%= id %>"><%= countryName(c.code) %> <span class="text-muted-2">(<%= c.count %>)</span></label>
+                    <label class="form-check-label" for="<%= id %>"><%= countryName(c.code) %><% if (!ticked) { %> <span class="filter-count">(<%= c.count %>)</span><% } %></label>
                   </div>
                 <% }); %>
               </div>

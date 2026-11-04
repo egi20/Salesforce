@@ -27,7 +27,7 @@ const DOCUMENT_KINDS = Object.freeze({
     label: 'CV',
     extension: 'docx',
     contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    generate: (dossier) => generateCvDocx(dossier)
+    generate: (dossier, options) => generateCvDocx(dossier, options)
   },
   'rate-card': {
     label: 'Rate card',
@@ -63,7 +63,12 @@ function filenameFor(dossier, kind) {
   return `${slugify(dossier.name, 'consultant')}-${kind}.${spec.extension}`;
 }
 
-async function generateDocument(dossier, kind) {
+/**
+ * `options` is the CV's section selection (utils/documents/cvLayout.js). It reaches the CV
+ * only: the rate card is the commercial document and always carries the rate — that is
+ * what it is for.
+ */
+async function generateDocument(dossier, kind, options) {
   if (!isDocumentKind(kind)) {
     const err = new Error(`Unknown document kind: ${kind}`);
     err.code = 'UNKNOWN_DOCUMENT_KIND';
@@ -71,17 +76,17 @@ async function generateDocument(dossier, kind) {
   }
 
   const spec = DOCUMENT_KINDS[kind];
-  const buffer = await spec.generate(dossier);
+  const buffer = await spec.generate(dossier, options);
   return { buffer, filename: filenameFor(dossier, kind), contentType: spec.contentType };
 }
 
-async function generatePackage(dossier) {
+async function generatePackage(dossier, options) {
   const documents = [];
   for (const kind of Object.keys(DOCUMENT_KINDS)) {
     // Sequential: two OOXML builds in parallel spike memory on a small instance for no
     // wall-clock gain worth having.
     // eslint-disable-next-line no-await-in-loop
-    documents.push(await generateDocument(dossier, kind));
+    documents.push(await generateDocument(dossier, kind, options));
   }
 
   const buffer = await new Promise((resolve, reject) => {

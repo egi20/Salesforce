@@ -40,7 +40,7 @@
          * document generator is a /services/ page but a tool rather than an engagement
          * model, so it belongs to Services too, and the company test excludes it.
          */
-        const isConsultantArea = startsWith('/consultant-hub') || (!isCompanyJobPath && startsWith('/jobs'))
+        const isConsultantArea = startsWith('/consultant-hub') || startsWith('/cv-generator') || (!isCompanyJobPath && startsWith('/jobs'))
           || (currentUser && (startsWith('/profile/consultant') || startsWith('/profile/settings')));
         const isServicesArea = startsWith('/quotes') || startsWith('/rates') || startsWith('/tax-advisory')
           || startsWith('/services/document-generator');
@@ -67,7 +67,7 @@
             <li><a class="dropdown-item" href="/jobs"><i class="bi bi-briefcase"></i> Find Jobs</a></li>
             <%# A visitor builds a profile by signing up; a consultant edits the one they have. %>
             <li><a class="dropdown-item" href="<%= currentUser ? '/profile/settings' : '/auth/register' %>"><i class="bi bi-person-gear"></i> Build Profile</a></li>
-            <li><a class="dropdown-item" href="/services/document-generator"><i class="bi bi-file-earmark-person"></i> CV Generator</a></li>
+            <li><a class="dropdown-item" href="/cv-generator"><i class="bi bi-file-earmark-person"></i> CV Generator</a></li>
             <% if (currentUser && currentUser.isConsultant) { %>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="/dashboard/applications"><i class="bi bi-send"></i> Your applications</a></li>
@@ -217,8 +217,8 @@
               <%# An account without the consultant role is taken to where the role is added. %>
               <a class="dropdown-item" href="/profile/settings"><i class="bi bi-person-gear"></i> Build Profile</a>
               <a class="dropdown-item" href="/dashboard/applications"><i class="bi bi-send"></i> My Applications</a>
-              <a class="dropdown-item" href="/profile/consultant/download/package"><i class="bi bi-file-earmark-arrow-down"></i> Documents</a>
-              <a class="dropdown-item" href="/services/document-generator"><i class="bi bi-file-earmark-text"></i> Document Templates</a>
+              <a class="dropdown-item" href="/cv-generator"><i class="bi bi-file-earmark-person"></i> CV Generator</a>
+              <a class="dropdown-item" href="/cv-generator#my-documents"><i class="bi bi-folder2-open"></i> My documents</a>
               <a class="dropdown-item" href="/dashboard/saved"><i class="bi bi-bookmark"></i> Saved Jobs</a>
               <a class="dropdown-item" href="/challenges"><i class="bi bi-trophy"></i> Challenges</a>
 

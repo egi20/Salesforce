@@ -5,6 +5,8 @@ const Skill = require('../models/Skill');
 const User = require('../models/User');
 const { roleLabel } = require('../config/roleTaxonomy');
 const { moduleLabel } = require('../config/cloudFamilies');
+const { workModeLabel } = require('../config/jobTaxonomy');
+const { richTextToEditable } = require('../utils/sanitize');
 
 /**
  * Everything a consultant's documents render from, assembled ONCE.
@@ -72,7 +74,7 @@ async function build(userId) {
     seniority: profile.seniority || null,
     yearsExperience: profile.years_experience || null,
     location: [profile.city, profile.country].filter(Boolean).join(', '),
-    workMode: profile.work_mode,
+    workMode: profile.work_mode ? workModeLabel(profile.work_mode) : null,
     willingToTravel: Boolean(profile.willing_to_travel),
     availability: profile.availability,
     availableFrom: profile.available_from ? monthYear(profile.available_from) : null,
@@ -83,7 +85,19 @@ async function build(userId) {
     // revenue at an assumed number of billable days, which is a third thing again.
     hourlyRate: profile.hourly_rate ? Number(profile.hourly_rate) : null,
     currency: profile.currency || 'EUR',
-    bio: profile.bio || '',
+    // The profile's own "Show my rates" switch. The CV generator starts from it, so a rate
+    // kept "on request" on the Hub does not leave on a document unless the consultant ticks it.
+    rateVisible: Boolean(profile.rate_visible),
+    /*
+     * Stored as sanitised HTML (the profile form escapes and paragraphs what was typed), and
+     * a document is not HTML: the generator printed "<p>…</p>" into every CV. Turned back into
+     * the words with blank lines between paragraphs, which is what both renderers split on.
+     */
+    bio: richTextToEditable(profile.bio),
+    trailhead: {
+      rank: profile.trailhead_rank || null,
+      badges: profile.trailhead_badges || null
+    },
     links: {
       linkedin: profile.linkedin_url || null,
       website: profile.website_url || null,
@@ -102,15 +116,15 @@ async function build(userId) {
       company: e.company,
       title: e.title,
       period: period(e.started_on, e.ended_on, e.is_current),
-      description: e.description || ''
+      description: richTextToEditable(e.description)
     })),
     projects: projects.map((p) => ({
       name: p.name,
       client: p.client || null,
       cloud: p.cloud ? moduleLabel(p.cloud) || p.cloud : null,
       role: p.role ? roleLabel(p.role) || p.role : null,
-      period: period(p.started_on, p.ended_on),
-      description: p.description || ''
+      period: period(p.started_on, p.ended_on, p.is_current),
+      description: richTextToEditable(p.description)
     })),
     generatedOn: new Date()
   };

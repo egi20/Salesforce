@@ -168,16 +168,24 @@ const SERVICE_PAGES = {
     ],
     cta: { label: 'Browse consultants', href: '/consultants' }
   },
+  /*
+   * The SOW pack, for a company buying work. It used to share this page with the
+   * consultant's CV, and the consultant arriving from "CV Generator" found only "Start a
+   * quote" — so the CV has its own page now (/cv-generator) and this one says where it went.
+   */
   'document-generator': {
-    heading: 'CV & document generator',
+    heading: 'Document Generator — the SOW pack',
+    label: 'FOR COMPANIES',
     icon: 'bi-file-earmark-text',
-    intro: 'Every quote on the Hub can be turned into a matching SOW, work breakdown and summary deck — and every consultant profile into a CV and rate card.',
+    intro: 'Turn a scope estimate into the documents a project starts with: a statement of work, a work breakdown and a summary deck.',
     points: [
-      'A scope estimate becomes a downloadable SOW (.docx), work breakdown with Gantt (.xlsx) and summary deck (.pptx), zipped together — all three read the same stored figures, so they cannot contradict each other.',
-      'A consultant profile becomes a formatted CV and rate card on demand, rendered from the profile rather than written by anything else.',
-      'Nothing is generated until you ask for it, and nothing is stored afterwards — the source is always the quote or the profile, not the file.'
+      'A downloadable SOW (.docx), work breakdown with Gantt (.xlsx) and summary deck (.pptx), zipped together.',
+      'All three read the same stored figures, so they cannot contradict each other — or the estimate on the page.',
+      'Your own colours, letterhead and standard clauses, set once under Document branding.',
+      'Nothing is generated until you ask for it, and nothing is stored afterwards — the source is always the quote, not the file.'
     ],
-    cta: { label: 'Start a quote', href: '/quotes/new' }
+    cta: { label: 'Start a quote', href: '/quotes/new' },
+    aside: { text: 'Looking for your CV? Consultants have their own generator.', label: 'CV Generator', href: '/cv-generator' }
   }
 };
 
@@ -266,7 +274,7 @@ router.get(
     const tools = [
       { href: '/jobs', icon: 'bi-briefcase', tone: 'icon-blue', title: 'Find Jobs', text: 'Contract and permanent roles, filtered by cloud, role, seniority, work mode and rate.' },
       { href: profileHref, icon: 'bi-person-gear', tone: 'icon-navyblue', title: 'Build Profile', text: 'Your clouds, certifications, delivery history and availability, in a profile companies can find. You decide whether it is public, and whether the rate is shown.' },
-      { href: '/services/document-generator', icon: 'bi-file-earmark-person', tone: 'icon-info', title: 'CV Generator', text: 'A formatted CV and rate card, generated from your own profile in one click — private by default.' },
+      { href: '/cv-generator', icon: 'bi-file-earmark-person', tone: 'icon-info', title: 'CV Generator', text: 'A formatted CV and rate card, generated from your own profile in one click — private by default.' },
       { href: '/rates', icon: 'bi-graph-up', tone: 'icon-success', title: 'Rate & Salary Index', text: 'Day rates contributed by consultants. No figure is published from fewer than three people.' },
       { href: '/rates/calculator', icon: 'bi-calculator', tone: 'icon-blue', title: 'Rate calculator', text: 'What a day rate comes to over a year once holidays, illness and the bench are taken out.' },
       { href: '/tax-advisory', icon: 'bi-signpost-split', tone: 'icon-navyblue', title: 'Tax Optimization', text: 'Get introduced to a tax specialist who works with contractors in your situation.' }
@@ -297,7 +305,7 @@ router.get(
         // product there is paid for by a company.
         freeNote: 'Free for consultants — no fees, no subscription.',
         actions: user
-          ? [{ label: 'Find Jobs', href: '/jobs', icon: 'bi-briefcase' }, { label: 'CV Generator', href: '/services/document-generator', icon: 'bi-file-earmark-person' }]
+          ? [{ label: 'Find Jobs', href: '/jobs', icon: 'bi-briefcase' }, { label: 'CV Generator', href: '/cv-generator', icon: 'bi-file-earmark-person' }]
           : [{ label: 'Sign Up Free', href: '/auth/register', icon: 'bi-person-plus' }, { label: 'Find Jobs', href: '/jobs', icon: 'bi-briefcase' }],
         stats,
         tools,

@@ -37,7 +37,7 @@ People name pages by the menu label they see, so these are the labels:
 
 - **Consultant Hub** — the hub page itself (`/consultant-hub`, every consultant tool on one
   page), Find Jobs (`/jobs`), Build Profile (`/profile/settings`, or sign-up
-  for a visitor), CV Generator (`/services/document-generator`).
+  for a visitor), CV Generator (`/cv-generator`).
 - **Companies Hub** — the hub page itself (`/companies-hub`, every hiring tool on one page),
   Browse Talent (`/consultants`), Get SOW Quote (`/quotes/new`), and the
   three engagement models: Staff Augmentation, Project-Based, Managed Services.
@@ -91,7 +91,8 @@ People name pages by the menu label they see, so these are the labels:
 | `/challenges/leaderboard` | Who scored what today and over the last thirty days. |
 | `/search` | One box across jobs, consultants, companies, agencies and the community. |
 | `/services/staff-augmentation`, `/services/project-based`, `/services/managed-services` | The three shapes an engagement can take, and which one fits. Each ends at the consultant directory or the scope estimator. |
-| `/services/document-generator` | What the Hub generates: a quote becomes an SOW, work breakdown and deck; a profile becomes a CV and rate card. Nothing is stored. |
+| `/services/document-generator` | Document Generator, for companies: a quote becomes an SOW, work breakdown and deck. Nothing is stored. It points consultants to the CV Generator. |
+| `/cv-generator` | CV Generator, for consultants: a CV (.docx) or CV + rate card (.zip) generated from the profile. Choose the sections (projects, employment, certifications, Trailhead, day rate), preview, download. "My documents" lists uploaded CVs and cover letters. The Hub does not write cover letters; upload your own. Visitors are asked to create an account. |
 | `/profile/settings` (Work & rate, Privacy) | Where a consultant sets their rates. Three optional figures — a day rate, an hourly rate and the salary a permanent role would have to pay. None is calculated from another. One switch hides all three: the profile then reads "Rate on request" to everyone else, while the figures still drive match scores and the rate card. A private profile is out of the directory, but a company the consultant applied to can still open the profile they were sent. |
 | `/admin/analytics` | Administrators: the site's own counts (visitors and sign-ups by country, the daily challenge, monthly growth), with screens for Google Analytics 4 and Cloudflare Web Analytics beside it where those are configured. |
 | `/admin/applications` | Superadmins only: the state of every application on the site — never its content — and how many have sat untouched. |

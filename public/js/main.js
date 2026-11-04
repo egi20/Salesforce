@@ -908,6 +908,45 @@
     render();
   });
 
+  /*
+   * CV Generator: ticking a section or choosing a document refreshes the preview and the
+   * download link in place. Without scripting the "Update preview" button submits the same
+   * GET form and the page re-renders — same URL, same result. The preview is server-rendered
+   * HTML from this origin (escaped by the template), never text from elsewhere.
+   */
+  var cvForm = document.querySelector('form[data-cv-generator]');
+  if (cvForm) {
+    var cvPreview = cvForm.querySelector('[data-cv-preview]');
+    var cvDownload = cvForm.querySelector('[data-cv-download]');
+    var cvSeq = 0;
+    var cvQuery = function () {
+      var params = new URLSearchParams();
+      new FormData(cvForm).forEach(function (value, key) { params.append(key, value); });
+      return params.toString();
+    };
+    var refreshCv = function () {
+      var q = cvQuery();
+      var seq = ++cvSeq;
+      if (cvDownload) {
+        cvDownload.href = '/cv-generator/download?' + q;
+        var chosen = cvForm.querySelector('input[name="doc"]:checked');
+        var label = chosen ? chosen.closest('label').querySelector('strong').textContent : 'CV';
+        cvDownload.lastChild.textContent = ' Download ' + label;
+      }
+      history.replaceState(null, '', '/cv-generator?' + q + '#generate');
+      cvPreview.classList.add('is-loading');
+      fetch('/cv-generator/preview?' + q, { credentials: 'same-origin' })
+        .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.text(); })
+        .then(function (html) {
+          if (seq !== cvSeq) return; // a later choice already asked for a newer preview
+          cvPreview.innerHTML = html;
+        })
+        .catch(function () { /* keep the last good preview; the button still reloads */ })
+        .finally(function () { if (seq === cvSeq) cvPreview.classList.remove('is-loading'); });
+    };
+    cvForm.addEventListener('change', refreshCv);
+  }
+
   document.querySelectorAll('input[data-filter-list]').forEach(function (input) {
     var list = document.querySelector(input.getAttribute('data-filter-list'));
     if (!list) return;

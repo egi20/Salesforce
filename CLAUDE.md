@@ -454,6 +454,22 @@ this lands in a `Content-Disposition` header on every download they make.
 Documents are generated on demand and never stored: a profile changes, and the stale copy
 is the one someone would eventually send.
 
+**The CV preview IS the document.** `utils/documents/cvLayout.js` decides what a CV contains
+— sections, order, every line — as plain blocks, and both renderers only lay them out:
+`cvDocx.js` as Word paragraphs, `views/cv/_preview.ejs` as HTML. Two renderers each deciding
+content would drift the first time one gained a line, and the consultant would download
+something other than what they approved. A test asserts every previewed string reaches the
+.docx. The rate is off by default when the profile keeps it "on request".
+
+The dossier turns the stored bio and descriptions back into plain text with
+`richTextToEditable`: they are sanitised HTML since the profile form escapes and paragraphs
+them, and the generator was printing `<p>` into every CV.
+
+`/cv-generator` is the consultant's page and `/services/document-generator` the company's SOW
+pack. They were one page whose only button was "Start a quote", which is where a consultant
+following "CV Generator" landed. The Hub writes no cover letter — that is prose, and a
+generator that writes prose stops rendering the consultant's own claims.
+
 ## Referrals and commissions
 
 **The ledger IS the balance.** There is no cached total on the referrer row —

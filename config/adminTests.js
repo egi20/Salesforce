@@ -41,6 +41,7 @@ const TEST_SUITE = [
       { name: 'Project-Based Loads', method: 'GET', endpoint: '/services/project-based', expectedStatus: 200 },
       { name: 'Managed Services Loads', method: 'GET', endpoint: '/services/managed-services', expectedStatus: 200 },
       { name: 'Document Generator Loads', method: 'GET', endpoint: '/services/document-generator', expectedStatus: 200 },
+      { name: 'CV Generator Loads', method: 'GET', endpoint: '/cv-generator', expectedStatus: 200 },
       { name: 'Unknown Service Slug 404s', method: 'GET', endpoint: '/services/not-a-real-service', expectedStatus: 404 },
       /*
        * `SERVICE_PAGES['constructor']` is `Object` — truthy — so the lookup this came with

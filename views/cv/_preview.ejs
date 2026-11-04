@@ -1,0 +1,21 @@
+<%
+  /*
+   * The CV as HTML, from the SAME blocks utils/documents/cvDocx.js lays out as Word
+   * paragraphs (utils/documents/cvLayout.js). Nothing here decides what is on the CV — only
+   * how a block looks on screen — so what is previewed is what downloads.
+   * Every string is the consultant's own and goes through the escaping tag.
+   */
+%>
+<div class="cv-page" aria-label="CV preview">
+  <% blocks.forEach(function (b) { %>
+    <% if (b.kind === 'name') { %><div class="cv-name"><%= b.text %></div>
+    <% } else if (b.kind === 'headline') { %><div class="cv-headline"><%= b.text %></div>
+    <% } else if (b.kind === 'contact') { %><div class="cv-contact"><%= b.text %></div>
+    <% } else if (b.kind === 'heading') { %><div class="cv-heading"><%= b.text %></div>
+    <% } else if (b.kind === 'fact') { %><div class="cv-fact"><span><%= b.label %></span><span><%= b.value %></span></div>
+    <% } else if (b.kind === 'bullet') { %><div class="cv-bullet"><%= b.text %></div>
+    <% } else if (b.kind === 'entry') { %><div class="cv-entry"><strong><%= b.left %></strong><span><%= b.right %></span></div>
+    <% } else if (b.kind === 'subtitle') { %><div class="cv-subtitle"><%= b.text %></div>
+    <% } else { %><p class="cv-para"><%= b.text %></p><% } %>
+  <% }); %>
+</div>

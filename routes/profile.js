@@ -228,7 +228,7 @@ async function renderAccountOnly(req, res) {
     ExternalIdentity.find(ExternalIdentity.LINKEDIN, userId)
   ]);
   res.render('profile/consultant', {
-    title: 'Your account',
+    title: 'Build Your Professional Profile',
     consultantMode: false,
     user,
     linkedInIdentity,

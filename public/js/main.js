@@ -320,14 +320,17 @@
             }
           }
 
-          var skillsInput = document.getElementById('skills');
-          if (skillsInput && f.skills && f.skills.length) {
-            var existing = skillsInput.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
-            var merged = existing.slice();
-            f.skills.forEach(function (s) {
-              if (merged.indexOf(s) === -1) merged.push(s);
+          // Skills are rows now: fill the empty ones first, add rows for the rest, and never
+          // duplicate a skill already listed.
+          if (f.skills && f.skills.length && window.sfAddSkillRow) {
+            var have = Array.prototype.map.call(document.querySelectorAll('input[name="skill_name"]'), function (i) {
+              return i.value.trim().toLowerCase();
             });
-            skillsInput.value = merged.join(', ');
+            f.skills.forEach(function (name) {
+              if (have.indexOf(String(name).toLowerCase()) !== -1) return;
+              window.sfAddSkillRow(name);
+              have.push(String(name).toLowerCase());
+            });
           }
 
           setStatus('Imported. Review the fields below, then save.', false);
@@ -397,6 +400,132 @@
     placeSidebar();
     window.addEventListener('resize', placeSidebar);
     stickySidebar.addEventListener('toggle', placeSidebar, true);
+  }
+
+  /*
+   * The consultant profile page: sections become tabs, list rows (skills, languages) can be
+   * added and removed, and the save bar says when something has changed. Without scripting
+   * the same page is one long form with a contents bar, and every control still works.
+   */
+  var profileForm = document.querySelector('form[data-profile-tabs]');
+  if (profileForm) {
+    var sections = Array.prototype.slice.call(document.querySelectorAll('[data-tab]'));
+    var tabLinks = Array.prototype.slice.call(document.querySelectorAll('[data-tab-link]'));
+    var currentTab = profileForm.querySelector('[data-current-tab]');
+    var names = sections.map(function (sec) { return sec.getAttribute('data-tab'); });
+
+    var showTab = function (name, focus) {
+      if (names.indexOf(name) === -1) name = names[0];
+      sections.forEach(function (sec) { sec.classList.toggle('is-active', sec.getAttribute('data-tab') === name); });
+      tabLinks.forEach(function (a) {
+        var on = a.getAttribute('data-tab-link') === name;
+        a.classList.toggle('is-active', on);
+        if (a.closest('.profile-tabs')) {
+          a.setAttribute('aria-current', on ? 'page' : 'false');
+          // On a phone the tab row scrolls sideways; keep the active tab in view.
+          if (on && a.parentNode.scrollWidth > a.parentNode.clientWidth) {
+            a.parentNode.scrollLeft = a.offsetLeft - (a.parentNode.clientWidth - a.offsetWidth) / 2;
+          }
+        }
+      });
+      if (currentTab) currentTab.value = name;
+      if (focus) {
+        var heading = document.getElementById(name).querySelector('h2');
+        if (heading) { heading.setAttribute('tabindex', '-1'); heading.focus({ preventScroll: true }); }
+      }
+    };
+    document.body.classList.add('profile-tabs-ready');
+    showTab((location.hash || '').slice(1), false);
+    tabLinks.forEach(function (a) {
+      a.addEventListener('click', function (event) {
+        event.preventDefault();
+        var name = a.getAttribute('data-tab-link');
+        history.replaceState(null, '', '#' + name);
+        showTab(name, true);
+        var nav = document.querySelector('.profile-tabs');
+        if (nav && nav.getBoundingClientRect().top < 0) nav.scrollIntoView({ block: 'start' });
+      });
+    });
+
+    // A required field on a hidden tab would block Save with nothing visible: show its tab.
+    profileForm.addEventListener('invalid', function (event) {
+      var sec = event.target.closest('[data-tab]');
+      if (sec) showTab(sec.getAttribute('data-tab'), false);
+    }, true);
+
+    // Rows: clone the last row of the list, emptied.
+    var addRow = function (kind, value) {
+      var list = document.querySelector('[data-rows="' + kind + '"]');
+      if (!list) return null;
+      var rows = list.querySelectorAll('[data-row]');
+      var blank = Array.prototype.find.call(rows, function (r) {
+        var first = r.querySelector('input');
+        return first && !first.value.trim();
+      });
+      var row = blank;
+      if (!row) {
+        row = rows[rows.length - 1].cloneNode(true);
+        row.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+        list.appendChild(row);
+      }
+      if (value !== undefined) row.querySelector('input').value = value;
+      return row;
+    };
+    window.sfAddSkillRow = function (name) { addRow('skill', name); };
+    document.querySelectorAll('[data-add-row]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var row = addRow(btn.getAttribute('data-add-row'));
+        if (row) row.querySelector('input').focus();
+      });
+    });
+    profileForm.addEventListener('click', function (event) {
+      var btn = event.target.closest('[data-remove-row]');
+      if (!btn) return;
+      var row = btn.closest('[data-row]');
+      var list = row.parentNode;
+      if (list.querySelectorAll('[data-row]').length > 1) row.remove();
+      else row.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+      profileForm.dispatchEvent(new Event('input'));
+    });
+
+    // The save bar says when there is something to save, and the browser asks before leaving.
+    var dirty = false;
+    var note = document.querySelector('[data-unsaved-note]');
+    profileForm.addEventListener('input', function (event) {
+      // Fields that belong to the row forms (form="certAddForm" …) or the listing switch save
+      // themselves; typing in them is not an unsaved change to the profile.
+      if (dirty || (event.target && event.target.form && event.target.form !== profileForm)) return;
+      dirty = true;
+      if (note) { note.textContent = 'You have unsaved changes.'; note.classList.add('is-dirty'); }
+    });
+    profileForm.addEventListener('submit', function () { dirty = false; });
+    // Adding a row or switching listing reloads the page: say so if the profile has edits.
+    ['certAddForm', 'projAddForm', 'expAddForm', 'removeForm', 'visibilityForm'].forEach(function (id) {
+      var f = document.getElementById(id);
+      if (f) f.addEventListener('submit', function (event) {
+        if (dirty && !window.confirm('Save your profile changes first? Adding this reloads the page and they would be lost.\n\nOK = continue anyway')) {
+          event.preventDefault();
+        } else {
+          dirty = false;
+        }
+      });
+    });
+    window.addEventListener('beforeunload', function (event) {
+      if (dirty) { event.preventDefault(); event.returnValue = ''; }
+    });
+
+    document.querySelectorAll('[data-submit-on-change]').forEach(function (input) {
+      input.addEventListener('change', function () {
+        // requestSubmit, so the form's submit handler (the unsaved-changes check) runs.
+        if (input.form) { if (input.form.requestSubmit) input.form.requestSubmit(); else input.form.submit(); }
+      });
+    });
+    document.querySelectorAll('[data-click]').forEach(function (a) {
+      a.addEventListener('click', function (event) {
+        var target = document.getElementById(a.getAttribute('data-click'));
+        if (target) { event.preventDefault(); target.click(); }
+      });
+    });
   }
 
   /* Fold a disclosure that is open by default (for the no-script case) on a narrow screen. */

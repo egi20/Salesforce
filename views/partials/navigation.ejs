@@ -66,7 +66,7 @@
             <li><a class="dropdown-item" href="/consultant-hub"><i class="bi bi-grid"></i> Consultant Hub</a></li>
             <li><a class="dropdown-item" href="/jobs"><i class="bi bi-briefcase"></i> Find Jobs</a></li>
             <%# A visitor builds a profile by signing up; a consultant edits the one they have. %>
-            <li><a class="dropdown-item" href="<%= currentUser && currentUser.isConsultant ? '/profile/consultant' : '/auth/register' %>"><i class="bi bi-person-gear"></i> Build Profile</a></li>
+            <li><a class="dropdown-item" href="<%= currentUser && currentUser.isConsultant ? '/profile/consultant' : currentUser ? '/profile/settings#roles' : '/auth/register' %>"><i class="bi bi-person-gear"></i> Build Profile</a></li>
             <li><a class="dropdown-item" href="/services/document-generator"><i class="bi bi-file-earmark-person"></i> CV Generator</a></li>
             <% if (currentUser && currentUser.isConsultant) { %>
               <li><hr class="dropdown-divider"></li>
@@ -214,7 +214,8 @@
               </div>
 
               <div class="account-menu-section-label"><i class="bi bi-person-badge"></i> Consultant</div>
-              <a class="dropdown-item" href="/profile/consultant"><i class="bi bi-person-gear"></i> Build Profile</a>
+              <%# An account without the consultant role is taken to where the role is added. %>
+              <a class="dropdown-item" href="<%= currentUser.isConsultant ? '/profile/consultant' : '/profile/settings#roles' %>"><i class="bi bi-person-gear"></i> Build Profile</a>
               <a class="dropdown-item" href="/dashboard/applications"><i class="bi bi-send"></i> My Applications</a>
               <a class="dropdown-item" href="/profile/consultant/download/package"><i class="bi bi-file-earmark-arrow-down"></i> Documents</a>
               <a class="dropdown-item" href="/services/document-generator"><i class="bi bi-file-earmark-text"></i> Document Templates</a>

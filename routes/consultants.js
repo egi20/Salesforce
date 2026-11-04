@@ -127,10 +127,13 @@ router.get(
      */
     const showRate = Boolean(profile.rate_visible) || isSelf || (viewer && viewer.isAdmin);
 
-    const [skills, certifications, experiences] = await Promise.all([
+    const [skills, certifications, experiences, clouds, languages, workCountries] = await Promise.all([
       Skill.forConsultant(profile.user_id),
       ConsultantProfile.listCertifications(profile.user_id),
-      ConsultantProfile.listExperiences(profile.user_id)
+      ConsultantProfile.listExperiences(profile.user_id),
+      ConsultantProfile.listClouds(profile.user_id),
+      ConsultantProfile.listLanguages(profile.user_id),
+      ConsultantProfile.listWorkCountries(profile.user_id)
     ]);
 
     // A conversation is always anchored to a role, so an employer can only approach this
@@ -146,6 +149,9 @@ router.get(
       skills,
       certifications,
       experiences,
+      clouds,
+      languages,
+      workCountries,
       isSelf,
       showRate,
       hiringJobs,

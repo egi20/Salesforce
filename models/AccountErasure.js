@@ -32,6 +32,9 @@ const PURGE = Object.freeze([
   'consultant_certifications',
   'consultant_projects',
   'consultant_skills',
+  'consultant_clouds',
+  'consultant_languages',
+  'consultant_work_countries',
   'consultant_photos',
   'consultant_profiles',
   // The company and recruiter equivalents.

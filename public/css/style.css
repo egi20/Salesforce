@@ -1329,6 +1329,77 @@ a.stat-tile:hover .value { color: var(--primary-blue); }
 .job-search-field .form-control { padding-left: 2.6rem; }
 .popular-roles .badge-hub.is-active { background: var(--primary-blue); color: #fff; }
 
+/*
+ * THE CONSULTANT PROFILE PAGE.
+ *
+ * Without scripting the sections are one long page and the tab bar is a contents bar of
+ * anchors. With scripting (`.profile-tabs-ready`, set by main.js) only the active section
+ * shows. The save bar sticks to the bottom of the window so Save is never a scroll away.
+ */
+.profile-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  background: #fff;
+  border: 1px solid rgba(3, 45, 96, 0.1);
+  border-radius: var(--radius-xl);
+  position: sticky;
+  top: calc(81px + 0.5rem);
+  z-index: 5;
+}
+.profile-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-lg);
+  color: var(--text-medium);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+.profile-tab:hover { background: rgba(1, 118, 211, 0.08); color: var(--primary-blue-dark); text-decoration: none; }
+.profile-tab.is-active:hover { background: var(--primary-blue); color: #fff; }
+.profile-tab.is-active { background: var(--primary-blue); color: #fff; }
+.profile-tab .tab-done { color: #1d6f4f; }
+.profile-tab.is-active .tab-done { color: #fff; }
+.profile-tabs-ready .profile-section:not(.is-active) { display: none; }
+.profile-section { scroll-margin-top: calc(81px + 4.5rem); }
+
+.profile-savebar {
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-top: 0.5rem;
+  background: #fff;
+  border: 1px solid rgba(3, 45, 96, 0.12);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow: 0 -8px 24px rgba(3, 45, 96, 0.08);
+}
+.profile-savebar .is-dirty { color: #8a5300; font-weight: 600; }
+
+@media (max-width: 767.98px) {
+  /* On a phone: one row of tabs that scrolls sideways, not sticky, and a two-button save bar —
+     together they were taking half the screen. */
+  .profile-tabs { position: static; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .profile-tabs::-webkit-scrollbar { display: none; }
+  .profile-tab { white-space: nowrap; }
+  .profile-savebar { padding: 0.5rem; gap: 0.4rem; }
+  .profile-savebar [data-unsaved-note]:not(.is-dirty) { display: none; }
+  .profile-savebar .btn { flex: 1 1 0; padding: 0.45rem 0.5rem; font-size: 0.9rem; }
+}
+
+.privacy-row { padding: 0 0 var(--space-4); margin-bottom: var(--space-4); border-bottom: 1px solid rgba(3, 45, 96, 0.08); }
+.privacy-row .form-text, .privacy-row p { margin-top: 0.35rem; }
+.whats-next { padding-left: 1.2rem; margin: 0; }
+.whats-next li { margin-bottom: 0.35rem; }
+
 /* The filters in force, above the list. Each chip is a link that removes its one value. */
 .filter-chip {
   display: inline-flex;

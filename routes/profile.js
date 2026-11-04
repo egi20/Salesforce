@@ -19,7 +19,7 @@ const { sanitizeRichText } = require('../utils/sanitize');
 const { ROLE_CATEGORIES, ROLE_SLUGS } = require('../config/roleTaxonomy');
 const { CERTIFICATIONS } = require('../config/certifications');
 const countries = require('../config/all-countries.json');
-const { ALL_MODULES } = require('../config/cloudFamilies');
+const { ALL_MODULES, CLOUD_FAMILIES } = require('../config/cloudFamilies');
 const { build: buildDossier } = require('../services/consultantDossier');
 const ExternalIdentity = require('../models/ExternalIdentity');
 const AccountErasure = require('../models/AccountErasure');
@@ -40,6 +40,39 @@ const {
 } = require('../services/consultantPackage');
 
 const router = express.Router();
+
+/* Trailhead's ranks, lowest first, as the form offers them. */
+const TRAILHEAD_RANKS = Object.freeze([
+  'Scout', 'Hiker', 'Explorer', 'Adventurer', 'Mountaineer', 'Expeditioner', 'Ranger',
+  'Double Star Ranger', 'Triple Star Ranger', 'Four Star Ranger', 'Five Star Ranger', 'All Star Ranger'
+]);
+
+/* The profile page's tabs, so a save or an added row returns to the tab it came from. */
+const PROFILE_TABS = Object.freeze(['basics', 'salesforce', 'work', 'privacy', 'projects', 'documents']);
+function tabHash(tab) {
+  return PROFILE_TABS.includes(tab) ? `#${tab}` : '';
+}
+
+/* A posted field that may be one value or several, as a list of strings. */
+function listOf(value) {
+  return (Array.isArray(value) ? value : value ? [value] : []).map(String);
+}
+
+/* Parallel posted arrays (name[], level[]) zipped into rows, capped. */
+function rowsOf(bodyIn, keys) {
+  const columns = keys.map((k) => listOf(bodyIn[k]));
+  const length = Math.min(Math.max(0, ...columns.map((c) => c.length)), 50);
+  return Array.from({ length }, (_, i) => columns.map((c) => c[i]));
+}
+
+function httpsUrlOrNull(value) {
+  try {
+    const url = new URL(String(value || '').trim());
+    return url.protocol === 'https:' && !url.username && !url.password ? url.toString().slice(0, 255) : null;
+  } catch {
+    return null;
+  }
+}
 
 router.use(isAuthenticated);
 
@@ -115,20 +148,49 @@ router.get(
   asyncHandler(async (req, res) => {
     const userId = req.session.user.id;
     const profile = await ConsultantProfile.ensureExists(userId);
-    const [skills, certifications, experiences, projects] = await Promise.all([
+    const [skills, certifications, experiences, projects, clouds, languages, workCountries, hiddenCompanies] = await Promise.all([
       Skill.forConsultant(userId),
       ConsultantProfile.listCertifications(userId),
       ConsultantProfile.listExperiences(userId),
-      ConsultantProfile.listProjects(userId)
+      ConsultantProfile.listProjects(userId),
+      ConsultantProfile.listClouds(userId),
+      ConsultantProfile.listLanguages(userId),
+      ConsultantProfile.listWorkCountries(userId),
+      ConsultantHiddenCompany.listFor(userId)
     ]);
 
+    const counts = { skillCount: skills.length, certificationCount: certifications.length, experienceCount: experiences.length };
+    /*
+     * Which sections are done, for the ✓ on each tab. A judgement about what a reader of the
+     * profile needs from that section, not a second completeness score: the percentage is
+     * still `completenessOf`, and listing is still `listingProblems`.
+     */
+    const sectionsDone = {
+      basics: Boolean(profile.headline && profile.bio && profile.primary_role && profile.country),
+      salesforce: clouds.length >= 1 && skills.length >= 3,
+      work: Boolean((profile.day_rate || profile.annual_salary) && (profile.open_to_contract || profile.open_to_permanent)),
+      privacy: Boolean(profile.is_public),
+      projects: projects.length >= 1 || experiences.length >= 1
+    };
+
     res.render('profile/consultant', {
-      title: 'Your consultant profile',
+      title: 'Build your consultant profile',
       profile,
       skills,
       certifications,
       experiences,
       projects,
+      clouds,
+      languages,
+      workCountries,
+      hiddenCompanyCount: hiddenCompanies.length,
+      cloudFamilies: CLOUD_FAMILIES,
+      languageLevels: ConsultantProfile.LANGUAGE_LEVELS,
+      skillLevels: ConsultantProfile.SKILL_LEVELS,
+      trailheadRanks: TRAILHEAD_RANKS,
+      nextSteps: ConsultantProfile.nextSteps(profile, counts),
+      listingProblems: ConsultantProfile.listingProblems(profile, { cloudCount: clouds.length }),
+      sectionsDone,
       allModules: ALL_MODULES,
       roleCategories: ROLE_CATEGORIES,
       certificationGroups: CERTIFICATIONS,
@@ -152,7 +214,9 @@ router.post(
     body('years_experience').optional({ checkFalsy: true }).isInt({ min: 0, max: 60 }),
     body('given_name').optional({ checkFalsy: true }).isLength({ max: 100 }),
     body('family_name').optional({ checkFalsy: true }).isLength({ max: 100 }),
-    body('phone').optional({ checkFalsy: true }).isLength({ max: 40 })
+    body('phone').optional({ checkFalsy: true }).isLength({ max: 40 }),
+    body('trailhead_badges').optional({ checkFalsy: true }).isInt({ min: 0, max: 10000 }),
+    body('trailhead_rank').optional({ checkFalsy: true }).isIn(TRAILHEAD_RANKS)
   ],
   asyncHandler(async (req, res) => {
     const errors = validationResult(req);
@@ -160,6 +224,7 @@ router.post(
       req.flash('error', errors.array()[0].msg || 'Please check the form.');
       return res.redirect('/profile/consultant');
     }
+    const userId = req.session.user.id;
 
     if (req.body.given_name || req.body.family_name) {
       await User.updateName(req.session.user.id, `${req.body.given_name || ''} ${req.body.family_name || ''}`);
@@ -190,20 +255,50 @@ router.post(
       available_from: req.body.available_from || null,
       linkedin_url: req.body.linkedin_url || null,
       website_url: req.body.website_url || null,
-      trailblazer_url: req.body.trailblazer_url || null
+      trailblazer_url: req.body.trailblazer_url || null,
+      // Named checkboxes: an unticked one posts nothing, so absence is "no".
+      open_to_contract: req.body.open_to_contract === 'on' ? 1 : 0,
+      open_to_permanent: req.body.open_to_permanent === 'on' ? 1 : 0,
+      trailhead_rank: req.body.trailhead_rank || null,
+      trailhead_badges: req.body.trailhead_badges === '' || req.body.trailhead_badges === undefined ? null : Number(req.body.trailhead_badges)
     });
 
-    const names = String(req.body.skills || '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .slice(0, 40);
-    const skills = await Skill.findOrCreateMany(names);
-    await Skill.setForConsultant(req.session.user.id, skills.map((s) => s.id));
-    await ConsultantProfile.recomputeCompleteness(req.session.user.id);
+    // The three lists replace themselves wholesale; the model validates every element.
+    await Promise.all([
+      ConsultantProfile.setClouds(userId, listOf(req.body.clouds)),
+      ConsultantProfile.setWorkCountries(userId, listOf(req.body.work_countries)),
+      ConsultantProfile.setLanguages(userId, rowsOf(req.body, ['language_name', 'language_level'])
+        .map(([language, level]) => ({ language, level })))
+    ]);
+
+    /*
+     * Skills arrive as rows (name, level, years). The comma-separated `skills` field is still
+     * read when it is all that arrived, so a form posted without the row markup — or an older
+     * page left open in a tab — does not wipe somebody's skills.
+     */
+    let skillRows = rowsOf(req.body, ['skill_name', 'skill_level', 'skill_years'])
+      .map(([name, level, years]) => ({ name: String(name || '').trim().slice(0, 80), level, years }))
+      .filter((r) => r.name);
+    if (skillRows.length === 0 && typeof req.body.skills === 'string') {
+      skillRows = req.body.skills.split(',').map((n) => ({ name: n.trim().slice(0, 80), level: 'proficient', years: null })).filter((r) => r.name);
+    }
+    /*
+     * The same skill twice keeps the LAST row — the one somebody just typed. The table's key
+     * is (user, skill) and the insert ignores duplicates, so without this the older row won
+     * and a level or years entered on the new line vanished without a word.
+     */
+    const lastByName = new Map();
+    for (const r of skillRows) lastByName.set(r.name.toLowerCase(), r);
+    skillRows = [...lastByName.values()].slice(0, 40);
+    const skillRecords = await Skill.findOrCreateMany(skillRows.map((r) => r.name));
+    const idByName = new Map(skillRecords.map((sk) => [sk.name.toLowerCase(), sk.id]));
+    await Skill.setDetailedForConsultant(userId, skillRows
+      .map((r) => ({ skillId: idByName.get(r.name.toLowerCase()), level: r.level, years: r.years }))
+      .filter((r) => r.skillId));
+    await ConsultantProfile.recomputeCompleteness(userId);
 
     req.flash('success', 'Profile saved.');
-    return res.redirect('/profile/consultant');
+    return res.redirect(`/profile/consultant${tabHash(req.body.tab)}`);
   })
 );
 
@@ -213,20 +308,18 @@ router.post(
   writeLimiter,
   asyncHandler(async (req, res) => {
     const wantPublic = req.body.is_public === 'on';
-    const { published, completeness, adminHidden } = await ConsultantProfile.setPublic(req.session.user.id, wantPublic);
+    const { published, completeness, adminHidden, problems } = await ConsultantProfile.setPublic(req.session.user.id, wantPublic);
 
     if (wantPublic && adminHidden) {
       // Said plainly: a Publish that silently did nothing is worse than a refusal.
       req.flash('error', 'An administrator has taken your profile out of the directory, so it cannot be listed. Use Report an issue if you think that is a mistake.');
     } else if (wantPublic && !published) {
-      req.flash(
-        'error',
-        `Your profile is ${completeness}% complete. It needs ${ConsultantProfile.MIN_COMPLETENESS_TO_PUBLISH}% before it can be listed.`
-      );
+      const missing = problems && problems.length ? problems : [`reach ${ConsultantProfile.MIN_COMPLETENESS_TO_PUBLISH}% complete`];
+      req.flash('error', `Your profile is ${completeness}% complete. To list it in Browse Talent, ${missing.join(', ')}.`);
     } else {
       req.flash('success', published ? 'Your profile is now listed in the directory.' : 'Your profile is hidden from the directory.');
     }
-    return res.redirect('/profile/consultant');
+    return res.redirect('/profile/consultant#privacy');
   })
 );
 
@@ -238,7 +331,7 @@ router.post(
   asyncHandler(async (req, res) => {
     if (!req.file) {
       req.flash('error', 'Please choose an image.');
-      return res.redirect('/profile/consultant');
+      return res.redirect('/profile/consultant#basics');
     }
 
     try {
@@ -252,7 +345,7 @@ router.post(
       // A file that survived the MIME check but will not decode was never an image.
       req.flash('error', 'That file could not be read as an image.');
     }
-    return res.redirect('/profile/consultant');
+    return res.redirect('/profile/consultant#basics');
   })
 );
 
@@ -264,7 +357,7 @@ router.post(
     await ImageBlob.remove('consultant_photos', req.session.user.id);
     await ConsultantProfile.setProfilePicture(req.session.user.id, null);
     req.flash('success', 'Photo removed.');
-    return res.redirect('/profile/consultant');
+    return res.redirect('/profile/consultant#basics');
   })
 );
 
@@ -311,6 +404,8 @@ router.post(
       await ConsultantProfile.addCertification(req.session.user.id, {
         name: req.body.name.trim(),
         credentialId: req.body.credential_id || null,
+        // A credential link must be a web address; anything else is dropped, not stored.
+        credentialUrl: httpsUrlOrNull(req.body.credential_url),
         earnedOn: req.body.earned_on || null,
         expiresOn: req.body.expires_on || null
       });
@@ -318,7 +413,7 @@ router.post(
     } else {
       req.flash('error', 'Please choose a certification.');
     }
-    return res.redirect('/profile/consultant');
+    return res.redirect('/profile/consultant#salesforce');
   })
 );
 
@@ -330,7 +425,7 @@ router.post(
   asyncHandler(async (req, res) => {
     await ConsultantProfile.removeCertification(req.session.user.id, req.params.id);
     req.flash('success', 'Certification removed.');
-    return res.redirect('/profile/consultant');
+    return res.redirect('/profile/consultant#salesforce');
   })
 );
 
@@ -347,19 +442,20 @@ router.post(
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       req.flash('error', 'Please fill in the company, title and start date.');
-      return res.redirect('/profile/consultant');
+      return res.redirect('/profile/consultant#projects');
     }
 
     await ConsultantProfile.addExperience(req.session.user.id, {
       company: req.body.company.trim(),
       title: req.body.title.trim(),
+      location: (req.body.location || '').trim().slice(0, 120) || null,
       startedOn: req.body.started_on,
       endedOn: req.body.is_current === 'on' ? null : req.body.ended_on || null,
       isCurrent: req.body.is_current === 'on',
       description: sanitizeRichText(req.body.description || '')
     });
     req.flash('success', 'Experience added.');
-    return res.redirect('/profile/consultant');
+    return res.redirect('/profile/consultant#projects');
   })
 );
 
@@ -371,7 +467,7 @@ router.post(
   asyncHandler(async (req, res) => {
     await ConsultantProfile.removeExperience(req.session.user.id, req.params.id);
     req.flash('success', 'Experience removed.');
-    return res.redirect('/profile/consultant');
+    return res.redirect('/profile/consultant#projects');
   })
 );
 
@@ -396,7 +492,7 @@ router.post(
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       req.flash('error', 'Give the engagement a name of at least two characters.');
-      return res.redirect('/profile/consultant');
+      return res.redirect('/profile/consultant#projects');
     }
 
     await ConsultantProfile.addProject(req.session.user.id, {
@@ -408,11 +504,12 @@ router.post(
       role: ROLE_SLUGS.includes(req.body.role) ? req.body.role : null,
       startedOn: req.body.started_on || null,
       endedOn: req.body.ended_on || null,
+      isCurrent: req.body.is_current === 'on',
       description: sanitizeRichText(req.body.description || '')
     });
 
     req.flash('success', 'Engagement added. It will appear on your CV.');
-    return res.redirect('/profile/consultant');
+    return res.redirect('/profile/consultant#projects');
   })
 );
 
@@ -424,7 +521,7 @@ router.post(
   asyncHandler(async (req, res) => {
     await ConsultantProfile.removeProject(req.session.user.id, req.params.id);
     req.flash('success', 'Engagement removed.');
-    return res.redirect('/profile/consultant');
+    return res.redirect('/profile/consultant#projects');
   })
 );
 

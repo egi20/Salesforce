@@ -43,6 +43,12 @@
             </div>
           </div>
 
+          <% if (clouds.length) { %>
+            <div class="d-flex flex-wrap gap-1 mb-2" aria-label="Clouds">
+              <% clouds.forEach(function (c) { %><span class="badge-hub cloud"><i class="bi bi-cloud"></i> <%= familyLabel(c) %></span><% }); %>
+            </div>
+          <% } %>
+
           <% if (profile.bio) { %>
             <hr>
             <h2 class="h6">About</h2>
@@ -116,6 +122,10 @@
           </p>
           <p class="small text-muted-2 mb-0">
             <%= workModeLabel(profile.work_mode) %><%= profile.willing_to_travel ? ' · willing to travel' : '' %>
+            <% const openTo = [profile.open_to_contract ? 'contract' : null, profile.open_to_permanent ? 'permanent' : null].filter(Boolean); %>
+            <% if (openTo.length) { %><br>Open to <%= openTo.join(' and ') %> roles<% } %>
+            <% if (profile.available_from && profile.availability !== 'not_available') { %><br>Available from <%= new Date(profile.available_from).toISOString().slice(0, 10) %><% } %>
+            <% if (workCountries.length) { %><br>Works in <%= workCountries.map(function (c) { return countryName(c); }).join(', ') %><% } %>
           </p>
 
           <% if (canSeeContact) { %>
@@ -183,11 +193,39 @@
             <ul class="list-unstyled mb-0 small">
               <% certifications.forEach(function (c) { %>
                 <li class="mb-1">
-                  <i class="bi bi-patch-check text-success"></i> <%= c.name %>
+                  <i class="bi bi-patch-check text-success"></i>
+                  <% if (c.credential_url) { %><a href="<%= c.credential_url %>" rel="nofollow noopener noreferrer" target="_blank"><%= c.name %></a><% } else { %><%= c.name %><% } %>
                   <% if (c.earned_on) { %><span class="text-muted-2">· <%= new Date(c.earned_on).getFullYear() %></span><% } %>
                 </li>
               <% }); %>
             </ul>
+          </div>
+        </div>
+      <% } %>
+
+      <% if (languages.length) { %>
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-2">Languages</h2>
+            <ul class="list-unstyled mb-0 small">
+              <% languages.forEach(function (l) { %><li><%= l.language %> <span class="text-muted-2">· <%= l.level %></span></li><% }); %>
+            </ul>
+          </div>
+        </div>
+      <% } %>
+
+      <% if (profile.trailblazer_url || profile.trailhead_rank) { %>
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-2">Trailhead</h2>
+            <p class="small mb-1">
+              <% if (profile.trailhead_rank) { %><strong><%= profile.trailhead_rank %></strong><% } %>
+              <% if (profile.trailhead_badges) { %> · <%= profile.trailhead_badges %> badges<% } %>
+            </p>
+            <% if (profile.trailblazer_url) { %>
+              <a class="small" href="<%= profile.trailblazer_url %>" rel="nofollow noopener noreferrer" target="_blank">Check on Trailhead</a>
+              <span class="small text-muted-2">(as stated by the member)</span>
+            <% } %>
           </div>
         </div>
       <% } %>
@@ -197,7 +235,9 @@
           <div class="card-body">
             <h2 class="h6 mb-2">Skills</h2>
             <div class="d-flex flex-wrap gap-1">
-              <% skills.forEach(function (s) { %><span class="badge-hub"><%= s.name %></span><% }); %>
+              <% skills.forEach(function (s) { %>
+                <span class="badge-hub" title="<%= { familiar: 'Beginner', proficient: 'Proficient', expert: 'Expert' }[s.level] || '' %>"><%= s.name %><% if (s.level === 'expert') { %> ★<% } %><% if (s.years) { %> · <%= s.years %>y<% } %></span>
+              <% }); %>
             </div>
           </div>
         </div>

@@ -3,6 +3,11 @@
 const { promisePool, withTransaction } = require('../config/database');
 const { containsPattern } = require('../utils/likePattern');
 const { isValidRole } = require('../config/roleTaxonomy');
+const { isValidFamily } = require('../config/cloudFamilies');
+
+const COUNTRY_CODES = new Set(require('../config/all-countries.json').map((c) => c.code));
+const LANGUAGE_LEVELS = Object.freeze(['basic', 'conversational', 'professional', 'native']);
+const SKILL_LEVELS = Object.freeze(['familiar', 'proficient', 'expert']);
 
 /**
  * Fields that count towards profile completeness, with their weights.
@@ -23,6 +28,52 @@ const COMPLETENESS_FIELDS = [
 
 const MIN_COMPLETENESS_TO_PUBLISH = 60;
 
+/*
+ * What a profile must state before it can be LISTED, beyond the completeness floor: a role
+ * and at least one cloud. Browse Talent filters by both, so a profile without them is one no
+ * company search can ever return — publishing it only adds a card nobody can find by asking.
+ *
+ * Checked when the owner PUBLISHES, never by un-publishing somebody who is already listed:
+ * profiles listed before clouds existed must not vanish from the directory the day this ships.
+ */
+function listingProblems(profile, { cloudCount = 0 } = {}) {
+  const problems = [];
+  if (!profile || !profile.primary_role) problems.push('choose your primary role');
+  if (cloudCount < 1) problems.push('pick at least one cloud you work on');
+  if (!profile || profile.completeness < MIN_COMPLETENESS_TO_PUBLISH) {
+    problems.push(`reach ${MIN_COMPLETENESS_TO_PUBLISH}% complete`);
+  }
+  return problems;
+}
+
+/*
+ * The next things worth doing, biggest gain first, for the progress bar's hint ("add three
+ * skills to reach 80%"). Derived from the SAME weights `completenessOf` scores with, so the
+ * promised percentage is the one the bar will show after the change.
+ */
+const STEP_LABELS = Object.freeze({
+  headline: 'add a professional title',
+  bio: 'write a short bio',
+  primary_role: 'choose your primary role',
+  seniority: 'set your seniority',
+  country: 'add your country',
+  day_rate: 'add your day rate',
+  availability: 'set your availability',
+  profile_picture: 'add a photo'
+});
+
+function nextSteps(profile, { skillCount = 0, certificationCount = 0, experienceCount = 0 } = {}) {
+  const steps = [];
+  for (const field of COMPLETENESS_FIELDS) {
+    const value = profile ? profile[field.key] : null;
+    const ok = field.satisfied ? field.satisfied(value) : value !== null && value !== undefined && String(value).trim() !== '';
+    if (!ok) steps.push({ label: STEP_LABELS[field.key], gain: field.weight });
+  }
+  if (skillCount < 3) steps.push({ label: `add ${3 - skillCount} more skill${3 - skillCount === 1 ? '' : 's'}`, gain: 10 });
+  if (certificationCount < 1) steps.push({ label: 'add a certification', gain: 5 });
+  if (experienceCount < 1) steps.push({ label: 'add your work experience', gain: 5 });
+  return steps.sort((a, b) => b.gain - a.gain);
+}
 /** Pure function: 0..100 completeness for a profile row plus its child-record counts. */
 function completenessOf(profile, { skillCount = 0, certificationCount = 0, experienceCount = 0 } = {}) {
   let score = 0;
@@ -218,7 +269,8 @@ class ConsultantProfile {
       'country', 'city', 'timezone', 'work_mode', 'willing_to_travel',
       'day_rate', 'hourly_rate', 'annual_salary', 'currency', 'rate_visible',
       'availability', 'available_from',
-      'linkedin_url', 'website_url', 'trailblazer_url', 'phone'
+      'linkedin_url', 'website_url', 'trailblazer_url', 'phone',
+      'open_to_contract', 'open_to_permanent', 'trailhead_rank', 'trailhead_badges'
     ];
 
     const sets = [];
@@ -263,8 +315,11 @@ class ConsultantProfile {
         return { published: false, completeness: row.completeness, adminHidden: true };
       }
 
-      if (isPublic && row.completeness < MIN_COMPLETENESS_TO_PUBLISH) {
-        return { published: false, completeness: row.completeness };
+      if (isPublic) {
+        const [[profile]] = await conn.query('SELECT primary_role, completeness FROM consultant_profiles WHERE user_id = ?', [userId]);
+        const [[{ cloudCount }]] = await conn.query('SELECT COUNT(*) AS cloudCount FROM consultant_clouds WHERE user_id = ?', [userId]);
+        const problems = listingProblems(profile, { cloudCount });
+        if (problems.length) return { published: false, completeness: row.completeness, problems };
       }
       await conn.query('UPDATE consultant_profiles SET is_public = ? WHERE user_id = ?', [isPublic ? 1 : 0, userId]);
       return { published: Boolean(isPublic), completeness: row.completeness };
@@ -343,13 +398,13 @@ class ConsultantProfile {
     return rows;
   }
 
-  static async addCertification(userId, { name, credentialId = null, earnedOn = null, expiresOn = null }) {
+  static async addCertification(userId, { name, credentialId = null, credentialUrl = null, earnedOn = null, expiresOn = null }) {
     await promisePool.query(
-      `INSERT INTO consultant_certifications (user_id, name, credential_id, earned_on, expires_on)
-       VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE credential_id = VALUES(credential_id), earned_on = VALUES(earned_on),
-                               expires_on = VALUES(expires_on)`,
-      [userId, name, credentialId, earnedOn, expiresOn]
+      `INSERT INTO consultant_certifications (user_id, name, credential_id, credential_url, earned_on, expires_on)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE credential_id = VALUES(credential_id), credential_url = VALUES(credential_url),
+                               earned_on = VALUES(earned_on), expires_on = VALUES(expires_on)`,
+      [userId, name, credentialId, credentialUrl, earnedOn, expiresOn]
     );
     await ConsultantProfile.recomputeCompleteness(userId);
   }
@@ -369,9 +424,10 @@ class ConsultantProfile {
 
   static async addExperience(userId, exp) {
     await promisePool.query(
-      `INSERT INTO consultant_work_experiences (user_id, company, title, started_on, ended_on, is_current, description)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [userId, exp.company, exp.title, exp.startedOn, exp.endedOn || null, exp.isCurrent ? 1 : 0, exp.description || null]
+      `INSERT INTO consultant_work_experiences (user_id, company, title, location, started_on, ended_on, is_current, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, exp.company, exp.title, exp.location || null, exp.startedOn, exp.isCurrent ? null : exp.endedOn || null,
+        exp.isCurrent ? 1 : 0, exp.description || null]
     );
     await ConsultantProfile.recomputeCompleteness(userId);
   }
@@ -404,8 +460,8 @@ class ConsultantProfile {
 
   static async addProject(userId, project) {
     await promisePool.query(
-      `INSERT INTO consultant_projects (user_id, name, client, cloud, role, started_on, ended_on, description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO consultant_projects (user_id, name, client, cloud, role, started_on, ended_on, is_current, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
         project.name,
@@ -413,7 +469,9 @@ class ConsultantProfile {
         project.cloud || null,
         project.role || null,
         project.startedOn || null,
-        project.endedOn || null,
+        // A current engagement has no end date, whatever the form also carried.
+        project.isCurrent ? null : project.endedOn || null,
+        project.isCurrent ? 1 : 0,
         project.description || null
       ]
     );
@@ -425,5 +483,71 @@ class ConsultantProfile {
     await ConsultantProfile.recomputeCompleteness(userId);
   }
 }
+
+/*
+ * The lists a profile states about its owner: clouds, languages and the countries they will
+ * work in. Each REPLACES the whole list in one transaction (the form posts every ticked box),
+ * and validates every element against its catalogue — a value that is not ours is dropped
+ * here, not stored and filtered later.
+ */
+async function replaceList(table, column, userId, values, extraColumn = null) {
+  await withTransaction(async (conn) => {
+    await conn.query(`DELETE FROM ${table} WHERE user_id = ?`, [userId]);
+    if (values.length === 0) return;
+    const cols = extraColumn ? `(user_id, ${column}, ${extraColumn})` : `(user_id, ${column})`;
+    const rows = values.map((v) => (extraColumn ? [userId, v[0], v[1]] : [userId, v]));
+    await conn.query(`INSERT IGNORE INTO ${table} ${cols} VALUES ?`, [rows]);
+  });
+}
+
+ConsultantProfile.listClouds = async function listClouds(userId) {
+  const [rows] = await promisePool.query('SELECT family FROM consultant_clouds WHERE user_id = ? ORDER BY family', [userId]);
+  return rows.map((r) => r.family);
+};
+
+ConsultantProfile.setClouds = async function setClouds(userId, families) {
+  const valid = [...new Set((families || []).map(String))].filter(isValidFamily).slice(0, 20);
+  await replaceList('consultant_clouds', 'family', userId, valid);
+  return valid;
+};
+
+ConsultantProfile.listLanguages = async function listLanguages(userId) {
+  const [rows] = await promisePool.query(
+    `SELECT language, level FROM consultant_languages WHERE user_id = ?
+      ORDER BY FIELD(level, 'native', 'professional', 'conversational', 'basic'), language`,
+    [userId]
+  );
+  return rows;
+};
+
+ConsultantProfile.setLanguages = async function setLanguages(userId, entries) {
+  const seen = new Set();
+  const valid = [];
+  for (const { language, level } of entries || []) {
+    const name = String(language || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+    if (!name || !LANGUAGE_LEVELS.includes(level) || seen.has(name.toLowerCase())) continue;
+    seen.add(name.toLowerCase());
+    valid.push([name, level]);
+    if (valid.length === 10) break;
+  }
+  await replaceList('consultant_languages', 'language', userId, valid, 'level');
+  return valid;
+};
+
+ConsultantProfile.listWorkCountries = async function listWorkCountries(userId) {
+  const [rows] = await promisePool.query('SELECT country FROM consultant_work_countries WHERE user_id = ? ORDER BY country', [userId]);
+  return rows.map((r) => r.country);
+};
+
+ConsultantProfile.setWorkCountries = async function setWorkCountries(userId, codes) {
+  const valid = [...new Set((codes || []).map(String))].filter((c) => COUNTRY_CODES.has(c)).slice(0, 40);
+  await replaceList('consultant_work_countries', 'country', userId, valid);
+  return valid;
+};
+
+ConsultantProfile.listingProblems = listingProblems;
+ConsultantProfile.nextSteps = nextSteps;
+ConsultantProfile.LANGUAGE_LEVELS = LANGUAGE_LEVELS;
+ConsultantProfile.SKILL_LEVELS = SKILL_LEVELS;
 
 module.exports = ConsultantProfile;

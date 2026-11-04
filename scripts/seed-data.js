@@ -81,7 +81,7 @@ const { dailySetFor, serverDate } = require('../config/challenges');
 const { PRIVACY_VERSION } = require('../config/legal-versions');
 const { sync: syncCategories } = require('./sync-categories');
 const { ROLE_SLUGS, ROLE_CATEGORIES, baseDayRate, roleLabel } = require('../config/roleTaxonomy');
-const { ALL_MODULES } = require('../config/cloudFamilies');
+const { ALL_MODULES, CLOUD_FAMILIES } = require('../config/cloudFamilies');
 const { ALL_CERTIFICATIONS } = require('../config/certifications');
 
 const SEED_PASSWORD = process.env.SEED_PASSWORD || 'Password123';
@@ -309,6 +309,23 @@ async function seed() {
       startedOn: `${randomInt(2016, 2023)}-01-01`,
       isCurrent: true,
       description: 'Delivery across multiple clouds.'
+    });
+    /*
+     * Clouds, languages, where they will work and what kind of engagement. Listing a profile
+     * now needs at least one cloud (ConsultantProfile.listingProblems), so these come before
+     * setPublic — without them every seeded profile would be refused and Browse Talent empty.
+     */
+    await ConsultantProfile.setClouds(user.id, pick(CLOUD_FAMILIES, randomInt(1, 3)).map((f) => f.value));
+    await ConsultantProfile.setLanguages(user.id, [
+      { language: 'English', level: i % 3 === 0 ? 'native' : 'professional' },
+      ...(i % 2 ? [{ language: ['German', 'Italian', 'Spanish', 'Albanian', 'Dutch', 'French'][i % 6], level: 'native' }] : [])
+    ]);
+    await ConsultantProfile.setWorkCountries(user.id, [homeCountry, ...(i % 3 === 0 ? ['DE', 'NL'] : [])]);
+    await ConsultantProfile.update(user.id, {
+      open_to_contract: 1,
+      open_to_permanent: i % 3 === 0 ? 1 : 0,
+      trailhead_rank: ['Ranger', 'Double Star Ranger', 'Mountaineer', 'All Star Ranger'][i % 4],
+      trailhead_badges: 40 + ((i * 37) % 300)
     });
     await ConsultantProfile.recomputeCompleteness(user.id);
     await ConsultantProfile.setPublic(user.id, true);

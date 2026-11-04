@@ -61,7 +61,9 @@ function isConsultant(req, res, next) {
   const user = req.session && req.session.user;
   if (!user) return denyAuth(req, res, 'Please sign in to continue.');
   if (user.isConsultant) return next();
-  return denyRole(req, res, 'That area is for consultant accounts.');
+  // Sent to where the role is added rather than to the home page: "Build Profile" from an
+  // account without the role used to land on an empty dashboard with nothing to act on.
+  return denyRole(req, res, 'That area is for consultant profiles. Add the consultant role here to set one up.', '/profile/settings#roles');
 }
 
 function isCompany(req, res, next) {

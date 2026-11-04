@@ -18,6 +18,7 @@ const { requireIdParam } = require('../utils/ids');
 const { sanitizeRichText, plainTextToRichText } = require('../utils/sanitize');
 const { ROLE_CATEGORIES, ROLE_SLUGS } = require('../config/roleTaxonomy');
 const { CERTIFICATIONS } = require('../config/certifications');
+const { EU_COUNTRY_CODES } = require('../config/regions');
 const { AVAILABILITY, isValidAvailability } = require('../config/availability');
 const countries = require('../config/all-countries.json');
 const { ALL_MODULES, CLOUD_FAMILIES } = require('../config/cloudFamilies');
@@ -202,6 +203,7 @@ async function renderProfilePage(req, res) {
       clouds,
       languages,
       workCountries,
+      euCountryCodes: EU_COUNTRY_CODES,
       hiddenCompanyCount: hiddenCompanies.length,
       documents,
       documentMaxMb: DOCUMENT_MAX_BYTES / 1024 / 1024,
@@ -280,8 +282,10 @@ router.post(
       country: /^[A-Z]{2}$/.test(req.body.country || '') ? req.body.country : null,
       city: req.body.city || null,
       phone: req.body.phone || null,
-      work_mode: req.body.work_mode || 'remote',
+      // Blank until chosen; never a default the consultant did not pick (migration 038).
+      work_mode: ['remote', 'hybrid', 'onsite'].includes(req.body.work_mode) ? req.body.work_mode : null,
       willing_to_travel: req.body.willing_to_travel === 'on' ? 1 : 0,
+      works_anywhere: req.body.works_anywhere === 'on' ? 1 : 0,
       day_rate: req.body.day_rate || null,
       // Stored as typed, never derived from each other. An hourly rate is not a day rate
       // divided by eight — the divisor is a contract term, not a constant — and a salary
@@ -292,7 +296,7 @@ router.post(
       // An unticked checkbox posts nothing, so absence is "hide it" — which is the safe
       // direction for a figure. Read as a named field, like `willing_to_travel` above.
       rate_visible: req.body.rate_visible === 'on' ? 1 : 0,
-      availability: isValidAvailability(req.body.availability) ? req.body.availability : 'not_available',
+      availability: isValidAvailability(req.body.availability) ? req.body.availability : null,
       available_from: req.body.available_from || null,
       linkedin_url: req.body.linkedin_url || null,
       website_url: req.body.website_url || null,
@@ -345,6 +349,7 @@ router.post(
      */
     const missing = [];
     if (listOf(req.body.clouds).length === 0) missing.push('at least one cloud');
+    if (!isValidAvailability(req.body.availability)) missing.push('your availability');
     if (req.body.open_to_contract !== 'on' && req.body.open_to_permanent !== 'on') missing.push('contract and/or permanent');
     if (req.body.open_to_contract === 'on' && !req.body.day_rate) missing.push('a day rate, for contract work');
     if (req.body.open_to_permanent === 'on' && !req.body.annual_salary) missing.push('an annual salary, for permanent roles');

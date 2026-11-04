@@ -17,9 +17,10 @@ jest.mock('../../config/database', () => ({
 const ConsultantProfile = require('../../models/ConsultantProfile');
 
 describe('what a profile needs before it can be listed', () => {
-  const ready = { primary_role: 'apex-developer', completeness: 80 };
+  const ready = { primary_role: 'apex-developer', availability: 'immediate', completeness: 80 };
 
-  it('asks for a role, a cloud and the completeness floor, and nothing once they are there', () => {
+  it('asks for a role, a cloud, availability and the completeness floor, and nothing once they are there', () => {
+    expect(ConsultantProfile.listingProblems({ ...ready, availability: null }, { cloudCount: 1 })).toEqual(['set your availability']);
     expect(ConsultantProfile.listingProblems(ready, { cloudCount: 1 })).toEqual([]);
     expect(ConsultantProfile.listingProblems({ ...ready, primary_role: null }, { cloudCount: 1 })).toEqual(['choose your primary role']);
     expect(ConsultantProfile.listingProblems(ready, { cloudCount: 0 })).toEqual(['pick at least one cloud you work on']);

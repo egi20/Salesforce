@@ -52,6 +52,9 @@ function listingProblems(profile, { cloudCount = 0 } = {}) {
   const problems = [];
   if (!profile || !profile.primary_role) problems.push('choose your primary role');
   if (cloudCount < 1) problems.push('pick at least one cloud you work on');
+  // The spec's listing minimum is role + cloud + availability: a card that cannot say whether
+  // somebody is free is the one question every company opens it to answer.
+  if (!profile || !profile.availability) problems.push('set your availability');
   if (!profile || profile.completeness < MIN_COMPLETENESS_TO_PUBLISH) {
     problems.push(`reach ${MIN_COMPLETENESS_TO_PUBLISH}% complete`);
   }
@@ -278,7 +281,7 @@ class ConsultantProfile {
   static async update(userId, fields) {
     const allowed = [
       'headline', 'bio', 'primary_role', 'seniority', 'years_experience',
-      'country', 'city', 'timezone', 'work_mode', 'willing_to_travel',
+      'country', 'city', 'timezone', 'work_mode', 'willing_to_travel', 'works_anywhere',
       'day_rate', 'hourly_rate', 'annual_salary', 'currency', 'rate_visible',
       'availability', 'available_from',
       'linkedin_url', 'website_url', 'trailblazer_url', 'phone',
@@ -328,7 +331,7 @@ class ConsultantProfile {
       }
 
       if (isPublic) {
-        const [[profile]] = await conn.query('SELECT primary_role, completeness FROM consultant_profiles WHERE user_id = ?', [userId]);
+        const [[profile]] = await conn.query('SELECT primary_role, availability, completeness FROM consultant_profiles WHERE user_id = ?', [userId]);
         const [[{ cloudCount }]] = await conn.query('SELECT COUNT(*) AS cloudCount FROM consultant_clouds WHERE user_id = ?', [userId]);
         const problems = listingProblems(profile, { cloudCount });
         if (problems.length) return { published: false, completeness: row.completeness, problems };

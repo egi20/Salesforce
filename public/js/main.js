@@ -579,10 +579,50 @@
         var name = a.getAttribute('data-tab-link');
         history.replaceState(null, '', '#' + name);
         showTab(name, true);
-        var nav = document.querySelector('.profile-tabs');
-        if (nav && nav.getBoundingClientRect().top < 0) nav.scrollIntoView({ block: 'start' });
+        /*
+         * Coming from a long section, the page keeps its scroll position and the new, shorter
+         * one starts above the window — its heading under the fixed menu. Bring it back, by
+         * its own scroll-margin-top, only when that has happened.
+         */
+        var sec = document.getElementById(name);
+        var menu = document.querySelector('.navbar');
+        var menuBottom = menu ? menu.getBoundingClientRect().bottom : 0;
+        if (sec && sec.getBoundingClientRect().top < menuBottom + 8) sec.scrollIntoView({ block: 'start' });
+        // A "saved" or "profile is ready" message belongs to the moment it was shown, not to
+        // every section opened after it. Errors and still-needed notes stay until closed.
+        document.querySelectorAll('.alert-success.alert-dismissible').forEach(function (el) { el.remove(); });
       });
     });
+
+    /*
+     * Rate fields follow the type of work: the day and hourly rate belong to contract, the
+     * salary to permanent. A field whose type is not chosen is hidden (its value is kept and
+     * still posted, so unticking by mistake loses nothing) and the star sits only on what
+     * the chosen types need.
+     */
+    var workBoxes = ['open_to_contract', 'open_to_permanent'].map(function (id) { return document.getElementById(id); });
+    var syncRates = function () {
+      var any = false;
+      workBoxes.forEach(function (box) {
+        if (!box) return;
+        any = any || box.checked;
+        document.querySelectorAll('[data-for-work="' + box.id + '"]').forEach(function (col) {
+          col.classList.toggle('d-none', !box.checked);
+        });
+      });
+      var none = document.querySelector('[data-rate-none]');
+      if (none) none.classList.toggle('d-none', any);
+      var help = document.querySelector('[data-rate-help]');
+      if (help) {
+        var c = workBoxes[0] && workBoxes[0].checked;
+        var p = workBoxes[1] && workBoxes[1].checked;
+        help.textContent = c && p ? 'Day rate between 200 and 3,000 for contract work; annual salary for permanent roles.'
+          : c ? 'Day rate between 200 and 3,000.'
+            : p ? 'Your expected annual salary.' : '';
+      }
+    };
+    workBoxes.forEach(function (box) { if (box) box.addEventListener('change', syncRates); });
+    syncRates();
 
     // A required field on a hidden tab would block Save with nothing visible: show its tab.
     profileForm.addEventListener('invalid', function (event) {
@@ -632,6 +672,8 @@
       // Fields that belong to the row forms (form="certAddForm" …) or the listing switch save
       // themselves; typing in them is not an unsaved change to the profile.
       if (dirty || (event.target && event.target.form && event.target.form !== profileForm)) return;
+      // Typing into a search box (countries) finds something; it changes nothing yet.
+      if (event.target && event.target.type === 'search') return;
       dirty = true;
       if (note) { note.textContent = 'You have unsaved changes.'; note.classList.add('is-dirty'); }
     });
@@ -738,6 +780,111 @@
   });
 
   /* Narrow a long checkbox list as you type; a group with nothing left hides its heading. */
+  /*
+   * The countries picker: a search box over the hidden checkbox list. The checkboxes remain
+   * the only thing the form posts; chips, suggestions and the EU shortcut only tick and untick
+   * them. Built from DOM nodes — country names come from a file, but there is no reason to
+   * make that the one place markup is assembled from strings.
+   */
+  document.querySelectorAll('[data-country-picker]').forEach(function (picker) {
+    var list = document.querySelector(picker.getAttribute('data-country-picker'));
+    var fallback = document.querySelector('[data-country-fallback]');
+    if (!list) return;
+    var boxes = Array.prototype.slice.call(list.querySelectorAll('input[type="checkbox"]'));
+    var nameOf = function (box) { var l = list.querySelector('label[for="' + box.id + '"]'); return l ? l.textContent.trim() : box.value; };
+    var chips = picker.querySelector('[data-country-chips]');
+    var search = picker.querySelector('[data-country-search]');
+    var suggest = picker.querySelector('[data-country-suggest]');
+    var counter = document.querySelector('[data-country-count]');
+    var eu = (picker.getAttribute('data-eu') || '').split(',').filter(Boolean);
+    var euBtn = picker.querySelector('[data-country-eu]');
+    var mirror = picker.querySelector('[data-mirror]');
+    var real = mirror ? document.querySelector(mirror.getAttribute('data-mirror')) : null;
+
+    picker.classList.remove('d-none');
+    if (fallback) fallback.classList.add('d-none');
+
+    var changed = function () { profileForm && profileForm.dispatchEvent(new Event('input', { bubbles: true })); };
+    var render = function () {
+      while (chips.firstChild) chips.removeChild(chips.firstChild);
+      var chosen = boxes.filter(function (b) { return b.checked; });
+      chosen.forEach(function (box) {
+        var chip = document.createElement('span');
+        chip.className = 'country-chip';
+        chip.appendChild(document.createTextNode(nameOf(box)));
+        var x = document.createElement('button');
+        x.type = 'button';
+        x.className = 'country-chip-x';
+        x.setAttribute('aria-label', 'Remove ' + nameOf(box));
+        x.textContent = '×';
+        x.addEventListener('click', function () { box.checked = false; render(); changed(); search.focus(); });
+        chip.appendChild(x);
+        chips.appendChild(chip);
+      });
+      if (counter) counter.textContent = String(chosen.length);
+      if (euBtn) {
+        var allEu = eu.length && eu.every(function (code) { return boxes.some(function (b) { return b.value === code && b.checked; }); });
+        euBtn.classList.toggle('active', Boolean(allEu));
+        euBtn.setAttribute('aria-pressed', allEu ? 'true' : 'false');
+      }
+    };
+    var hideSuggest = function () { suggest.classList.add('d-none'); };
+    var showSuggest = function () {
+      var q = search.value.trim().toLowerCase();
+      while (suggest.firstChild) suggest.removeChild(suggest.firstChild);
+      if (!q) { hideSuggest(); return; }
+      var matches = boxes.filter(function (b) { return !b.checked && nameOf(b).toLowerCase().indexOf(q) !== -1; })
+        .sort(function (a, b) { return (nameOf(a).toLowerCase().indexOf(q) === 0 ? 0 : 1) - (nameOf(b).toLowerCase().indexOf(q) === 0 ? 0 : 1); })
+        .slice(0, 8);
+      if (!matches.length) {
+        var none = document.createElement('li');
+        none.className = 'country-suggest-empty';
+        none.textContent = 'No country matches';
+        suggest.appendChild(none);
+      }
+      matches.forEach(function (box) {
+        var li = document.createElement('li');
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('role', 'option');
+        btn.textContent = nameOf(box);
+        btn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+        btn.addEventListener('click', function () {
+          box.checked = true; search.value = ''; hideSuggest(); render(); changed(); search.focus();
+        });
+        li.appendChild(btn);
+        suggest.appendChild(li);
+      });
+      suggest.classList.remove('d-none');
+    };
+    search.addEventListener('input', showSuggest);
+    search.addEventListener('blur', function () { setTimeout(hideSuggest, 100); });
+    search.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        // Enter picks the first match instead of submitting the whole profile.
+        e.preventDefault();
+        var first = suggest.querySelector('button');
+        if (first) first.click();
+      } else if (e.key === 'Escape') {
+        hideSuggest();
+      } else if (e.key === 'Backspace' && !search.value) {
+        var last = boxes.filter(function (b) { return b.checked; }).pop();
+        if (last) { last.checked = false; render(); changed(); }
+      }
+    });
+    if (euBtn) {
+      euBtn.addEventListener('click', function () {
+        var allEu = euBtn.getAttribute('aria-pressed') === 'true';
+        boxes.forEach(function (b) { if (eu.indexOf(b.value) !== -1) b.checked = !allEu; });
+        render(); changed();
+      });
+    }
+    if (mirror && real) {
+      mirror.addEventListener('change', function () { real.checked = mirror.checked; changed(); });
+    }
+    render();
+  });
+
   document.querySelectorAll('input[data-filter-list]').forEach(function (input) {
     var list = document.querySelector(input.getAttribute('data-filter-list'));
     if (!list) return;

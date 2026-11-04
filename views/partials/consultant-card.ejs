@@ -24,7 +24,7 @@
       <%# `rate_visible` is checked here and in `ConsultantProfile.buildFilter`, which is %>
       <%# the half that matters: a figure hidden only in the markup is still searchable %>
       <%# one `rate_max` query at a time. %>
-      <% if (c.day_rate && c.rate_visible) { %><strong><%= Math.round(c.day_rate) %> <%= c.currency %></strong>/day · <% } %>
+      <% if (c.day_rate && c.rate_visible) { %><strong><%= Math.round(c.day_rate) %> <%= c.currency %></strong>/day<%= c.availability ? ' · ' : '' %><% } %>
       <%= availabilityLabel(c.availability) %>
     </p>
   </div>

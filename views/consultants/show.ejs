@@ -146,17 +146,20 @@
               <p class="mb-1"><span class="badge-hub"><i class="bi bi-eye-slash"></i> Only you can see these</span></p>
             <% } %>
           <% } %>
-          <p class="mb-1">
-            <span class="badge-hub <%= profile.availability === 'immediate' ? 'ok' : '' %>">
-              <%= availabilityLabel(profile.availability) %>
-            </span>
-          </p>
+          <% if (profile.availability) { %>
+            <p class="mb-1">
+              <span class="badge-hub <%= profile.availability === 'immediate' ? 'ok' : '' %>">
+                <%= availabilityLabel(profile.availability) %>
+              </span>
+            </p>
+          <% } %>
           <p class="small text-muted-2 mb-0">
-            <%= workModeLabel(profile.work_mode) %><%= profile.willing_to_travel ? ' · willing to travel' : '' %>
+            <%= [workModeLabel(profile.work_mode), profile.willing_to_travel ? 'willing to travel' : null].filter(Boolean).join(' · ') %>
             <% const openTo = [profile.open_to_contract ? 'contract' : null, profile.open_to_permanent ? 'permanent' : null].filter(Boolean); %>
             <% if (openTo.length) { %><br>Open to <%= openTo.join(' and ') %> roles<% } %>
             <% if (profile.available_from && !['not_available', 'busy'].includes(profile.availability)) { %><br>Available from <%= new Date(profile.available_from).toISOString().slice(0, 10) %><% } %>
-            <% if (workCountries.length) { %><br>Works in <%= workCountries.map(function (c) { return countryName(c); }).join(', ') %><% } %>
+            <% if (profile.works_anywhere) { %><br>Works anywhere, remotely<% } %>
+            <% if (workCountries.length) { %><br><%= profile.works_anywhere ? 'Also on site in' : 'Works in' %> <%= workCountries.map(function (c) { return countryName(c); }).join(', ') %><% } %>
           </p>
 
           <% if (canSeeContact) { %>

@@ -366,6 +366,9 @@
           <div class="col-md-3">
             <label class="form-label" for="availability">Availability <%- req %></label>
             <select class="form-select" id="availability" name="availability">
+              <%# Blank until chosen: a pre-selected answer is one somebody can save without reading. %>
+              <%# Once answered it cannot be blanked again: a listed profile must keep saying whether somebody is free. %>
+              <option value="" <%= profile.availability ? 'disabled' : 'selected' %>>Choose…</option>
               <% availabilityOptions.forEach(function (a) { %>
                 <%# The two "in N weeks" values stay selectable only for a profile that holds one: %>
                 <%# "Available from" says the same thing more precisely. %>
@@ -381,6 +384,7 @@
           <div class="col-md-6">
             <label class="form-label" for="work_mode">Work mode</label>
             <select class="form-select" id="work_mode" name="work_mode">
+              <option value="" <%= profile.work_mode ? 'disabled' : 'selected' %>>Choose…</option>
               <% ['remote', 'hybrid', 'onsite'].forEach(function (m) { %>
                 <option value="<%= m %>" <%= profile.work_mode === m ? 'selected' : '' %>><%= workModeLabel(m) %></option>
               <% }); %>
@@ -393,7 +397,34 @@
             </div>
           </div>
           <div class="col-12">
-            <span class="form-label d-block">Countries you will work in <span class="text-muted-2 small">(<%= workCountries.length %> chosen)</span></span>
+            <span class="form-label d-block" id="workCountriesLabel">Countries you will work in <span class="text-muted-2 small">(<span data-country-count><%= workCountries.length %></span> chosen)</span></span>
+            <%
+              /*
+               * Without JavaScript this is the searchable checkbox list below. With it, the list
+               * is hidden and driven from a search box: matches appear under the box, a chosen
+               * country becomes a chip with ×, and the checkboxes stay the only thing posted —
+               * so the server reads one shape whichever the browser showed.
+               */
+            %>
+            <div class="country-picker d-none" data-country-picker="#workCountryList" data-eu="<%= euCountryCodes.join(',') %>">
+              <div class="d-flex flex-wrap gap-2 mb-2">
+                <button class="btn btn-outline-primary btn-sm" type="button" data-country-eu><i class="bi bi-globe-europe-africa"></i> Anywhere in EU</button>
+                <div class="form-check form-check-inline align-self-center mb-0 ms-1">
+                  <input class="form-check-input" type="checkbox" id="works_anywhere_js" data-mirror="#works_anywhere" <%= profile.works_anywhere ? 'checked' : '' %>>
+                  <label class="form-check-label" for="works_anywhere_js">Anywhere (remote)</label>
+                </div>
+              </div>
+              <div class="country-chips d-flex flex-wrap gap-1 mb-2" data-country-chips aria-live="polite"></div>
+              <div class="position-relative">
+                <input class="form-control" type="search" placeholder="Type a country…" aria-labelledby="workCountriesLabel" autocomplete="off" data-country-search>
+                <ul class="country-suggest list-unstyled d-none" data-country-suggest role="listbox"></ul>
+              </div>
+            </div>
+            <div data-country-fallback>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="works_anywhere" name="works_anywhere" <%= profile.works_anywhere ? 'checked' : '' %>>
+              <label class="form-check-label" for="works_anywhere">Anywhere (remote)</label>
+            </div>
             <input class="form-control form-control-sm mb-2" type="search" placeholder="Search countries…" aria-label="Search countries" data-filter-list="#workCountryList" autocomplete="off">
             <div class="filter-scroll border rounded p-2" id="workCountryList">
               <div data-filter-group>
@@ -404,6 +435,7 @@
                   </div>
                 <% }); %>
               </div>
+            </div>
             </div>
           </div>
         </div>
@@ -418,15 +450,22 @@
            */
         %>
         <div class="row g-3">
-          <div class="col-md-3">
+          <%
+            /*
+             * Each figure belongs to a type of work: the day and hourly rate to contract, the
+             * salary to permanent. The star and the field follow the boxes above (data-for);
+             * without JavaScript every field shows and the star reads "if you chose it".
+             */
+          %>
+          <div class="col-md-3" data-for-work="open_to_contract">
             <label class="form-label" for="day_rate">Day rate <span class="small text-muted-2">(contract)</span> <%- req %></label>
             <input class="form-control" id="day_rate" name="day_rate" type="number" min="200" max="3000" step="1" value="<%= profile.day_rate ? Math.round(profile.day_rate) : '' %>">
           </div>
-          <div class="col-md-3">
-            <label class="form-label" for="hourly_rate">Hourly rate</label>
+          <div class="col-md-3" data-for-work="open_to_contract">
+            <label class="form-label" for="hourly_rate">Hourly rate <span class="small text-muted-2">(contract)</span></label>
             <input class="form-control" id="hourly_rate" name="hourly_rate" type="number" min="0" step="1" value="<%= profile.hourly_rate ? Math.round(profile.hourly_rate) : '' %>">
           </div>
-          <div class="col-md-3">
+          <div class="col-md-3" data-for-work="open_to_permanent">
             <label class="form-label" for="annual_salary">Annual salary <span class="small text-muted-2">(permanent)</span> <%- req %></label>
             <input class="form-control" id="annual_salary" name="annual_salary" type="number" min="0" step="1" value="<%= profile.annual_salary ? Math.round(profile.annual_salary) : '' %>">
           </div>
@@ -439,8 +478,10 @@
             </select>
           </div>
         </div>
+        <p class="form-text mb-0 d-none" data-rate-none>Choose Contract or Permanent above to enter your rate.</p>
         <p class="form-text mb-0">
-          Day rate between 200 and 3,000. Fill in whichever apply — nothing is calculated from anything else.
+          <span data-rate-help>Day rate between 200 and 3,000, for contract work; annual salary for permanent roles.</span>
+          Nothing is calculated from anything else.
           <a href="/rates/calculator" target="_blank" rel="noopener">Check the market rate <i class="bi bi-box-arrow-up-right"></i></a>
         </p>
       </div>

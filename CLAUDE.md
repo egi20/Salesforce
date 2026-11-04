@@ -1131,6 +1131,14 @@ the copy before it existed in the route, and a privacy note that is not true is 
 none. `?preview=company` renders the page as a signed-in company sees it (rate hidden when on
 request, no owner controls) and is honoured only for the owner.
 
+**No answer is pre-filled** (migration 038). Availability and work mode are NULL until
+chosen and neither type of work is pre-ticked: a default the form shows as a selection is a
+fact somebody can publish by pressing Save without reading. Once answered, "Choose…" is
+disabled so a listed profile cannot go back to saying nothing — and listing needs an
+availability, as the spec's minimum says. "Anywhere (remote)" is its own column,
+`works_anywhere`, not every country code at once; "Anywhere in EU" ticks the 27 codes in
+`config/regions.js`, so a stored list is still a list a country filter can match.
+
 `nextSortOrder` wraps the MAX in `Number()`: MariaDB returns `COALESCE(MAX(..))` as a string,
 and `"5" + 1` gave an imported project sort order 51.
 

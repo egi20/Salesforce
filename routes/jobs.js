@@ -9,6 +9,7 @@ const Application = require('../models/Application');
 const Notification = require('../models/Notification');
 const CompanyProfile = require('../models/CompanyProfile');
 const ConsultantProfile = require('../models/ConsultantProfile');
+const ConsultantDocument = require('../models/ConsultantDocument');
 const { isAuthenticated, isCompany, isConsultant, isEmailVerified } = require('../middleware/auth');
 const { writeLimiter } = require('../middleware/rateLimit');
 const { JOB_FEATURE_DAYS, JOB_FEATURE_PRICE_MINOR, formatMinor } = require('../config/payments');
@@ -508,15 +509,19 @@ router.get(
     let application = null;
     let saved = false;
     let match = null;
+    let cvDocuments = [];
 
     if (req.session.user && req.session.user.isConsultant) {
       const userId = req.session.user.id;
-      const [rows, isSaved, profile, consultantSkillIds] = await Promise.all([
+      const [rows, isSaved, profile, consultantSkillIds, documents] = await Promise.all([
         Application.listForConsultant(userId, { limit: 200 }),
         Job.isSaved(userId, job.id),
         ConsultantProfile.findByUserId(userId),
-        Skill.idsForConsultant(userId)
+        Skill.idsForConsultant(userId),
+        ConsultantDocument.listFor(userId)
       ]);
+      // The consultant's uploaded CVs, default first: the apply form says which one goes.
+      cvDocuments = documents.filter((d) => d.kind === 'cv').sort((a, b) => b.is_default - a.is_default);
       application = rows.find((a) => a.job_id === job.id) || null;
       saved = isSaved;
       if (profile) {
@@ -543,6 +548,7 @@ router.get(
       application,
       saved,
       match,
+      cvDocuments,
       featuredUntil,
       jobFeatureDays: JOB_FEATURE_DAYS,
       jobFeaturePrice: formatMinor(JOB_FEATURE_PRICE_MINOR),
@@ -562,12 +568,24 @@ router.post(
     const job = await Job.findBySlug(req.params.slug);
     if (!job) return res.status(404).render('errors/404', { title: 'Not found' });
 
+    /*
+     * Which uploaded CV goes with the application. Only one of the applicant's OWN CVs is
+     * accepted: an id that is not theirs, or not a CV, becomes "no file" rather than an
+     * error, because the profile itself still goes with every application.
+     */
+    const cvId = Number(req.body.cv_document_id);
+    const ownCvs = Number.isInteger(cvId) && cvId > 0
+      ? (await ConsultantDocument.listFor(req.session.user.id)).filter((d) => d.kind === 'cv')
+      : [];
+    const cvDocumentId = ownCvs.some((d) => d.id === cvId) ? cvId : null;
+
     try {
       const { created } = await Application.apply(job.id, req.session.user.id, {
         coverLetter: req.body.cover_letter ? String(req.body.cover_letter).slice(0, 5000) : null,
         dayRate: req.body.day_rate || null,
         currency: req.body.currency || 'EUR',
-        availableFrom: req.body.available_from || null
+        availableFrom: req.body.available_from || null,
+        cvDocumentId
       });
 
       // Fire and forget, with a stable key: re-submitting cannot notify twice.
@@ -580,7 +598,7 @@ router.post(
         dedupeKey: `application:${job.id}:${req.session.user.id}`
       });
 
-      req.flash('success', created ? 'Application sent.' : 'Application updated.');
+      req.flash('success', created ? 'Application sent. Follow it under My Applications.' : 'Application updated.');
     } catch (err) {
       if (err.code === 'JOB_NOT_OPEN' || err.code === 'APPLICATION_CLOSED') {
         req.flash('error', err.message);

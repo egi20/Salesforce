@@ -1165,6 +1165,26 @@ availability, as the spec's minimum says. "Anywhere (remote)" is its own column,
 `nextSortOrder` wraps the MAX in `Number()`: MariaDB returns `COALESCE(MAX(..))` as a string,
 and `"5" + 1` gave an imported project sort order 51.
 
+## The consultant's applications
+
+`/dashboard/applications` lists through `Application.buildFilter` with the CONSULTANT scope,
+`Application.forConsultant(id)` — the same builder the company board uses, not a second one,
+so a tab's count is the number of rows behind it. A missing scope still throws.
+
+"Seen by the company" is `viewed_at` OR the first company move, whichever came first. A move
+is read from WHICH transition happened, not from the event's actor: the consultant can only
+withdraw or re-submit, so any other step is the company's — even when its actor was erased
+and is NULL. Reading the actor first made every seeded and every erased-employer application
+look unanswered. `viewed_at` is set by a conditional UPDATE on the employer's GET of the
+application: the one exception to "no GET writes", because "opened" can only be observed on a
+read, and it is idempotent and inserts nothing.
+
+Private notes live in `application_notes`, never as a column on `applications`: the employer
+side reads `a.*`, and a note only one party may read must not sit in a row the other selects
+wholesale. The CV sent is `cv_document_id`, validated against the applicant's own CVs on
+apply, and downloadable by exactly the two parties to the application. The status email goes
+to the consultant only when the COMPANY moves the application, never on their own withdraw.
+
 ## Hiding a profile from named companies
 
 For the consultant looking for their next contract while still in their current one. A public

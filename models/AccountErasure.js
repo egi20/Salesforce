@@ -37,6 +37,8 @@ const PURGE = Object.freeze([
   'consultant_work_countries',
   // Uploaded CVs and cover letters: the most personal document anybody gives this site.
   'consultant_documents',
+  // Private notes on their own applications: nobody else's record, so nothing to keep.
+  'application_notes',
   'consultant_photos',
   'consultant_profiles',
   // The company and recruiter equivalents.

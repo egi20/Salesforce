@@ -30,6 +30,32 @@ const TRANSITIONS = Object.freeze({
 
 const TERMINAL = Object.freeze(['hired', 'rejected']);
 
+/*
+ * Where an application belongs on the consultant's own page. "Archived" is the decided and
+ * the dead: hired, rejected, withdrawn, or a role that is no longer open whatever the row
+ * says. Declared once and used as a clause by buildFilter, so the tab and its count agree.
+ */
+const ARCHIVED_STATUSES = Object.freeze(['hired', 'rejected', 'withdrawn']);
+const ARCHIVED_CLAUSE = "(a.status IN ('hired','rejected','withdrawn') OR j.status <> 'open')";
+
+/** The consultant-side scope. A frozen object only this module builds; see buildFilter. */
+function consultantScope(consultantUserId) {
+  const id = Number(consultantUserId);
+  if (!Number.isInteger(id) || id <= 0) throw new Error('A consultant scope needs a user id.');
+  return Object.freeze({ consultantUserId: id });
+}
+
+/** First sign of life from the company: opened, or moved, whichever came first. */
+/*
+ * "A move by the company" is read from WHICH transition happened, not from who the event
+ * row names: the consultant can only ever withdraw or re-submit (CONSULTANT_TRANSITIONS),
+ * so any other step is the company's — even when its actor was later erased and is NULL.
+ */
+function withSeenAt(row) {
+  const times = [row.viewed_at, row.first_company_move_at].filter(Boolean).map((t) => new Date(t).getTime());
+  return { ...row, seen_at: times.length ? new Date(Math.min(...times)) : null };
+}
+
 /** Which side of the table may make a given transition. */
 const CONSULTANT_TRANSITIONS = Object.freeze(['withdrawn', 'submitted']);
 
@@ -74,7 +100,7 @@ class Application {
    * double-submitted form updates the existing row rather than creating a duplicate.
    * The job's denormalised counter is only incremented when a row is actually inserted.
    */
-  static async apply(jobId, consultantUserId, { coverLetter = null, dayRate = null, currency = 'EUR', availableFrom = null }) {
+  static async apply(jobId, consultantUserId, { coverLetter = null, dayRate = null, currency = 'EUR', availableFrom = null, cvDocumentId = null }) {
     return withTransaction(async (conn) => {
       const [[job]] = await conn.query(
         "SELECT id, status, company_user_id, title FROM jobs WHERE id = ? AND status = 'open' AND admin_hidden_at IS NULL FOR UPDATE",
@@ -99,9 +125,9 @@ class Application {
         }
         await conn.query(
           `UPDATE applications
-              SET cover_letter = ?, day_rate = ?, currency = ?, available_from = ?, status = 'submitted'
+              SET cover_letter = ?, day_rate = ?, currency = ?, available_from = ?, cv_document_id = ?, status = 'submitted'
             WHERE id = ?`,
-          [coverLetter, dayRate, currency, availableFrom, existing.id]
+          [coverLetter, dayRate, currency, availableFrom, cvDocumentId, existing.id]
         );
         await conn.query(
           'INSERT INTO application_events (application_id, actor_user_id, from_status, to_status, note) VALUES (?, ?, ?, ?, ?)',
@@ -111,9 +137,9 @@ class Application {
       }
 
       const [result] = await conn.query(
-        `INSERT INTO applications (job_id, consultant_user_id, cover_letter, day_rate, currency, available_from)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [jobId, consultantUserId, coverLetter, dayRate, currency, availableFrom]
+        `INSERT INTO applications (job_id, consultant_user_id, cover_letter, day_rate, currency, available_from, cv_document_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [jobId, consultantUserId, coverLetter, dayRate, currency, availableFrom, cvDocumentId]
       );
       await conn.query(
         'INSERT INTO application_events (application_id, actor_user_id, from_status, to_status) VALUES (?, ?, NULL, ?)',
@@ -182,11 +208,14 @@ class Application {
     const [rows] = await promisePool.query(
       `SELECT a.*, j.title AS job_title, j.slug AS job_slug, j.company_user_id,
               u.name AS consultant_name, u.email AS consultant_email,
-              cp.headline, cp.primary_role, cp.seniority, cp.country, cp.profile_picture
+              cp.headline, cp.primary_role, cp.seniority, cp.country, cp.profile_picture,
+              comp.company_name, d.title AS cv_title, d.filename AS cv_filename
          FROM applications a
          JOIN jobs j ON j.id = a.job_id
          JOIN users u ON u.id = a.consultant_user_id
          LEFT JOIN consultant_profiles cp ON cp.user_id = a.consultant_user_id
+         LEFT JOIN company_profiles comp ON comp.user_id = j.company_user_id
+         LEFT JOIN consultant_documents d ON d.id = a.cv_document_id AND d.user_id = a.consultant_user_id
         WHERE a.id = ? LIMIT 1`,
       [applicationId]
     );
@@ -271,6 +300,15 @@ class Application {
     const params = [];
     if (companyUserId === ALL_COMPANIES) {
       // No company clause: the oversight screen, on purpose.
+    } else if (companyUserId && typeof companyUserId === 'object' && Number.isInteger(companyUserId.consultantUserId)) {
+      /*
+       * The consultant's OWN applications (`Application.forConsultant(id)`, id from the
+       * session). The same builder serves both sides of the table rather than a second one
+       * for the consultant page: the clauses below mean the same thing from either side, and
+       * a second builder is a second place for a list and its count to disagree.
+       */
+      where.push('a.consultant_user_id = ?');
+      params.push(companyUserId.consultantUserId);
     } else if (companyUserId) {
       where.push('j.company_user_id = ?');
       params.push(companyUserId);
@@ -288,6 +326,12 @@ class Application {
     if (filters.jobId) {
       where.push('a.job_id = ?');
       params.push(filters.jobId);
+    }
+    if (filters.archived === true) where.push(ARCHIVED_CLAUSE);
+    if (filters.archived === false) where.push(`NOT ${ARCHIVED_CLAUSE}`);
+    if (filters.engagement === 'contract' || filters.engagement === 'permanent') {
+      where.push('j.engagement_type = ?');
+      params.push(filters.engagement);
     }
     if (filters.sinceDays) {
       // Bounded by the caller against a declared list, so this can never become a
@@ -390,6 +434,144 @@ class Application {
   static async statusCountsForCompany(companyUserId) {
     return Application.countsForCompany(companyUserId);
   }
+
+  // ------------------------------------------------------------------ consultant side
+
+  static forConsultant(consultantUserId) {
+    return consultantScope(consultantUserId);
+  }
+
+  /**
+   * One page of a consultant's applications with everything a row shows. `seen_at` is the
+   * first sign of life from the company — the moment they opened it or the first move they
+   * made, whichever came first — and is what "Viewed by company", the follow-up reminder and
+   * the response-time figure all read.
+   */
+  static async browseForConsultant(consultantUserId, filters = {}, { limit = 20, offset = 0, sort = 'recent' } = {}) {
+    const { clause, params } = Application.buildFilter(consultantScope(consultantUserId), filters);
+    const order = {
+      recent: 'a.updated_at DESC, a.id DESC',
+      newest: 'a.created_at DESC, a.id DESC',
+      oldest: 'a.created_at ASC, a.id ASC'
+    }[sort] || 'a.updated_at DESC, a.id DESC';
+
+    const [rows] = await promisePool.query(
+      `SELECT a.id, a.status, a.day_rate, a.currency, a.created_at, a.updated_at, a.viewed_at,
+              a.cv_document_id, a.job_id,
+              j.title AS job_title, j.slug AS job_slug, j.status AS job_status, j.engagement_type,
+              j.work_mode, j.country, j.city, j.rate_min, j.rate_max, j.currency AS job_currency, j.rate_visible,
+              comp.company_name, comp.slug AS company_slug, comp.logo AS company_logo,
+              d.title AS cv_title, d.filename AS cv_filename,
+              n.body AS note,
+              (SELECT MIN(ae.created_at) FROM application_events ae
+                WHERE ae.application_id = a.id AND ae.to_status NOT IN ('submitted','withdrawn')) AS first_company_move_at
+         FROM applications a
+         ${SCOPE_JOINS}
+         LEFT JOIN consultant_documents d ON d.id = a.cv_document_id AND d.user_id = a.consultant_user_id
+         LEFT JOIN application_notes n ON n.application_id = a.id AND n.user_id = a.consultant_user_id
+        WHERE ${clause}
+        ORDER BY ${order}
+        LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
+    );
+    const [[{ total }]] = await promisePool.query(
+      `SELECT COUNT(*) AS total FROM applications a ${SCOPE_JOINS} WHERE ${clause}`,
+      params
+    );
+    return { rows: rows.map(withSeenAt), total };
+  }
+
+  /** Per-status counts and the two tab totals, under the same filters minus status and tab. */
+  static async countsForConsultant(consultantUserId, filters = {}) {
+    const { clause, params } = Application.buildFilter(consultantScope(consultantUserId), { ...filters, status: '', archived: undefined });
+    const [rows] = await promisePool.query(
+      `SELECT a.status, ${ARCHIVED_CLAUSE} AS is_archived, COUNT(*) AS count
+         FROM applications a ${SCOPE_JOINS}
+        WHERE ${clause}
+        GROUP BY a.status, is_archived`,
+      params
+    );
+    const byStatus = {};
+    let active = 0;
+    let archived = 0;
+    for (const r of rows) {
+      const n = Number(r.count);
+      byStatus[r.status] = (byStatus[r.status] || 0) + n;
+      if (Number(r.is_archived)) archived += n;
+      else active += n;
+    }
+    return { byStatus, active, archived, total: active + archived };
+  }
+
+  /** Every event for a set of applications, grouped by application id — one query per page. */
+  static async eventsFor(applicationIds) {
+    if (!applicationIds.length) return {};
+    const [rows] = await promisePool.query(
+      `SELECT application_id, from_status, to_status, actor_user_id, created_at
+         FROM application_events WHERE application_id IN (?)
+        ORDER BY created_at ASC, id ASC`,
+      [applicationIds]
+    );
+    const out = {};
+    for (const r of rows) (out[r.application_id] = out[r.application_id] || []).push(r);
+    return out;
+  }
+
+  /** The rows the summary figures are computed from (utils/applicationStats.js). */
+  static async statsRowsForConsultant(consultantUserId) {
+    const [rows] = await promisePool.query(
+      `SELECT a.created_at, a.viewed_at,
+              (SELECT MIN(ae.created_at) FROM application_events ae
+                WHERE ae.application_id = a.id AND ae.to_status NOT IN ('submitted','withdrawn')) AS first_company_move_at
+         FROM applications a
+        WHERE a.consultant_user_id = ?
+        ORDER BY a.created_at DESC
+        LIMIT 1000`,
+      [consultantUserId]
+    );
+    return rows.map(withSeenAt);
+  }
+
+  /**
+   * The company opened the application. A conditional UPDATE that only ever sets the first
+   * time: idempotent and writes no new row, so it is safe on the GET that triggers it — the
+   * one exception to "no GET writes", because "opened" can only be observed on a read.
+   */
+  static async markViewed(applicationId) {
+    await promisePool.query('UPDATE applications SET viewed_at = NOW() WHERE id = ? AND viewed_at IS NULL', [applicationId]);
+  }
+
+  /**
+   * A private note, the consultant's only. Ownership is part of the INSERT ... SELECT, so a
+   * note can only ever attach to an application the writer made. Empty clears it.
+   */
+  static async saveNote(applicationId, consultantUserId, body) {
+    const text = String(body || '').trim().slice(0, 2000);
+    if (!text) {
+      await promisePool.query('DELETE FROM application_notes WHERE application_id = ? AND user_id = ?', [applicationId, consultantUserId]);
+      return true;
+    }
+    const [r] = await promisePool.query(
+      `INSERT INTO application_notes (application_id, user_id, body, updated_at)
+       SELECT a.id, a.consultant_user_id, ?, NOW() FROM applications a WHERE a.id = ? AND a.consultant_user_id = ?
+       ON DUPLICATE KEY UPDATE body = VALUES(body), updated_at = NOW()`,
+      [text, applicationId, consultantUserId]
+    );
+    return r.affectedRows > 0;
+  }
+
+  /** The CV sent with an application, for its two parties only (the caller checks which). */
+  static async sentCv(applicationId) {
+    const [rows] = await promisePool.query(
+      `SELECT d.id, d.filename, d.title, d.content_type, d.bytes
+         FROM applications a JOIN consultant_documents d ON d.id = a.cv_document_id AND d.user_id = a.consultant_user_id
+        WHERE a.id = ? LIMIT 1`,
+      [applicationId]
+    );
+    return rows[0] || null;
+  }
 }
+
+Application.ARCHIVED_STATUSES = ARCHIVED_STATUSES;
 
 module.exports = Application;

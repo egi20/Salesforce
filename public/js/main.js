@@ -512,6 +512,16 @@
     window.addEventListener('pageshow', function () { results.classList.remove('is-loading'); });
   }
 
+  /*
+   * A form carrying data-confirm asks before it posts (withdrawing an application). Without
+   * scripting it simply posts: the confirmation is a convenience, never the only guard.
+   */
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    var message = form && form.getAttribute && form.getAttribute('data-confirm');
+    if (message && !window.confirm(message)) event.preventDefault();
+  }, true);
+
   /* Controls that exist only for the no-script case (an Apply button) go when scripting runs. */
   document.querySelectorAll('[data-no-script-only]').forEach(function (el) { el.remove(); });
 

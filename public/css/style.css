@@ -2486,3 +2486,41 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
 @media (max-width: 575.98px) {
   .sow-gantt-row { grid-template-columns: 7.5rem 1fr; }
 }
+
+/* Consultant applications tracker. */
+.apps-stat { font-size: 1.6rem; font-weight: 700; color: var(--primary-blue-dark); line-height: 1.1; }
+.apps-status-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.apps-status-chip {
+  display: inline-flex; align-items: baseline; gap: 0.35rem; padding: 0.4rem 0.85rem; border-radius: 999px;
+  background: #fff; border: 1px solid var(--border-color); color: var(--text-medium); text-decoration: none; font-size: 0.875rem;
+}
+.apps-status-chip strong { font-size: 1rem; }
+.apps-status-chip.is-active { outline: 2px solid var(--primary-blue); outline-offset: 1px; }
+.apps-tabs .nav-link { padding: 0.35rem 0.85rem; }
+.apps-tabs .nav-link .badge-hub { margin-left: 0.25rem; }
+.apps-filters .form-control, .apps-filters .form-select { width: auto; min-width: 11rem; }
+.apps-row { margin-bottom: 0.75rem; }
+.apps-title { font-size: 1.05rem; }
+.apps-facts { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; color: var(--text-medium); }
+.apps-timeline { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0.6rem 0 0; font-size: 0.8rem; }
+.apps-timeline li { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--text-medium); }
+.apps-timeline li span { color: var(--text-light); }
+.apps-timeline li + li::before { content: '→'; color: var(--text-light); margin-right: 0.15rem; }
+.apps-timeline li.step-viewed { color: #1d6f4f; }
+.apps-followup {
+  display: inline-flex; gap: 0.4rem; align-items: center; margin-top: 0.5rem; padding: 0.3rem 0.65rem;
+  border-radius: 8px; background: rgba(201, 122, 0, 0.12); color: #96590a; font-weight: 600;
+}
+.apps-note summary { cursor: pointer; color: var(--primary-blue); }
+.apps-actions { min-width: 9.5rem; }
+.apps-saved-row { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); }
+.apps-saved-row:last-child { border-bottom: 0; }
+.min-w-0 { min-width: 0; }
+@media (max-width: 767.98px) {
+  .apps-row .card-body > .d-flex { flex-wrap: wrap; }
+  .apps-actions { flex-direction: row !important; flex-wrap: wrap; width: 100%; min-width: 0; }
+  .apps-actions > * { flex: 1 1 auto; }
+  .apps-filters { width: 100%; }
+  .apps-filters .form-control, .apps-filters .form-select { flex: 1 1 100%; min-width: 0; }
+}
+.apps-tabs .nav-link.active .badge-hub { background: rgba(255, 255, 255, 0.22); color: #fff; }

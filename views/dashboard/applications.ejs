@@ -1,33 +1,223 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { icon: 'bi-send', heading: 'Your applications', sub: 'Every role you have applied for and where it stands.' }) %>
+<%- include('../partials/page-header', { icon: 'bi-send', heading: 'Your applications', sub: 'Every role you have applied for, where it stands, and what to do next.' }) %>
+
+<%
+  const fmtDay = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '');
+  const readinessGaps = [];
+  if (readiness.completeness < readiness.enough) readinessGaps.push('profile ' + readiness.completeness + '%');
+  if (!readiness.hasCv) readinessGaps.push('no CV uploaded');
+  // The bar always shows the stages a consultant waits for; the rest appear once they have rows.
+  const alwaysShown = ['submitted', 'reviewing', 'interviewing', 'offered', 'rejected'];
+%>
 
 <section class="glass-section pb-5">
 <div class="container">
   <%- include('../partials/flash') %>
 
-  <% if (applications.length === 0) { %>
-    <div class="empty-state glass-card"><i class="bi bi-send"></i>
-      <p class="mb-1">You have not applied for anything yet.</p>
-      <a href="/jobs">Browse open roles</a>
+  <% if (readinessGaps.length) { %>
+    <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2 apps-ready" role="status">
+      <i class="bi bi-clipboard-check"></i>
+      <span><strong>Before you apply:</strong> <%= readinessGaps.join(' · ') %></span>
+      <span class="ms-auto d-flex gap-2">
+        <a class="btn btn-sm btn-outline-primary" href="/profile/settings">Build your profile</a>
+        <a class="btn btn-sm btn-outline-primary" href="/cv-generator">CV Generator</a>
+      </span>
     </div>
-  <% } else { %>
-    <div class="table-responsive glass-card">
-      <table class="table align-middle mb-0">
-        <thead><tr><th>Role</th><th>Company</th><th>Status</th><th>Updated</th><th></th></tr></thead>
-        <tbody>
-          <% applications.forEach(function (a) { %>
-            <tr>
-              <td><a href="/jobs/<%= a.job_slug %>"><%= a.job_title %></a></td>
-              <td class="text-muted-2"><%= a.company_name || 'Confidential' %></td>
-              <td><span class="badge-hub status-<%= a.status %>"><%= a.status %></span></td>
-              <td class="small text-muted-2"><%= new Date(a.updated_at).toISOString().slice(0, 10) %></td>
-              <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="/applications/<%= a.id %>">Open</a></td>
-            </tr>
+  <% } %>
+
+  <% if (!hasAny) { %>
+    <%# ------------------------------------------------------------ EMPTY STATE %>
+    <div class="glass-card mb-4"><div class="card-body d-flex flex-wrap align-items-center gap-3">
+      <span class="icon-tile icon-navyblue"><i class="bi bi-send"></i></span>
+      <div class="flex-grow-1">
+        <h2 class="h5 mb-1">You have not applied for anything yet</h2>
+        <p class="text-muted-2 mb-0">Every application you send shows up here, with where it stands and when the company looked at it.</p>
+      </div>
+      <a class="btn btn-primary" href="/jobs"><i class="bi bi-search"></i> Browse open roles</a>
+    </div></div>
+
+    <% if (recommended.length) { %>
+      <section class="mb-4" aria-labelledby="recHeading">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h2 class="h6 mb-0" id="recHeading"><i class="bi bi-stars"></i> Roles that match your profile</h2>
+          <a class="small" href="/jobs">See all roles</a>
+        </div>
+        <div class="row g-3">
+          <% recommended.forEach(function (r) { const j = r.job; const pay = formatRateRange(j); %>
+            <div class="col-md-6 col-xl-3"><div class="glass-card h-100"><div class="card-body d-flex flex-column">
+              <div class="d-flex gap-2 align-items-start mb-2">
+                <% if (j.company_logo) { %><img class="logo-tile flex-shrink-0" src="<%= j.company_logo %>" alt="" loading="lazy">
+                <% } else { %><span class="logo-initials <%= companyTone(j.company_name) %> flex-shrink-0" aria-hidden="true"><%= companyInitials(j.company_name || 'Confidential') %></span><% } %>
+                <span class="badge-hub match-badge ms-auto"><%= r.score %>% match</span>
+              </div>
+              <a class="fw-semibold" href="/jobs/<%= j.slug %>"><%= j.title %></a>
+              <span class="small text-muted-2"><%= j.company_name || 'Confidential' %></span>
+              <span class="small text-muted-2 mb-2"><%= [jobLocation(j), pay].filter(Boolean).join(' · ') %></span>
+              <a class="btn btn-sm btn-primary mt-auto" href="/jobs/<%= j.slug %>#apply">Apply</a>
+            </div></div></div>
           <% }); %>
-        </tbody>
-      </table>
+        </div>
+      </section>
+    <% } %>
+
+    <% if (!recommended.length) { %>
+      <div class="alert alert-info d-flex flex-wrap align-items-center gap-2 mb-4">
+        <i class="bi bi-stars"></i>
+        <span>Add your main role, clouds and skills to your profile and the roles that match you best appear here, with a match score.</span>
+        <a class="btn btn-sm btn-outline-primary ms-auto" href="/profile/settings#basics">Complete your profile</a>
+      </div>
+    <% } %>
+
+    <% if (saved.length) { %>
+      <section class="mb-4" aria-labelledby="savedHeading">
+        <h2 class="h6 mb-2" id="savedHeading"><i class="bi bi-star-fill text-warning"></i> Saved roles</h2>
+        <div class="glass-card"><ul class="list-unstyled mb-0">
+          <% saved.forEach(function (j) { %>
+            <li class="d-flex flex-wrap align-items-center gap-2 apps-saved-row">
+              <span class="flex-grow-1"><a class="fw-semibold" href="/jobs/<%= j.slug %>"><%= j.title %></a>
+                <span class="small text-muted-2"> · <%= j.company_name || 'Confidential' %></span></span>
+              <a class="btn btn-sm btn-primary" href="/jobs/<%= j.slug %>#apply">Apply</a>
+            </li>
+          <% }); %>
+        </ul></div>
+      </section>
+    <% } %>
+
+  <% } else { %>
+    <%# ------------------------------------------------------------ STATS %>
+    <div class="row g-3 mb-3 apps-stats">
+      <div class="col-sm-4"><div class="glass-card h-100"><div class="card-body">
+        <div class="apps-stat"><%= stats.thisMonth %></div><div class="small text-muted-2">applied this month</div>
+      </div></div></div>
+      <div class="col-sm-4"><div class="glass-card h-100"><div class="card-body">
+        <div class="apps-stat"><%= stats.seenPercent === null ? '—' : stats.seenPercent + '%' %></div><div class="small text-muted-2">seen by the company</div>
+      </div></div></div>
+      <div class="col-sm-4"><div class="glass-card h-100"><div class="card-body">
+        <div class="apps-stat"><%= stats.avgResponseDays === null ? '—' : stats.avgResponseDays + (stats.avgResponseDays === 1 ? ' day' : ' days') %></div>
+        <div class="small text-muted-2">average time to a first response</div>
+      </div></div></div>
     </div>
+
+    <%# ------------------------------------------------------------ STATUS BAR %>
+    <nav class="apps-status-bar mb-3" aria-label="Filter by status">
+      <a class="apps-status-chip <%= !filters.status && filters.view === 'all' ? 'is-active' : '' %>" href="<%= linkWith({ status: '', view: 'all' }) %>">
+        <strong><%= counts.total %></strong> Total</a>
+      <% statusOrder.forEach(function (st) {
+           const n = counts.byStatus[st] || 0;
+           if (!n && !alwaysShown.includes(st)) return; %>
+        <a class="apps-status-chip status-<%= st %> <%= filters.status === st ? 'is-active' : '' %>" href="<%= linkWith({ status: filters.status === st ? '' : st, view: filters.status === st ? 'active' : 'all' }) %>">
+          <strong><%= n %></strong> <%= statusLabels[st] %></a>
+      <% }); %>
+    </nav>
+
+    <%# ------------------------------------------------------------ TABS + FILTERS %>
+    <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+      <ul class="nav nav-pills apps-tabs">
+        <li class="nav-item"><a class="nav-link <%= filters.view === 'active' ? 'active' : '' %>" href="<%= linkWith({ view: 'active', status: '' }) %>">Active <span class="badge-hub"><%= counts.active %></span></a></li>
+        <li class="nav-item"><a class="nav-link <%= filters.view === 'archived' ? 'active' : '' %>" href="<%= linkWith({ view: 'archived', status: '' }) %>">Archived <span class="badge-hub"><%= counts.archived %></span></a></li>
+        <li class="nav-item"><a class="nav-link <%= filters.view === 'all' && !filters.status ? 'active' : '' %>" href="<%= linkWith({ view: 'all', status: '' }) %>">All</a></li>
+      </ul>
+      <form class="d-flex flex-wrap gap-2 ms-lg-auto apps-filters" method="get" action="/dashboard/applications" data-auto-apply>
+        <input type="hidden" name="view" value="<%= filters.view %>">
+        <% if (filters.status) { %><input type="hidden" name="status" value="<%= filters.status %>"><% } %>
+        <input class="form-control form-control-sm" type="search" name="q" value="<%= filters.q %>" placeholder="Search title or company" aria-label="Search title or company">
+        <select class="form-select form-select-sm" name="type" aria-label="Type of work">
+          <option value="">Contract and permanent</option>
+          <option value="contract" <%= filters.type === 'contract' ? 'selected' : '' %>>Contract</option>
+          <option value="permanent" <%= filters.type === 'permanent' ? 'selected' : '' %>>Permanent</option>
+        </select>
+        <select class="form-select form-select-sm" name="sort" aria-label="Sort">
+          <% Object.keys(sorts).forEach(function (k) { %><option value="<%= k %>" <%= filters.sort === k ? 'selected' : '' %>><%= sorts[k] %></option><% }); %>
+        </select>
+        <button class="btn btn-sm btn-outline-primary" type="submit">Apply</button>
+      </form>
+    </div>
+
+    <%# ------------------------------------------------------------ LIST %>
+    <% if (!applications.length) { %>
+      <div class="empty-state glass-card"><i class="bi bi-funnel"></i>
+        <p class="mb-2">No applications match these filters.</p>
+        <a class="btn btn-sm btn-outline-primary" href="/dashboard/applications">Clear filters</a>
+      </div>
+    <% } %>
+    <div class="apps-list">
+      <% applications.forEach(function (a) {
+           const job = { rate_min: a.rate_min, rate_max: a.rate_max, currency: a.job_currency, engagement_type: a.engagement_type, rate_visible: a.rate_visible, city: a.city, country: a.country, work_mode: a.work_mode };
+           const pay = formatRateRange(job);
+           const canWithdraw = !['hired', 'rejected', 'withdrawn'].includes(a.status); %>
+        <article class="glass-card apps-row">
+          <div class="card-body">
+            <div class="d-flex gap-3 align-items-start">
+              <% if (a.company_logo) { %><img class="logo-tile flex-shrink-0" src="<%= a.company_logo %>" alt="" loading="lazy">
+              <% } else { %><span class="logo-initials <%= companyTone(a.company_name) %> flex-shrink-0" aria-hidden="true"><%= companyInitials(a.company_name || 'Confidential') %></span><% } %>
+              <div class="flex-grow-1 min-w-0">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                  <a class="fw-semibold apps-title" href="/jobs/<%= a.job_slug %>"><%= a.job_title %></a>
+                  <span class="badge-hub status-<%= a.status %>"><%= statusLabels[a.status] %></span>
+                  <% if (a.viewed_at) { %><span class="badge-hub ok"><i class="bi bi-eye"></i> Viewed by company</span><% } %>
+                  <% if (a.job_status !== 'open' && a.status !== 'hired') { %><span class="badge-hub">Role closed</span><% } %>
+                </div>
+                <div class="small text-muted-2">
+                  <%= a.company_name || 'Confidential' %>
+                  <%= [jobLocation(job), workModeLabel(a.work_mode), engagementLabel(a.engagement_type)].filter(Boolean).map(function (x) { return ' · ' + x; }).join('') %>
+                </div>
+                <div class="small mt-1 apps-facts">
+                  <% if (pay) { %><span><i class="bi bi-cash"></i> <%= pay %></span><% } %>
+                  <span><i class="bi bi-calendar3"></i> Applied <%= fmtDay(a.created_at) %></span>
+                  <% if (a.day_rate) { %><span><i class="bi bi-tag"></i> You proposed <%= Math.round(a.day_rate) %> <%= a.currency %><%= a.engagement_type === 'permanent' ? '' : '/day' %></span><% } %>
+                  <span><i class="bi bi-paperclip"></i>
+                    <% if (a.cv_title || a.cv_filename) { %><a href="/applications/<%= a.id %>/cv"><%= a.cv_title || a.cv_filename %></a>
+                    <% } else { %>Profile only<% } %></span>
+                </div>
+
+                <%# The timeline: status changes from the event log, "Viewed" from viewed_at. %>
+                <ol class="apps-timeline list-unstyled" aria-label="History">
+                  <% a.timeline.forEach(function (step) { %>
+                    <li class="step-<%= step.status %>"><%= step.label %> <span><%= fmtDay(step.at) %></span></li>
+                  <% }); %>
+                </ol>
+
+                <% if (a.followUp) { %>
+                  <div class="apps-followup small"><i class="bi bi-alarm"></i> No reply after <%= followUpDays %> days — follow up?</div>
+                <% } %>
+
+                <details class="apps-note mt-2">
+                  <summary class="small"><i class="bi bi-journal-text"></i> <%= a.note ? 'Private note' : 'Add a private note' %>
+                    <% if (a.note) { %><span class="text-muted-2"> — <%= a.note.length > 70 ? a.note.slice(0, 70) + '…' : a.note %></span><% } %></summary>
+                  <form method="post" action="/applications/<%= a.id %>/note" class="mt-2">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="redirectTo" value="<%= currentUrl %>">
+                    <textarea class="form-control form-control-sm" name="note" rows="2" maxlength="2000" placeholder="Only you can see this, e.g. recruiter called, interview Tuesday"><%= a.note || '' %></textarea>
+                    <button class="btn btn-sm btn-outline-primary mt-2" type="submit">Save note</button>
+                  </form>
+                </details>
+              </div>
+
+              <div class="apps-actions d-flex flex-column gap-2 flex-shrink-0">
+                <a class="btn btn-sm btn-outline-primary" href="/jobs/<%= a.job_slug %>">View job</a>
+                <form method="post" action="/messages/start">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="kind" value="application">
+                  <input type="hidden" name="application_id" value="<%= a.id %>">
+                  <button class="btn btn-sm <%= a.followUp ? 'btn-primary' : 'btn-outline-primary' %> w-100" type="submit">Message company</button>
+                </form>
+                <% if (canWithdraw) { %>
+                  <form method="post" action="/applications/<%= a.id %>/transition" data-confirm="Withdraw your application for <%= a.job_title %>? You can apply again while the role is open.">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="to_status" value="withdrawn">
+                    <input type="hidden" name="redirectTo" value="<%= currentUrl %>">
+                    <button class="btn btn-sm btn-link text-danger w-100" type="submit">Withdraw</button>
+                  </form>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </article>
+      <% }); %>
+    </div>
+
+    <%- include('../partials/pagination') %>
   <% } %>
 </div>
 </section>

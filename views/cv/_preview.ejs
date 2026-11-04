@@ -6,6 +6,15 @@
    * Every string is the consultant's own and goes through the escaping tag.
    */
 %>
+<%
+  /*
+   * With nothing but a name and an email the real preview is two lines over a blank page,
+   * which reads as "broken". Below the consultant's own lines, the shape of a full CV is
+   * drawn in grey bars — never invented text: words on a preview would be words the
+   * consultant might think the Hub wrote for them.
+   */
+  const thin = !blocks.some(function (b) { return b.kind === 'heading'; });
+%>
 <div class="cv-page" aria-label="CV preview">
   <% blocks.forEach(function (b) { %>
     <% if (b.kind === 'name') { %><div class="cv-name"><%= b.text %></div>
@@ -18,4 +27,16 @@
     <% } else if (b.kind === 'subtitle') { %><div class="cv-subtitle"><%= b.text %></div>
     <% } else { %><p class="cv-para"><%= b.text %></p><% } %>
   <% }); %>
+  <% if (thin) { %>
+    <div class="cv-sample" aria-hidden="true">
+      <% [['Profile', [100, 92, 60]], ['At a glance', [45, 55, 40]], ['Skills', [88]], ['Delivery history', [70, 100, 85]], ['Employment', [65, 95]]].forEach(function (sec) { %>
+        <div class="cv-heading"><%= sec[0] %></div>
+        <% sec[1].forEach(function (w) { %><span class="cv-sample-line" style="width:<%= w %>%"></span><% }); %>
+      <% }); %>
+    </div>
+    <div class="cv-sample-note">
+      <p class="mb-2"><strong>Fill your profile to see your CV here.</strong></p>
+      <a class="btn btn-sm btn-primary" href="/profile/settings">Build your profile</a>
+    </div>
+  <% } %>
 </div>

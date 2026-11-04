@@ -28,18 +28,27 @@ const OPTIONAL_SECTIONS = Object.freeze([
 ]);
 const SECTION_KEYS = OPTIONAL_SECTIONS.map((s) => s.key);
 
+/** Whether the profile holds anything for a section that only some profiles have. */
+function sectionHasData(dossier = {}, key) {
+  if (key === 'trailhead') return Boolean(dossier.trailhead && (dossier.trailhead.rank || dossier.trailhead.badges));
+  if (key === 'rate') return Boolean(dossier.dayRate || dossier.hourlyRate);
+  return true;
+}
+
 /**
- * The starting selection. Everything is in except the rate, which follows the profile's own
- * "Show my rates" switch: a CV is forwarded to people the consultant never meets, and a
- * figure they chose to keep "on request" on the Hub must not leave on a document by default.
+ * The starting selection. Everything the profile has is in, except the rate, which follows
+ * the profile's own "Show my rates" switch: a CV is forwarded to people the consultant never
+ * meets, and a figure they chose to keep "on request" on the Hub must not leave on a
+ * document by default. A section with nothing in it starts unticked — a ticked box that adds
+ * nothing reads as a promise the preview then breaks.
  */
 function defaultOptions(dossier = {}) {
   return {
     projects: true,
     experience: true,
     certifications: true,
-    trailhead: true,
-    rate: Boolean(dossier.rateVisible)
+    trailhead: sectionHasData(dossier, 'trailhead'),
+    rate: Boolean(dossier.rateVisible) && sectionHasData(dossier, 'rate')
   };
 }
 
@@ -138,4 +147,4 @@ function cvBlocks(dossier, options = defaultOptions(dossier)) {
   return blocks;
 }
 
-module.exports = { OPTIONAL_SECTIONS, SECTION_KEYS, defaultOptions, optionsFrom, cvBlocks };
+module.exports = { OPTIONAL_SECTIONS, SECTION_KEYS, defaultOptions, optionsFrom, cvBlocks, sectionHasData };

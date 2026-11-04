@@ -45,6 +45,25 @@
 
 <section class="glass-section pb-5">
 <div class="container">
+  <%# Three things the generator actually does — each one is a rule in the code, not a slogan. %>
+  <div class="row g-3 cv-benefits">
+    <div class="col-md-4"><div class="glass-card h-100"><div class="card-body d-flex gap-3">
+      <span class="icon-tile icon-navyblue"><i class="bi bi-filetype-docx"></i></span>
+      <div><h2 class="h6 mb-1">ATS-friendly</h2>
+        <p class="small text-muted-2 mb-0">One column, standard headings, no tables or images — the layout a recruiter's parser reads without shredding it.</p></div>
+    </div></div></div>
+    <div class="col-md-4"><div class="glass-card h-100"><div class="card-body d-flex gap-3">
+      <span class="icon-tile icon-navyblue"><i class="bi bi-chat-quote"></i></span>
+      <div><h2 class="h6 mb-1">Your words, never rewritten</h2>
+        <p class="small text-muted-2 mb-0">Every line comes from your profile exactly as you wrote it. Nothing is summarised, rephrased or invented.</p></div>
+    </div></div></div>
+    <div class="col-md-4"><div class="glass-card h-100"><div class="card-body d-flex gap-3">
+      <span class="icon-tile icon-navyblue"><i class="bi bi-cash-coin"></i></span>
+      <div><h2 class="h6 mb-1">Rate card for agencies</h2>
+        <p class="small text-muted-2 mb-0">A one-page rate card beside the CV, so the commercial offer travels separately from your history.</p></div>
+    </div></div></div>
+  </div>
+
   <%- include('../partials/flash') %>
 
   <% if (mode === 'no-role') { %>
@@ -89,11 +108,11 @@
           <h2 class="h6 mb-1">2. Choose what goes on the CV</h2>
           <p class="small text-muted-2 mb-2">Your name, contact line, profile, at-a-glance facts and skills are always included.</p>
           <% sections.forEach(function (s) {
-               const empty = (s.key === 'trailhead' && !hasTrailhead) || (s.key === 'rate' && !hasRate); %>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="include" value="<%= s.key %>" id="inc-<%= s.key %>" <%= options[s.key] ? 'checked' : '' %>>
+               const empty = emptySections.includes(s.key); %>
+            <div class="form-check <%= empty ? 'is-empty' : '' %>">
+              <input class="form-check-input" type="checkbox" name="include" value="<%= s.key %>" id="inc-<%= s.key %>" <%= options[s.key] && !empty ? 'checked' : '' %> <%= empty ? 'disabled' : '' %>>
               <label class="form-check-label" for="inc-<%= s.key %>"><%= s.label %>
-                <% if (empty) { %><span class="small text-muted-2">— not on your profile yet</span><% } %>
+                <% if (empty) { %><span class="small text-muted-2">— not on your profile yet · <a href="/profile/settings#<%= s.key === 'rate' ? 'work' : 'salesforce' %>">add it</a></span><% } %>
                 <% if (s.key === 'rate') { %><span class="small text-muted-2 d-block">Off by default when your rate is "on request". The rate card always shows it.</span><% } %>
               </label>
             </div>
@@ -150,9 +169,10 @@
         <h2 class="h5 mb-0" id="my-docs-h">My documents</h2>
         <a class="btn btn-sm btn-outline-primary" href="/profile/settings#documents"><i class="bi bi-upload"></i> Upload a CV or cover letter</a>
       </div>
-      <div class="row g-3">
-        <div class="col-lg-6"><div class="glass-card h-100"><div class="card-body">
-          <h3 class="h6">Uploaded</h3>
+      <%# Generated files are not listed here: they are made fresh on download (step 3 above) %>
+      <%# and never stored, so a second set of download buttons would only repeat that one. %>
+      <p class="small text-muted-2">Your own CVs and cover letters. Generated CVs are made fresh each time from step 3 above and never stored, so a copy can never be older than your profile.</p>
+      <div class="glass-card"><div class="card-body">
           <% if (!uploads.length) { %>
             <p class="small text-muted-2 mb-0">Nothing uploaded yet. Your own CVs and cover letters (PDF or .docx) live here once you add them.</p>
           <% } else { %>
@@ -167,16 +187,7 @@
               <% }); %>
             </ul>
           <% } %>
-        </div></div></div>
-        <div class="col-lg-6"><div class="glass-card h-100"><div class="card-body">
-          <h3 class="h6">Generated</h3>
-          <p class="small text-muted-2">Generated documents are made fresh each time and never stored, so a copy can never be older than your profile.</p>
-          <div class="d-flex flex-wrap gap-2">
-            <a class="btn btn-sm btn-outline-primary" href="/cv-generator/download?doc=cv"><i class="bi bi-file-earmark-word"></i> CV (.docx)</a>
-            <a class="btn btn-sm btn-outline-primary" href="/cv-generator/download?doc=package"><i class="bi bi-file-earmark-zip"></i> CV + rate card (.zip)</a>
-          </div>
-        </div></div></div>
-      </div>
+      </div></div>
     </section>
   <% } %>
 </div>

@@ -19,6 +19,7 @@ const ConsultantHiddenCompany = require('../models/ConsultantHiddenCompany');
 const CompanyProfile = require('../models/CompanyProfile');
 const RateSubmission = require('../models/RateSubmission');
 const { CLOUD_FAMILIES } = require('../config/cloudFamilies');
+const { calculateEstimation, reconciliationProblems } = require('../utils/sowEstimation');
 const { POST_KINDS, isPostKind, postKind } = require('../config/community');
 const { toPlainText } = require('../utils/sanitize');
 const legalVersions = require('../config/legal-versions');
@@ -198,10 +199,37 @@ const SERVICE_PAGES = {
  * `AppSetting.isValidKey` and `ImageBlob`'s table lookup already avoid, arriving here
  * through a URL segment anybody can type.
  */
+/*
+ * The SOW pack's sample timeline, computed ONCE at load by the same estimator every quote
+ * uses — not drawn by hand. A sample a company looks at before starting must be something
+ * the engine actually produces, and it is held to the same reconciliation check a real
+ * quote is: if the engine ever disagreed with itself, the boot would say so here.
+ */
+const SOW_SAMPLE = (() => {
+  const estimate = calculateEstimation({
+    selectedModules: ['lead-management', 'opportunity-management', 'forecasting', 'case-management', 'omni-channel', 'knowledge'],
+    complexity: 'complex',
+    numberOfUsers: 400,
+    numberOfIntegrations: 3,
+    customizationLevel: 'heavy'
+  });
+  const problems = reconciliationProblems(estimate);
+  if (problems.length) throw new Error(`SOW sample failed reconciliation: ${problems.join('; ')}`);
+  return {
+    scope: 'Sales Cloud and Service Cloud · six modules · three integrations · 400 users',
+    weeks: estimate.projectDurationWeeks,
+    timeline: estimate.timeline.map(({ phase, startWeek, endWeek, milestone }) => ({ phase, startWeek, endWeek, milestone }))
+  };
+})();
+
 router.get('/services/:page', (req, res, next) => {
   if (!Object.prototype.hasOwnProperty.call(SERVICE_PAGES, req.params.page)) return next();
   const model = SERVICE_PAGES[req.params.page];
-  res.render('services/engagement-model', { title: model.heading, model });
+  // The SOW pack is a product page with its own layout; the other three are short explainers.
+  if (req.params.page === 'document-generator') {
+    return res.render('services/document-generator', { title: model.heading, model, sample: SOW_SAMPLE });
+  }
+  return res.render('services/engagement-model', { title: model.heading, model });
 });
 
 /*

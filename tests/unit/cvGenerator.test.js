@@ -103,3 +103,10 @@ describe('two pages, two audiences', () => {
     }
   });
 });
+
+describe('sections with nothing in them', () => {
+  it('start unticked, so a ticked box always adds something', () => {
+    const bare = { ...DOSSIER, trailhead: { rank: null, badges: null }, dayRate: null, hourlyRate: null, rateVisible: true };
+    expect(defaultOptions(bare)).toMatchObject({ trailhead: false, rate: false });
+  });
+});

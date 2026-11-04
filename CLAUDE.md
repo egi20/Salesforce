@@ -470,6 +470,13 @@ pack. They were one page whose only button was "Start a quote", which is where a
 following "CV Generator" landed. The Hub writes no cover letter — that is prose, and a
 generator that writes prose stops rendering the consultant's own claims.
 
+Every figure on the SOW pack page is a property of the generators — seven slides, four
+sheets, six numbered sections — and its sample timeline is computed at load by
+`calculateEstimation` and held to `reconciliationProblems`, the same as a real quote. A
+product page that draws its own Gantt by hand is a promise the download does not have to
+keep. A CV section with nothing in it (no Trailhead, no rate) is shown unticked and disabled,
+and a thin profile previews as grey bars, never as sample words.
+
 ## Referrals and commissions
 
 **The ledger IS the balance.** There is no cached total on the referrer row —

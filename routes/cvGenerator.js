@@ -8,7 +8,7 @@ const { isConsultant } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { build: buildDossier } = require('../services/consultantDossier');
 const { PACKAGE_KIND, generateDocument, generatePackage } = require('../services/consultantPackage');
-const { OPTIONAL_SECTIONS, optionsFrom, cvBlocks } = require('../utils/documents/cvLayout');
+const { OPTIONAL_SECTIONS, optionsFrom, cvBlocks, sectionHasData } = require('../utils/documents/cvLayout');
 
 const router = express.Router();
 
@@ -78,8 +78,8 @@ router.get(
       options,
       query: queryFor(doc, options),
       blocks: dossier ? cvBlocks(dossier, options) : [],
-      hasTrailhead: Boolean(dossier && dossier.trailhead && (dossier.trailhead.rank || dossier.trailhead.badges)),
-      hasRate: Boolean(dossier && (dossier.dayRate || dossier.hourlyRate)),
+      // Sections the profile has nothing for: shown greyed out and unticked, never ticked-but-empty.
+      emptySections: OPTIONAL_SECTIONS.map((s) => s.key).filter((key) => !sectionHasData(dossier || {}, key)),
       uploads
     });
   })

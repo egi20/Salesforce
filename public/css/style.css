@@ -2453,3 +2453,36 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
   .cv-fact { grid-template-columns: 6rem 1fr; }
   .cv-entry { flex-direction: column; gap: 0; }
 }
+.cv-page { position: relative; }
+.cv-sample .cv-heading { color: var(--text-light); opacity: 0.6; }
+.cv-sample-line { display: block; height: 0.55rem; margin: 0.45rem 0; border-radius: 4px; background: var(--border-color); }
+.cv-sample-note {
+  position: absolute; left: 50%; top: 55%; transform: translate(-50%, -50%);
+  background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-lg);
+  box-shadow: 0 12px 30px rgba(3, 45, 96, 0.12); padding: 1rem 1.25rem; text-align: center; width: min(90%, 20rem);
+}
+.form-check.is-empty .form-check-label { color: var(--text-light); }
+.cv-benefits { margin-top: -1rem; margin-bottom: 2rem; }
+
+/* Document Generator (SOW pack): three file tiles in the hero, a sample Gantt, a closing band. */
+.sow-hero-files { position: relative; width: 310px; height: 230px; }
+.sow-file {
+  position: absolute; width: 120px; height: 160px; border-radius: 14px; background: #fff;
+  box-shadow: 0 24px 50px rgba(3, 45, 96, 0.35); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 0.5rem; color: var(--primary-blue-dark);
+}
+.sow-file i { font-size: 2.75rem; }
+.sow-file b { font-size: 1rem; }
+.sow-file.f-docx { left: 0; top: 50px; transform: rotate(-8deg); }
+.sow-file.f-xlsx { left: 95px; top: 10px; z-index: 2; }
+.sow-file.f-pptx { left: 190px; top: 50px; transform: rotate(8deg); }
+.sow-gantt { display: grid; gap: 0.35rem; }
+.sow-gantt-row { display: grid; grid-template-columns: 11rem 1fr; gap: 0.75rem; align-items: center; font-size: 0.8rem; }
+.sow-gantt-track { position: relative; height: 0.9rem; background: rgba(1, 118, 211, 0.06); border-radius: 4px; }
+.sow-gantt-bar { position: absolute; top: 0; bottom: 0; border-radius: 4px; background: var(--primary-blue); }
+.sow-gantt-axis .sow-gantt-track { background: none; display: flex; justify-content: space-between; color: var(--text-light); font-size: 0.72rem; height: auto; }
+.sow-cta { background: var(--hero-gradient); color: #fff; padding: 2.5rem 0; }
+.sow-cta h2 { color: #fff; }
+@media (max-width: 575.98px) {
+  .sow-gantt-row { grid-template-columns: 7.5rem 1fr; }
+}

@@ -1,0 +1,161 @@
+<%- include('../partials/layout-start') %>
+
+<%
+  /*
+   * Document Generator — the SOW pack, for a company buying work. Every number on this page
+   * is a property of the generators (seven slides, four sheets, six numbered sections) or
+   * comes from the estimator itself (the sample timeline), so nothing here can promise more
+   * than a download delivers. The consultant's CV has its own page: /cv-generator.
+   */
+  const brandingHref = currentUser && currentUser.isCompany ? '/profile/company/template' : '/auth/register';
+%>
+<section class="hub-hero">
+  <div class="container">
+    <div class="row align-items-center g-4">
+      <div class="col-lg-7">
+        <span class="hub-hero-badge mb-3"><i class="bi bi-file-earmark-text"></i> FOR COMPANIES</span>
+        <h1>The SOW pack: three documents from one estimate</h1>
+        <p class="lead"><%= model.intro %></p>
+        <ul class="cv-hero-tags list-unstyled">
+          <li><i class="bi bi-check-circle-fill"></i> Free with every quote</li>
+          <li><i class="bi bi-check-circle-fill"></i> Your branding</li>
+          <li><i class="bi bi-check-circle-fill"></i> Always consistent</li>
+        </ul>
+        <div class="d-flex flex-wrap gap-3 mt-4">
+          <a class="btn btn-lg btn-primary" href="/quotes/new"><i class="bi bi-calculator"></i> Start a quote</a>
+          <a class="btn btn-lg btn-outline-light" href="#how"><i class="bi bi-signpost-split"></i> How it works</a>
+        </div>
+      </div>
+      <div class="col-lg-5 d-none d-lg-flex justify-content-center" aria-hidden="true">
+        <div class="sow-hero-files">
+          <span class="sow-file f-docx"><i class="bi bi-file-earmark-word"></i><b>.docx</b></span>
+          <span class="sow-file f-xlsx"><i class="bi bi-file-earmark-spreadsheet"></i><b>.xlsx</b></span>
+          <span class="sow-file f-pptx"><i class="bi bi-file-earmark-slides"></i><b>.pptx</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <h2 class="h5 mb-3">What is in the pack</h2>
+  <div class="row g-3 mb-5">
+    <div class="col-md-4"><div class="glass-card h-100"><div class="card-body">
+      <span class="icon-tile icon-navyblue mb-3"><i class="bi bi-file-earmark-word"></i></span>
+      <h3 class="h6 mb-1">Statement of work <span class="text-muted-2 small">.docx</span></h3>
+      <p class="small text-muted-2">Six numbered sections, ready to edit in Word:</p>
+      <ul class="small mb-0">
+        <li>Scope, add-ons and integrations</li>
+        <li>Approach and timeline</li>
+        <li>Team, commercials and how the effort was derived</li>
+        <li>Assumptions, exclusions and validity — plus your own terms</li>
+      </ul>
+    </div></div></div>
+    <div class="col-md-4"><div class="glass-card h-100"><div class="card-body">
+      <span class="icon-tile icon-navyblue mb-3"><i class="bi bi-file-earmark-spreadsheet"></i></span>
+      <h3 class="h6 mb-1">Work breakdown + Gantt <span class="text-muted-2 small">.xlsx</span></h3>
+      <p class="small text-muted-2">Four sheets:</p>
+      <ul class="small mb-0">
+        <li>Summary of effort, duration and budget</li>
+        <li>WBS with a week-by-week Gantt</li>
+        <li>Scope by cloud and module</li>
+        <li>Team and cost, line by line</li>
+      </ul>
+    </div></div></div>
+    <div class="col-md-4"><div class="glass-card h-100"><div class="card-body">
+      <span class="icon-tile icon-navyblue mb-3"><i class="bi bi-file-earmark-slides"></i></span>
+      <h3 class="h6 mb-1">Summary deck <span class="text-muted-2 small">.pptx</span></h3>
+      <p class="small text-muted-2">Seven slides for the meeting:</p>
+      <ul class="small mb-0">
+        <li>Title and at a glance</li>
+        <li>Scope and approach</li>
+        <li>Timeline</li>
+        <li>Team, commercials, assumptions and next steps</li>
+      </ul>
+    </div></div></div>
+  </div>
+
+  <div class="row g-4 align-items-start mb-5">
+    <div class="col-lg-5">
+      <h2 class="h5 mb-3">Why the three agree</h2>
+      <ul class="list-unstyled">
+        <% model.points.forEach(function (point, i) { %>
+          <li class="d-flex gap-2 mb-3">
+            <i class="bi bi-check-circle-fill text-primary mt-1"></i>
+            <span>
+              <%= point %>
+              <% if (/Document branding/.test(point)) { %><a href="<%= brandingHref %>">Set up document branding</a><% } %>
+            </span>
+          </li>
+        <% }); %>
+      </ul>
+    </div>
+    <div class="col-lg-7">
+      <div class="glass-card"><div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-1">
+          <h2 class="h6 mb-0">Sample timeline</h2>
+          <span class="small text-muted-2"><%= sample.weeks %> weeks</span>
+        </div>
+        <p class="small text-muted-2"><%= sample.scope %> — computed by the same estimator every quote uses.</p>
+        <div class="sow-gantt" role="img" aria-label="Sample Gantt chart: <%= sample.timeline.map(function (t) { return t.phase + ', weeks ' + t.startWeek + ' to ' + t.endWeek; }).join('; ') %>">
+          <% sample.timeline.forEach(function (t) {
+               const left = ((t.startWeek - 1) / sample.weeks) * 100;
+               const width = ((t.endWeek - t.startWeek + 1) / sample.weeks) * 100; %>
+            <div class="sow-gantt-row">
+              <span class="sow-gantt-label"><%= t.phase %></span>
+              <span class="sow-gantt-track"><span class="sow-gantt-bar" style="left:<%= left.toFixed(2) %>%;width:<%= width.toFixed(2) %>%" title="<%= t.milestone %>"></span></span>
+            </div>
+          <% }); %>
+          <div class="sow-gantt-row sow-gantt-axis">
+            <span class="sow-gantt-label"></span>
+            <span class="sow-gantt-track"><span>Week 1</span><span>Week <%= sample.weeks %></span></span>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  <section aria-labelledby="how" class="mb-5">
+    <h2 class="h5 mb-3" id="how">How it works</h2>
+    <ol class="row g-3 list-unstyled cv-steps">
+      <li class="col-sm-6 col-lg-3"><div class="glass-card h-100"><div class="card-body">
+        <span class="cv-step-n">1</span><h3 class="h6">Start a quote</h3>
+        <p class="small text-muted-2 mb-0">Pick the clouds and modules, the size of the org and the integrations.</p>
+      </div></div></li>
+      <li class="col-sm-6 col-lg-3"><div class="glass-card h-100"><div class="card-body">
+        <span class="cv-step-n">2</span><h3 class="h6">Review the estimate</h3>
+        <p class="small text-muted-2 mb-0">Phases, team and budget, reconciled line by line before you see them.</p>
+      </div></div></li>
+      <li class="col-sm-6 col-lg-3"><div class="glass-card h-100"><div class="card-body">
+        <span class="cv-step-n">3</span><h3 class="h6">Set your branding</h3>
+        <p class="small text-muted-2 mb-0">Your colours, letterhead and standard clauses — once, under <a href="<%= brandingHref %>">Document branding</a>.</p>
+      </div></div></li>
+      <li class="col-sm-6 col-lg-3"><div class="glass-card h-100"><div class="card-body">
+        <span class="cv-step-n">4</span><h3 class="h6">Download the pack</h3>
+        <p class="small text-muted-2 mb-0">SOW, work breakdown and deck, zipped together and generated on the spot.</p>
+      </div></div></li>
+    </ol>
+  </section>
+
+  <% if (model.aside) { %>
+    <div class="glass-card mb-4"><div class="card-body d-flex flex-wrap align-items-center gap-3">
+      <i class="bi bi-file-earmark-person fs-4 text-primary"></i>
+      <span class="flex-grow-1"><%= model.aside.text %></span>
+      <a class="btn btn-outline-primary btn-sm" href="<%= model.aside.href %>"><%= model.aside.label %></a>
+    </div></div>
+  <% } %>
+</div>
+</section>
+
+<section class="sow-cta">
+  <div class="container d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div>
+      <h2 class="h4 mb-1">Scope it, then send the pack</h2>
+      <p class="mb-0">An estimate takes a few minutes. The three documents are free with it.</p>
+    </div>
+    <a class="btn btn-lg btn-light" href="/quotes/new"><i class="bi bi-calculator"></i> Start a quote</a>
+  </div>
+</section>
+
+<%- include('../partials/layout-end') %>

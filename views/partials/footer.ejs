@@ -20,7 +20,10 @@
           ['/jobs', 'Find Jobs'],
           // A visitor builds a profile by signing up; a consultant edits the one they have.
           [currentUser && currentUser.isConsultant ? '/profile/consultant' : '/auth/register', 'Build Profile'],
-          ['/services/document-generator', 'CV Generator']
+          ['/services/document-generator', 'CV Generator'],
+          // A consultant's tool first; it stays under Services too, as it does in the menu.
+          ['/rates', 'Rate & Salary Index'],
+          ['/rates/calculator', 'Rate calculator']
         ]],
         ['Companies Hub', [
           ['/companies-hub', 'Companies Hub'],
@@ -41,6 +44,8 @@
           ['/payments', 'Pricing']
         ]],
         ['Community', [
+          // Home IS the feed (the menu has no Community dropdown), so it is named as one here.
+          ['/', 'Home Feed'],
           ['/community', 'Forum'],
           ['/community?kind=article', 'Articles'],
           ['/success-stories', 'Success Stories'],
@@ -57,6 +62,7 @@
         ]],
         ['Company', [
           ['/about', 'About Us'],
+          ['/blog', 'Blog'],
           ['/faq', 'FAQ'],
           ['/contact', 'Contact'],
           ['/report-issue', 'Report Issue'],
@@ -78,7 +84,7 @@
         </a>
         <p class="mb-0 footer-blurb">
           The marketplace for the Salesforce ecosystem: contract and permanent roles,
-          consultants companies can browse, scope estimates that reconcile, and day-rate
+          a consultant directory companies can browse, scope estimates that reconcile, and day-rate
           benchmarks built from figures people contributed.
         </p>
         <%# Only accounts saved on /admin/settings: an unset one is not rendered at all. %>

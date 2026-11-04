@@ -106,3 +106,28 @@ describe('the posted-within window', () => {
     expect(source).toMatch(/posted_within_days: posted \? Number\(posted\) : null/);
   });
 });
+
+describe('several values in one job filter field', () => {
+  it('turns a list into one parameterised IN, and a single value stays an equality', () => {
+    const many = Job.buildFilter({ country: ['DE', 'ES'], seniority: ['senior', 'lead'] });
+    expect(many.clause).toContain('j.country IN (?)');
+    expect(many.clause).toContain('j.seniority IN (?)');
+    expect(many.params).toEqual(expect.arrayContaining([['DE', 'ES'], ['senior', 'lead']]));
+
+    const one = Job.buildFilter({ country: ['DE'] });
+    expect(one.clause).toContain('j.country = ?');
+    expect(one.params).toEqual(['DE']);
+  });
+
+  it('drops list elements that are not ours, so a crafted list cannot reach the query', () => {
+    const { clause, params } = Job.buildFilter({ role: ['apex-developer', 'x++-developer'], country: ['DE', "DE'; --"] });
+    expect(clause).toContain('j.role = ?');
+    expect(params).toEqual(['apex-developer', 'DE']);
+  });
+
+  it('caps a list so a query string cannot build an unbounded clause', () => {
+    const codes = Array.from({ length: 200 }, (_, i) => String.fromCharCode(65 + (i % 26)) + String.fromCharCode(65 + Math.floor(i / 26)));
+    const { params } = Job.buildFilter({ country: codes });
+    expect(params[0].length).toBeLessThanOrEqual(30);
+  });
+});

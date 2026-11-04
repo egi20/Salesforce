@@ -43,17 +43,26 @@ describe('navbar layout', () => {
   test('the search field is not painted for a dark bar', () => {
     // It was `color: #fff` on a translucent white background over a white navbar: an
     // invisible value, an invisible placeholder, and a control reported as "an empty icon".
-    const rule = CSS.match(/\.nav-search \.form-control \{[^}]*\}/)[0];
-    expect(rule).not.toMatch(/#fff|#ffffff|rgba\(255,\s*255,\s*255/i);
+    // The field now lives in a white panel under the search toggle, so its own white
+    // background is fine — what must never come back is white TEXT.
+    const rule = CSS.match(/\.nav-search-panel \.form-control \{[^}]*\}/)[0];
+    expect(rule).not.toMatch(/(^|[^-])color:\s*(#fff|#ffffff|rgba\(255,\s*255,\s*255)/i);
     expect(rule).toMatch(/color:\s*var\(--text-dark\)/);
   });
 
-  test('the expanded search is out of flow, so opening it moves nothing', () => {
-    // Expanding it in flow only moved the overflow from the resting state to the focused
-    // one — the open field pushed "Sign up" off the right edge.
-    const wide = CSS.match(/@media \(min-width: 992px\) \{\n {2}\/\*\n {3}\* The open field[\s\S]*?\n\}/)[0];
-    expect(wide).toMatch(/\.nav-search \{ position: relative; \}/);
-    expect(wide).toMatch(/position:\s*absolute/);
+  test('the search panel is out of flow, so opening it moves nothing', () => {
+    // Expanding a field in flow only moved the overflow from the resting state to the
+    // focused one — the open field pushed "Sign up" off the right edge. The toggle is all
+    // the bar ever holds; the panel opens beneath it, absolutely positioned.
+    expect(CSS).toMatch(/\.nav-search \{ position: relative; \}/);
+    expect(CSS).toMatch(/\.nav-search-panel \{[^}]*position:\s*absolute/);
+    expect(NAV).toMatch(/<details class="nav-search/);
+  });
+
+  test('the search panel is opaque, like every other menu', () => {
+    const rule = CSS.match(/\.nav-search-panel \{[^}]*\}/)[0];
+    expect(rule).toMatch(/background:\s*#fff\s*;/);
+    expect(rule).not.toMatch(/--glass-bg|backdrop-filter/);
   });
 
   test('an open dropdown is opaque', () => {

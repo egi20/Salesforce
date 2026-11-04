@@ -38,6 +38,7 @@ check('issue lifecycle is consistent', () => require('../config/issues').assertI
 check('placement fee arithmetic is consistent', () => require('../config/placements').assertPlacementIntegrity());
 check('web analytics ids are well-formed', () => require('../config/webAnalytics').assertWebAnalyticsIntegrity());
 check('admin test suite is consistent', () => require('../config/adminTests').assertTestSuiteIntegrity());
+check('CV import config is consistent', () => require('../config/cvImport').assertCvImportIntegrity());
 check('country list is non-empty', () => {
   const countries = require('../config/all-countries.json');
   if (!Array.isArray(countries) || countries.length < 100) throw new Error(`only ${countries.length} countries`);

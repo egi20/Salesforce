@@ -37,6 +37,29 @@ function orderByFor(sort) {
   return `is_featured DESC, ${SORTS[sort] || SORTS.newest}`;
 }
 
+/*
+ * A filter field may be one value or several (the board's checkboxes post a list). One
+ * value keeps its `= ?` clause; several become `IN (?)`, which mysql2 expands into one
+ * placeholder per element — still parameterised, never interpolated. Lists are capped so a
+ * crafted query string cannot build a clause with ten thousand placeholders.
+ */
+const MAX_LIST = 30;
+
+function asList(value) {
+  const list = Array.isArray(value) ? value : value ? [value] : [];
+  return list.filter((v) => typeof v === 'string' && v !== '').slice(0, MAX_LIST);
+}
+
+function pushMatch(where, params, column, values) {
+  if (values.length === 1) {
+    where.push(`${column} = ?`);
+    params.push(values[0]);
+  } else if (values.length > 1) {
+    where.push(`${column} IN (?)`);
+    params.push(values);
+  }
+}
+
 /**
  * THE single WHERE builder for job browsing.
  *
@@ -75,26 +98,12 @@ function buildFilter(filters = {}) {
     where.push('j.company_user_id = ?');
     params.push(filters.company_user_id);
   }
-  if (filters.role && isValidRole(filters.role)) {
-    where.push('j.role = ?');
-    params.push(filters.role);
-  }
-  if (filters.seniority) {
-    where.push('j.seniority = ?');
-    params.push(filters.seniority);
-  }
-  if (filters.engagement_type) {
-    where.push('j.engagement_type = ?');
-    params.push(filters.engagement_type);
-  }
-  if (filters.work_mode) {
-    where.push('j.work_mode = ?');
-    params.push(filters.work_mode);
-  }
-  if (filters.country) {
-    where.push('j.country = ?');
-    params.push(filters.country);
-  }
+  // Several values in one field are alternatives (Apex OR CPQ); separate fields still narrow.
+  pushMatch(where, params, 'j.role', asList(filters.role).filter(isValidRole));
+  pushMatch(where, params, 'j.seniority', asList(filters.seniority));
+  pushMatch(where, params, 'j.engagement_type', asList(filters.engagement_type));
+  pushMatch(where, params, 'j.work_mode', asList(filters.work_mode));
+  pushMatch(where, params, 'j.country', asList(filters.country).filter((c) => /^[A-Z]{2}$/.test(c)));
   if (filters.rate_min) {
     const min = Number(filters.rate_min);
     if (Number.isFinite(min) && min > 0) {
@@ -114,9 +123,13 @@ function buildFilter(filters = {}) {
     where.push('j.published_at IS NOT NULL AND j.published_at >= DATE_SUB(NOW(), INTERVAL ? DAY)');
     params.push(filters.posted_within_days);
   }
-  if (filters.module) {
+  const modules = asList(filters.module);
+  if (modules.length === 1) {
     where.push('EXISTS (SELECT 1 FROM job_modules jm WHERE jm.job_id = j.id AND jm.module_slug = ?)');
-    params.push(filters.module);
+    params.push(modules[0]);
+  } else if (modules.length > 1) {
+    where.push('EXISTS (SELECT 1 FROM job_modules jm WHERE jm.job_id = j.id AND jm.module_slug IN (?))');
+    params.push(modules);
   }
   if (filters.skill_ids && filters.skill_ids.length) {
     where.push(
@@ -289,6 +302,7 @@ class Job {
       `SELECT j.id, j.title, j.slug, j.role, j.seniority, j.engagement_type, j.work_mode,
               j.country, j.city, j.rate_min, j.rate_max, j.currency, j.rate_visible,
               j.duration_months, j.published_at, j.application_count, j.status,
+              LEFT(j.description, 600) AS description_snippet,
               cp.company_name, cp.slug AS company_slug, cp.logo AS company_logo,
               ${FEATURED_EXPR} AS is_featured
          FROM jobs j
@@ -311,6 +325,31 @@ class Job {
       params
     );
     return rows;
+  }
+
+  /**
+   * Counts per country, using the same filter minus `country` — so the board offers the
+   * countries that actually have roles, with how many, instead of every country on earth.
+   */
+  static async facetByCountry(filters = {}) {
+    const { clause, params } = buildFilter({ ...filters, country: undefined });
+    const [rows] = await promisePool.query(
+      `SELECT j.country, COUNT(*) AS count FROM jobs j
+        WHERE ${clause} AND j.country IS NOT NULL
+        GROUP BY j.country ORDER BY count DESC, j.country`,
+      params
+    );
+    return rows;
+  }
+
+  /** Which of these jobs the user has saved, as a Set of ids — one query for a whole page. */
+  static async savedIdsFor(userId, jobIds) {
+    if (!userId || !jobIds || jobIds.length === 0) return new Set();
+    const [rows] = await promisePool.query(
+      'SELECT job_id FROM saved_jobs WHERE user_id = ? AND job_id IN (?)',
+      [userId, jobIds]
+    );
+    return new Set(rows.map((r) => r.job_id));
   }
 
   static async incrementViews(jobId) {

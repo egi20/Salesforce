@@ -218,7 +218,7 @@ class ConsultantProfile {
       'country', 'city', 'timezone', 'work_mode', 'willing_to_travel',
       'day_rate', 'hourly_rate', 'annual_salary', 'currency', 'rate_visible',
       'availability', 'available_from',
-      'linkedin_url', 'website_url', 'trailblazer_url'
+      'linkedin_url', 'website_url', 'trailblazer_url', 'phone'
     ];
 
     const sets = [];

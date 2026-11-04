@@ -52,6 +52,21 @@ describe('toPlainText', () => {
     expect(out.length).toBeLessThanOrEqual(6);
     expect(out.endsWith('…')).toBe(true);
   });
+
+  it('returns text, not HTML: an ampersand is an ampersand', () => {
+    // It is printed through <%= %>, which escapes it once. Returning "&amp;" made every card
+    // read "Work Orders &amp; Service".
+    expect(toPlainText('<p>Work Orders &amp; Service</p>')).toBe('Work Orders & Service');
+    expect(toPlainText('5 < 6 & "quoted"')).toBe('5 < 6 & "quoted"');
+  });
+
+  it('decodes the ampersand last, so an escaped entity stays literal text', () => {
+    expect(toPlainText('&amp;lt;b&amp;gt;')).toBe('&lt;b&gt;');
+  });
+
+  it('still removes markup, scripts included', () => {
+    expect(toPlainText('<script>alert(1)</script><b>ok</b>')).toBe('ok');
+  });
 });
 
 describe('jsonForScript', () => {

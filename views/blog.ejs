@@ -1,0 +1,49 @@
+<%- include('partials/layout-start') %>
+
+<%- include('partials/page-header', {
+      icon: 'bi-journal-text',
+      heading: 'Blog',
+      sub: 'Articles from people who deliver on the Salesforce platform — architecture, DevOps, careers, day rates and what real programmes taught them.',
+      label: 'BLOG'
+    }) %>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <% if (posts.length === 0) { %>
+        <div class="glass-card">
+          <div class="card-body text-center py-5">
+            <i class="bi bi-journal-text fs-1 text-muted-2"></i>
+            <p class="mt-3 mb-0">No articles yet. The first one could be yours.</p>
+          </div>
+        </div>
+      <% } else { %>
+        <% posts.forEach(function (post) { %>
+          <%- include('partials/post-card', { post: post }) %>
+        <% }); %>
+        <%- include('partials/pagination') %>
+      <% } %>
+    </div>
+
+    <aside class="col-lg-4">
+      <div class="glass-card">
+        <div class="card-body">
+          <h2 class="h6 mb-2">Write for the blog</h2>
+          <p class="small text-muted-2">
+            Every article here is written by a member. Share what a programme taught you, how you
+            run a deployment, or what a day rate is made of.
+          </p>
+          <% if (currentUser) { %>
+            <a class="btn btn-primary w-100" href="/community/new?kind=article"><i class="bi bi-pencil"></i> Write an article</a>
+          <% } else { %>
+            <a class="btn btn-primary w-100" href="/auth/register">Join free to write</a>
+          <% } %>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+</section>
+
+<%- include('partials/layout-end') %>

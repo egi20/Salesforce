@@ -85,6 +85,27 @@ router.get(
   })
 );
 
+/**
+ * One small JSON call for the account-menu panel's notification preview, fetched lazily
+ * when the menu opens rather than on every page render — the same reason the unread badge
+ * is a separate fetch instead of a server-side include.
+ */
+router.get(
+  '/nav-summary',
+  asyncHandler(async (req, res) => {
+    const notifications = await Notification.listFor(req.session.user.id, { limit: 4 });
+    res.json({
+      success: true,
+      notifications: notifications.map((n) => ({
+        id: n.id,
+        title: n.title,
+        link: n.link,
+        unread: !n.read_at
+      }))
+    });
+  })
+);
+
 router.get(
   '/jobs',
   isCompany,

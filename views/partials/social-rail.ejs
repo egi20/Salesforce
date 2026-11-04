@@ -1,0 +1,29 @@
+<%
+  /*
+   * The Hub's social accounts as a rail on the left edge, as Dynamics Hub has them.
+   *
+   * Same source and the same rule as the footer row: `socialLinks` holds only accounts saved
+   * on /admin/settings that pass the host check in config/social.js, and the rail is not
+   * rendered at all until one exists — an icon pointing at an account nobody opened is a
+   * 404 under somebody else's name. The email entry appears only once SUPPORT_EMAIL is a
+   * real address, never the example.com placeholder.
+   */
+  const railLinks = (typeof socialLinks !== 'undefined' && socialLinks) || [];
+  const railEmail = typeof supportEmail !== 'undefined' && supportEmail && !/@example\.com$/i.test(supportEmail)
+    ? supportEmail : null;
+%>
+<% if (railLinks.length) { %>
+  <nav class="social-rail" aria-label="Salesforce Hub elsewhere">
+    <% railLinks.forEach(function (s) { %>
+      <a href="<%= s.href %>" rel="noopener" target="_blank" aria-label="<%= s.label %>" title="<%= s.label %>"><i class="bi <%= s.icon %>" aria-hidden="true"></i></a>
+    <% }); %>
+    <% if (railEmail) { %>
+      <a href="mailto:<%= railEmail %>" aria-label="Email" title="Email"><i class="bi bi-envelope" aria-hidden="true"></i></a>
+    <% } %>
+  </nav>
+<% } else if (typeof currentUser !== 'undefined' && currentUser && currentUser.isAdmin) { %>
+  <%# Nobody else sees an empty rail. An administrator sees where it goes and how to fill it. %>
+  <nav class="social-rail social-rail-empty" aria-label="Social links (not set)">
+    <a href="/admin/settings#social" aria-label="Add the Hub's social links" title="Add the Hub's social links — only you can see this"><i class="bi bi-plus-lg" aria-hidden="true"></i></a>
+  </nav>
+<% } %>

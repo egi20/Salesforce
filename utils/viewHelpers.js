@@ -5,6 +5,7 @@ const { roleLabel, seniorityLabel } = require('../config/roleTaxonomy');
 const { moduleLabel, familyLabel } = require('../config/cloudFamilies');
 const { engagementLabel, workModeLabel, rateUnit } = require('../config/jobTaxonomy');
 const { countryName } = require('./geo');
+const { formatRateRange, jobLocation, postedAgo, companyInitials, companyTone } = require('./jobDisplay');
 const chartColors = require('./chartColors');
 
 /**
@@ -32,6 +33,13 @@ const VIEW_HELPERS = Object.freeze({
   workModeLabel,
   rateUnit,
   countryName,
+  // Job cards. `postedAgo` reads the clock at render time, which is the one input here that
+  // is not its argument; it reads nothing from the request.
+  formatRateRange,
+  jobLocation,
+  postedAgo,
+  companyInitials,
+  companyTone,
   // The admin charts' palette. A constant rather than a function, and frozen, so no render
   // can change what the next one draws with.
   chartColors

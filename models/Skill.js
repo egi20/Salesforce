@@ -48,6 +48,21 @@ class Skill {
     return rows;
   }
 
+  /**
+   * Skill ids per job for a whole list, in one query, as a Map of job id -> [skill ids].
+   * The match score needs each job's skills; asking per job would be one query per card.
+   */
+  static async idsForJobs(jobIds) {
+    const map = new Map();
+    if (!jobIds || jobIds.length === 0) return map;
+    const [rows] = await promisePool.query('SELECT job_id, skill_id FROM job_skills WHERE job_id IN (?)', [jobIds]);
+    for (const r of rows) {
+      if (!map.has(r.job_id)) map.set(r.job_id, []);
+      map.get(r.job_id).push(r.skill_id);
+    }
+    return map;
+  }
+
   static async idsForConsultant(userId) {
     const [rows] = await promisePool.query('SELECT skill_id FROM consultant_skills WHERE user_id = ?', [userId]);
     return rows.map((r) => r.skill_id);

@@ -247,6 +247,11 @@ async function main() {
 if (require.main === module) {
   main().catch((err) => {
     console.error(`Migration failed: ${err.message}`);
+    // A development database built from an older branch (a migration since renamed or
+    // renumbered) cannot be migrated forward; rebuilding it is the fix, so say how.
+    if (!require('../config/config').isProduction) {
+      console.error('On a development machine, `npm run db:reset` rebuilds the database and its demo data.');
+    }
     process.exit(1);
   });
 }

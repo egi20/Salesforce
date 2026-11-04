@@ -17,7 +17,7 @@ const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination
 const { ROLE_CATEGORIES, isValidRole, ROLE_SLUGS, SENIORITY_LEVELS } = require('../config/roleTaxonomy');
 const { CLOUD_FAMILIES, ALL_MODULES, isValidModule } = require('../config/cloudFamilies');
 const { jobPostingJsonLd } = require('../config/seoMeta');
-const { matchScore } = require('../utils/jobMatcher');
+const { matchScore, WEIGHTS } = require('../utils/jobMatcher');
 const { sanitizeRichText } = require('../utils/sanitize');
 const { returnTo } = require('../utils/returnTo');
 const countries = require('../config/all-countries.json');
@@ -43,16 +43,27 @@ const POSTED_WINDOWS = [
 const WORK_MODES = WORK_MODE_SLUGS;
 const ENGAGEMENTS = ENGAGEMENT_SLUGS;
 
+/*
+ * A checkbox group posts one value per ticked box, so a field arrives as a string or an
+ * array. Every element is checked against the taxonomy and anything else is dropped — the
+ * builder re-checks, but a value that is not ours should not survive this far. Capped, and
+ * de-duplicated so a repeated value cannot inflate the clause.
+ */
+function listFrom(value, isValid) {
+  const raw = Array.isArray(value) ? value : value ? [value] : [];
+  return [...new Set(raw.map(String))].filter(isValid).slice(0, 30);
+}
+
 /** Pull filters out of the query string, dropping anything not in the taxonomy. */
 function filtersFrom(query) {
   const posted = POSTED_WINDOWS.some((w) => w.value && w.value === query.posted) ? query.posted : '';
   return {
     q: query.q ? String(query.q).slice(0, 120) : '',
-    role: isValidRole(query.role) ? query.role : '',
-    seniority: SENIORITIES.includes(query.seniority) ? query.seniority : '',
-    engagement_type: ENGAGEMENTS.includes(query.engagement_type) ? query.engagement_type : '',
-    work_mode: WORK_MODES.includes(query.work_mode) ? query.work_mode : '',
-    country: /^[A-Z]{2}$/.test(query.country || '') ? query.country : '',
+    role: listFrom(query.role, isValidRole),
+    seniority: listFrom(query.seniority, (v) => SENIORITIES.includes(v)),
+    engagement_type: listFrom(query.engagement_type, (v) => ENGAGEMENTS.includes(v)),
+    work_mode: listFrom(query.work_mode, (v) => WORK_MODES.includes(v)),
+    country: listFrom(query.country, (v) => /^[A-Z]{2}$/.test(v)),
     module: isValidModule(query.module) ? query.module : '',
     rate_min: query.rate_min || '',
     /*
@@ -66,17 +77,83 @@ function filtersFrom(query) {
   };
 }
 
+/*
+ * "Recommended for you": the open roles that score best against the consultant's profile.
+ *
+ * The SAME `matchScore` the job page and the dashboard use, so the percentage on a card here
+ * is the percentage on that job's own page — a second scorer would be two numbers for one
+ * question. Scored over the newest open roles rather than every row on the board: the
+ * scorer is in JavaScript, and a board's worth is enough to find four good ones.
+ */
+const RECOMMEND_POOL = 100;
+const RECOMMEND_SHOWN = 4;
+const RECOMMEND_MIN_SCORE = 50;
+
+/** The reasons a card shows, read off the breakdown — only the parts that scored in full. */
+function matchReasons(job, breakdown) {
+  const reasons = [];
+  if (breakdown.role === WEIGHTS.role) reasons.push('Matches your role');
+  if (breakdown.seniority === WEIGHTS.seniority) reasons.push('Experience level fits');
+  if (breakdown.skills >= Math.round(WEIGHTS.skills * 0.6)) reasons.push('Your skills');
+  if (breakdown.location === WEIGHTS.location) reasons.push(job.work_mode === 'remote' ? 'Remote' : 'In your country');
+  if (breakdown.rate === WEIGHTS.rate) reasons.push('Rate fits');
+  return reasons.slice(0, 3);
+}
+
+async function recommendationsFor(userId) {
+  const [profile, consultantSkillIds, { rows: pool }] = await Promise.all([
+    ConsultantProfile.findByUserId(userId),
+    Skill.idsForConsultant(userId),
+    Job.browse({}, { limit: RECOMMEND_POOL, sort: 'newest' })
+  ]);
+  // A profile with no role cannot be matched meaningfully; the page asks for one instead.
+  if (!profile || !profile.primary_role) return { profileIncomplete: true, jobs: [] };
+
+  const skillsByJob = await Skill.idsForJobs(pool.map((j) => j.id));
+  const jobs = pool
+    .map((job) => {
+      const { score, breakdown } = matchScore(job, profile, {
+        jobSkillIds: skillsByJob.get(job.id) || [],
+        consultantSkillIds
+      });
+      return { job, score, reasons: matchReasons(job, breakdown) };
+    })
+    .filter((r) => r.score >= RECOMMEND_MIN_SCORE)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, RECOMMEND_SHOWN);
+  return { profileIncomplete: false, jobs };
+}
+
 router.get(
   '/',
   asyncHandler(async (req, res) => {
     const filters = filtersFrom(req.query);
     const { page, perPage, limit, offset } = paginationFrom(req.query);
     const sort = ['newest', 'rate_desc', 'rate_asc'].includes(req.query.sort) ? req.query.sort : 'newest';
+    const user = req.session.user || null;
 
-    const [{ rows, total }, facets] = await Promise.all([
+    const [{ rows, total }, facets, countryFacets, recommended] = await Promise.all([
       Job.browse(filters, { limit, offset, sort }),
-      Job.facetByRole(filters)
+      Job.facetByRole(filters),
+      Job.facetByCountry(filters),
+      // Page one only: on page three the reader is working through the list, not deciding
+      // where to start.
+      user && user.isConsultant && page === 1 ? recommendationsFor(user.id) : Promise.resolve(null)
     ]);
+
+    const shownIds = [...rows, ...(recommended ? recommended.jobs.map((r) => r.job) : [])].map((j) => j.id);
+    const savedIds = user ? await Job.savedIdsFor(user.id, shownIds) : new Set();
+
+    /*
+     * The country list is the countries that HAVE roles under the other filters, with the
+     * count — plus any country already ticked, so un-ticking it stays possible when its
+     * count has dropped to nothing.
+     */
+    const countryOptions = countryFacets.map((f) => ({ code: f.country, count: f.count }));
+    for (const code of filters.country) {
+      if (!countryOptions.some((c) => c.code === code)) countryOptions.push({ code, count: 0 });
+    }
+    const roleCounts = Object.fromEntries(facets.map((f) => [f.role, f.count]));
 
     res.render('jobs/index', {
       title: res.locals.seo.title,
@@ -85,9 +162,16 @@ router.get(
       postedWindows: POSTED_WINDOWS,
       sort,
       facets,
+      roleCounts,
+      countryOptions,
+      recommended,
+      savedIds,
+      // Where a save from the board comes back to: the same filters and page.
+      returnUrl: req.originalUrl,
       roleCategories: ROLE_CATEGORIES,
       cloudFamilies: CLOUD_FAMILIES,
-      countries,
+      activeFilterCount: ['role', 'seniority', 'engagement_type', 'work_mode', 'country']
+        .reduce((n, k) => n + filters[k].length, 0) + ['q', 'module', 'posted', 'rate_min'].filter((k) => filters[k]).length,
       pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/jobs', req.query, p)
     });
@@ -458,7 +542,8 @@ router.post(
     if (req.get('sec-fetch-dest') && req.get('sec-fetch-dest') !== 'document') {
       return res.json({ success: true, saved: !saved });
     }
-    return res.redirect(`/jobs/${job.slug}`);
+    // Saved from the board, the form carries the board's own URL (filters and page) back.
+    return res.redirect(returnTo(req, `/jobs/${job.slug}`));
   })
 );
 

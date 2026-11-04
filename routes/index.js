@@ -18,6 +18,7 @@ const ConsultantProfile = require('../models/ConsultantProfile');
 const ConsultantHiddenCompany = require('../models/ConsultantHiddenCompany');
 const CompanyProfile = require('../models/CompanyProfile');
 const RateSubmission = require('../models/RateSubmission');
+const { CLOUD_FAMILIES } = require('../config/cloudFamilies');
 const { POST_KINDS, isPostKind, postKind } = require('../config/community');
 const { toPlainText } = require('../utils/sanitize');
 const legalVersions = require('../config/legal-versions');
@@ -168,7 +169,7 @@ const SERVICE_PAGES = {
     cta: { label: 'Browse consultants', href: '/consultants' }
   },
   'document-generator': {
-    heading: 'Document generator',
+    heading: 'CV & document generator',
     icon: 'bi-file-earmark-text',
     intro: 'Every quote on the Hub can be turned into a matching SOW, work breakdown and summary deck — and every consultant profile into a CV and rate card.',
     points: [
@@ -208,23 +209,67 @@ router.get('/services/:page', (req, res, next) => {
  * /consultants does: a company that a consultant has hidden from must not be counted to
  * that company, or the total quietly reveals that somebody is missing.
  */
+/*
+ * A headline count is shown only once it says something. "6 companies" or "24 rate
+ * contributors" on a landing page reads as "nobody uses this", which is the opposite of
+ * what a small honest number is for, so each figure carries the minimum at which it is
+ * worth printing and is left out below it; with none left, the row is not rendered. This
+ * is a display threshold for a headline, not the rate index's privacy floor, which still
+ * publishes from three people up and is never lowered by anything here.
+ */
+const HEADLINE_MIN = Object.freeze({ roles: 10, companies: 20, consultants: 20, contributors: 100 });
+
+/*
+ * How many clouds and product areas the Hub's catalogue covers. A catalogue fact rather
+ * than a usage figure, so it needs no threshold — and it is derived from
+ * config/cloudFamilies.js, so adding a cloud moves it without anybody editing this.
+ */
+const CLOUDS_COVERED = { value: CLOUD_FAMILIES.length, min: 0, label: 'clouds and products covered', href: '/jobs' };
+
+function headlineStats(candidates) {
+  return candidates.filter((c) => c.value >= c.min).map(({ value, label, href }) => ({ value, label, href }));
+}
+
+/*
+ * What each hub says about safety. Every line is something the code does, named in
+ * CLAUDE.md — not "enterprise-grade security", which is a claim nobody can check.
+ */
+const PRIVACY_BENEFIT = {
+  icon: 'bi-shield-check',
+  title: 'Secure and private',
+  // Not "encrypted": passwords are hashed, but nothing here encrypts the rest of the data
+  // at rest, and a reassurance that is not true is worse than a plain one.
+  text: 'Your password is never stored in readable form, your profile is only as public as you choose, and you can download or delete your data any time.'
+};
+
 router.get(
   '/consultant-hub',
   asyncHandler(async (req, res) => {
     const user = req.session.user || null;
     const isConsultant = Boolean(user && user.isConsultant);
-    const [jobs, contributors] = await Promise.all([
+    // The consultant count passes a viewer for the same reason /consultants does.
+    const viewer = await ConsultantHiddenCompany.viewerFor(user);
+    const [jobs, contributors, companies, consultants] = await Promise.all([
       Job.browse({}, { limit: 1 }),
-      RateSubmission.totalContributors()
+      RateSubmission.totalContributors(),
+      CompanyProfile.browse({}, { limit: 1 }),
+      ConsultantProfile.browse({ viewer }, { limit: 1 })
     ]);
+
+    /*
+     * Build Profile goes where it can be done: a consultant edits theirs, any other
+     * signed-in account adds the consultant role in settings (add-only, see
+     * routes/profile.js), and only a visitor is sent to sign up.
+     */
+    const profileHref = isConsultant ? '/profile/consultant' : user ? '/profile/settings' : '/auth/register';
 
     const tools = [
       { href: '/jobs', icon: 'bi-briefcase', tone: 'icon-blue', title: 'Find Jobs', text: 'Contract and permanent roles, filtered by cloud, role, seniority, work mode and rate.' },
-      { href: isConsultant ? '/profile/consultant' : '/auth/register', icon: 'bi-person-gear', tone: 'icon-navyblue', title: 'Build Profile', text: 'Your clouds, certifications, delivery history and availability, in a profile companies can find. You decide whether it is public, and whether the rate is shown.' },
-      { href: '/services/document-generator', icon: 'bi-file-earmark-person', tone: 'icon-info', title: 'CV Generator', text: 'A formatted CV and rate card rendered from your profile. Nothing is written for you and nothing is stored.' },
+      { href: profileHref, icon: 'bi-person-gear', tone: 'icon-navyblue', title: 'Build Profile', text: 'Your clouds, certifications, delivery history and availability, in a profile companies can find. You decide whether it is public, and whether the rate is shown.' },
+      { href: '/services/document-generator', icon: 'bi-file-earmark-person', tone: 'icon-info', title: 'CV Generator', text: 'A formatted CV and rate card, generated from your own profile in one click — private by default.' },
       { href: '/rates', icon: 'bi-graph-up', tone: 'icon-success', title: 'Rate & Salary Index', text: 'Day rates contributed by consultants. No figure is published from fewer than three people.' },
       { href: '/rates/calculator', icon: 'bi-calculator', tone: 'icon-blue', title: 'Rate calculator', text: 'What a day rate comes to over a year once holidays, illness and the bench are taken out.' },
-      { href: '/tax-advisory', icon: 'bi-signpost-split', tone: 'icon-navyblue', title: 'Tax Optimization', text: 'An introduction to a specialist for your situation. The Hub itself calculates nothing.' }
+      { href: '/tax-advisory', icon: 'bi-signpost-split', tone: 'icon-navyblue', title: 'Tax Optimization', text: 'Get introduced to a tax specialist who works with contractors in your situation.' }
     ];
     if (isConsultant) {
       tools.push(
@@ -233,6 +278,14 @@ router.get(
       );
     }
 
+    const stats = headlineStats([
+      { value: jobs.total, min: HEADLINE_MIN.roles, label: 'open roles', href: '/jobs' },
+      { value: consultants.total, min: HEADLINE_MIN.consultants, label: 'consultants on the Hub', href: '/consultants' },
+      { value: companies.total, min: HEADLINE_MIN.companies, label: 'companies on the Hub', href: '/companies' },
+      { value: contributors, min: HEADLINE_MIN.contributors, label: 'rate contributors', href: '/rates' },
+      CLOUDS_COVERED
+    ]);
+
     res.render('hubs/show', {
       title: 'Consultant Hub',
       model: {
@@ -240,12 +293,28 @@ router.get(
         label: 'CONSULTANT HUB',
         heading: 'Everything for Salesforce consultants',
         intro: 'Find your next role, show companies what you have delivered, and know what the work is worth — from figures other consultants contributed, not a guess.',
-        stats: [
-          { value: jobs.total, label: jobs.total === 1 ? 'open role' : 'open roles', href: '/jobs' },
-          { value: contributors, label: contributors === 1 ? 'rate contributor' : 'rate contributors', href: '/rates' }
-        ],
+        // True as long as config/payments.js has no product a consultant buys: every
+        // product there is paid for by a company.
+        freeNote: 'Free for consultants — no fees, no subscription.',
+        actions: user
+          ? [{ label: 'Find Jobs', href: '/jobs', icon: 'bi-briefcase' }, { label: 'CV Generator', href: '/services/document-generator', icon: 'bi-file-earmark-person' }]
+          : [{ label: 'Sign Up Free', href: '/auth/register', icon: 'bi-person-plus' }, { label: 'Find Jobs', href: '/jobs', icon: 'bi-briefcase' }],
+        stats,
         tools,
-        cta: user ? null : { label: 'Create your profile', href: '/auth/register' }
+        benefitsHeading: 'Why consultants use Salesforce Hub',
+        benefits: [
+          { icon: 'bi-briefcase', title: 'Salesforce roles only', text: 'Contract and permanent roles from companies that work on the platform, filtered by the clouds you actually deliver.' },
+          { icon: 'bi-person-check', title: 'A profile you control', text: 'Public or private, rate shown or on request, and hidden from named companies — your current employer included.' },
+          { icon: 'bi-graph-up', title: 'Know what the work pays', text: 'A rate index built from figures consultants contributed, never from fewer than three people.' },
+          PRIVACY_BENEFIT
+        ],
+        closing: {
+          heading: 'Ready to take control of your career?',
+          text: 'Build your free profile, get found by companies hiring for your clouds, and know what your work is worth. Salesforce Hub is free for consultants.',
+          cta: isConsultant
+            ? { label: 'Browse open roles', href: '/jobs' }
+            : user ? { label: 'Set up your consultant profile', href: '/profile/settings' } : { label: 'Create your free profile', href: '/auth/register' }
+        }
       }
     });
   })
@@ -264,7 +333,7 @@ router.get(
     const tools = [
       { href: '/consultants', icon: 'bi-people', tone: 'icon-blue', title: 'Browse Talent', text: 'Consultants filtered by cloud, certification, seniority, availability and rate.' },
       { href: '/quotes/new', icon: 'bi-calculator', tone: 'icon-navyblue', title: 'Get SOW Quote', text: 'Pick clouds and modules and get a phased plan, team shape, budget and timeline that add up line by line.' },
-      { href: user && user.isCompany ? '/jobs/new' : '/auth/register', icon: 'bi-plus-square', tone: 'icon-success', title: 'Post a role', text: 'Publish a contract or permanent role and manage applicants through a pipeline.' },
+      { href: user && user.isCompany ? '/jobs/new' : user ? '/profile/settings' : '/auth/register', icon: 'bi-plus-square', tone: 'icon-success', title: 'Post a role', text: 'Publish a contract or permanent role and manage applicants through a pipeline.' },
       { href: '/services/staff-augmentation', icon: 'bi-person-plus', tone: 'icon-info', title: 'Staff Augmentation', text: 'Named consultants inside your team, on your backlog.' },
       { href: '/services/project-based', icon: 'bi-kanban', tone: 'icon-blue', title: 'Project-Based', text: 'A defined scope delivered to a plan, priced from an estimate.' },
       { href: '/services/managed-services', icon: 'bi-gear', tone: 'icon-navyblue', title: 'Managed Services', text: 'Ongoing support and improvement after go-live.' },
@@ -281,12 +350,33 @@ router.get(
         label: 'COMPANIES HUB',
         heading: 'Hire Salesforce talent, or scope the work first',
         intro: 'Browse consultants directly, post a role, or turn a list of clouds and modules into an estimate and the documents that go with it.',
-        stats: [
-          { value: consultants.total, label: consultants.total === 1 ? 'public consultant profile' : 'public consultant profiles', href: '/consultants' },
-          { value: companies.total, label: companies.total === 1 ? 'company profile' : 'company profiles', href: '/companies' }
+        // Browsing and posting have no product in config/payments.js; featured placement,
+        // a placement fee and a quote deposit do, and are named so this is not overclaimed.
+        freeNote: 'Browsing talent and posting roles are free. Featured placement is optional.',
+        actions: [
+          { label: 'Browse Talent', href: '/consultants', icon: 'bi-people' },
+          { label: 'Get SOW Quote', href: '/quotes/new', icon: 'bi-calculator' }
         ],
+        stats: headlineStats([
+          { value: consultants.total, min: HEADLINE_MIN.consultants, label: 'consultants on the Hub', href: '/consultants' },
+          { value: companies.total, min: HEADLINE_MIN.companies, label: 'companies on the Hub', href: '/companies' },
+          CLOUDS_COVERED
+        ]),
         tools,
-        cta: user ? null : { label: 'Create a company account', href: '/auth/register' }
+        benefitsHeading: 'Why companies use Salesforce Hub',
+        benefits: [
+          { icon: 'bi-people', title: 'Salesforce specialists only', text: 'Every profile is a consultant on the platform, searchable by cloud, certification, seniority and availability.' },
+          { icon: 'bi-calculator', title: 'Estimates that add up', text: 'Phases, team and budget reconcile line by line, and the documents are generated from the same figures.' },
+          { icon: 'bi-kanban', title: 'One pipeline for every role', text: 'Applicants move through review, shortlist, interview and offer in one place.' },
+          PRIVACY_BENEFIT
+        ],
+        closing: {
+          heading: 'Ready to find your next Salesforce consultant?',
+          text: 'Browse public profiles, post a role, or scope the work first — browsing and posting cost nothing.',
+          cta: user && user.isCompany
+            ? { label: 'Post a role', href: '/jobs/new' }
+            : user ? { label: 'Browse talent', href: '/consultants' } : { label: 'Create your free company account', href: '/auth/register' }
+        }
       }
     });
   })
@@ -295,6 +385,30 @@ router.get(
 router.get('/about', (req, res) => {
   res.render('about', { title: 'About', legal });
 });
+
+/*
+ * The blog is the community's ARTICLES, not a second store of posts.
+ *
+ * Dynamics Hub's /blog is a page with one article written into the template. Here an article
+ * is already a first-class post kind, written by people who work on the platform and listed
+ * by the one builder every post list uses — so "Blog" is that list under the name visitors
+ * look for, and it can never be an empty page waiting for somebody to edit a template.
+ */
+router.get(
+  '/blog',
+  asyncHandler(async (req, res) => {
+    const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 12 });
+    const { rows, total } = await Post.browse({ kind: 'article' }, { limit, offset, sort: 'newest' });
+    res.render('blog', {
+      title: 'Blog',
+      posts: rows,
+      postKind,
+      toPlainText,
+      pagination: paginationMeta({ page, perPage, total }),
+      pageUrl: (p) => pageUrl('/blog', req.query, p)
+    });
+  })
+);
 
 router.get('/faq', (req, res) => {
   res.render('faq', { title: 'Frequently asked questions' });

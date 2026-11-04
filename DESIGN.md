@@ -71,6 +71,9 @@ Rules:
 ## Page anatomy
 
 - **Landing pages** (home) open with the full `.hero`.
+- **Hub landing pages** (`/consultant-hub`, `/companies-hub`) open with `.hub-hero`: navy
+  `--hero-gradient` with white text, the intro and both actions inside it, and close with a
+  benefits row and a `.hub-closing` call to action before the footer.
 - **Every other page** opens with the `partials/page-header` band:
   ```ejs
   <%- include('../partials/page-header', {

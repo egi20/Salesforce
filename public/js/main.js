@@ -36,7 +36,6 @@
       .catch(function () { /* decorative only */ });
   }
 
-  fillBadge('notifCount', '/notifications/unread-count');
   fillBadge('messageCount', '/messages/unread-count');
 
   /**
@@ -185,6 +184,255 @@
     isCurrent.addEventListener('change', syncCurrent);
     syncCurrent();
   }
+
+  /**
+   * Navbar search: the <details> element already opens and closes the panel without any
+   * JavaScript. This only adds convenience on top — focus the field on open, and close on
+   * an outside click, so it behaves like the dropdowns next to it.
+   */
+  var navSearch = document.querySelector('.nav-search');
+  if (navSearch) {
+    var navSearchInput = navSearch.querySelector('.nav-search-input');
+    navSearch.addEventListener('toggle', function () {
+      if (navSearch.open && navSearchInput) navSearchInput.focus();
+    });
+    document.addEventListener('click', function (event) {
+      if (navSearch.open && !navSearch.contains(event.target)) navSearch.open = false;
+    });
+  }
+
+  /**
+   * Account menu: recent notifications are fetched once when the menu first opens, not on
+   * every page render — the same reasoning as the unread badge, just for a panel instead
+   * of a count. Notification titles can contain another account's chosen display name, so
+   * they are set with textContent, never innerHTML.
+   */
+  var accountMenuToggle = document.querySelector('#accountMenu')
+    ? document.querySelector('#accountMenu').closest('.dropdown')
+    : null;
+  if (accountMenuToggle) {
+    var summaryLoaded = false;
+    accountMenuToggle.addEventListener('show.bs.dropdown', function () {
+      if (summaryLoaded) return;
+      summaryLoaded = true;
+      apiFetch('/dashboard/nav-summary')
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (!data || !data.success) return;
+
+          var list = document.getElementById('accountMenuNotifications');
+          if (!list || !data.notifications || data.notifications.length === 0) return;
+          list.textContent = '';
+          data.notifications.forEach(function (n) {
+            var item = document.createElement('a');
+            item.className = 'account-menu-notif-item' + (n.unread ? ' is-unread' : '');
+            item.href = typeof n.link === 'string' && n.link.charAt(0) === '/' ? n.link : '/notifications';
+            item.textContent = n.title;
+            list.appendChild(item);
+          });
+        })
+        .catch(function () {
+          summaryLoaded = false; /* decorative only, but allow a retry on next open */
+        });
+    });
+  }
+
+  /**
+   * Consultant profile: photo change/remove and "Import from CV" all go through fetch
+   * rather than a form submit, because a `<form>` cannot legally nest inside the profile
+   * form that already wraps this card. A photo change reloads the page afterwards — the
+   * server still sets the usual flash message, which the reload then shows, same as a
+   * normal form post would.
+   */
+  var changePhotoBtn = document.getElementById('changePhotoBtn');
+  var photoFile = document.getElementById('photoFile');
+  if (changePhotoBtn && photoFile) {
+    changePhotoBtn.addEventListener('click', function () { photoFile.click(); });
+    photoFile.addEventListener('change', function () {
+      if (!photoFile.files || !photoFile.files[0]) return;
+      var data = new FormData();
+      data.append('photo', photoFile.files[0]);
+      changePhotoBtn.disabled = true;
+      apiFetch('/profile/consultant/photo', { method: 'POST', body: data })
+        .then(function () { window.location.reload(); })
+        .catch(function () { changePhotoBtn.disabled = false; });
+    });
+  }
+
+  var removePhotoBtn = document.getElementById('removePhotoBtn');
+  if (removePhotoBtn) {
+    removePhotoBtn.addEventListener('click', function () {
+      removePhotoBtn.disabled = true;
+      apiFetch('/profile/consultant/photo/remove', { method: 'POST' })
+        .then(function () { window.location.reload(); })
+        .catch(function () { removePhotoBtn.disabled = false; });
+    });
+  }
+
+  var importCvBtn = document.getElementById('importCvBtn');
+  var cvImportFile = document.getElementById('cvImportFile');
+  var cvImportStatus = document.getElementById('cvImportStatus');
+  if (importCvBtn && cvImportFile) {
+    importCvBtn.addEventListener('click', function () { cvImportFile.click(); });
+    cvImportFile.addEventListener('change', function () {
+      if (!cvImportFile.files || !cvImportFile.files[0]) return;
+      var data = new FormData();
+      data.append('cv', cvImportFile.files[0]);
+      importCvBtn.disabled = true;
+      var originalLabel = importCvBtn.innerHTML;
+      importCvBtn.textContent = 'Reading…';
+
+      var setStatus = function (text, isError) {
+        if (!cvImportStatus) return;
+        cvImportStatus.textContent = text;
+        cvImportStatus.classList.remove('d-none');
+        cvImportStatus.classList.toggle('text-danger', Boolean(isError));
+      };
+      var setValue = function (id, value) {
+        var el = document.getElementById(id);
+        if (el && value) el.value = value;
+      };
+
+      apiFetch('/profile/consultant/import-cv', { method: 'POST', body: data })
+        .then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
+        .then(function (result) {
+          if (!result.ok || !result.body.success) {
+            setStatus((result.body && result.body.error) || 'That file could not be imported.', true);
+            return;
+          }
+          var f = result.body.fields;
+          setValue('given_name', f.given_name);
+          setValue('family_name', f.family_name);
+          setValue('phone', f.phone);
+          setValue('headline', f.headline);
+          setValue('city', f.city);
+          setValue('bio', f.bio);
+          if (f.years_experience) setValue('years_experience', f.years_experience);
+
+          var countrySelect = document.getElementById('country');
+          if (countrySelect && f.country) {
+            var wanted = f.country.trim().toLowerCase();
+            for (var i = 0; i < countrySelect.options.length; i += 1) {
+              if (countrySelect.options[i].text.trim().toLowerCase() === wanted) {
+                countrySelect.selectedIndex = i;
+                break;
+              }
+            }
+          }
+
+          var skillsInput = document.getElementById('skills');
+          if (skillsInput && f.skills && f.skills.length) {
+            var existing = skillsInput.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+            var merged = existing.slice();
+            f.skills.forEach(function (s) {
+              if (merged.indexOf(s) === -1) merged.push(s);
+            });
+            skillsInput.value = merged.join(', ');
+          }
+
+          setStatus('Imported. Review the fields below, then save.', false);
+        })
+        .catch(function () { setStatus('That file could not be imported.', true); })
+        .finally(function () {
+          importCvBtn.disabled = false;
+          importCvBtn.innerHTML = originalLabel;
+          cvImportFile.value = '';
+        });
+    });
+  }
+
+  /*
+   * The job board's filters apply as soon as one changes. The Apply button stays for the
+   * no-script case and for the rate box, which applies on change (blur or Enter) rather than
+   * on every keystroke — a request per digit typed is a request per digit typed.
+   * Controls tied to the form by `form="jobFilters"` (the sort select) apply too.
+   */
+  var autoForm = document.querySelector('form[data-auto-apply]');
+  if (autoForm) {
+    var autoSubmit = function (event) {
+      var t = event.target;
+      if (!t || t.type === 'search' || t.hasAttribute('data-filter-list')) return;
+      if (t.form !== autoForm) return;
+      autoForm.requestSubmit ? autoForm.requestSubmit() : autoForm.submit();
+    };
+    document.addEventListener('change', autoSubmit);
+  }
+
+  /* Controls that exist only for the no-script case (an Apply button) go when scripting runs. */
+  document.querySelectorAll('[data-no-script-only]').forEach(function (el) { el.remove(); });
+
+  /*
+   * A sticky sidebar taller than the window: stick it by its BOTTOM edge instead, so it
+   * scrolls with the page until its end is visible and then holds. Shorter than the window,
+   * the CSS `top` applies unchanged.
+   */
+  var stickySidebar = document.querySelector('[data-sticky-sidebar]');
+  if (stickySidebar) {
+    var placeSidebar = function () {
+      stickySidebar.style.top = '';
+      if (window.innerWidth < 992) return;
+      var room = window.innerHeight - stickySidebar.offsetHeight - 16;
+      var cssTop = parseFloat(getComputedStyle(stickySidebar).top) || 0;
+      if (room < cssTop) stickySidebar.style.top = room + 'px';
+    };
+    placeSidebar();
+    window.addEventListener('resize', placeSidebar);
+    stickySidebar.addEventListener('toggle', placeSidebar, true);
+  }
+
+  /* Fold a disclosure that is open by default (for the no-script case) on a narrow screen. */
+  document.querySelectorAll('details[data-fold-below]').forEach(function (d) {
+    if (window.innerWidth < Number(d.getAttribute('data-fold-below'))) d.open = false;
+  });
+
+  /* Narrow a long checkbox list as you type; a group with nothing left hides its heading. */
+  document.querySelectorAll('input[data-filter-list]').forEach(function (input) {
+    var list = document.querySelector(input.getAttribute('data-filter-list'));
+    if (!list) return;
+    input.addEventListener('input', function () {
+      var term = input.value.trim().toLowerCase();
+      list.querySelectorAll('[data-filter-group]').forEach(function (group) {
+        var any = false;
+        group.querySelectorAll('[data-filter-item]').forEach(function (item) {
+          var match = !term || item.textContent.toLowerCase().indexOf(term) !== -1;
+          item.hidden = !match;
+          if (match) any = true;
+        });
+        group.hidden = !any;
+      });
+    });
+  });
+
+  /*
+   * Save / unsave a job from a card without leaving the board. Without scripting the form
+   * posts and the route redirects back to the same filtered page.
+   */
+  document.querySelectorAll('form[data-save-job]').forEach(function (form) {
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var savedField = form.querySelector('input[name="saved"]');
+      var button = form.querySelector('.btn-save');
+      var icon = button.querySelector('.bi');
+      button.disabled = true;
+      apiFetch(form.action, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ saved: savedField.value })
+      })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (!data || !data.success) { form.submit(); return; }
+          savedField.value = data.saved ? 'true' : 'false';
+          button.classList.toggle('is-saved', data.saved);
+          button.setAttribute('aria-pressed', data.saved ? 'true' : 'false');
+          button.setAttribute('aria-label', data.saved ? 'Remove from saved jobs' : 'Save this job');
+          button.title = data.saved ? 'Saved' : 'Save';
+          icon.className = 'bi ' + (data.saved ? 'bi-bookmark-star-fill' : 'bi-bookmark-star');
+        })
+        .catch(function () { form.submit(); })
+        .finally(function () { button.disabled = false; });
+    });
+  });
 
   /*
    * Copy-to-clipboard for any button carrying `data-copy` — a sales agent's link, on their

@@ -3,6 +3,7 @@
 const multer = require('multer');
 const config = require('../config/config');
 const { returnTo } = require('../utils/returnTo');
+const { ACCEPTED_MIME: CV_MIME, ACCEPTED_EXT: CV_EXT, MAX_DOCUMENT_BYTES } = require('../config/cvImport');
 const { verifyDeferred, csrfError } = require('./csrf');
 const { SCREENSHOTS } = require('../config/issues');
 
@@ -16,7 +17,8 @@ const UPLOAD_PATHS = Object.freeze([
   /^\/profile\/consultant\/photo$/,
   /^\/profile\/company\/logo$/,
   /^\/admin\/stories\/\d+\/photo$/,
-  /^\/report-issue$/
+  /^\/report-issue$/,
+  /^\/profile\/consultant\/import-cv$/
 ]);
 
 function isUploadPath(req) {
@@ -80,6 +82,45 @@ function singleImage(fieldName) {
   });
 }
 
+/**
+ * The CV a consultant uploads for "Import from CV". Same memory-only, never-touches-disk
+ * rule as an image — and the same reasoning: this file is read once, for one request, and
+ * nothing about it is kept afterwards.
+ */
+function cvFilter(req, file, cb) {
+  if (!CV_MIME.has(file.mimetype)) {
+    return cb(new Error('Only a .docx or .txt file is accepted.'));
+  }
+  if (!CV_EXT.test(file.originalname || '')) {
+    return cb(new Error('That file extension is not accepted.'));
+  }
+  return cb(null, true);
+}
+
+const cvUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_DOCUMENT_BYTES, files: 1 },
+  fileFilter: cvFilter
+});
+
+/**
+ * Errors here answer JSON, not a flash + redirect — the caller is a fetch() from the
+ * profile form, not a full-page form post.
+ */
+function singleCv(fieldName) {
+  const handler = cvUpload.single(fieldName);
+  return (req, res, next) =>
+    handler(req, res, (err) => {
+      if (!verifyDeferred(req)) return next(csrfError());
+      if (!err) return next();
+      const message =
+        err.code === 'LIMIT_FILE_SIZE'
+          ? `That file is too large. The limit is ${Math.round(MAX_DOCUMENT_BYTES / 1024 / 1024)} MB.`
+          : err.message;
+      return res.status(400).json({ success: false, error: message });
+    });
+}
+
 /*
  * Screenshots on /report-issue (migration 034): a few images, each bounded. Images only —
  * every one is re-encoded by sharp before it is stored, and a PDF or an office document
@@ -110,4 +151,4 @@ function screenshots(fieldName) {
   });
 }
 
-module.exports = { singleImage, imageUpload, screenshots, isUploadPath, UPLOAD_PATHS };
+module.exports = { singleImage, imageUpload, singleCv, screenshots, isUploadPath, UPLOAD_PATHS };

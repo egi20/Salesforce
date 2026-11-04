@@ -120,8 +120,9 @@ then depends entirely on the buyer landing back on the success page.
 |---|---|
 | `npm run setup` | create the database, migrate, seed — one-off, first run |
 | `npm run db:create` | create the configured database if it does not exist |
+| `npm run db:reset` | drop and rebuild the development database with demo data — refuses in production; needs no mysql client |
 | `npm start` | migrate, then serve |
-| `npm run dev` | serve with nodemon |
+| `npm run dev` | migrate, then serve with nodemon |
 | `npm run migrate` | apply pending migrations |
 | `npm run migrate:status` | list applied and pending migrations |
 | `npm run sync:categories` | bring community categories into line with the config |

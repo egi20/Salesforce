@@ -2390,3 +2390,15 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
 .country-suggest button:hover, .country-suggest button:focus-visible { background: rgba(1, 118, 211, 0.08); }
 .country-suggest-empty { padding: 0.45rem 0.75rem; color: var(--text-light); font-size: 0.9rem; }
 [data-country-eu].active { background: var(--primary-blue); color: #fff; }
+
+/* Build your profile: progress text on the left, "Import from CV" held on the right. */
+.profile-progress-head { display: flex; align-items: flex-start; gap: 1rem; }
+.profile-progress-text { flex: 1 1 auto; min-width: 0; }
+.profile-progress-actions { flex: 0 0 auto; text-align: right; }
+@media (max-width: 575.98px) {
+  .profile-progress-head { flex-direction: column; gap: 0.75rem; }
+  .profile-progress-actions { width: 100%; text-align: left; }
+  .profile-progress-actions .btn { width: 100%; }
+}
+.profile-progress-actions p { max-width: 16rem; margin-left: auto; }
+@media (max-width: 575.98px) { .profile-progress-actions p { max-width: none; } }

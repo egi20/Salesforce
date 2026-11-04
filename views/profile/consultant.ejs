@@ -79,8 +79,16 @@
 
   <div class="glass-card mb-3">
     <div class="card-body">
-      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-2">
-        <div>
+      <%
+        /*
+         * Two columns that never wrap into each other: the text takes what is left and may
+         * break onto more lines, the import button keeps its place on the right. With
+         * flex-wrap the button dropped under a long "To be listed: …" line and sat on the
+         * left. On a phone it takes its own full-width row (.profile-progress-actions).
+         */
+      %>
+      <div class="profile-progress-head mb-2">
+        <div class="profile-progress-text">
           <h2 class="h6 mb-1">Profile <%= profile.completeness %>% complete<% if (step) { %> — <%= step.label %> to reach <%= Math.min(100, profile.completeness + step.gain) %>%<% } %></h2>
           <p class="small mb-0">
             <% if (profile.is_public) { %>
@@ -94,7 +102,7 @@
             <% } %>
           </p>
         </div>
-        <div class="text-lg-end">
+        <div class="profile-progress-actions">
           <button class="btn btn-primary btn-sm" type="button" id="importCvBtn"><i class="bi bi-magic"></i> Import from CV</button>
           <p class="small text-muted-2 mb-0 mt-1">.docx or .txt — you check everything before it is saved</p>
         </div>

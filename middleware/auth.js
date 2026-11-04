@@ -63,7 +63,7 @@ function isConsultant(req, res, next) {
   if (user.isConsultant) return next();
   // Sent to where the role is added rather than to the home page: "Build Profile" from an
   // account without the role used to land on an empty dashboard with nothing to act on.
-  return denyRole(req, res, 'That area is for consultant profiles. Add the consultant role here to set one up.', '/profile/settings#roles');
+  return denyRole(req, res, 'That area is for consultant profiles. Add the consultant role to set up a profile.', '/profile/settings');
 }
 
 function isCompany(req, res, next) {

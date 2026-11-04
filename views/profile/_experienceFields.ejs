@@ -1,0 +1,25 @@
+<%
+  /* The experience fields, for Add (formId expAddForm, empty item) and Edit (expEdit-<id>). */
+  const d = (v) => (v ? new Date(v).toISOString().slice(0, 10) : '');
+  const uid = formId;
+%>
+<div class="row g-2 mt-1">
+  <div class="col-md-6"><label class="form-label small" for="<%= uid %>-company">Company <span class="req">*</span></label>
+    <input class="form-control form-control-sm" id="<%= uid %>-company" name="company" form="<%= formId %>" maxlength="180" required value="<%= item.company || '' %>"></div>
+  <div class="col-md-6"><label class="form-label small" for="<%= uid %>-title">Role</label>
+    <input class="form-control form-control-sm" id="<%= uid %>-title" name="title" form="<%= formId %>" maxlength="180" value="<%= item.title || '' %>" placeholder="e.g. Salesforce Architect"></div>
+  <div class="col-md-6"><label class="form-label small" for="<%= uid %>-loc">Location</label>
+    <input class="form-control form-control-sm" id="<%= uid %>-loc" name="location" form="<%= formId %>" maxlength="120" value="<%= item.location || '' %>"></div>
+  <div class="col-6 col-md-3"><label class="form-label small" for="<%= uid %>-start">Start <span class="req">*</span></label>
+    <input class="form-control form-control-sm" id="<%= uid %>-start" name="started_on" type="date" form="<%= formId %>" required value="<%= d(item.started_on) %>"></div>
+  <div class="col-6 col-md-3"><label class="form-label small" for="<%= uid %>-end">End</label>
+    <input class="form-control form-control-sm" id="<%= uid %>-end" name="ended_on" type="date" form="<%= formId %>" value="<%= d(item.ended_on) %>"></div>
+  <div class="col-12">
+    <div class="form-check mb-0">
+      <input class="form-check-input" type="checkbox" name="is_current" id="<%= uid %>-current" form="<%= formId %>" <%= item.is_current ? 'checked' : '' %>>
+      <label class="form-check-label small" for="<%= uid %>-current">Current role</label>
+    </div>
+  </div>
+  <div class="col-12"><label class="form-label small" for="<%= uid %>-desc">Description</label>
+    <textarea class="form-control form-control-sm" id="<%= uid %>-desc" name="description" form="<%= formId %>" rows="3"><%= item.description ? toPlainText(item.description) : '' %></textarea></div>
+</div>

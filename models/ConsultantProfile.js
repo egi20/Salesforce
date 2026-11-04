@@ -6,7 +6,8 @@ const { isValidRole } = require('../config/roleTaxonomy');
 const { isValidFamily } = require('../config/cloudFamilies');
 
 const COUNTRY_CODES = new Set(require('../config/all-countries.json').map((c) => c.code));
-const LANGUAGE_LEVELS = Object.freeze(['basic', 'conversational', 'professional', 'native']);
+// Basic / Fluent / Native, the levels the spec names (migration 037 maps the older four).
+const LANGUAGE_LEVELS = Object.freeze(['basic', 'fluent', 'native']);
 const SKILL_LEVELS = Object.freeze(['familiar', 'proficient', 'expert']);
 
 /**
@@ -27,6 +28,17 @@ const COMPLETENESS_FIELDS = [
 ];
 
 const MIN_COMPLETENESS_TO_PUBLISH = 60;
+
+/*
+ * Where a newly added project or experience goes: after the last one the owner arranged, or
+ * at 0 (date order) while nothing has been arranged yet. `table` is one of two fixed names.
+ */
+async function nextSortOrder(table, userId) {
+  const [[{ top }]] = await promisePool.query(`SELECT COALESCE(MAX(sort_order), 0) AS top FROM ${table} WHERE user_id = ?`, [userId]);
+  // Number(): MariaDB hands COALESCE(MAX(..)) back as a string, and "5" + 1 is "51".
+  const n = Number(top) || 0;
+  return n === 0 ? 0 : n + 1;
+}
 
 /*
  * What a profile must state before it can be LISTED, beyond the completeness floor: a role
@@ -416,7 +428,7 @@ class ConsultantProfile {
 
   static async listExperiences(userId) {
     const [rows] = await promisePool.query(
-      'SELECT * FROM consultant_work_experiences WHERE user_id = ? ORDER BY is_current DESC, started_on DESC',
+      'SELECT * FROM consultant_work_experiences WHERE user_id = ? ORDER BY sort_order, is_current DESC, started_on DESC, id',
       [userId]
     );
     return rows;
@@ -424,10 +436,10 @@ class ConsultantProfile {
 
   static async addExperience(userId, exp) {
     await promisePool.query(
-      `INSERT INTO consultant_work_experiences (user_id, company, title, location, started_on, ended_on, is_current, description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, exp.company, exp.title, exp.location || null, exp.startedOn, exp.isCurrent ? null : exp.endedOn || null,
-        exp.isCurrent ? 1 : 0, exp.description || null]
+      `INSERT INTO consultant_work_experiences (user_id, sort_order, company, title, location, started_on, ended_on, is_current, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, await nextSortOrder('consultant_work_experiences', userId), exp.company, exp.title || '', exp.location || null,
+        exp.startedOn, exp.isCurrent ? null : exp.endedOn || null, exp.isCurrent ? 1 : 0, exp.description || null]
     );
     await ConsultantProfile.recomputeCompleteness(userId);
   }
@@ -452,7 +464,7 @@ class ConsultantProfile {
   static async listProjects(userId) {
     const [rows] = await promisePool.query(
       `SELECT * FROM consultant_projects WHERE user_id = ?
-        ORDER BY ended_on IS NULL DESC, ended_on DESC, started_on DESC`,
+        ORDER BY sort_order, ended_on IS NULL DESC, ended_on DESC, started_on DESC, id`,
       [userId]
     );
     return rows;
@@ -460,10 +472,11 @@ class ConsultantProfile {
 
   static async addProject(userId, project) {
     await promisePool.query(
-      `INSERT INTO consultant_projects (user_id, name, client, cloud, role, started_on, ended_on, is_current, description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO consultant_projects (user_id, sort_order, name, client, cloud, role, started_on, ended_on, is_current, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
+        await nextSortOrder('consultant_projects', userId),
         project.name,
         project.client || null,
         project.cloud || null,
@@ -514,7 +527,7 @@ ConsultantProfile.setClouds = async function setClouds(userId, families) {
 ConsultantProfile.listLanguages = async function listLanguages(userId) {
   const [rows] = await promisePool.query(
     `SELECT language, level FROM consultant_languages WHERE user_id = ?
-      ORDER BY FIELD(level, 'native', 'professional', 'conversational', 'basic'), language`,
+      ORDER BY FIELD(level, 'native', 'fluent', 'basic'), language`,
     [userId]
   );
   return rows;
@@ -549,5 +562,84 @@ ConsultantProfile.listingProblems = listingProblems;
 ConsultantProfile.nextSteps = nextSteps;
 ConsultantProfile.LANGUAGE_LEVELS = LANGUAGE_LEVELS;
 ConsultantProfile.SKILL_LEVELS = SKILL_LEVELS;
+
+/*
+ * EDITING AND ORDERING projects and experience.
+ *
+ * Ownership is part of every WHERE: an id from somebody else's list updates nothing. The
+ * order is an explicit `sort_order` (migration 037); rows that have never been moved all
+ * carry 0 and fall back to the date order, so the FIRST move renumbers the whole list in the
+ * order the owner was looking at, and from then on the numbers are the order.
+ */
+const ENTRY_TABLES = Object.freeze({ projects: 'consultant_projects', experience: 'consultant_work_experiences' });
+
+function entryTable(kind) {
+  if (!Object.prototype.hasOwnProperty.call(ENTRY_TABLES, kind)) throw new Error(`No entry list "${kind}"`);
+  return ENTRY_TABLES[kind];
+}
+
+async function orderedIds(conn, kind, userId) {
+  const listSql = kind === 'projects'
+    ? 'SELECT id FROM consultant_projects WHERE user_id = ? ORDER BY sort_order, ended_on IS NULL DESC, ended_on DESC, started_on DESC, id FOR UPDATE'
+    : 'SELECT id FROM consultant_work_experiences WHERE user_id = ? ORDER BY sort_order, is_current DESC, started_on DESC, id FOR UPDATE';
+  const [rows] = await conn.query(listSql, [userId]);
+  return rows.map((r) => r.id);
+}
+
+async function writeOrder(conn, kind, userId, ids) {
+  const table = entryTable(kind);
+  for (let i = 0; i < ids.length; i += 1) {
+    // eslint-disable-next-line no-await-in-loop -- a handful of rows, inside one transaction
+    await conn.query(`UPDATE ${table} SET sort_order = ? WHERE id = ? AND user_id = ?`, [i + 1, ids[i], userId]);
+  }
+}
+
+ConsultantProfile.moveEntry = async function moveEntry(kind, userId, id, direction) {
+  entryTable(kind);
+  return withTransaction(async (conn) => {
+    const ids = await orderedIds(conn, kind, userId);
+    const at = ids.indexOf(Number(id));
+    const to = direction === 'up' ? at - 1 : at + 1;
+    if (at < 0 || to < 0 || to >= ids.length) return false;
+    [ids[at], ids[to]] = [ids[to], ids[at]];
+    await writeOrder(conn, kind, userId, ids);
+    return true;
+  });
+};
+
+/** A whole new order from a drag. Refused unless it is exactly the owner's ids, rearranged. */
+ConsultantProfile.setEntryOrder = async function setEntryOrder(kind, userId, requested) {
+  entryTable(kind);
+  return withTransaction(async (conn) => {
+    const ids = await orderedIds(conn, kind, userId);
+    const wanted = (requested || []).map(Number);
+    const same = wanted.length === ids.length && new Set(wanted).size === ids.length && wanted.every((x) => ids.includes(x));
+    if (!same) return false;
+    await writeOrder(conn, kind, userId, wanted);
+    return true;
+  });
+};
+
+ConsultantProfile.updateProject = async function updateProject(userId, id, project) {
+  const [result] = await promisePool.query(
+    `UPDATE consultant_projects
+        SET name = ?, client = ?, cloud = ?, role = ?, started_on = ?, ended_on = ?, is_current = ?, description = ?
+      WHERE id = ? AND user_id = ?`,
+    [project.name, project.client || null, project.cloud || null, project.role || null, project.startedOn || null,
+      project.isCurrent ? null : project.endedOn || null, project.isCurrent ? 1 : 0, project.description || null, id, userId]
+  );
+  return result.affectedRows === 1;
+};
+
+ConsultantProfile.updateExperience = async function updateExperience(userId, id, exp) {
+  const [result] = await promisePool.query(
+    `UPDATE consultant_work_experiences
+        SET company = ?, title = ?, location = ?, started_on = ?, ended_on = ?, is_current = ?, description = ?
+      WHERE id = ? AND user_id = ?`,
+    [exp.company, exp.title || '', exp.location || null, exp.startedOn, exp.isCurrent ? null : exp.endedOn || null,
+      exp.isCurrent ? 1 : 0, exp.description || null, id, userId]
+  );
+  return result.affectedRows === 1;
+};
 
 module.exports = ConsultantProfile;

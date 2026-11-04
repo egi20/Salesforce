@@ -18,7 +18,8 @@ const UPLOAD_PATHS = Object.freeze([
   /^\/profile\/company\/logo$/,
   /^\/admin\/stories\/\d+\/photo$/,
   /^\/report-issue$/,
-  /^\/profile\/consultant\/import-cv$/
+  /^\/profile\/consultant\/import-cv$/,
+  /^\/profile\/consultant\/documents$/
 ]);
 
 function isUploadPath(req) {
@@ -151,4 +152,27 @@ function screenshots(fieldName) {
   });
 }
 
-module.exports = { singleImage, imageUpload, singleCv, screenshots, isUploadPath, UPLOAD_PATHS };
+/*
+ * A consultant's own CV or cover letter (migration 037). Held in memory only; the bytes are
+ * validated by utils/documentUpload.js before anything is stored. An upload problem is put on
+ * `req.uploadError` for the route to flash, the same way screenshots do, because this is a
+ * page form and the person should land back on the page with a reason.
+ */
+const documentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 10 }
+});
+
+function singleDocument(fieldName) {
+  const handler = documentUpload.single(fieldName);
+  return (req, res, next) => handler(req, res, (err) => {
+    if (!verifyDeferred(req)) return next(csrfError());
+    if (err) {
+      req.uploadError = err.code === 'LIMIT_FILE_SIZE' ? 'That file is too large. The limit is 5 MB.' : err.message;
+      req.file = null;
+    }
+    return next();
+  });
+}
+
+module.exports = { singleImage, imageUpload, singleCv, singleDocument, screenshots, isUploadPath, UPLOAD_PATHS };

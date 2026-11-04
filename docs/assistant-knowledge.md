@@ -36,7 +36,7 @@ An account can hold both roles at once.
 People name pages by the menu label they see, so these are the labels:
 
 - **Consultant Hub** — the hub page itself (`/consultant-hub`, every consultant tool on one
-  page), Find Jobs (`/jobs`), Build Profile (`/profile/consultant`, or sign-up
+  page), Find Jobs (`/jobs`), Build Profile (`/profile/settings`, or sign-up
   for a visitor), CV Generator (`/services/document-generator`).
 - **Companies Hub** — the hub page itself (`/companies-hub`, every hiring tool on one page),
   Browse Talent (`/consultants`), Get SOW Quote (`/quotes/new`), and the
@@ -71,10 +71,9 @@ People name pages by the menu label they see, so these are the labels:
 | `/community/new` | Write a post. |
 | `/messages` | Your conversations. Threads are anchored to an application or a specific role. |
 | `/dashboard` | Your home: applications, roles, saved jobs, activity. |
-| `/profile/consultant` | Build or edit your consultant profile. |
 | `/profile/company` | Build or edit your company profile. |
 | `/profile/company/template` | Document branding: your colours, letterhead and standard clauses. |
-| `/profile/settings` | Account settings, roles, password, LinkedIn verification. |
+| `/profile/settings` | "Build your profile": one page with sections for Basics, Salesforce (clouds, certifications, Trailhead), Work & rate, Projects & experience, Documents (upload a CV or cover letter as PDF or .docx — older .doc files are not accepted), Privacy, and Account (email, password, roles, LinkedIn, your data). "Import from CV" reads a .docx or .txt CV and shows what it found; nothing is kept until you tick it and save. "Preview public profile" shows the page as a signed-in company sees it. An account without the consultant role sees only the Account section and a button to add the role. `/profile/consultant` redirects here. |
 | `/payments` | What the two paid things cost. |
 | `/payments/history` | Your payments and invoices. |
 | `/referrals` | The referral scheme: get a link, see what it has earned, set payout details. |
@@ -93,7 +92,7 @@ People name pages by the menu label they see, so these are the labels:
 | `/search` | One box across jobs, consultants, companies, agencies and the community. |
 | `/services/staff-augmentation`, `/services/project-based`, `/services/managed-services` | The three shapes an engagement can take, and which one fits. Each ends at the consultant directory or the scope estimator. |
 | `/services/document-generator` | What the Hub generates: a quote becomes an SOW, work breakdown and deck; a profile becomes a CV and rate card. Nothing is stored. |
-| `/profile/consultant` | Where a consultant builds their profile. Three optional figures — a day rate, an hourly rate and the salary a permanent role would have to pay. None is calculated from another. One switch hides all three: the profile then reads "Rate on request" to everyone else, while the figures still drive match scores and the rate card. |
+| `/profile/settings` (Work & rate, Privacy) | Where a consultant sets their rates. Three optional figures — a day rate, an hourly rate and the salary a permanent role would have to pay. None is calculated from another. One switch hides all three: the profile then reads "Rate on request" to everyone else, while the figures still drive match scores and the rate card. A private profile is out of the directory, but a company the consultant applied to can still open the profile they were sent. |
 | `/admin/analytics` | Administrators: the site's own counts (visitors and sign-ups by country, the daily challenge, monthly growth), with screens for Google Analytics 4 and Cloudflare Web Analytics beside it where those are configured. |
 | `/admin/applications` | Superadmins only: the state of every application on the site — never its content — and how many have sat untouched. |
 | `/admin/tests` | An administrator's panel that makes real requests against this site's own routes and records what they answered. Admin accounts. |

@@ -1,5 +1,7 @@
 'use strict';
 
+const { availabilityLabel } = require('../../config/availability');
+
 const {
   Document,
   Packer,
@@ -142,7 +144,7 @@ function facts(dossier) {
     rows.push(['Working', dossier.willingToTravel ? `${dossier.workMode}, willing to travel` : dossier.workMode]);
   }
   if (dossier.availability && dossier.availability !== 'not_available') {
-    const when = dossier.availability.replace(/_/g, ' ');
+    const when = availabilityLabel(dossier.availability);
     rows.push(['Available', dossier.availableFrom ? `${when} (from ${dossier.availableFrom})` : when]);
   }
 

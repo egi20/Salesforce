@@ -1,11 +1,14 @@
-<%- include('../partials/layout-start') %>
-
-<%- include('../partials/page-header', { icon: 'bi-gear', heading: 'Account settings', sub: 'Your sign-in details and what you use the Hub for.' }) %>
-
-<section class="glass-section pb-5">
-<div class="container">
-  <%- include('../partials/flash') %>
-
+<%
+  /*
+   * The account half of "Build your profile": sign-in details, roles, password, LinkedIn and
+   * the data rights. It used to be its own page (/profile/settings); it is now the last
+   * section of the profile page, and the ONLY section an account without the consultant role
+   * sees. Every form in it is its own <form>, so this partial must never be rendered inside
+   * the profile form — the browser drops nested forms silently.
+   */
+%>
+<section class="profile-section mb-3" id="account" data-tab="account">
+  <h2 class="h5 mb-3">Account</h2>
   <% if (!user.email_verified) { %>
     <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2">
       <span>Your email address is not confirmed yet.</span>
@@ -20,7 +23,7 @@
     <div class="col-lg-6">
       <div class="glass-card mb-4">
         <div class="card-body">
-          <h2 class="h6 mb-3">Account</h2>
+          <h3 class="h6 mb-3">Sign-in details</h3>
           <dl class="row mb-0 small">
             <dt class="col-5 text-muted-2">Email</dt><dd class="col-7"><%= user.email %></dd>
             <dt class="col-5 text-muted-2">Member since</dt><dd class="col-7"><%= new Date(user.created_at).toISOString().slice(0, 10) %></dd>
@@ -195,7 +198,4 @@
       </div>
     </div></div>
   </div></div>
-</div>
 </section>
-
-<%- include('../partials/layout-end') %>

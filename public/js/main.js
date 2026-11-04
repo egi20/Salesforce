@@ -288,9 +288,173 @@
         cvImportStatus.classList.remove('d-none');
         cvImportStatus.classList.toggle('text-danger', Boolean(isError));
       };
-      var setValue = function (id, value) {
-        var el = document.getElementById(id);
-        if (el && value) el.value = value;
+
+      /*
+       * "Import from CV" never writes on its own: the result is laid out here as a list of
+       * ticked boxes, built from DOM nodes (the CV is untrusted text), and only what is still
+       * ticked when the consultant presses "Use selected" reaches the form or the server.
+       */
+      var review = document.getElementById('cvImportReview');
+      var el = function (tag, cls, text) {
+        var n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (text != null) n.textContent = text;
+        return n;
+      };
+      var month = function (d) { return d ? String(d).slice(0, 7) : ''; };
+      var period = function (e) { return [month(e.started_on), e.is_current ? 'present' : month(e.ended_on)].filter(Boolean).join(' – '); };
+      var tick = function (label, sub) {
+        var wrap = el('label', 'form-check d-flex gap-2 mb-1');
+        var box = el('input', 'form-check-input mt-1');
+        box.type = 'checkbox';
+        box.checked = true;
+        wrap.appendChild(box);
+        var body = el('span');
+        body.appendChild(el('span', 'fw-semibold', label));
+        if (sub) body.appendChild(el('span', 'd-block small text-muted-2', sub));
+        wrap.appendChild(body);
+        return { node: wrap, box: box };
+      };
+
+      var renderImportReview = function (f) {
+        if (!review) return;
+        while (review.firstChild) review.removeChild(review.firstChild);
+        review.className = 'cv-review glass-card mb-3';
+        var card = el('div', 'card-body');
+        review.appendChild(card);
+        card.appendChild(el('h3', 'h6 mb-1', 'Found in your CV'));
+        card.appendChild(el('p', 'small text-muted-2 mb-3', 'Nothing is saved yet. Untick anything that is wrong.'));
+        var picks = { fields: [], skills: [], projects: [], experience: [] };
+
+        var section = function (title) {
+          var s = el('div', 'mb-3');
+          s.appendChild(el('h4', 'small text-uppercase text-muted-2 mb-2', title));
+          card.appendChild(s);
+          return s;
+        };
+
+        var basics = [
+          ['given_name', 'First name'], ['family_name', 'Last name'], ['headline', 'Professional title'],
+          ['phone', 'Phone'], ['city', 'City'], ['country', 'Country'], ['years_experience', 'Years of experience'], ['bio', 'Bio']
+        ].filter(function (k) { return f[k[0]] !== null && f[k[0]] !== undefined && String(f[k[0]]).trim() !== ''; });
+        if (basics.length) {
+          var b = section('Basics');
+          basics.forEach(function (k) {
+            var t = tick(k[1], String(f[k[0]]));
+            b.appendChild(t.node);
+            picks.fields.push({ key: k[0], value: f[k[0]], box: t.box });
+          });
+        }
+        if (f.skills && f.skills.length) {
+          var sk = section('Skills');
+          var row = el('div', 'd-flex flex-wrap gap-2');
+          sk.appendChild(row);
+          f.skills.forEach(function (name) {
+            var t = tick(name);
+            t.node.classList.add('cv-review-chip');
+            row.appendChild(t.node);
+            picks.skills.push({ value: name, box: t.box });
+          });
+        }
+        if (f.experience && f.experience.length) {
+          var ex = section('Experience');
+          f.experience.forEach(function (e) {
+            var t = tick([e.title, e.company].filter(Boolean).join(' · '), [period(e), e.description].filter(Boolean).join(' — '));
+            ex.appendChild(t.node);
+            picks.experience.push({ value: e, box: t.box });
+          });
+        }
+        if (f.projects && f.projects.length) {
+          var pr = section('Projects');
+          f.projects.forEach(function (p) {
+            var t = tick([p.name, p.client].filter(Boolean).join(' · '), [period(p), p.description].filter(Boolean).join(' — '));
+            pr.appendChild(t.node);
+            picks.projects.push({ value: p, box: t.box });
+          });
+        }
+        if (!basics.length && !picks.skills.length && !picks.experience.length && !picks.projects.length) {
+          card.appendChild(el('p', 'mb-2', 'Nothing usable was found in that file.'));
+        }
+
+        var actions = el('div', 'd-flex flex-wrap gap-2');
+        var use = el('button', 'btn btn-primary btn-sm', 'Use selected');
+        use.type = 'button';
+        var discard = el('button', 'btn btn-outline-secondary btn-sm', 'Discard');
+        discard.type = 'button';
+        actions.appendChild(use);
+        actions.appendChild(discard);
+        card.appendChild(actions);
+        var note = el('p', 'small mb-0 mt-2');
+        card.appendChild(note);
+
+        discard.addEventListener('click', function () {
+          review.className = 'd-none';
+          if (cvImportStatus) cvImportStatus.classList.add('d-none');
+        });
+
+        use.addEventListener('click', function () {
+          var chosen = function (list) { return list.filter(function (p) { return p.box.checked; }); };
+          chosen(picks.fields).forEach(function (p) {
+            if (p.key === 'country') {
+              var countrySelect = document.getElementById('country');
+              if (!countrySelect) return;
+              var wanted = String(p.value).trim().toLowerCase();
+              for (var i = 0; i < countrySelect.options.length; i += 1) {
+                if (countrySelect.options[i].text.trim().toLowerCase() === wanted || countrySelect.options[i].value.toLowerCase() === wanted) {
+                  countrySelect.selectedIndex = i;
+                  countrySelect.dispatchEvent(new Event('change', { bubbles: true }));
+                  break;
+                }
+              }
+              return;
+            }
+            var input = document.getElementById(p.key);
+            if (input) {
+              input.value = p.value;
+              input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          });
+          if (window.sfAddSkillRow) {
+            var have = Array.prototype.map.call(document.querySelectorAll('input[name="skill_name"]'), function (i) {
+              return i.value.trim().toLowerCase();
+            });
+            chosen(picks.skills).forEach(function (p) {
+              var key = String(p.value).toLowerCase();
+              if (have.indexOf(key) !== -1) return;
+              window.sfAddSkillRow(p.value);
+              have.push(key);
+            });
+          }
+
+          var projects = chosen(picks.projects).map(function (p) { return p.value; });
+          var experience = chosen(picks.experience).map(function (p) { return p.value; });
+          var formNote = 'Fields filled in. Press Save to keep them.';
+          if (!projects.length && !experience.length) {
+            note.textContent = formNote;
+            use.disabled = true;
+            return;
+          }
+          use.disabled = true;
+          note.textContent = 'Adding projects and experience…';
+          apiFetch('/profile/consultant/import-entries', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projects: projects, experience: experience })
+          })
+            .then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
+            .then(function (res2) {
+              if (!res2.ok || !res2.body.success) throw new Error('refused');
+              note.textContent = 'Added ' + res2.body.projects + ' project(s) and ' + res2.body.experience +
+                ' experience entr' + (res2.body.experience === 1 ? 'y' : 'ies') + '. ' + formNote +
+                ' They appear under Projects & experience after the page reloads.';
+            })
+            .catch(function () {
+              use.disabled = false;
+              note.textContent = 'Projects and experience could not be added. Please try again.';
+              note.classList.add('text-danger');
+            });
+        });
+        review.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       };
 
       apiFetch('/profile/consultant/import-cv', { method: 'POST', body: data })
@@ -300,40 +464,8 @@
             setStatus((result.body && result.body.error) || 'That file could not be imported.', true);
             return;
           }
-          var f = result.body.fields;
-          setValue('given_name', f.given_name);
-          setValue('family_name', f.family_name);
-          setValue('phone', f.phone);
-          setValue('headline', f.headline);
-          setValue('city', f.city);
-          setValue('bio', f.bio);
-          if (f.years_experience) setValue('years_experience', f.years_experience);
-
-          var countrySelect = document.getElementById('country');
-          if (countrySelect && f.country) {
-            var wanted = f.country.trim().toLowerCase();
-            for (var i = 0; i < countrySelect.options.length; i += 1) {
-              if (countrySelect.options[i].text.trim().toLowerCase() === wanted) {
-                countrySelect.selectedIndex = i;
-                break;
-              }
-            }
-          }
-
-          // Skills are rows now: fill the empty ones first, add rows for the rest, and never
-          // duplicate a skill already listed.
-          if (f.skills && f.skills.length && window.sfAddSkillRow) {
-            var have = Array.prototype.map.call(document.querySelectorAll('input[name="skill_name"]'), function (i) {
-              return i.value.trim().toLowerCase();
-            });
-            f.skills.forEach(function (name) {
-              if (have.indexOf(String(name).toLowerCase()) !== -1) return;
-              window.sfAddSkillRow(name);
-              have.push(String(name).toLowerCase());
-            });
-          }
-
-          setStatus('Imported. Review the fields below, then save.', false);
+          renderImportReview(result.body.fields);
+          setStatus('Read your CV. Tick what you want to keep, then press "Use selected".', false);
         })
         .catch(function () { setStatus('That file could not be imported.', true); })
         .finally(function () {
@@ -428,14 +560,19 @@
           }
         }
       });
-      if (currentTab) currentTab.value = name;
+      if (currentTab && name !== 'account') currentTab.value = name;
+      // Account has its own forms; the profile's Save bar would only confuse there.
+      document.body.setAttribute('data-active-tab', name);
       if (focus) {
         var heading = document.getElementById(name).querySelector('h2');
         if (heading) { heading.setAttribute('tabindex', '-1'); heading.focus({ preventScroll: true }); }
       }
     };
     document.body.classList.add('profile-tabs-ready');
-    showTab((location.hash || '').slice(1), false);
+    // No #section in the link: open the first section that is not done yet.
+    var firstOpen = (document.querySelector('[data-first-open]') || {}).getAttribute ? document.querySelector('[data-first-open]').getAttribute('data-first-open') : null;
+    showTab((location.hash || '').slice(1) || firstOpen, false);
+    window.addEventListener('hashchange', function () { showTab(location.hash.slice(1), false); });
     tabLinks.forEach(function (a) {
       a.addEventListener('click', function (event) {
         event.preventDefault();
@@ -500,8 +637,8 @@
     });
     profileForm.addEventListener('submit', function () { dirty = false; });
     // Adding a row or switching listing reloads the page: say so if the profile has edits.
-    ['certAddForm', 'projAddForm', 'expAddForm', 'removeForm', 'visibilityForm'].forEach(function (id) {
-      var f = document.getElementById(id);
+    Array.prototype.forEach.call(document.querySelectorAll('form[id]'), function (f) {
+      if (f === profileForm || !/^(certAddForm|projAddForm|expAddForm|removeForm|visibilityForm|docUploadForm|projEdit-|expEdit-)/.test(f.id)) return;
       if (f) f.addEventListener('submit', function (event) {
         if (dirty && !window.confirm('Save your profile changes first? Adding this reloads the page and they would be lost.\n\nOK = continue anyway')) {
           event.preventDefault();
@@ -520,6 +657,73 @@
         if (input.form) { if (input.form.requestSubmit) input.form.requestSubmit(); else input.form.submit(); }
       });
     });
+    // A link that opens a section and puts the cursor in one of its fields.
+    document.querySelectorAll('[data-focus]').forEach(function (a) {
+      a.addEventListener('click', function (event) {
+        var target = document.getElementById(a.getAttribute('data-focus'));
+        var sec = target && target.closest('[data-tab]');
+        if (!sec) return;
+        event.preventDefault();
+        showTab(sec.getAttribute('data-tab'), false);
+        target.focus();
+      });
+    });
+
+    document.querySelectorAll('[data-char-count]').forEach(function (field) {
+      var out = document.querySelector(field.getAttribute('data-char-count'));
+      if (!out) return;
+      field.addEventListener('input', function () { out.textContent = field.value.length; });
+    });
+
+    /*
+     * Drag to reorder projects and experience. The handle makes its row draggable only while
+     * it is held, so text inside the row can still be selected. The new order is posted as
+     * the full list of ids; the server refuses anything that is not exactly the owner's
+     * entries rearranged, and on any failure the page reloads to the saved order. The
+     * up/down buttons do the same one step at a time, without scripting.
+     */
+    document.querySelectorAll('[data-sortable]').forEach(function (list) {
+      var dragged = null;
+      list.addEventListener('mousedown', function (event) {
+        var handle = event.target.closest('[data-sortable-handle]');
+        if (handle) handle.closest('[data-sortable-item]').setAttribute('draggable', 'true');
+      });
+      list.addEventListener('dragstart', function (event) {
+        dragged = event.target.closest('[data-sortable-item]');
+        if (!dragged) return;
+        dragged.classList.add('is-dragging');
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', dragged.getAttribute('data-id'));
+      });
+      list.addEventListener('dragover', function (event) {
+        var over = event.target.closest('[data-sortable-item]');
+        if (!dragged || !over || over === dragged) return;
+        event.preventDefault();
+        list.querySelectorAll('.is-drop-target').forEach(function (el) { el.classList.remove('is-drop-target'); });
+        over.classList.add('is-drop-target');
+      });
+      list.addEventListener('drop', function (event) {
+        var over = event.target.closest('[data-sortable-item]');
+        if (!dragged || !over || over === dragged) return;
+        event.preventDefault();
+        var items = Array.prototype.slice.call(list.querySelectorAll('[data-sortable-item]'));
+        if (items.indexOf(dragged) < items.indexOf(over)) over.after(dragged); else over.before(dragged);
+        var body = new URLSearchParams();
+        list.querySelectorAll('[data-sortable-item]').forEach(function (el) { body.append('ids', el.getAttribute('data-id')); });
+        apiFetch(list.getAttribute('data-sortable'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body
+        }).then(function (r) { if (!r.ok) window.location.reload(); })
+          .catch(function () { window.location.reload(); });
+      });
+      list.addEventListener('dragend', function () {
+        list.querySelectorAll('.is-drop-target').forEach(function (el) { el.classList.remove('is-drop-target'); });
+        if (dragged) { dragged.classList.remove('is-dragging'); dragged.removeAttribute('draggable'); }
+        dragged = null;
+      });
+    });
+
     document.querySelectorAll('[data-click]').forEach(function (a) {
       a.addEventListener('click', function (event) {
         var target = document.getElementById(a.getAttribute('data-click'));

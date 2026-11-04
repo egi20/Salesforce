@@ -53,7 +53,7 @@ describe('the profile lists validate every element', () => {
     const kept = await ConsultantProfile.setLanguages(7, [
       { language: 'English', level: 'native' },
       { language: 'english', level: 'basic' },
-      { language: 'German', level: 'fluent-ish' },
+      { language: 'German', level: 'professional' },
       { language: '  ', level: 'basic' }
     ]);
     expect(kept).toEqual([['English', 'native']]);

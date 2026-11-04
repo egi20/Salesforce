@@ -4,7 +4,14 @@
 <div class="container py-4">
   <%- include('../partials/flash') %>
 
-  <% if (!profile.is_public) { %>
+  <% if (typeof preview !== 'undefined' && preview) { %>
+    <div class="alert alert-info d-flex flex-wrap align-items-center gap-2">
+      <span><i class="bi bi-eye"></i> <strong>Preview</strong> — this is what a signed-in company sees<%= profile.is_public ? '' : ' (only companies you applied to, while your profile is private)' %>.</span>
+      <a class="btn btn-sm btn-primary ms-auto" href="/profile/settings">Back to your profile</a>
+    </div>
+  <% } else if (!profile.is_public && typeof appliedHere !== 'undefined' && appliedHere) { %>
+    <div class="alert alert-info">This profile is private. You can see it because this consultant applied to one of your roles.</div>
+  <% } else if (!profile.is_public) { %>
     <div class="alert alert-warning">This profile is hidden from the directory. Only you and admins can see it.</div>
   <% } %>
 
@@ -56,6 +63,30 @@
           <% } %>
         </div>
       </div>
+
+      <%# Delivery history first: for a contractor the engagements are the substance (same order as the generated CV). %>
+      <% if (typeof projects !== 'undefined' && projects.length) { %>
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-3">Projects</h2>
+            <ul class="timeline">
+              <% projects.forEach(function (p) { %>
+                <li>
+                  <strong><%= p.name %></strong><% if (p.client) { %> · <%= p.client %><% } %>
+                  <div class="small text-muted-2">
+                    <%= [p.cloud ? moduleLabel(p.cloud) : null, p.role ? roleLabel(p.role) : null].filter(Boolean).join(' · ') %>
+                    <% if (p.started_on) { %>
+                      <%= (p.cloud || p.role) ? ' · ' : '' %><%= new Date(p.started_on).toISOString().slice(0, 7) %> —
+                      <%= p.is_current ? 'present' : (p.ended_on ? new Date(p.ended_on).toISOString().slice(0, 7) : '') %>
+                    <% } %>
+                  </div>
+                  <% if (p.description) { %><div class="small mt-1"><%- sanitizeRichText(p.description) %></div><% } %>
+                </li>
+              <% }); %>
+            </ul>
+          </div>
+        </div>
+      <% } %>
 
       <% if (experiences.length) { %>
         <div class="glass-card mb-3">
@@ -117,14 +148,14 @@
           <% } %>
           <p class="mb-1">
             <span class="badge-hub <%= profile.availability === 'immediate' ? 'ok' : '' %>">
-              <%= { immediate: 'Available now', two_weeks: 'Available in 2 weeks', one_month: 'Available in a month', not_available: 'Not currently available' }[profile.availability] %>
+              <%= availabilityLabel(profile.availability) %>
             </span>
           </p>
           <p class="small text-muted-2 mb-0">
             <%= workModeLabel(profile.work_mode) %><%= profile.willing_to_travel ? ' · willing to travel' : '' %>
             <% const openTo = [profile.open_to_contract ? 'contract' : null, profile.open_to_permanent ? 'permanent' : null].filter(Boolean); %>
             <% if (openTo.length) { %><br>Open to <%= openTo.join(' and ') %> roles<% } %>
-            <% if (profile.available_from && profile.availability !== 'not_available') { %><br>Available from <%= new Date(profile.available_from).toISOString().slice(0, 10) %><% } %>
+            <% if (profile.available_from && !['not_available', 'busy'].includes(profile.availability)) { %><br>Available from <%= new Date(profile.available_from).toISOString().slice(0, 10) %><% } %>
             <% if (workCountries.length) { %><br>Works in <%= workCountries.map(function (c) { return countryName(c); }).join(', ') %><% } %>
           </p>
 
@@ -154,7 +185,7 @@
 
           <% if (isSelf) { %>
             <hr>
-            <a class="btn btn-primary w-100" href="/profile/consultant">Edit your profile</a>
+            <a class="btn btn-primary w-100" href="/profile/settings">Edit your profile</a>
           <% } %>
         </div>
       </div>

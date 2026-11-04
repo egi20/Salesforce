@@ -1,5 +1,7 @@
 'use strict';
 
+const { availabilityLabel } = require('../../config/availability');
+
 const {
   Document,
   Packer,
@@ -109,7 +111,7 @@ async function generateRateCardDocx(dossier, projection = null) {
   }
   if (dossier.location) commercial.push(['Based in', dossier.location]);
   if (dossier.availability) {
-    const when = dossier.availability === 'not_available' ? 'not currently available' : dossier.availability.replace(/_/g, ' ');
+    const when = availabilityLabel(dossier.availability);
     commercial.push(['Availability', dossier.availableFrom ? `${when} (from ${dossier.availableFrom})` : when]);
   }
 

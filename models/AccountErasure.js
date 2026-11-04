@@ -35,6 +35,8 @@ const PURGE = Object.freeze([
   'consultant_clouds',
   'consultant_languages',
   'consultant_work_countries',
+  // Uploaded CVs and cover letters: the most personal document anybody gives this site.
+  'consultant_documents',
   'consultant_photos',
   'consultant_profiles',
   // The company and recruiter equivalents.

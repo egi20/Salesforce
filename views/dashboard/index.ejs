@@ -18,7 +18,7 @@
         <h2 class="h5 mb-1">What do you want to use Salesforce Hub for?</h2>
         <p class="text-muted-2 mb-3">Your dashboard fills in once this account has a role. Add one in settings — you can hold more than one.</p>
         <div class="d-flex flex-wrap gap-2">
-          <a class="btn btn-primary" href="/profile/settings#roles"><i class="bi bi-person-badge"></i> Build a consultant profile</a>
+          <a class="btn btn-primary" href="/profile/settings"><i class="bi bi-person-badge"></i> Build a consultant profile</a>
           <a class="btn btn-outline-primary" href="/profile/settings#roles"><i class="bi bi-building"></i> Hire as a company</a>
           <% if (currentUser.isAdmin) { %><a class="btn btn-outline-primary" href="/admin"><i class="bi bi-shield-lock"></i> Admin Panel</a><% } %>
         </div>
@@ -47,7 +47,7 @@
               <strong>Your profile is <%= consultant.profile.completeness %>% complete.</strong>
               <p class="small text-muted-2 mb-0">It needs 60% before it appears in the talent directory.</p>
             </div>
-            <a class="btn btn-primary" href="/profile/consultant">Finish your profile</a>
+            <a class="btn btn-primary" href="/profile/settings">Finish your profile</a>
           </div>
           <div class="meter mt-3"><i style="width:<%= consultant.profile.completeness %>%"></i></div>
         </div></div>

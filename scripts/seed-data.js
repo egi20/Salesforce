@@ -317,7 +317,7 @@ async function seed() {
      */
     await ConsultantProfile.setClouds(user.id, pick(CLOUD_FAMILIES, randomInt(1, 3)).map((f) => f.value));
     await ConsultantProfile.setLanguages(user.id, [
-      { language: 'English', level: i % 3 === 0 ? 'native' : 'professional' },
+      { language: 'English', level: i % 3 === 0 ? 'native' : 'fluent' },
       ...(i % 2 ? [{ language: ['German', 'Italian', 'Spanish', 'Albanian', 'Dutch', 'French'][i % 6], level: 'native' }] : [])
     ]);
     await ConsultantProfile.setWorkCountries(user.id, [homeCountry, ...(i % 3 === 0 ? ['DE', 'NL'] : [])]);

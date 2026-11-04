@@ -7,6 +7,7 @@ const ConsultantHiddenCompany = require('../models/ConsultantHiddenCompany');
 const ImageBlob = require('../models/ImageBlob');
 const Skill = require('../models/Skill');
 const Job = require('../models/Job');
+const Application = require('../models/Application');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { requireIdParam } = require('../utils/ids');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
@@ -94,7 +95,15 @@ router.get(
      * and an administrator.
      */
     const publiclyVisible = profile && profile.is_public && !profile.admin_hidden_at;
-    if (!profile || (!publiclyVisible && !isSelf && !(viewer && viewer.isAdmin))) {
+    /*
+     * A company the consultant APPLIED to sees the profile they were sent, even while it is
+     * private or that company is on the consultant's hidden list — applying is the consultant
+     * choosing to show it to them, and the Build-your-profile page says so. A moderator's
+     * takedown still wins: that is not the consultant's switch.
+     */
+    const appliedHere = Boolean(profile && !profile.admin_hidden_at && viewer && viewer.isCompany && !isSelf
+      && await Application.consultantAppliedToCompany(profile.user_id, viewer.id));
+    if (!profile || (!publiclyVisible && !isSelf && !appliedHere && !(viewer && viewer.isAdmin))) {
       return res.status(404).render('errors/404', { title: 'Not found' });
     }
 
@@ -110,7 +119,7 @@ router.get(
      * company that a consultant they can name has blocked them, which is information the
      * consultant was trying not to give them.
      */
-    if (!isSelf && !(viewer && viewer.isAdmin)) {
+    if (!isSelf && !appliedHere && !(viewer && viewer.isAdmin)) {
       const hiddenFrom = await ConsultantHiddenCompany.viewerFor(viewer);
       if (await ConsultantHiddenCompany.blocks(profile.user_id, hiddenFrom)) {
         return res.status(404).render('errors/404', { title: 'Not found' });
@@ -125,12 +134,19 @@ router.get(
      * because the owner is the person it belongs to and an admin is who answers when
      * somebody asks what is stored about them.
      */
+    /*
+     * "Preview public profile" (?preview=company, owner only): the page exactly as a signed-in
+     * company sees it — the rate hidden when it is "on request", contact details shown, no
+     * edit controls — with a banner saying it is a preview.
+     */
+    const preview = Boolean(isSelf && req.query.preview === 'company');
     const showRate = Boolean(profile.rate_visible) || isSelf || (viewer && viewer.isAdmin);
 
-    const [skills, certifications, experiences, clouds, languages, workCountries] = await Promise.all([
+    const [skills, certifications, experiences, projects, clouds, languages, workCountries] = await Promise.all([
       Skill.forConsultant(profile.user_id),
       ConsultantProfile.listCertifications(profile.user_id),
       ConsultantProfile.listExperiences(profile.user_id),
+      ConsultantProfile.listProjects(profile.user_id),
       ConsultantProfile.listClouds(profile.user_id),
       ConsultantProfile.listLanguages(profile.user_id),
       ConsultantProfile.listWorkCountries(profile.user_id)
@@ -149,15 +165,19 @@ router.get(
       skills,
       certifications,
       experiences,
+      projects,
       clouds,
       languages,
       workCountries,
-      isSelf,
-      showRate,
+      isSelf: isSelf && !preview,
+      preview,
+      appliedHere,
+      // A preview shows the rate exactly as a company would: not at all when it is on request.
+      showRate: preview ? Boolean(profile.rate_visible) : showRate,
       hiringJobs,
       // Contact details are for signed-in companies only. An open directory of
       // e-mail addresses is a scraping target, and consultants did not consent to that.
-      canSeeContact: Boolean(viewer && (viewer.isCompany || viewer.isRecruiter || viewer.isAdmin))
+      canSeeContact: preview || Boolean(viewer && (viewer.isCompany || viewer.isRecruiter || viewer.isAdmin))
     });
   })
 );

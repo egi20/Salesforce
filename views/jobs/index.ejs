@@ -161,7 +161,7 @@
           <h2 class="h6 mb-1">Stand out in applications</h2>
           <p class="small text-muted-2 mb-3">A formatted CV and rate card, generated from your profile in one click — free.</p>
           <a class="btn btn-outline-primary btn-sm w-100"
-             href="<%= currentUser && currentUser.isConsultant ? '/profile/consultant' : '/services/document-generator' %>">Build my free CV</a>
+             href="<%= currentUser && currentUser.isConsultant ? '/profile/settings#documents' : '/services/document-generator' %>">Build my free CV</a>
         </div>
       </div>
       </div>
@@ -172,7 +172,7 @@
         <section class="recommended mb-4" aria-labelledby="recommendedHeading">
           <div class="d-flex justify-content-between align-items-baseline mb-2">
             <h2 class="h5 mb-0" id="recommendedHeading"><i class="bi bi-stars"></i> Recommended for you</h2>
-            <a class="small" href="/profile/consultant">Based on your profile</a>
+            <a class="small" href="/profile/settings">Based on your profile</a>
           </div>
           <div class="row g-3">
             <% recommended.jobs.forEach(function (r) { %>
@@ -186,7 +186,7 @@
         <div class="alert alert-info d-flex align-items-center gap-2 mb-4">
           <i class="bi bi-stars"></i>
           <span>Add your main role to your profile and we will show the roles that match you best.
-            <a href="/profile/consultant">Complete your profile</a></span>
+            <a href="/profile/settings#basics">Complete your profile</a></span>
         </div>
       <% } else if (currentUser && !currentUser.isConsultant && pagination.page === 1) { %>
         <div class="match-teaser glass-card mb-4">

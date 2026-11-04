@@ -48,6 +48,8 @@ const OWNED = Object.freeze({
   consultant_clouds: 'user_id',
   consultant_languages: 'user_id',
   consultant_work_countries: 'user_id',
+  // Listed (title, file name, size), never the bytes: `bytes` is in NEVER below.
+  consultant_documents: 'user_id',
   company_profiles: 'user_id',
   recruiter_profiles: 'user_id',
   jobs: 'company_user_id',

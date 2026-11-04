@@ -34,17 +34,70 @@ Rules:
 2. "bio" is a short professional summary IN THE CV'S OWN WORDS, condensed to at most three sentences — a compression of what is there, not new prose about the person.
 3. "skills" lists technologies, platforms and tools named in the CV, as short strings.
 4. "years_experience" is a whole number if the CV states or clearly implies one (e.g. from employment dates), otherwise null.
-5. Return ONLY a single JSON object, no markdown fences, no commentary before or after it, matching exactly this shape:
-{"given_name":"","family_name":"","phone":"","headline":"","city":"","country":"","years_experience":null,"skills":[],"bio":""}`;
+5. "experience" lists EMPLOYMENT: one entry per employer and job title, most recent first. "projects" lists ENGAGEMENTS or client projects the CV names (a client, an implementation, a programme), most recent first. If the CV does not separate them, put roles at an employer under "experience" and leave "projects" empty.
+6. Dates are "YYYY-MM" when the CV gives a month, "YYYY-01" when it gives only a year, and "" when it gives none. A role described as ongoing ("present", "current", "now") has "end":"" and "current":true.
+7. "description" for an entry is what the CV says about it, condensed to at most two sentences in the CV's own words.
+8. Return ONLY a single JSON object, no markdown fences, no commentary before or after it, matching exactly this shape:
+{"given_name":"","family_name":"","phone":"","headline":"","city":"","country":"","years_experience":null,"skills":[],"bio":"","experience":[{"company":"","title":"","location":"","start":"","end":"","current":false,"description":""}],"projects":[{"name":"","client":"","start":"","end":"","current":false,"description":""}]}`;
 
 /** Every key the model is allowed to have produced — nothing else survives the parse. */
-const ALLOWED_KEYS = ['given_name', 'family_name', 'phone', 'headline', 'city', 'country', 'years_experience', 'skills', 'bio'];
+const ALLOWED_KEYS = ['given_name', 'family_name', 'phone', 'headline', 'city', 'country', 'years_experience', 'skills', 'bio', 'experience', 'projects'];
+
+/** Entries kept per list. A CV with more than this is a CV whose oldest roles can be typed. */
+const MAX_ENTRIES = 12;
+
+/** "YYYY-MM" → "YYYY-MM-01"; anything else → null. A date the model made up a shape for is no date. */
+function monthOrNull(value) {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(value || '').trim());
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  if (year < 1960 || year > 2100 || month < 1 || month > 12) return null;
+  return `${m[1]}-${m[2]}-01`;
+}
+
+function text(value, max) {
+  return typeof value === 'string' ? value.trim().slice(0, max) : '';
+}
+
+/*
+ * Entries come back as plain data for the consultant to tick or untick — nothing is written
+ * until they confirm. An experience row needs an employer and a start date (the column is
+ * NOT NULL); a project needs a name. An entry without them is dropped here rather than
+ * offered and then refused.
+ */
+function sanitizeEntries(list, kind) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  for (const raw of list.slice(0, MAX_ENTRIES * 2)) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+    const current = raw.current === true;
+    const entry = {
+      started_on: monthOrNull(raw.start),
+      ended_on: current ? null : monthOrNull(raw.end),
+      is_current: current,
+      description: text(raw.description, 600)
+    };
+    if (kind === 'experience') {
+      Object.assign(entry, { company: text(raw.company, 180), title: text(raw.title, 180), location: text(raw.location, 120) });
+      if (!entry.company || !entry.started_on) continue;
+    } else {
+      Object.assign(entry, { name: text(raw.name, 200), client: text(raw.client, 180) });
+      if (!entry.name) continue;
+    }
+    out.push(entry);
+    if (out.length === MAX_ENTRIES) break;
+  }
+  return out;
+}
 
 function sanitizeResult(parsed) {
   const out = {};
   for (const key of ALLOWED_KEYS) {
     const value = parsed[key];
-    if (key === 'skills') {
+    if (key === 'experience' || key === 'projects') {
+      out[key] = sanitizeEntries(value, key);
+    } else if (key === 'skills') {
       out.skills = Array.isArray(value) ? value.filter((s) => typeof s === 'string').slice(0, 40).map((s) => s.slice(0, 60)) : [];
     } else if (key === 'years_experience') {
       const n = Number(value);
@@ -131,4 +184,4 @@ async function importFromText(cvText, { userId = null } = {}) {
   return { ok: true, fields: sanitizeResult(parsed) };
 }
 
-module.exports = { FEATURE, isConfigured, importFromText };
+module.exports = { FEATURE, isConfigured, importFromText, sanitizeResult, monthOrNull };

@@ -5,6 +5,7 @@ const { roleLabel, seniorityLabel } = require('../config/roleTaxonomy');
 const { moduleLabel, familyLabel } = require('../config/cloudFamilies');
 const { engagementLabel, workModeLabel, rateUnit } = require('../config/jobTaxonomy');
 const { countryName } = require('./geo');
+const { availabilityLabel } = require('../config/availability');
 const { formatRateRange, jobLocation, postedAgo, companyInitials, companyTone } = require('./jobDisplay');
 const chartColors = require('./chartColors');
 
@@ -33,6 +34,7 @@ const VIEW_HELPERS = Object.freeze({
   workModeLabel,
   rateUnit,
   countryName,
+  availabilityLabel,
   // Job cards. `postedAgo` reads the clock at render time, which is the one input here that
   // is not its argument; it reads nothing from the request.
   formatRateRange,

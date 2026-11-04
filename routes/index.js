@@ -261,7 +261,7 @@ router.get(
      * signed-in account adds the consultant role in settings (add-only, see
      * routes/profile.js), and only a visitor is sent to sign up.
      */
-    const profileHref = isConsultant ? '/profile/consultant' : user ? '/profile/settings' : '/auth/register';
+    const profileHref = user ? '/profile/settings' : '/auth/register';
 
     const tools = [
       { href: '/jobs', icon: 'bi-briefcase', tone: 'icon-blue', title: 'Find Jobs', text: 'Contract and permanent roles, filtered by cloud, role, seniority, work mode and rate.' },

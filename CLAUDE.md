@@ -1104,6 +1104,36 @@ of invented people was somebody remembering which command to type. `SEED_ALLOW_P
 is the override, spelled out rather than any truthy value so an orchestrator exporting `0`
 cannot switch it on.
 
+## Build your profile
+
+`/profile/settings` is ONE page for everybody: the consultant sections plus Account for a
+consultant, Account alone (with a button that adds the role) for anybody else.
+`/profile/consultant` redirects there, so there is one URL to link and one to remember.
+
+**Uploaded CVs and cover letters are the one place this codebase serves a document it did
+not build**, and it is only defensible because of what `utils/documentUpload.js` refuses
+before a byte is stored: anything but PDF and .docx (a legacy .doc cannot be told apart from
+its macros without a full parser), a .docx with macros, embedded objects or an external
+template relationship, a PDF naming JavaScript, Launch, EmbeddedFile, RichMedia or XFA. The
+bytes live in `consultant_documents`, never on disk, every list query leaves the `bytes`
+column out, and the download is ONLY ever an attachment with `nosniff` — a PDF can hide a
+keyword in a compressed stream, so inline display is the one door that stays shut.
+
+**Import from CV never writes on its own.** The model's answer is laid out as ticked boxes
+(built from DOM nodes, never `innerHTML`); basics land in the form and wait for Save, and the
+ticked projects and experience go through `/profile/consultant/import-entries`, which shapes
+each entry with the same `projectFrom`/`experienceFrom` a hand-typed one uses.
+
+**A company the consultant APPLIED to can open the profile even while it is private**, and
+even if that company is on the hidden list: applying is the consultant choosing to show it.
+A moderator's takedown still wins. The page says so beside the switch — the rule existed in
+the copy before it existed in the route, and a privacy note that is not true is worse than
+none. `?preview=company` renders the page as a signed-in company sees it (rate hidden when on
+request, no owner controls) and is honoured only for the owner.
+
+`nextSortOrder` wraps the MAX in `Number()`: MariaDB returns `COALESCE(MAX(..))` as a string,
+and `"5" + 1` gave an imported project sort order 51.
+
 ## Hiding a profile from named companies
 
 For the consultant looking for their next contract while still in their current one. A public

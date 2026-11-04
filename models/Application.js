@@ -164,6 +164,20 @@ class Application {
     });
   }
 
+  /**
+   * Whether this consultant has applied to any role this company posted. It is what lets a
+   * company open the profile it was SENT even while the profile is private: applying is the
+   * consultant choosing to show it to that company.
+   */
+  static async consultantAppliedToCompany(consultantUserId, companyUserId) {
+    const [rows] = await promisePool.query(
+      `SELECT 1 FROM applications a JOIN jobs j ON j.id = a.job_id
+        WHERE a.consultant_user_id = ? AND j.company_user_id = ? LIMIT 1`,
+      [consultantUserId, companyUserId]
+    );
+    return rows.length > 0;
+  }
+
   static async findById(applicationId) {
     const [rows] = await promisePool.query(
       `SELECT a.*, j.title AS job_title, j.slug AS job_slug, j.company_user_id,

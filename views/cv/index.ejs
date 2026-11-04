@@ -122,9 +122,17 @@
 
         <div class="glass-card"><div class="card-body">
           <h2 class="h6 mb-2">3. Download</h2>
+          <% if (missing.length) { %>
+            <%# Not a link at all until the CV has something in it: a disabled-looking anchor %>
+            <%# still downloads on a keyboard Enter. The route refuses the same case too. %>
+            <span class="btn btn-primary w-100 disabled" aria-disabled="true"><i class="bi bi-download"></i> Download CV</span>
+            <p class="small mb-0 mt-2 text-warning-strong"><i class="bi bi-info-circle"></i> Add <%= missing.join(' and ') %> to download — right now the CV would hold only your name and email.
+              <a href="/profile/settings">Build your profile</a></p>
+          <% } else { %>
           <a class="btn btn-primary w-100" href="/cv-generator/download?<%= query %>" data-cv-download>
             <i class="bi bi-download"></i> Download <%= documents.find(function (d) { return d.value === doc; }).label %>
           </a>
+          <% } %>
           <p class="small text-muted-2 mb-0 mt-2">Generated now from your profile and not kept here — edit the file freely. Change the profile and generate again for an up-to-date copy.</p>
         </div></div>
       </div>

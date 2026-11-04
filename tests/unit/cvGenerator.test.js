@@ -110,3 +110,14 @@ describe('sections with nothing in them', () => {
     expect(defaultOptions(bare)).toMatchObject({ trailhead: false, rate: false });
   });
 });
+
+describe('when a CV is worth downloading', () => {
+  const { cvMissing } = require('../../utils/documents/cvLayout');
+  it('needs a role and at least one project or job', () => {
+    expect(cvMissing(DOSSIER)).toEqual([]);
+    expect(cvMissing({ ...DOSSIER, roleLabel: null })).toEqual(['your primary role']);
+    expect(cvMissing({ ...DOSSIER, projects: [] })).toEqual([]);
+    expect(cvMissing({ ...DOSSIER, projects: [], experience: [] })).toEqual(['a project or a job']);
+    expect(cvMissing(null)).toEqual(['your profile']);
+  });
+});

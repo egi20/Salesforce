@@ -8,7 +8,7 @@ const { isConsultant } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { build: buildDossier } = require('../services/consultantDossier');
 const { PACKAGE_KIND, generateDocument, generatePackage } = require('../services/consultantPackage');
-const { OPTIONAL_SECTIONS, optionsFrom, cvBlocks, sectionHasData } = require('../utils/documents/cvLayout');
+const { OPTIONAL_SECTIONS, optionsFrom, cvBlocks, sectionHasData, cvMissing } = require('../utils/documents/cvLayout');
 
 const router = express.Router();
 
@@ -80,7 +80,8 @@ router.get(
       blocks: dossier ? cvBlocks(dossier, options) : [],
       // Sections the profile has nothing for: shown greyed out and unticked, never ticked-but-empty.
       emptySections: OPTIONAL_SECTIONS.map((s) => s.key).filter((key) => !sectionHasData(dossier || {}, key)),
-      uploads
+      uploads,
+      missing: cvMissing(dossier)
     });
   })
 );
@@ -107,9 +108,10 @@ router.get(
   isConsultant,
   asyncHandler(async (req, res) => {
     const dossier = await buildDossier(req.session.user.id);
-    if (!dossier) {
-      req.flash('error', 'Build your profile first — there is nothing to put in a document yet.');
-      return res.redirect('/profile/settings');
+    const missing = cvMissing(dossier);
+    if (missing.length) {
+      req.flash('error', `Add ${missing.join(' and ')} to your profile first — a CV with only a name and an email is not one to send.`);
+      return res.redirect('/cv-generator');
     }
     const doc = documentFrom(req.query);
     const options = optionsFrom(req.query, dossier);

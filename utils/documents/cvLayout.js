@@ -81,6 +81,23 @@ function paragraphs(value) {
     .map((text) => ({ kind: 'para', text }));
 }
 
+/**
+ * What a profile still needs before its CV is worth downloading: a primary role and at
+ * least one engagement (a project or an employment entry). Below that the file is a name
+ * and an email address — something a consultant would send by mistake and a client would
+ * read as the whole of somebody's career. Checked by the page AND by the download route,
+ * so a link typed by hand gets the same answer as the button.
+ */
+function cvMissing(dossier) {
+  if (!dossier) return ['your profile'];
+  const missing = [];
+  if (!dossier.roleLabel) missing.push('your primary role');
+  if (!(dossier.projects && dossier.projects.length) && !(dossier.experience && dossier.experience.length)) {
+    missing.push('a project or a job');
+  }
+  return missing;
+}
+
 function cvBlocks(dossier, options = defaultOptions(dossier)) {
   const blocks = [{ kind: 'name', text: dossier.name }];
   if (dossier.headline) blocks.push({ kind: 'headline', text: dossier.headline });
@@ -147,4 +164,4 @@ function cvBlocks(dossier, options = defaultOptions(dossier)) {
   return blocks;
 }
 
-module.exports = { OPTIONAL_SECTIONS, SECTION_KEYS, defaultOptions, optionsFrom, cvBlocks, sectionHasData };
+module.exports = { OPTIONAL_SECTIONS, SECTION_KEYS, defaultOptions, optionsFrom, cvBlocks, sectionHasData, cvMissing };

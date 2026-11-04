@@ -142,3 +142,23 @@ describe('the board validates countries against the country list', () => {
     expect(source).not.toMatch(/country: listFrom\(query\.country, \(v\) => \/\^\[A-Z\]\{2\}\$\/\.test\(v\)\)/);
   });
 });
+
+describe('job board facets', () => {
+  const { promisePool } = require('../../config/database');
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('counts a group without its own selection but with every other group', async () => {
+    const spy = jest.spyOn(promisePool, 'query').mockResolvedValue([[]]);
+    await Job.facet('country', { country: ['AL'], seniority: ['junior'] });
+    const [sql, params] = spy.mock.calls[0];
+    expect(sql).toContain('GROUP BY j.country');
+    expect(sql).not.toContain('j.country = ?');
+    expect(sql).toContain('j.seniority = ?');
+    expect(params).toEqual(['junior']);
+  });
+
+  it('refuses a field that is not in its fixed column map', async () => {
+    await expect(Job.facet('id; DROP TABLE jobs', {})).rejects.toThrow(/No facet/);
+  });
+});

@@ -185,10 +185,16 @@ router.get(
     const sort = ['newest', 'rate_desc', 'rate_asc'].includes(req.query.sort) ? req.query.sort : 'newest';
     const user = req.session.user || null;
 
-    const [{ rows, total }, facets, countryFacets, recommended] = await Promise.all([
+    const [{ rows, total }, facets, countryFacets, allCountries, seniorityFacets, modeFacets, engagementFacets, recommended] = await Promise.all([
       Job.browse(filters, { limit, offset, sort }),
       Job.facetByRole(filters),
-      Job.facetByCountry(filters),
+      Job.facet('country', filters),
+      // Every country with an open role at all: the list a reader picks from must not shrink
+      // because another group is ticked, or switching country means unticking first.
+      Job.facet('country', {}),
+      Job.facet('seniority', filters),
+      Job.facet('work_mode', filters),
+      Job.facet('engagement_type', filters),
       // Page one only: on page three the reader is working through the list, not deciding
       // where to start.
       user && user.isConsultant && page === 1 ? recommendationsFor(user.id) : Promise.resolve(null)
@@ -198,15 +204,23 @@ router.get(
     const savedIds = user ? await Job.savedIdsFor(user.id, shownIds) : new Set();
 
     /*
-     * The country list is the countries that HAVE roles under the other filters, with the
-     * count — plus any country already ticked, so un-ticking it stays possible when its
-     * count has dropped to nothing.
+     * The country list is every country with an open role, in a fixed order, each with its
+     * count under the OTHER groups' filters — so "Albania + Junior" still lists Germany, at
+     * (0) and muted, exactly as the role list does. A ticked country is kept even if it has
+     * no roles left at all, so it can always be unticked.
      */
-    const countryOptions = countryFacets.map((f) => ({ code: f.country, count: f.count }));
+    const countsOf = (facetRows) => Object.fromEntries(facetRows.map((f) => [f.value, f.count]));
+    const countryCounts = countsOf(countryFacets);
+    const countryOptions = allCountries.map((f) => ({ code: f.value, count: countryCounts[f.value] || 0 }));
     for (const code of filters.country) {
       if (!countryOptions.some((c) => c.code === code)) countryOptions.push({ code, count: 0 });
     }
     const roleCounts = Object.fromEntries(facets.map((f) => [f.role, f.count]));
+    const groupCounts = {
+      seniority: countsOf(seniorityFacets),
+      work_mode: countsOf(modeFacets),
+      engagement_type: countsOf(engagementFacets)
+    };
     const chips = activeChipsFor(filters, sort);
 
     res.render('jobs/index', {
@@ -217,6 +231,7 @@ router.get(
       sort,
       facets,
       roleCounts,
+      groupCounts,
       countryOptions,
       recommended,
       savedIds,

@@ -666,17 +666,40 @@
     });
 
     // The save bar says when there is something to save, and the browser asks before leaving.
+    /*
+     * "Unsaved" means the form differs from what was loaded — not that something was touched.
+     * Ticking Permanent and unticking it again is no change, so the note goes away. FormData
+     * of the profile form holds exactly what Save would post: fields tied to the row forms
+     * (form="certAddForm" …) belong to those forms and are not in it, and a search box finds
+     * something without changing anything.
+     */
     var dirty = false;
     var note = document.querySelector('[data-unsaved-note]');
-    profileForm.addEventListener('input', function (event) {
-      // Fields that belong to the row forms (form="certAddForm" …) or the listing switch save
-      // themselves; typing in them is not an unsaved change to the profile.
-      if (dirty || (event.target && event.target.form && event.target.form !== profileForm)) return;
-      // Typing into a search box (countries) finds something; it changes nothing yet.
-      if (event.target && event.target.type === 'search') return;
-      dirty = true;
-      if (note) { note.textContent = 'You have unsaved changes.'; note.classList.add('is-dirty'); }
-    });
+    var cleanNote = note ? note.textContent : '';
+    var serializeProfile = function () {
+      var parts = [];
+      new FormData(profileForm).forEach(function (value, key) {
+        if (key === '_csrf' || key === 'tab' || typeof value !== 'string') return;
+        var field = profileForm.elements[key];
+        if (field && field.type === 'search') return;
+        parts.push(key + '=' + value);
+      });
+      return parts.join('&');
+    };
+    var snapshot = null;
+    var checkDirty = function (event) {
+      if (snapshot === null) return;
+      if (event && event.target && event.target.type === 'search') return;
+      dirty = serializeProfile() !== snapshot;
+      if (note) {
+        note.textContent = dirty ? 'You have unsaved changes.' : cleanNote;
+        note.classList.toggle('is-dirty', dirty);
+      }
+    };
+    profileForm.addEventListener('input', checkDirty);
+    profileForm.addEventListener('change', checkDirty);
+    // Taken once everything else on the page has set itself up (rows, the countries picker).
+    setTimeout(function () { snapshot = serializeProfile(); }, 0);
     profileForm.addEventListener('submit', function () { dirty = false; });
     // Adding a row or switching listing reloads the page: say so if the profile has edits.
     Array.prototype.forEach.call(document.querySelectorAll('form[id]'), function (f) {

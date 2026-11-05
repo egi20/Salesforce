@@ -4,6 +4,7 @@ const { promisePool, withTransaction } = require('../config/database');
 const { containsPattern } = require('../utils/likePattern');
 const { isValidRole } = require('../config/roleTaxonomy');
 const { isValidFamily } = require('../config/cloudFamilies');
+const { isKnownCertification } = require('../config/certifications');
 
 const COUNTRY_CODES = new Set(require('../config/all-countries.json').map((c) => c.code));
 // Basic / Fluent / Native, the levels the spec names (migration 037 maps the older four).
@@ -122,6 +123,14 @@ function completenessOf(profile, { skillCount = 0, certificationCount = 0, exper
  */
 const LISTED_CONDITIONS = Object.freeze(['cp.is_public = 1', 'cp.admin_hidden_at IS NULL', 'u.is_active = 1']);
 
+/** "Has a Trailhead record": a rank or at least one badge, as typed on the profile. */
+const TRAILHEAD_CONDITION = '(cp.trailhead_rank IS NOT NULL OR cp.trailhead_badges > 0)';
+
+function asList(value) {
+  const raw = Array.isArray(value) ? value : value ? [value] : [];
+  return [...new Set(raw.map(String).filter(Boolean))];
+}
+
 function buildFilter(filters = {}) {
   // The directory requires every listed condition; see `Moderation.setProfileHidden`.
   const where = [...LISTED_CONDITIONS];
@@ -160,25 +169,56 @@ function buildFilter(filters = {}) {
     params.push(filters.viewer.companyUserId, filters.viewer.companyNameKey || '\u0000');
   }
 
-  if (filters.role && isValidRole(filters.role)) {
-    where.push('cp.primary_role = ?');
-    params.push(filters.role);
+  /*
+   * Each checkbox group is a list (one value per ticked box) and means "any of these"; the
+   * groups combine with AND. A scalar is still accepted, because the hubs and the search page
+   * pass one value. A role is re-checked against the taxonomy here as well as in the route.
+   */
+  const roles = asList(filters.role).filter(isValidRole);
+  if (roles.length) {
+    where.push('cp.primary_role IN (?)');
+    params.push(roles);
   }
-  if (filters.seniority) {
-    where.push('cp.seniority = ?');
-    params.push(filters.seniority);
+  for (const [key, column] of [['seniority', 'cp.seniority'], ['country', 'cp.country'], ['work_mode', 'cp.work_mode'], ['availability', 'cp.availability']]) {
+    const values = asList(filters[key]);
+    if (values.length) {
+      where.push(`${column} IN (?)`);
+      params.push(values);
+    }
   }
-  if (filters.country) {
-    where.push('cp.country = ?');
-    params.push(filters.country);
+  const clouds = asList(filters.clouds).filter(isValidFamily);
+  if (clouds.length) {
+    where.push('EXISTS (SELECT 1 FROM consultant_clouds fcl WHERE fcl.user_id = cp.user_id AND fcl.family IN (?))');
+    params.push(clouds);
   }
-  if (filters.work_mode) {
-    where.push('cp.work_mode = ?');
-    params.push(filters.work_mode);
+  /*
+   * Official names only: the profile form accepts free text for a credential, and a filter
+   * that matched free text would be a filter on whatever somebody typed.
+   */
+  const certifications = asList(filters.certifications).filter(isKnownCertification);
+  if (certifications.length) {
+    where.push('EXISTS (SELECT 1 FROM consultant_certifications fcc WHERE fcc.user_id = cp.user_id AND fcc.name IN (?))');
+    params.push(certifications);
   }
-  if (filters.availability) {
-    where.push('cp.availability = ?');
-    params.push(filters.availability);
+  const minYears = Number(filters.min_years);
+  if (Number.isInteger(minYears) && minYears > 0) {
+    where.push('cp.years_experience >= ?');
+    params.push(minYears);
+  }
+  if (filters.linkedin_verified === '1') where.push('cp.linkedin_verified = 1');
+  if (filters.trailhead === '1') where.push(TRAILHEAD_CONDITION);
+  /*
+   * A company's own shortlist. It narrows; it never widens — every condition above still
+   * applies, so a shortlisted profile that went private or hid itself from this company
+   * drops out of the shortlist too.
+   */
+  if (filters.shortlisted_by) {
+    where.push('EXISTS (SELECT 1 FROM company_shortlists sl WHERE sl.user_id = ? AND sl.consultant_user_id = cp.user_id)');
+    params.push(filters.shortlisted_by);
+  }
+  if (filters.user_ids && filters.user_ids.length) {
+    where.push('cp.user_id IN (?)');
+    params.push(filters.user_ids);
   }
   if (filters.certified === '1') {
     where.push('EXISTS (SELECT 1 FROM consultant_certifications cc WHERE cc.user_id = cp.user_id)');
@@ -244,6 +284,14 @@ const RANK_EXPRESSION = `(
  */
 const hiddenUnlessVisible = (column) => `CASE WHEN cp.rate_visible = 1 THEN cp.${column} ELSE NULL END`;
 const RATE_OR_NULL = hiddenUnlessVisible('day_rate');
+
+const FACET_COLUMNS = Object.freeze({
+  role: 'cp.primary_role',
+  country: 'cp.country',
+  seniority: 'cp.seniority',
+  work_mode: 'cp.work_mode',
+  availability: 'cp.availability'
+});
 
 const SORTS = {
   relevance: `${RANK_EXPRESSION} DESC, cp.updated_at DESC`,
@@ -388,7 +436,8 @@ class ConsultantProfile {
               ${hiddenUnlessVisible('hourly_rate')} AS hourly_rate,
               ${hiddenUnlessVisible('annual_salary')} AS annual_salary,
               cp.currency, cp.rate_visible, cp.availability, cp.profile_picture,
-              cp.linkedin_verified, cp.completeness, u.name,
+              cp.linkedin_verified, cp.completeness, u.name, cp.years_experience, cp.bio,
+              cp.trailhead_rank, cp.trailhead_badges, ${TRAILHEAD_CONDITION} AS has_trailhead,
               (SELECT COUNT(*) FROM consultant_certifications cc WHERE cc.user_id = cp.user_id) AS certification_count
          FROM consultant_profiles cp JOIN users u ON u.id = cp.user_id
         WHERE ${clause}
@@ -402,7 +451,81 @@ class ConsultantProfile {
       params
     );
 
+    /*
+     * The certification names a card shows, for the whole page in one query rather than one
+     * per card. Newest first, so the line under a name is what they most recently earned.
+     */
+    const byUser = new Map(rows.map((r) => [r.user_id, r]));
+    for (const r of rows) r.certifications = [];
+    if (rows.length) {
+      const [certs] = await promisePool.query(
+        `SELECT user_id, name FROM consultant_certifications WHERE user_id IN (?)
+          ORDER BY earned_on IS NULL, earned_on DESC, name ASC`,
+        [[...byUser.keys()]]
+      );
+      for (const c of certs) byUser.get(c.user_id).certifications.push(c.name);
+    }
+
     return { rows, total };
+  }
+
+  /** How many listed consultants match — the same builder as the list, so the same rows. */
+  static async count(filters = {}) {
+    const { clause, params } = buildFilter(filters);
+    const [[{ total }]] = await promisePool.query(
+      `SELECT COUNT(*) AS total FROM consultant_profiles cp JOIN users u ON u.id = cp.user_id WHERE ${clause}`,
+      params
+    );
+    return Number(total);
+  }
+
+  /**
+   * How many listed consultants each value of one filter group would show, under every OTHER
+   * group's filters — the group's own selection is left out, exactly as `Job.facet` does, so
+   * ticking "Italy" does not turn every other country into (0).
+   *
+   * Through `buildFilter`, so the viewer clause applies: a company that a consultant hid
+   * from does not see them counted either. A count is a measurement too.
+   */
+  static async facet(field, filters = {}) {
+    const { clause, params } = buildFilter({ ...filters, [field]: undefined });
+    const base = 'FROM consultant_profiles cp JOIN users u ON u.id = cp.user_id';
+    let sql;
+    if (FACET_COLUMNS[field]) {
+      const column = FACET_COLUMNS[field];
+      sql = `SELECT ${column} AS value, COUNT(*) AS count ${base}
+              WHERE ${clause} AND ${column} IS NOT NULL GROUP BY ${column}`;
+    } else if (field === 'clouds') {
+      sql = `SELECT x.family AS value, COUNT(DISTINCT cp.user_id) AS count ${base}
+               JOIN consultant_clouds x ON x.user_id = cp.user_id
+              WHERE ${clause} GROUP BY x.family`;
+    } else if (field === 'certifications') {
+      sql = `SELECT x.name AS value, COUNT(DISTINCT cp.user_id) AS count ${base}
+               JOIN consultant_certifications x ON x.user_id = cp.user_id
+              WHERE ${clause} GROUP BY x.name`;
+    } else {
+      throw new Error(`No facet for "${field}"`);
+    }
+    const [rows] = await promisePool.query(sql, params);
+    const out = rows.map((r) => ({ value: r.value, count: Number(r.count) }));
+    // Free-text credentials are not filterable (see buildFilter), so they are not offered.
+    return field === 'certifications' ? out.filter((r) => isKnownCertification(r.value)) : out;
+  }
+
+  /**
+   * Counts for the minimum-experience choices: how many would show at "N+ years" under the
+   * other filters. One query, a SUM per threshold.
+   */
+  static async yearsFacet(filters = {}, thresholds = []) {
+    if (!thresholds.length) return {};
+    const { clause, params } = buildFilter({ ...filters, min_years: undefined });
+    // Aliased: identical expressions would collapse into one column name in the result row.
+    const sums = thresholds.map((_, i) => `COALESCE(SUM(cp.years_experience >= ?), 0) AS t${i}`).join(', ');
+    const [[row]] = await promisePool.query(
+      `SELECT ${sums} FROM consultant_profiles cp JOIN users u ON u.id = cp.user_id WHERE ${clause}`,
+      [...thresholds, ...params]
+    );
+    return Object.fromEntries(thresholds.map((t, i) => [t, Number(row[`t${i}`])]));
   }
 
   static async listCertifications(userId) {

@@ -62,10 +62,19 @@ const PURGE = Object.freeze([
    */
   // Private activity that is nobody else's record.
   'saved_jobs',
+  // A company's own shortlist (migration 041).
+  'company_shortlists',
   'post_votes',
   'idea_votes',
   'challenge_attempts'
 ]);
+
+/**
+ * Rows where the erased person is the SUBJECT rather than the owner: somebody else's private
+ * list that names them. The list is the other account's, but the entry is about this person,
+ * and nothing about a shortlist is worth keeping once its subject is gone.
+ */
+const PURGE_AS_SUBJECT = Object.freeze([['company_shortlists', 'consultant_user_id']]);
 
 /**
  * What survives, and why — kept here as a list rather than a comment because the reason is
@@ -129,6 +138,11 @@ async function erase(userId, { reason = 'self-service' } = {}) {
       const [res] = await conn.query(`DELETE FROM ${table} WHERE user_id = ?`, [userId]);
       if (res.affectedRows) purged[table] = res.affectedRows;
     }
+    for (const [table, column] of PURGE_AS_SUBJECT) {
+      // eslint-disable-next-line no-await-in-loop -- same transaction, same reason
+      const [res] = await conn.query(`DELETE FROM ${table} WHERE ${column} = ?`, [userId]);
+      if (res.affectedRows) purged[`${table} (as subject)`] = (purged[`${table} (as subject)`] || 0) + res.affectedRows;
+    }
 
     /*
      * The account row itself. Every identifying column is overwritten rather than left for a
@@ -161,4 +175,4 @@ async function isErased(userId) {
   return Boolean(row && row.anonymised_at);
 }
 
-module.exports = { erase, isErased, PURGE, RETAINED, erasedEmail, ERASED_NAME };
+module.exports = { erase, isErased, PURGE, PURGE_AS_SUBJECT, RETAINED, erasedEmail, ERASED_NAME };

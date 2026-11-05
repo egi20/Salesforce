@@ -194,7 +194,8 @@
       </div>
 
       <% if (hiringJobs && hiringJobs.length && !isSelf) { %>
-        <div class="glass-card mb-3">
+        <%# `#approach` is where "Invite to apply" on a directory card lands. %>
+        <div class="glass-card mb-3 anchor-target" id="approach">
           <div class="card-body">
             <h2 class="h6 mb-2">Approach about a role</h2>
             <form method="post" action="/messages/start">

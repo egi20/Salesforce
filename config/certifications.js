@@ -81,4 +81,34 @@ function isKnownCertification(name) {
   return CERTIFICATION_SET.has(name);
 }
 
-module.exports = { CERTIFICATIONS, ALL_CERTIFICATIONS, isKnownCertification };
+/*
+ * The short form a card has room for: "Sales Cloud Consultant · PD1 +1". The full official
+ * name stays in the filter list and in the title attribute, so the abbreviation is never the
+ * only place a credential is named.
+ */
+const SHORT_NAMES = Object.freeze({
+  'Salesforce Certified Platform Developer I': 'PD1',
+  'Salesforce Certified Platform Developer II': 'PD2',
+  'Salesforce Certified JavaScript Developer I': 'JavaScript Developer I',
+  'Salesforce Certified Technical Architect (CTA)': 'CTA',
+  'Salesforce Certified Development Lifecycle and Deployment Architect': 'Dev Lifecycle Architect',
+  'Salesforce Certified Identity and Access Management Architect': 'IAM Architect',
+  'Salesforce Certified Sharing and Visibility Architect': 'Sharing & Visibility Architect',
+  'Salesforce Certified Tableau CRM and Einstein Discovery Consultant': 'Tableau CRM Consultant',
+  'Salesforce Certified Marketing Cloud Account Engagement Consultant': 'Account Engagement Consultant',
+  'MuleSoft Certified Developer - Level 1': 'MuleSoft Developer',
+  'MuleSoft Certified Platform Architect - Level 1': 'MuleSoft Platform Architect',
+  'MuleSoft Certified Integration Architect - Level 1': 'MuleSoft Integration Architect',
+  'Tableau Certified Data Analyst': 'Tableau Data Analyst'
+});
+
+/** The name without the "Salesforce Certified" prefix every one of them shares. */
+function certificationLabel(name) {
+  return String(name || '').replace(/^Salesforce Certified /, '');
+}
+
+function shortCertificationName(name) {
+  return SHORT_NAMES[name] || certificationLabel(name);
+}
+
+module.exports = { CERTIFICATIONS, ALL_CERTIFICATIONS, isKnownCertification, certificationLabel, shortCertificationName };

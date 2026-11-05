@@ -2541,3 +2541,34 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
    whole figure dropping to a second row on its own. */
 .hub-hero-stats { gap: var(--space-4) var(--space-5); }
 .hub-hero-stats span { max-width: 10rem; }
+
+/* ---------- Browse Talent (/consultants) ---------- */
+.talent-stats li {
+  background: var(--glass-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  padding: 0.3rem 0.85rem;
+  font-size: 0.875rem;
+  color: var(--text-medium);
+}
+.talent-stats strong { color: var(--text-dark); font-weight: 700; }
+.talent-stats a { color: inherit; text-decoration: none; }
+.talent-stats a:hover strong, .talent-stats a:focus-visible strong { color: var(--primary-blue); }
+.talent-card h3 a { text-decoration: none; }
+.talent-card h3 a:hover, .talent-card h3 a:focus-visible { color: var(--primary-blue) !important; text-decoration: underline; }
+/* People are round; a company mark is a rounded square. The tones are the same solid set. */
+.talent-initials { border-radius: var(--radius-full); }
+.talent-rate { color: var(--text-dark); }
+.talent-certs { color: var(--text-medium); }
+.btn-shortlist {
+  border: 1px solid var(--border-color);
+  background: #fff;
+  color: var(--text-dark);
+}
+.btn-shortlist:hover, .btn-shortlist:focus-visible { border-color: var(--primary-blue); color: var(--primary-blue); }
+.btn-shortlist .bi-star-fill { color: #8a5300; }
+.btn-shortlist.is-saved { border-color: #8a5300; color: #8a5300; background: rgba(138, 83, 0, 0.06); }
+#approach.anchor-target { scroll-margin-top: calc(81px + 1rem); }
+/* Buttons share the row; when three do not fit, the third takes a full row rather than ragged. */
+.talent-actions > * { flex: 1 1 auto; }
+.talent-actions form .btn { width: 100%; }

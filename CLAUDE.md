@@ -828,11 +828,9 @@ Specialisms are cloud FAMILIES, derived from `config/cloudFamilies.js`, so addin
 adds a specialism. The directory filters on them with `JSON_CONTAINS`, not a LIKE over the
 serialised array — `LIKE '%sales-cloud%'` would also match a future `sales-cloud-einstein`.
 
-Not built: candidate shortlists. **A shortlist** holds other people's profiles, and who may
-see that a consultant is on one is not an obvious question. The reference promises it in a
-route comment and ships nothing — `routes/recruiters.js` says "Phase 3 adds placement &
-commission tracking" and `models/RecruiterProfile.js` says counters will "later" be computed
-"from shortlists/placements tables". Verified: no shortlist table, model or route exists there.
+Candidate shortlists were listed here as "not built", because who may see that a consultant
+is on one is not an obvious question; the reference promises them in a route comment and ships
+nothing. They are now built (migration 041), and the answer is in "Browse Talent" below.
 
 **PLACEMENT TRACKING IS A DIFFERENT MATTER, AND THIS FILE WAS WRONG ABOUT IT.** It previously
 said the reference "promises both in a route comment and ships neither". Half of that is
@@ -1189,6 +1187,44 @@ The consultant answers an offer: `Application.consultantMay` allows offered → 
 and any withdrawal (decline is a withdrawal with a note), and nothing else of the company's.
 "Hired" still needs two decisions — the company's offer and the consultant's yes. On an
 offered row the list shows Accept / Decline instead of Withdraw.
+
+## Browse Talent
+
+`/consultants` is built the way `/jobs` is: one form, checkbox groups with a count beside each
+value, applied on change, chips with × above the list. Each count leaves out its OWN group
+(`ConsultantProfile.facet`, the same rule as `Job.facet`), so ticking Italy does not turn every
+other country into (0). Every count, the hero figures included, goes through `buildFilter` with
+the viewer: a consultant who hid from this company is not counted for it either — a count is a
+measurement too.
+
+The hero says "24 consultants · 6 available now · 13 clouds covered", and each is a count of
+what this viewer can browse. "Clouds covered" counts clouds at least one listed consultant
+works in, never the size of the catalogue: thirteen clouds in a config file is a claim about
+nobody.
+
+The certification filter offers OFFICIAL names only (`config/certifications.js`), and only
+those somebody listed holds. The profile accepts free text for a credential, and a filter on
+free text is a filter on whatever somebody typed.
+
+The card is built from stored facts. Its title is role plus seniority ("Senior CPQ & Billing
+Consultant"), not the headline, which in practice repeated the seniority badge. A hidden rate
+reads "Rate on request" and arrives as NULL from `browse`, so `consultantRate()` cannot print
+it even if a template forgets. "LinkedIn verified" means what the LinkedIn section says it
+means; the Trailhead badge is TYPED on the profile, so it is neutral-coloured and titled "As
+stated on the profile".
+
+**The shortlist answers the question this file used to leave open.** It is private to the
+company or recruiter that made it — the consultant is never told and cannot see it, and nothing
+anybody else reads joins on `company_shortlists`. It never makes anybody visible: adding refuses
+a profile the account could not find in the directory, and the shortlist view is a
+`shortlisted_by` clause in `buildFilter`, which only narrows, so a profile that went private or
+hid itself from that company drops out. It goes with either account: the company's rows through
+`PURGE`, and every entry naming an erased consultant through `PURGE_AS_SUBJECT`. A test pins the
+files allowed to mention the table.
+
+"Invite to apply" goes to the approach form on the profile (`#approach`), and only for an
+account with an open role — a conversation is always anchored to one, so there is nothing to
+invite to without it.
 
 ## Hiding a profile from named companies
 

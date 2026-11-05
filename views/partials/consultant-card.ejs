@@ -1,31 +1,110 @@
-<a class="glass-card d-block h-100 text-reset" href="/consultants/<%= c.user_id %>">
-  <div class="card-body">
-    <div class="d-flex gap-3 align-items-center mb-2">
-      <img class="avatar" src="<%= c.profile_picture || '/images/avatar-placeholder.svg' %>" alt="" loading="lazy">
+<%
+  /*
+   * One consultant card for the directory and for search.
+   *
+   * An <article> whose NAME is the link, not one big <a>: the shortlist button is a form,
+   * and a control inside a link is invalid and would open the profile on every click.
+   *
+   * Optional locals, each offered only where the page passed it:
+   *   shortlistedIds  a Set — the ★ Shortlist button (company and recruiter accounts)
+   *   canInvite       the viewer has an open role, so "Invite to apply" has something to invite to
+   *   returnUrl       where a no-script shortlist post comes back to
+   *
+   * Everything printed is a stored fact or a label for one. The title is built from the role
+   * and seniority the consultant chose ("Senior CPQ & Billing Consultant") rather than from
+   * the headline, which in practice repeated the seniority badge beside it.
+   */
+  const shortlist = typeof shortlistedIds !== 'undefined' && shortlistedIds ? shortlistedIds : null;
+  const isShortlisted = shortlist ? shortlist.has(c.user_id) : false;
+  const invite = typeof canInvite !== 'undefined' && canInvite;
+  const backTo = typeof returnUrl !== 'undefined' ? returnUrl : currentPath;
+  const profileUrl = '/consultants/' + c.user_id;
+
+  const role = roleLabel(c.primary_role);
+  const title = role ? [seniorityLabel(c.seniority), role].filter(Boolean).join(' ') : (c.headline || 'Salesforce consultant');
+  const years = Number(c.years_experience) > 0 ? Number(c.years_experience) : null;
+  const facts = [years ? years + (years === 1 ? ' year' : ' years') + ' experience' : null, c.country ? countryName(c.country) : null].filter(Boolean);
+  const rate = consultantRate(c);
+  // The bio, else the headline — two lines, as plain text.
+  const about = c.bio ? toPlainText(c.bio, 240) : (role && c.headline ? c.headline : '');
+  const certs = c.certifications || [];
+  const certShown = certs.slice(0, 2);
+  const certMore = certs.length - certShown.length;
+%>
+<article class="glass-card talent-card h-100">
+  <div class="card-body d-flex flex-column">
+    <div class="d-flex gap-3 align-items-start mb-2">
+      <% if (c.profile_picture) { %>
+        <img class="avatar flex-shrink-0" src="<%= c.profile_picture %>" alt="" loading="lazy">
+      <% } else { %>
+        <span class="logo-initials talent-initials <%= companyTone(c.name) %> flex-shrink-0" aria-hidden="true"><%= companyInitials(c.name) %></span>
+      <% } %>
       <div class="min-w-0">
-        <h3 class="h6 mb-0 text-truncate"><%= c.name %></h3>
-        <p class="small text-muted-2 mb-0 text-truncate"><%= c.headline || roleLabel(c.primary_role) %></p>
+        <h3 class="h6 mb-0 text-truncate"><a class="text-reset" href="<%= profileUrl %>"><%= c.name %></a></h3>
+        <p class="small fw-semibold text-muted-2 mb-0"><%= title %></p>
+        <% if (facts.length) { %><p class="small text-muted-2 mb-0"><%= facts.join(' · ') %></p><% } %>
       </div>
     </div>
-    <div class="d-flex flex-wrap gap-1 mb-2">
-      <% if (c.primary_role) { %><span class="badge-hub cloud"><%= roleLabel(c.primary_role) %></span><% } %>
-      <% if (c.seniority) { %><span class="badge-hub"><%= seniorityLabel(c.seniority) %></span><% } %>
-      <% if (c.country) { %><span class="badge-hub"><%= c.country %></span><% } %>
-      <% if (c.certification_count > 0) { %>
-        <span class="badge-hub ok"><i class="bi bi-patch-check"></i> <%= c.certification_count %> cert<%= c.certification_count > 1 ? 's' : '' %></span>
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2 small">
+      <%# A hidden rate is never printed and never inferred — `browse` selects it as NULL. %>
+      <% if (rate) { %>
+        <strong class="talent-rate"><%= rate %></strong>
+      <% } else if (!c.rate_visible) { %>
+        <span class="text-muted-2">Rate on request</span>
       <% } %>
-      <%
-        /* Names what was checked. A bare "Verified" reads as verifying the whole profile;
-           all that was confirmed is control of a LinkedIn account. */
-      %>
-      <% if (c.linkedin_verified) { %><span class="badge-hub ok"><i class="bi bi-patch-check"></i> LinkedIn</span><% } %>
+      <% if (c.availability) { %>
+        <span class="badge-hub <%= c.availability === 'immediate' ? 'ok' : '' %>"><%= availabilityLabel(c.availability) %></span>
+      <% } %>
     </div>
-    <p class="small text-muted-2 mb-0">
-      <%# `rate_visible` is checked here and in `ConsultantProfile.buildFilter`, which is %>
-      <%# the half that matters: a figure hidden only in the markup is still searchable %>
-      <%# one `rate_max` query at a time. %>
-      <% if (c.day_rate && c.rate_visible) { %><strong><%= Math.round(c.day_rate) %> <%= c.currency %></strong>/day<%= c.availability ? ' · ' : '' %><% } %>
-      <%= availabilityLabel(c.availability) %>
-    </p>
+
+    <% if (about) { %>
+      <p class="job-card-snippet small mb-2"><%= about %></p>
+    <% } %>
+
+    <% if (certShown.length) { %>
+      <p class="small mb-2 talent-certs" title="<%= certs.map(certificationLabel).join(', ') %>">
+        <i class="bi bi-patch-check text-success" aria-hidden="true"></i>
+        <span class="visually-hidden">Certifications:</span>
+        <%= certShown.map(shortCertificationName).join(' · ') %><% if (certMore > 0) { %> <span class="text-muted-2">+<%= certMore %></span><% } %>
+      </p>
+    <% } %>
+
+    <% if (c.linkedin_verified || c.has_trailhead) { %>
+      <div class="d-flex flex-wrap gap-1 mb-2">
+        <%# Names what was checked: control of a LinkedIn account, nothing broader. %>
+        <% if (c.linkedin_verified) { %>
+          <span class="badge-hub ok" title="Signed in to LinkedIn to confirm they control the account in this name"><i class="bi bi-linkedin"></i> LinkedIn verified</span>
+        <% } %>
+        <%# Typed on the profile, not checked by the Hub — so it says what it is, in a neutral colour. %>
+        <% if (c.has_trailhead) { %>
+          <span class="badge-hub" title="As stated on the profile">
+            <i class="bi bi-mortarboard"></i> Trailhead<% if (c.trailhead_rank) { %> · <%= c.trailhead_rank %><% } else if (c.trailhead_badges) { %> · <%= c.trailhead_badges %> badges<% } %>
+          </span>
+        <% } %>
+      </div>
+    <% } %>
+
+    <div class="talent-actions d-flex flex-wrap gap-2 mt-auto pt-2">
+      <a class="btn btn-outline-primary btn-sm" href="<%= profileUrl %>">View profile</a>
+      <% if (shortlist) { %>
+        <form method="post" action="/consultants/<%= c.user_id %>/shortlist" data-shortlist>
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="shortlisted" value="<%= isShortlisted ? 'true' : 'false' %>">
+          <input type="hidden" name="redirectTo" value="<%= backTo %>">
+          <button type="submit" class="btn btn-sm btn-shortlist <%= isShortlisted ? 'is-saved' : '' %>" aria-pressed="<%= isShortlisted ? 'true' : 'false' %>">
+            <i class="bi <%= isShortlisted ? 'bi-star-fill' : 'bi-star' %>" aria-hidden="true"></i>
+            <span data-label><%= isShortlisted ? 'Shortlisted' : 'Shortlist' %></span>
+          </button>
+        </form>
+      <% } else if (!currentUser) { %>
+        <a class="btn btn-sm btn-shortlist" href="/auth/login?redirect=<%= encodeURIComponent(backTo) %>" title="Sign in with a company account to shortlist">
+          <i class="bi bi-star" aria-hidden="true"></i> Shortlist
+        </a>
+      <% } %>
+      <% if (invite) { %>
+        <a class="btn btn-primary btn-sm" href="<%= profileUrl %>#approach">Invite to apply</a>
+      <% } %>
+    </div>
   </div>
-</a>
+</article>

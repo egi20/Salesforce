@@ -6,7 +6,8 @@ const { moduleLabel, familyLabel } = require('../config/cloudFamilies');
 const { engagementLabel, workModeLabel, rateUnit } = require('../config/jobTaxonomy');
 const { countryName } = require('./geo');
 const { availabilityLabel } = require('../config/availability');
-const { formatRateRange, jobLocation, postedAgo, companyInitials, companyTone } = require('./jobDisplay');
+const { formatRateRange, jobLocation, postedAgo, companyInitials, companyTone, consultantRate } = require('./jobDisplay');
+const { certificationLabel, shortCertificationName } = require('../config/certifications');
 const chartColors = require('./chartColors');
 
 /**
@@ -43,6 +44,10 @@ const VIEW_HELPERS = Object.freeze({
   postedAgo,
   companyInitials,
   companyTone,
+  // Consultant cards.
+  consultantRate,
+  certificationLabel,
+  shortCertificationName,
   // The admin charts' palette. A constant rather than a function, and frozen, so no render
   // can change what the next one draws with.
   chartColors

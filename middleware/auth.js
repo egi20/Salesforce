@@ -74,6 +74,18 @@ function isCompany(req, res, next) {
 }
 
 /**
+ * Somebody hiring: a company account or a recruiter. Both may shortlist and approach
+ * consultants — a recruiter account can do what a company account can (CLAUDE.md, Recruiters),
+ * and a second guard written for the purpose would be the reference's mistake again.
+ */
+function isHiring(req, res, next) {
+  const user = req.session && req.session.user;
+  if (!user) return denyAuth(req, res, 'Please sign in to continue.');
+  if (user.isCompany || user.isRecruiter) return next();
+  return denyRole(req, res, 'That is for company and recruiter accounts.');
+}
+
+/**
  * A recruiter is an agency or headhunter placing candidates, and the guard checks the flag
  * like every other role. The reference wrote its own copy of this check inside
  * `routes/recruiters.js` — which meant it redirected a background fetch to a login page
@@ -154,6 +166,7 @@ module.exports = {
   isGuest,
   isConsultant,
   isCompany,
+  isHiring,
   isRecruiter,
   isAdmin,
   isSuperadmin,

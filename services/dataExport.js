@@ -56,6 +56,7 @@ const OWNED = Object.freeze({
   jobs: 'company_user_id',
   applications: 'consultant_user_id',
   saved_jobs: 'user_id',
+  company_shortlists: 'user_id',
   rate_submissions: 'user_id',
   posts: 'author_user_id',
   post_replies: 'author_user_id',

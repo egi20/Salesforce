@@ -80,7 +80,7 @@ const { catalogueVersion } = require('../config/estimation');
 const { dailySetFor, serverDate } = require('../config/challenges');
 const { PRIVACY_VERSION } = require('../config/legal-versions');
 const { sync: syncCategories } = require('./sync-categories');
-const { ROLE_SLUGS, ROLE_CATEGORIES, baseDayRate, roleLabel } = require('../config/roleTaxonomy');
+const { ROLE_SLUGS, ROLE_CATEGORIES, baseDayRate, roleLabel, seniorityLabel } = require('../config/roleTaxonomy');
 const { ALL_MODULES, CLOUD_FAMILIES } = require('../config/cloudFamilies');
 const { ALL_CERTIFICATIONS } = require('../config/certifications');
 
@@ -284,12 +284,19 @@ async function seed() {
     const consultantWorkMode = ['remote', 'hybrid', 'onsite'][randomInt(0, 2)];
 
     await ConsultantProfile.ensureExists(user.id);
+    /*
+     * One figure for the years, used in the bio AND the column: the directory card prints
+     * both, and "17 years experience" beside "5 years delivering…" was the seed contradicting
+     * itself. The headline is a professional title ("Senior CPQ & Billing Consultant"), not
+     * the seniority word the card already shows.
+     */
+    const years = randomInt(2, 18);
     await ConsultantProfile.update(user.id, {
-      headline: `${seniority} Salesforce specialist`,
-      bio: `${randomInt(3, 15)} years delivering Salesforce projects across Europe.`,
+      headline: `${seniorityLabel(seniority)} ${roleLabel(role)}`,
+      bio: `${years} years delivering Salesforce projects across Europe.`,
       primary_role: role,
       seniority,
-      years_experience: randomInt(2, 18),
+      years_experience: years,
       country: homeCountry,
       // Same rule as a job: a city is where somebody is, not a work mode wearing its name.
       city: consultantWorkMode === 'remote' ? null : homeCity,

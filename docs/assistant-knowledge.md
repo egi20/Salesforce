@@ -59,7 +59,7 @@ People name pages by the menu label they see, so these are the labels:
 | `/companies-hub` | One page listing every hiring tool: browse consultants, post a role, scope estimate, engagement models, agencies. |
 | `/jobs` | Browse open roles. Filter by cloud, role, seniority, work mode, country and rate. |
 | `/jobs/new` | Post a role. Company accounts only. |
-| `/consultants` | The consultant directory. Only profiles their owners have made public appear. |
+| `/consultants` | Browse Talent, the consultant directory. Only profiles their owners have made public appear. Filter by cloud, role, official certification, minimum years of experience, availability, country, seniority, work mode, LinkedIn verified, Trailhead and maximum day rate; each option shows how many consultants it would show, and filters apply as you tick them. Cards show the title, years of experience, country, rate (or "Rate on request"), availability, certifications and a short bio. Company and recruiter accounts can press ★ Shortlist to keep a private list (only that company sees it; the consultant is not told) and filter to "My shortlist only"; with an open role they also see "Invite to apply", which opens the approach form on the profile. |
 | `/companies` | The company directory. |
 | `/rates` | The day-rate index: percentiles and trends by role, seniority and country. |
 | `/rates/submit` | Contribute your own day rate. This is what keeps the index alive. |

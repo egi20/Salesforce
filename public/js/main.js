@@ -1025,6 +1025,37 @@
   });
 
   /*
+   * ★ Shortlist on a consultant card, without a reload. The form posts on its own without
+   * scripting; any failure here falls back to that plain post.
+   */
+  document.querySelectorAll('form[data-shortlist]').forEach(function (form) {
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var field = form.querySelector('input[name="shortlisted"]');
+      var button = form.querySelector('button');
+      var icon = button.querySelector('.bi');
+      var label = button.querySelector('[data-label]');
+      button.disabled = true;
+      apiFetch(form.action, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ shortlisted: field.value })
+      })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (!data || !data.success) { form.submit(); return; }
+          field.value = data.shortlisted ? 'true' : 'false';
+          button.classList.toggle('is-saved', data.shortlisted);
+          button.setAttribute('aria-pressed', data.shortlisted ? 'true' : 'false');
+          icon.className = 'bi ' + (data.shortlisted ? 'bi-star-fill' : 'bi-star');
+          label.textContent = data.shortlisted ? 'Shortlisted' : 'Shortlist';
+        })
+        .catch(function () { form.submit(); })
+        .finally(function () { button.disabled = false; });
+    });
+  });
+
+  /*
    * Copy-to-clipboard for any button carrying `data-copy` — a sales agent's link, on their
    * dashboard and on the admin tab. The value is in the attribute, server-escaped, and the
    * readonly field beside it means the page still works without scripting or without the

@@ -5,32 +5,67 @@
   sub: 'Pick the scope. The engine turns it into man-days, a phased plan, a team shape and a budget that all reconcile.'
 }) %>
 
+<%
+  /*
+   * ONE form in four steps: Client, Scope, Shape & options, Review.
+   *
+   * The steps are a reading aid, not four forms. Every field stays in this one <form> and is
+   * posted together, so a step can never be "saved" half-way and the server validates the
+   * whole thing exactly as before. Without scripting all four sections are simply shown one
+   * under the other and the button at the bottom submits — main.js is what hides the steps
+   * that are not current and draws the step bar.
+   *
+   * The running total beside the form comes from POST /quotes/preview, which runs the same
+   * engine the save runs. Nothing on this page computes a figure.
+   */
+  const asList = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+  const families = asList(values.families);
+  const modules = asList(values.modules);
+  const isvs = asList(values.isvs);
+  const cap = (s) => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
+  const steps = ['Client', 'Scope', 'Shape & options', 'Review'];
+%>
+
 <section class="glass-section pb-5">
 <div class="container">
   <%- include('../partials/flash') %>
 
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <a class="small fw-semibold" href="/quotes"><i class="bi bi-clock-history"></i> Your quotes<% if (quoteCount) { %> (<%= quoteCount %>)<% } %></a>
+    <a class="small" href="/services/document-generator">What you get: the SOW pack</a>
+  </div>
+
+  <%# Drawn by main.js; without scripting every step is visible and this bar would describe nothing. %>
+  <ol class="quote-steps list-unstyled" data-quote-steps hidden>
+    <% steps.forEach(function (label, i) { %>
+      <li><button type="button" class="quote-step-tab" data-goto-step="<%= i + 1 %>"><span class="quote-step-n"><%= i + 1 %></span> <span class="quote-step-label"><%= label %></span></button></li>
+    <% }); %>
+  </ol>
+
   <% if (errors.length) { %>
-    <div class="alert alert-danger">
+    <div class="alert alert-danger" role="alert">
       <ul class="mb-0"><% errors.forEach(function (e) { %><li><%= e.msg %></li><% }); %></ul>
     </div>
   <% } %>
 
-  <form method="post" action="/quotes" class="row g-4">
+  <form method="post" action="/quotes" class="row g-4" data-quote-form data-start-step="<%= errorStep %>">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
     <div class="col-lg-8">
-      <div class="glass-card mb-3">
+
+      <%# ---------------------------------------------------------------- 1. Client %>
+      <section class="quote-step glass-card mb-3" data-step="1" aria-labelledby="step1">
         <div class="card-body">
-          <h2 class="h6 mb-3">Who it is for</h2>
+          <h2 class="h5 mb-3" id="step1"><span class="quote-step-n">1</span> Who it is for</h2>
           <div class="row g-2 mb-3">
             <div class="col-md-6">
               <label class="form-label" for="client_company">Client company <span aria-hidden="true">*</span></label>
-              <input class="form-control" id="client_company" name="client_company" required maxlength="200"
+              <input class="form-control" id="client_company" name="client_company" required minlength="2" maxlength="200"
                      value="<%= values.client_company || '' %>">
             </div>
             <div class="col-md-6">
               <label class="form-label" for="client_name">Contact name <span aria-hidden="true">*</span></label>
-              <input class="form-control" id="client_name" name="client_name" required maxlength="200"
+              <input class="form-control" id="client_name" name="client_name" required minlength="2" maxlength="200"
                      value="<%= values.client_name || '' %>">
             </div>
           </div>
@@ -59,11 +94,10 @@
               </select>
             </div>
           </div>
-
           <div class="row g-2">
             <div class="col-md-6">
               <label class="form-label" for="project_name">Project name <span aria-hidden="true">*</span></label>
-              <input class="form-control" id="project_name" name="project_name" required maxlength="200"
+              <input class="form-control" id="project_name" name="project_name" required minlength="3" maxlength="200"
                      value="<%= values.project_name || '' %>" placeholder="Revenue Cloud rollout, phase 1">
             </div>
             <div class="col-md-6">
@@ -72,63 +106,80 @@
                      value="<%= values.project_summary || '' %>">
             </div>
           </div>
+          <div class="quote-step-nav" data-step-nav hidden>
+            <span></span>
+            <button type="button" class="btn btn-primary" data-next-step>Next: Scope <i class="bi bi-arrow-right"></i></button>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div class="glass-card mb-3">
+      <%# ---------------------------------------------------------------- 2. Scope %>
+      <section class="quote-step glass-card mb-3" data-step="2" aria-labelledby="step2">
         <div class="card-body">
-          <h2 class="h6 mb-1">Scope</h2>
+          <h2 class="h5 mb-1" id="step2"><span class="quote-step-n">2</span> Scope</h2>
           <p class="form-text mb-3">
             Ticking a cloud costs its platform setup. Ticking modules inside it costs their
             sum — whichever of the two is larger is what the cloud contributes, never both.
           </p>
 
-          <% cloudFamilies.forEach(function (f) { %>
-            <fieldset class="mb-3 pb-2 border-bottom">
-              <legend class="h6 mb-2">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="families" value="<%= f.value %>" id="fam-<%= f.value %>"
-                         <%= (values.families || []).includes(f.value) ? 'checked' : '' %>>
-                  <label class="form-check-label fw-semibold" for="fam-<%= f.value %>">
-                    <%= f.label %>
-                    <span class="badge-hub ms-1"><%= f.foundationEffortDays %>d setup</span>
-                  </label>
-                </div>
-              </legend>
-              <div class="row g-1 ps-4">
-                <% f.modules.forEach(function (m) { %>
-                  <div class="col-md-6">
-                    <div class="form-check">
-                      <input class="form-check-input" type="checkbox" name="modules" value="<%= m.value %>" id="mod-<%= m.value %>"
-                             <%= (values.modules || []).includes(m.value) ? 'checked' : '' %>>
-                      <label class="form-check-label small" for="mod-<%= m.value %>">
-                        <%= m.label %> <span class="text-muted-2"><%= m.baseEffortDays %>d</span>
-                      </label>
-                    </div>
-                  </div>
-                <% }); %>
-              </div>
-            </fieldset>
-          <% }); %>
+          <label class="visually-hidden" for="scopeSearch">Search modules and add-ons</label>
+          <div class="job-search-field mb-3">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input class="form-control" id="scopeSearch" type="search" autocomplete="off" data-scope-search
+                   placeholder="Search modules and add-ons… (CPQ, Journey Builder, DocuSign)">
+          </div>
+          <p class="alert alert-warning py-2 small" data-scope-required hidden role="alert">Choose at least one cloud, module or add-on — an estimate needs a scope.</p>
+          <p class="small text-muted-2" data-scope-empty hidden>Nothing in the catalogue matches. Describe it under “Anything else in scope” below — it is costed, not assumed free.</p>
 
-          <div class="mb-3">
+          <div class="scope-clouds mb-3">
+            <% cloudFamilies.forEach(function (f) {
+                 const picked = modules.filter(function (m) { return f.modules.some(function (x) { return x.value === m; }); }).length;
+                 const open = families.includes(f.value) || picked > 0; %>
+              <div class="scope-cloud" data-scope-cloud data-open="<%= open ? '1' : '' %>">
+                <div class="scope-cloud-head">
+                  <div class="form-check mb-0">
+                    <input class="form-check-input" type="checkbox" name="families" value="<%= f.value %>" id="fam-<%= f.value %>"
+                           data-scope-family <%= families.includes(f.value) ? 'checked' : '' %>>
+                    <label class="form-check-label fw-semibold" for="fam-<%= f.value %>" data-search-text="<%= f.label %>">
+                      <%= f.label %> <span class="badge-hub ms-1"><%= f.foundationEffortDays %>d setup</span>
+                    </label>
+                  </div>
+                  <button type="button" class="scope-cloud-toggle" data-scope-toggle aria-expanded="<%= open ? 'true' : 'false' %>" aria-controls="mods-<%= f.value %>" hidden>
+                    <span data-scope-count><%= picked ? picked + ' of ' + f.modules.length + ' modules' : f.modules.length + ' modules' %></span>
+                    <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                  </button>
+                </div>
+                <div class="row g-1 ps-4 pt-2 scope-modules" id="mods-<%= f.value %>" data-scope-modules>
+                  <% f.modules.forEach(function (m) { %>
+                    <div class="col-md-6" data-scope-item data-search-text="<%= m.label %>">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="modules" value="<%= m.value %>" id="mod-<%= m.value %>"
+                               data-label="<%= m.label %>" <%= modules.includes(m.value) ? 'checked' : '' %>>
+                        <label class="form-check-label small" for="mod-<%= m.value %>">
+                          <%= m.label %> <span class="text-muted-2"><%= m.baseEffortDays %>d</span>
+                        </label>
+                      </div>
+                    </div>
+                  <% }); %>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+
+          <div class="mb-4">
             <label class="form-label" for="other_modules">Anything else in scope</label>
             <textarea class="form-control" id="other_modules" name="other_modules" rows="2"
                       placeholder="Comma separated"><%= values.other_modules || '' %></textarea>
             <p class="form-text">Costed explicitly as unmapped scope, not assumed free.</p>
           </div>
-        </div>
-      </div>
 
-      <div class="glass-card">
-        <div class="card-body">
-          <h2 class="h6 mb-3">Add-ons and integrations</h2>
-          <div class="row g-1 mb-3">
+          <h3 class="h6 mb-2">AppExchange add-ons</h3>
+          <div class="row g-1 mb-4" data-scope-isvs>
             <% isvSolutions.forEach(function (i) { %>
-              <div class="col-md-6">
+              <div class="col-md-6" data-scope-item data-search-text="<%= i.name %>">
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" name="isvs" value="<%= i.id %>" id="isv-<%= i.id %>"
-                         <%= (values.isvs || []).includes(i.id) ? 'checked' : '' %>>
+                         data-label="<%= i.name %>" <%= isvs.includes(i.id) ? 'checked' : '' %>>
                   <label class="form-check-label small" for="isv-<%= i.id %>">
                     <%= i.name %> <span class="text-muted-2"><%= i.days %>d</span>
                   </label>
@@ -137,14 +188,15 @@
             <% }); %>
           </div>
 
+          <h3 class="h6 mb-2">Integrations</h3>
           <div class="row g-2">
             <div class="col-md-4">
-              <label class="form-label" for="number_of_integrations">Integrations</label>
+              <label class="form-label" for="number_of_integrations">How many</label>
               <input class="form-control" id="number_of_integrations" name="number_of_integrations" type="number"
                      min="0" max="200" value="<%= values.number_of_integrations || 0 %>">
             </div>
             <div class="col-md-4">
-              <label class="form-label" for="integration_complexity">Integration complexity</label>
+              <label class="form-label" for="integration_complexity">Complexity</label>
               <select class="form-select" id="integration_complexity" name="integration_complexity">
                 <option value="simple" <%= values.integration_complexity === 'simple' ? 'selected' : '' %>>Simple — 15d each</option>
                 <option value="medium" <%= (values.integration_complexity || 'medium') === 'medium' ? 'selected' : '' %>>Medium — 20d each</option>
@@ -157,86 +209,65 @@
                      value="<%= values.other_integrations || '' %>" placeholder="Comma separated">
             </div>
           </div>
+          <div class="quote-step-nav" data-step-nav hidden>
+            <button type="button" class="btn btn-outline-primary" data-prev-step><i class="bi bi-arrow-left"></i> Back</button>
+            <button type="button" class="btn btn-primary" data-next-step>Next: Shape &amp; options <i class="bi bi-arrow-right"></i></button>
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
 
-    <div class="col-lg-4">
-      <div class="glass-card mb-3">
+      <%# ---------------------------------------------------------------- 3. Shape & options %>
+      <section class="quote-step glass-card mb-3" data-step="3" aria-labelledby="step3">
         <div class="card-body">
-          <h2 class="h6 mb-3">Shape of the work</h2>
+          <h2 class="h5 mb-3" id="step3"><span class="quote-step-n">3</span> Shape &amp; options</h2>
 
-          <div class="mb-3">
-            <label class="form-label" for="complexity">Complexity</label>
-            <select class="form-select" id="complexity" name="complexity">
-              <% complexityOptions.forEach(function (c) { %>
-                <option value="<%= c.id %>" <%= (values.complexity || 'moderate') === c.id ? 'selected' : '' %>>
-                  <%= c.id %> (&times;<%= c.multiplier %>)
-                </option>
+          <fieldset class="mb-4">
+            <legend class="form-label fw-semibold">Complexity</legend>
+            <div class="row g-2">
+              <% complexityOptions.forEach(function (c) { const on = (values.complexity || 'moderate') === c.id; %>
+                <div class="col-sm-6 col-xl-3">
+                  <input class="choice-card-input" type="radio" name="complexity" value="<%= c.id %>" id="cx-<%= c.id %>" <%= on ? 'checked' : '' %>>
+                  <label class="choice-card" for="cx-<%= c.id %>">
+                    <span class="choice-card-title"><%= cap(c.id) %> <span class="text-muted-2">&times;<%= c.multiplier %></span></span>
+                    <span class="choice-card-desc"><%= c.description %></span>
+                  </label>
+                </div>
               <% }); %>
-            </select>
-            <p class="form-text"><%= complexityOptions.map(function (c) { return c.id + ': ' + c.description; }).join(' · ') %></p>
-          </div>
+            </div>
+          </fieldset>
 
-          <div class="mb-3">
-            <label class="form-label" for="customization_level">Customisation</label>
-            <select class="form-select" id="customization_level" name="customization_level">
-              <% customizationOptions.forEach(function (c) { %>
-                <option value="<%= c.id %>" <%= (values.customization_level || 'medium') === c.id ? 'selected' : '' %>>
-                  <%= c.id %> — <%= c.description %>
-                </option>
+          <fieldset class="mb-4">
+            <legend class="form-label fw-semibold">Customisation</legend>
+            <div class="row g-2">
+              <% customizationOptions.forEach(function (c) { const on = (values.customization_level || 'medium') === c.id; %>
+                <div class="col-sm-4">
+                  <input class="choice-card-input" type="radio" name="customization_level" value="<%= c.id %>" id="cu-<%= c.id %>" <%= on ? 'checked' : '' %>>
+                  <label class="choice-card" for="cu-<%= c.id %>">
+                    <span class="choice-card-title"><%= cap(c.id) %> <span class="text-muted-2">&times;<%= c.multiplier %></span></span>
+                    <span class="choice-card-desc"><%= c.description %></span>
+                  </label>
+                </div>
               <% }); %>
-            </select>
-          </div>
+            </div>
+          </fieldset>
 
-          <div class="row g-2 mb-3">
-            <div class="col-6">
+          <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
               <label class="form-label" for="number_of_users">Users</label>
               <input class="form-control" id="number_of_users" name="number_of_users" type="number" min="1"
                      value="<%= values.number_of_users || 50 %>">
             </div>
-            <div class="col-6">
+            <div class="col-6 col-md-3">
               <label class="form-label" for="number_of_orgs">Orgs</label>
               <input class="form-control" id="number_of_orgs" name="number_of_orgs" type="number" min="1" max="50"
                      value="<%= values.number_of_orgs || 1 %>">
             </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="glass-card mb-3">
-        <div class="card-body">
-          <h2 class="h6 mb-3">Included</h2>
-          <div class="form-check mb-2">
-            <input class="form-check-input" type="checkbox" id="include_training" name="include_training"
-                   <%= values.include_training === 'on' ? 'checked' : '' %>>
-            <label class="form-check-label" for="include_training">Training &amp; adoption</label>
-          </div>
-          <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" id="include_support" name="include_support"
-                   <%= values.include_support === 'on' ? 'checked' : '' %>>
-            <label class="form-check-label" for="include_support">Hypercare after go-live</label>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="support_duration_days">Hypercare days</label>
-            <input class="form-control" id="support_duration_days" name="support_duration_days" type="number"
-                   min="0" max="365" value="<%= values.support_duration_days || 30 %>">
-          </div>
-          <p class="form-text mb-0">
-            Excluding a phase does not shrink the project — its share is redistributed into build.
-          </p>
-        </div>
-      </div>
-
-      <div class="glass-card">
-        <div class="card-body">
-          <div class="row g-2 mb-3">
-            <div class="col-7">
+            <div class="col-6 col-md-3">
               <label class="form-label" for="contingency_percentage">Contingency %</label>
               <input class="form-control" id="contingency_percentage" name="contingency_percentage" type="number"
                      min="0" max="50" value="<%= values.contingency_percentage || 15 %>">
             </div>
-            <div class="col-5">
+            <div class="col-6 col-md-3">
               <label class="form-label" for="currency">Currency</label>
               <select class="form-select" id="currency" name="currency">
                 <% ['EUR','USD','GBP','CHF'].forEach(function (c) { %>
@@ -245,13 +276,96 @@
               </select>
             </div>
           </div>
-          <button class="btn btn-primary w-100" type="submit">Calculate estimate</button>
+
+          <h3 class="h6 mb-2">Included</h3>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="include_training" name="include_training"
+                   <%= values.include_training === 'on' ? 'checked' : '' %>>
+            <label class="form-check-label" for="include_training">Training &amp; adoption</label>
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <div class="form-check mb-0">
+              <input class="form-check-input" type="checkbox" id="include_support" name="include_support"
+                     <%= values.include_support === 'on' ? 'checked' : '' %>>
+              <label class="form-check-label" for="include_support">Hypercare after go-live, for</label>
+            </div>
+            <label class="visually-hidden" for="support_duration_days">Hypercare days</label>
+            <input class="form-control form-control-sm quote-days-input" id="support_duration_days" name="support_duration_days" type="number"
+                   min="0" max="365" value="<%= values.support_duration_days || 30 %>">
+            <span>days</span>
+          </div>
+          <p class="form-text mb-0 mt-2">
+            Excluding a phase does not shrink the project — its share is redistributed into build.
+          </p>
+          <div class="quote-step-nav" data-step-nav hidden>
+            <button type="button" class="btn btn-outline-primary" data-prev-step><i class="bi bi-arrow-left"></i> Back</button>
+            <button type="button" class="btn btn-primary" data-next-step>Next: Review <i class="bi bi-arrow-right"></i></button>
+          </div>
+        </div>
+      </section>
+
+      <%# ---------------------------------------------------------------- 4. Review %>
+      <section class="quote-step glass-card mb-3" data-step="4" aria-labelledby="step4">
+        <div class="card-body">
+          <h2 class="h5 mb-3" id="step4"><span class="quote-step-n">4</span> Review</h2>
+          <%# Filled by main.js from the fields above; nothing here is a figure the page made up. %>
+          <dl class="quote-review" data-quote-review>
+            <dt>Client</dt><dd data-review="client">—</dd>
+            <dt>Project</dt><dd data-review="project">—</dd>
+            <dt>Clouds</dt><dd data-review="families">—</dd>
+            <dt>Modules</dt><dd data-review="modules">—</dd>
+            <dt>Add-ons</dt><dd data-review="isvs">—</dd>
+            <dt>Integrations</dt><dd data-review="integrations">—</dd>
+            <dt>Shape</dt><dd data-review="shape">—</dd>
+            <dt>Included</dt><dd data-review="included">—</dd>
+          </dl>
+          <div class="quote-review-phases" data-review-phases hidden>
+            <h3 class="h6 mb-2">Phases</h3>
+            <ul class="list-unstyled small mb-0" data-review-phase-list></ul>
+          </div>
+          <p class="small text-muted-2 mt-3 mb-3">
+            Calculating saves the estimate to Your quotes with its full breakdown — phases, team,
+            timeline and budget — and from there you download the SOW pack.
+          </p>
+          <div class="quote-step-nav quote-step-nav-final">
+            <button type="button" class="btn btn-outline-primary" data-prev-step hidden><i class="bi bi-arrow-left"></i> Back</button>
+            <button class="btn btn-primary" type="submit"><i class="bi bi-calculator"></i> Calculate estimate</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <%# ------------------------------------------------------------------ the running total %>
+    <div class="col-lg-4">
+      <aside class="quote-summary glass-card" aria-label="Scope so far">
+        <div class="card-body">
+          <h2 class="h6 mb-2">Scope so far</h2>
+          <div aria-live="polite">
+            <p class="quote-summary-figure mb-1" data-total-days>—</p>
+            <p class="quote-summary-sub mb-2" data-total-budget>Pick a cloud, module or add-on to see a figure.</p>
+          </div>
+          <ul class="quote-summary-counts list-unstyled small mb-3">
+            <li data-count="families" data-one="cloud" data-many="clouds"><span>0</span> clouds</li>
+            <li data-count="modules" data-one="module" data-many="modules"><span>0</span> modules</li>
+            <li data-count="isvs" data-one="add-on" data-many="add-ons"><span>0</span> add-ons</li>
+          </ul>
+          <p class="form-text mb-3" data-preview-note>
+            Worked out by the same engine as the saved estimate, so the figure here is the figure you will get.
+          </p>
+          <button class="btn btn-primary w-100" type="submit"><i class="bi bi-calculator"></i> Calculate estimate</button>
           <a class="btn btn-outline-primary w-100 mt-2" href="/quotes">Cancel</a>
         </div>
-      </div>
+      </aside>
     </div>
   </form>
 </div>
 </section>
+
+<%# On a phone the panel above sits under the form, so the total also rides along at the bottom. %>
+<div class="quote-total-bar d-lg-none" data-total-bar hidden aria-hidden="true">
+  <span data-total-bar-text>—</span>
+</div>
+
+<script src="/js/quote-form.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>" defer></script>
 
 <%- include('../partials/layout-end') %>

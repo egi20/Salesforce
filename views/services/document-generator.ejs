@@ -23,7 +23,11 @@
         </ul>
         <div class="d-flex flex-wrap gap-3 mt-4">
           <a class="btn btn-lg btn-primary" href="/quotes/new"><i class="bi bi-calculator"></i> Start a quote</a>
-          <a class="btn btn-lg btn-outline-light" href="#how"><i class="bi bi-signpost-split"></i> How it works</a>
+          <% if (currentUser) { %>
+            <a class="btn btn-lg btn-outline-light" href="/quotes"><i class="bi bi-clock-history"></i> Your quotes</a>
+          <% } else { %>
+            <a class="btn btn-lg btn-outline-light" href="#how"><i class="bi bi-signpost-split"></i> How it works</a>
+          <% } %>
         </div>
       </div>
       <div class="col-lg-5 d-none d-lg-flex justify-content-center" aria-hidden="true">
@@ -75,6 +79,21 @@
       </ul>
     </div></div></div>
   </div>
+
+  <section class="glass-card mb-5" aria-labelledby="sowContents">
+    <div class="card-body">
+      <h2 class="h5 mb-1" id="sowContents">What's included in the SOW</h2>
+      <p class="small text-muted-2 mb-3">Every heading below is a section the generator writes — nothing on this list is a promise the download does not keep.</p>
+      <ul class="sow-contents list-unstyled mb-0">
+        <% model.sowContents.forEach(function (item) { %>
+          <li class="<%= item.optional ? 'is-optional' : '' %>">
+            <i class="bi <%= item.optional ? 'bi-plus-circle' : 'bi-check-circle-fill' %>" aria-hidden="true"></i>
+            <span><%= item.label %><% if (item.note) { %> <span class="text-muted-2">— <%= item.note %></span><% } %></span>
+          </li>
+        <% }); %>
+      </ul>
+    </div>
+  </section>
 
   <div class="row g-4 align-items-start mb-5">
     <div class="col-lg-5">
@@ -154,7 +173,10 @@
       <h2 class="h4 mb-1">Scope it, then send the pack</h2>
       <p class="mb-0">An estimate takes a few minutes. The three documents are free with it.</p>
     </div>
-    <a class="btn btn-lg btn-light" href="/quotes/new"><i class="bi bi-calculator"></i> Start a quote</a>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-lg btn-light" href="/quotes/new"><i class="bi bi-calculator"></i> Start a quote</a>
+      <% if (currentUser) { %><a class="btn btn-lg btn-outline-light" href="/quotes"><i class="bi bi-clock-history"></i> Your quotes</a><% } %>
+    </div>
   </div>
 </section>
 

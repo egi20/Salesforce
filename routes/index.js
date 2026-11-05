@@ -136,6 +136,29 @@ function greetingFor(now) {
  * is one object rather than a new route and view each time. Each one ends at a real page
  * that already exists; none of them describes something the Hub cannot do.
  */
+/*
+ * "What's included in the SOW" — each line names the heading in utils/documents/sowDocx.js
+ * that produces it, and a test asserts every one of those headings is really there. A
+ * product page listing "Acceptance criteria" because a competitor's does would be a promise
+ * the download does not keep; this list can only be what the generator writes.
+ */
+const SOW_CONTENTS = Object.freeze([
+  { label: 'Cover page: client, contact, reference and date', heading: 'Prepared for' },
+  { label: 'Summary of effort, duration and budget', heading: "'Summary'" },
+  { label: 'Scope by cloud and module, with the days for each', heading: '1. Scope' },
+  { label: 'AppExchange add-ons', heading: '1.1 Add-on products' },
+  { label: 'Integrations', heading: '1.2 Integrations' },
+  { label: 'Delivery approach, phase by phase', heading: '2. Approach' },
+  { label: 'Timeline: weeks and a milestone for each phase', heading: '2.1 Timeline' },
+  { label: 'Team and commercials: roles, days, day rates and cost', heading: '3. Team and commercials' },
+  { label: 'How the effort was derived, multiplier by multiplier', heading: '3.1 How the effort was derived' },
+  { label: 'Assumptions', heading: '4. Assumptions' },
+  { label: 'Exclusions', heading: '5. Exclusions' },
+  { label: 'Validity of the estimate', heading: '. Validity' },
+  { label: 'Your standard terms', note: 'when set under Document branding', heading: '6. Terms', optional: true },
+  { label: 'Executive summary, approach narrative and risks', note: 'when you add them to the quote', heading: "'Executive summary'", optional: true }
+]);
+
 const SERVICE_PAGES = {
   'staff-augmentation': {
     heading: 'Staff augmentation',
@@ -187,7 +210,8 @@ const SERVICE_PAGES = {
       'Nothing is generated until you ask for it, and nothing is stored afterwards — the source is always the quote, not the file.'
     ],
     cta: { label: 'Start a quote', href: '/quotes/new' },
-    aside: { text: 'Looking for your CV? Consultants have their own generator.', label: 'CV Generator', href: '/cv-generator' }
+    aside: { text: 'Looking for your CV? Consultants have their own generator.', label: 'CV Generator', href: '/cv-generator' },
+    sowContents: SOW_CONTENTS
   }
 };
 

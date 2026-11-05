@@ -55,6 +55,16 @@ const writeLimiter = ipLimiter({
   message: 'You are doing that too quickly. Please slow down.'
 });
 
+/*
+ * The estimate form's running total. It asks on every change (debounced), so it needs more
+ * room than a write — but it is still pure CPU per request, so it is bounded per address.
+ */
+const previewLimiter = ipLimiter({
+  windowMs: 60 * 1000,
+  max: 120,
+  message: 'Too many updates at once. The total will catch up in a moment.'
+});
+
 /**
  * A process-wide backstop, keyed on a constant.
  *
@@ -88,5 +98,6 @@ module.exports = {
   loginLimiter,
   registerLimiter,
   passwordLimiter,
-  writeLimiter
+  writeLimiter,
+  previewLimiter
 };

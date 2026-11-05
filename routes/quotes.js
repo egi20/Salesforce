@@ -5,7 +5,7 @@ const { body, validationResult } = require('express-validator');
 
 const Quote = require('../models/Quote');
 const { isAuthenticated, isEmailVerified } = require('../middleware/auth');
-const { writeLimiter } = require('../middleware/rateLimit');
+const { writeLimiter, previewLimiter } = require('../middleware/rateLimit');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
 const { calculateEstimation, reconciliationProblems } = require('../utils/sowEstimation');
@@ -87,6 +87,57 @@ function inputsFrom(form) {
   };
 }
 
+/** The two options that are not inputs to the effort, read the same way for preview and save. */
+function optionsFrom(form) {
+  return {
+    contingencyPercentage: Math.max(0, Math.min(50, parseInt(form.contingency_percentage, 10) || 15)),
+    currency: /^[A-Z]{3}$/.test(form.currency || '') ? form.currency : 'EUR'
+  };
+}
+
+function hasScope(inputs) {
+  return Boolean(
+    inputs.selectedFamilies.length || inputs.selectedModules.length || inputs.selectedIsvs.length || inputs.otherModules.trim()
+  );
+}
+
+/**
+ * The running total beside the form: "Scope so far: 74 man-days · ~€55k".
+ *
+ * The SAME `inputsFrom` and the SAME `calculateEstimation` as the save below — never a
+ * second formula in the browser. A client-side copy of the engine would be the one place the
+ * figure on screen and the figure in the stored quote could disagree, and the first change
+ * to `config/estimation.js` would make them. Nothing is stored; it is answered and forgotten.
+ */
+router.post(
+  '/preview',
+  isEmailVerified,
+  previewLimiter,
+  asyncHandler(async (req, res) => {
+    const inputs = inputsFrom(req.body);
+    if (!hasScope(inputs)) return res.json({ success: true, empty: true });
+
+    const estimate = calculateEstimation(inputs, optionsFrom(req.body));
+    const mismatches = reconciliationProblems(estimate);
+    if (mismatches.length) {
+      const err = new Error(`Preview failed its own reconciliation checks: ${mismatches.join('; ')}`);
+      err.status = 500;
+      throw err;
+    }
+    return res.json({
+      success: true,
+      empty: false,
+      currency: estimate.currency,
+      totalManDays: estimate.totalManDays,
+      projectDurationWeeks: estimate.projectDurationWeeks,
+      implementationBudget: estimate.implementationBudget,
+      supportBudget: estimate.supportBudget,
+      totalBudget: estimate.totalBudget,
+      phases: estimate.phaseBreakdown.map((p) => ({ name: p.name, days: p.days }))
+    });
+  })
+);
+
 router.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -118,14 +169,32 @@ router.get(
     // Pre-fill nothing from the authoring company: the client is the subject of the quote,
     // and defaulting their name to the author's own company is a confusing wrong answer.
 
-    res.render('quotes/new', {
-      title: 'New estimate',
-      ...catalogueLocals(),
+    return renderNew(req, res, {
       values: { include_training: 'on', include_support: 'on', support_duration_days: 30, number_of_users: 50, number_of_orgs: 1 },
       errors: []
     });
   })
 );
+
+/*
+ * The form, fresh or re-shown with errors. `quoteCount` is for the "Your quotes" link in the
+ * page head; `errorStep` opens the wizard on the step that holds the first problem, so a
+ * refused save does not land somebody on step 1 looking for a mistake that is on step 2.
+ */
+const CLIENT_FIELDS = ['client_company', 'client_name', 'client_email', 'project_name'];
+
+async function renderNew(req, res, { values, errors, status = 200 }) {
+  const stats = await Quote.statsForOwner(req.session.user.id);
+  const errorStep = errors.length ? (errors.some((e) => CLIENT_FIELDS.includes(e.path)) ? 1 : 2) : 1;
+  return res.status(status).render('quotes/new', {
+    title: 'New estimate',
+    ...catalogueLocals(),
+    values,
+    errors,
+    errorStep,
+    quoteCount: stats.reduce((sum, s) => sum + Number(s.count), 0)
+  });
+}
 
 const quoteValidators = [
   body('client_company').trim().isLength({ min: 2, max: 200 }).withMessage('Who is this estimate for? Enter the client company.'),
@@ -146,11 +215,7 @@ router.post(
     const errors = validationResult(req);
 
     const inputs = inputsFrom(req.body);
-    const nothingSelected =
-      inputs.selectedFamilies.length === 0 &&
-      inputs.selectedModules.length === 0 &&
-      inputs.selectedIsvs.length === 0 &&
-      !inputs.otherModules.trim();
+    const nothingSelected = !hasScope(inputs);
 
     const problems = errors.array();
     if (nothingSelected) {
@@ -158,18 +223,10 @@ router.post(
     }
 
     if (problems.length) {
-      return res.status(422).render('quotes/new', {
-        title: 'New estimate',
-        ...catalogueLocals(),
-        values: req.body,
-        errors: problems
-      });
+      return renderNew(req, res, { values: req.body, errors: problems, status: 422 });
     }
 
-    const estimate = calculateEstimation(inputs, {
-      contingencyPercentage: Math.max(0, Math.min(50, parseInt(req.body.contingency_percentage, 10) || 15)),
-      currency: /^[A-Z]{3}$/.test(req.body.currency || '') ? req.body.currency : 'EUR'
-    });
+    const estimate = calculateEstimation(inputs, optionsFrom(req.body));
 
     // An estimate whose own parts do not add up must never be shown to a client. This is
     // the guard that makes the invariants in utils/sowEstimation.js real rather than

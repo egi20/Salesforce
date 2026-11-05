@@ -122,6 +122,15 @@ rather than hand-maintained, because a version someone has to remember to bump i
 that is wrong. A stored quote keeps the version it was priced under and is NEVER
 recomputed on read — it is a statement made to a client on a date.
 
+**The running total on `/quotes/new` is the engine, asked.** `POST /quotes/preview` reads the
+form with the same `inputsFrom` and `optionsFrom` the save uses and runs `calculateEstimation`,
+reconciliation check included; it stores nothing and has its own limiter. There is no copy of
+the formula in `public/js/quote-form.js`, and a test asserts the file holds no multiplier, no
+effort figure and no rate: a second implementation in the browser is the one place the figure
+on screen and the figure in the stored quote could disagree, and the first change to
+`config/estimation.js` would make them. The four steps are a reading aid over ONE form —
+without scripting every step shows and the button at the bottom submits all of it.
+
 ## Generated documents
 
 `utils/documents/` holds one generator per format plus a shared validator, and
@@ -469,6 +478,11 @@ them, and the generator was printing `<p>` into every CV.
 pack. They were one page whose only button was "Start a quote", which is where a consultant
 following "CV Generator" landed. The Hub writes no cover letter — that is prose, and a
 generator that writes prose stops rendering the consultant's own claims.
+
+"What's included in the SOW" on that page is `SOW_CONTENTS` in `routes/index.js`, and each line
+names the heading in `sowDocx.js` that produces it; a test asserts every heading is really
+there. A list copied from a competitor's page ("acceptance criteria", "change control") would
+promise sections this document does not have. Optional sections say when they appear.
 
 Every figure on the SOW pack page is a property of the generators — seven slides, four
 sheets, six numbered sections — and its sample timeline is computed at load by

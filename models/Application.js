@@ -48,16 +48,25 @@ function consultantScope(consultantUserId) {
 /** First sign of life from the company: opened, or moved, whichever came first. */
 /*
  * "A move by the company" is read from WHICH transition happened, not from who the event
- * row names: the consultant can only ever withdraw or re-submit (CONSULTANT_TRANSITIONS),
- * so any other step is the company's — even when its actor was later erased and is NULL.
+ * row names: the consultant can only withdraw, re-submit or accept an offer — and an offer is
+ * itself a company move that comes first — so the earliest step that is not a withdrawal or a
+ * submission is the company's, even when its actor was later erased and is NULL.
  */
 function withSeenAt(row) {
   const times = [row.viewed_at, row.first_company_move_at].filter(Boolean).map((t) => new Date(t).getTime());
   return { ...row, seen_at: times.length ? new Date(Math.min(...times)) : null };
 }
 
-/** Which side of the table may make a given transition. */
+/**
+ * What the CONSULTANT may do: withdraw, apply again after withdrawing, and answer an offer.
+ * Accepting is offered -> hired; declining is a withdrawal. Everything else is the company's
+ * decision. "Hired" still cannot be reached without a decision: the company's offer, then
+ * the consultant's yes.
+ */
 const CONSULTANT_TRANSITIONS = Object.freeze(['withdrawn', 'submitted']);
+function consultantMay(from, to) {
+  return CONSULTANT_TRANSITIONS.includes(to) || (from === 'offered' && to === 'hired');
+}
 
 function canTransition(from, to) {
   return Boolean(TRANSITIONS[from] && TRANSITIONS[from].includes(to));
@@ -174,7 +183,7 @@ class Application {
         throw err;
       }
 
-      if (!actorIsEmployer && !CONSULTANT_TRANSITIONS.includes(toStatus)) {
+      if (!actorIsEmployer && !consultantMay(application.status, toStatus)) {
         const err = new Error('Only the hiring company can make this change.');
         err.code = 'FORBIDDEN';
         throw err;
@@ -503,6 +512,12 @@ class Application {
     return { byStatus, active, archived, total: active + archived };
   }
 
+  /** The roles this consultant has applied for, so suggestions do not repeat them. */
+  static async appliedJobIds(consultantUserId) {
+    const [rows] = await promisePool.query('SELECT job_id FROM applications WHERE consultant_user_id = ?', [consultantUserId]);
+    return new Set(rows.map((r) => r.job_id));
+  }
+
   /** Every event for a set of applications, grouped by application id — one query per page. */
   static async eventsFor(applicationIds) {
     if (!applicationIds.length) return {};
@@ -573,5 +588,6 @@ class Application {
 }
 
 Application.ARCHIVED_STATUSES = ARCHIVED_STATUSES;
+Application.consultantMay = consultantMay;
 
 module.exports = Application;

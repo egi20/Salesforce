@@ -494,6 +494,25 @@
   }
 
   /*
+   * A search box marked data-auto-search applies itself once typing pauses, like the other
+   * filters beside it; Enter still submits at once, and clearing the box applies the clear.
+   */
+  document.querySelectorAll('input[data-auto-search]').forEach(function (input) {
+    var timer = null;
+    var last = input.value;
+    var go = function () {
+      if (input.value === last || !input.form) return;
+      last = input.value;
+      if (input.form.requestSubmit) input.form.requestSubmit(); else input.form.submit();
+    };
+    input.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(go, 600);
+    });
+    input.addEventListener('search', go);
+  });
+
+  /*
    * Loading cue for the board: whatever reloads the list — the filter form, a chip's ×,
    * "Clear all", a page link — fades the current results until the new page lands.
    * `pageshow` clears it again when the browser restores this page from its back cache.

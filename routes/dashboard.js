@@ -308,22 +308,28 @@ router.get(
       enough: ConsultantProfile.MIN_COMPLETENESS_TO_PUBLISH
     };
 
-    let recommended = [];
-    let saved = [];
-    if (!hasAny) {
-      const [consultantSkillIds, { rows: openJobs }, savedJobs] = await Promise.all([
-        Skill.idsForConsultant(userId),
-        Job.browse({}, { limit: 60, sort: 'newest' }),
-        Job.listSaved(userId, { limit: 6 })
-      ]);
-      // The same scorer the job page and the dashboard use, so the % here is the % there.
-      recommended = openJobs
+    /*
+     * Saved roles and suggestions show in BOTH states: with no applications they are the way
+     * in, with some they are what to do next. Anything already applied for is left out of
+     * both, and suggestions need a profile complete enough to match against — a match % from
+     * a half-empty profile is a number that means nothing.
+     */
+    const [consultantSkillIds, { rows: openJobs }, savedJobs, appliedIds] = await Promise.all([
+      Skill.idsForConsultant(userId),
+      Job.browse({}, { limit: 60, sort: 'newest' }),
+      Job.listSaved(userId, { limit: 12 }),
+      Application.appliedJobIds(userId)
+    ]);
+    const saved = savedJobs.filter((j) => j.status === 'open' && !appliedIds.has(j.id)).slice(0, 6);
+    const recommended = (!hasAny || readiness.completeness >= readiness.enough)
+      ? openJobs
+        .filter((job) => !appliedIds.has(job.id))
+        // The same scorer the job page and the dashboard use, so the % here is the % there.
         .map((job) => ({ job, ...matchScore(job, profile, { consultantSkillIds }) }))
         .filter((r) => r.score >= 40)
         .sort((a, b) => b.score - a.score)
-        .slice(0, 4);
-      saved = savedJobs.filter((j) => j.status === 'open');
-    }
+        .slice(0, hasAny ? 3 : 4)
+      : [];
 
     const query = { view, status, type: engagement, q, sort };
     res.render('dashboard/applications', {

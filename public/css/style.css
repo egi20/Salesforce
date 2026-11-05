@@ -2524,3 +2524,6 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
   .apps-filters .form-control, .apps-filters .form-select { flex: 1 1 100%; min-width: 0; }
 }
 .apps-tabs .nav-link.active .badge-hub { background: rgba(255, 255, 255, 0.22); color: #fff; }
+
+.apps-ready-line { color: var(--text-medium); }
+.apps-ready-line i { color: #96590a; }

@@ -34,6 +34,15 @@ function statusLabel(status) {
   return STATUS_LABELS[status] || status;
 }
 
+/** A step as the consultant reads it: answering an offer is named as the answer it was. */
+function stepLabel(e) {
+  if (e.from_status === null) return 'Applied';
+  if (e.from_status === 'withdrawn' && e.to_status === 'submitted') return 'Applied again';
+  if (e.from_status === 'offered' && e.to_status === 'withdrawn') return 'Offer declined';
+  if (e.from_status === 'offered' && e.to_status === 'hired') return 'Offer accepted';
+  return statusLabel(e.to_status);
+}
+
 function toTime(value) {
   if (!value) return null;
   const t = new Date(value).getTime();
@@ -82,7 +91,7 @@ function followUpDue(app, now = new Date()) {
  */
 function timeline(app, events = []) {
   const steps = events.map((e) => ({
-    label: e.from_status === null ? 'Applied' : e.from_status === 'withdrawn' && e.to_status === 'submitted' ? 'Applied again' : statusLabel(e.to_status),
+    label: stepLabel(e),
     at: new Date(e.created_at),
     status: e.to_status
   }));

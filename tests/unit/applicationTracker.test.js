@@ -83,3 +83,22 @@ describe('private notes stay private', () => {
     expect(migration).not.toMatch(/ADD COLUMN\s+\w*note/i);
   });
 });
+
+describe('answering an offer', () => {
+  it('the consultant may accept (offered -> hired) or decline (withdraw), and nothing else of the company\'s', () => {
+    expect(Application.consultantMay('offered', 'hired')).toBe(true);
+    expect(Application.consultantMay('offered', 'withdrawn')).toBe(true);
+    expect(Application.consultantMay('interviewing', 'hired')).toBe(false);
+    expect(Application.consultantMay('interviewing', 'offered')).toBe(false);
+    expect(Application.consultantMay('submitted', 'reviewing')).toBe(false);
+  });
+  it('names the answer in the timeline', () => {
+    const steps = timeline({}, [
+      { from_status: null, to_status: 'submitted', created_at: days(9) },
+      { from_status: 'interviewing', to_status: 'offered', created_at: days(3) },
+      { from_status: 'offered', to_status: 'hired', created_at: days(1) }
+    ]);
+    expect(steps.map((s) => s.label)).toEqual(['Applied', 'Offer', 'Offer accepted']);
+    expect(timeline({}, [{ from_status: 'offered', to_status: 'withdrawn', created_at: days(1) }])[0].label).toBe('Offer declined');
+  });
+});

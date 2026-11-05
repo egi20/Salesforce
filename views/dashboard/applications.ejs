@@ -21,7 +21,7 @@
 <div class="container">
   <%- include('../partials/flash') %>
 
-  <% if (readinessGaps.length) { %>
+  <% if (readinessGaps.length && !hasAny) { %>
     <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2 apps-ready" role="status">
       <i class="bi bi-clipboard-check"></i>
       <span><strong>Before you apply:</strong> <%= readinessGaps.join(' · ') %></span>
@@ -43,60 +43,7 @@
       <a class="btn btn-primary" href="/jobs"><i class="bi bi-search"></i> Browse open roles</a>
     </div></div>
 
-    <% if (recommended.length) { %>
-      <section class="mb-4" aria-labelledby="recHeading">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <h2 class="h6 mb-0" id="recHeading"><i class="bi bi-stars"></i> Roles that match your profile</h2>
-          <a class="small" href="/jobs">See all roles</a>
-        </div>
-        <div class="row g-3">
-          <% recommended.forEach(function (r) { const j = r.job; const pay = formatRateRange(j); %>
-            <div class="col-md-6 col-xl-3"><div class="glass-card h-100"><div class="card-body d-flex flex-column">
-              <div class="d-flex gap-2 align-items-start mb-2">
-                <% if (j.company_logo) { %><img class="logo-tile flex-shrink-0" src="<%= j.company_logo %>" alt="" loading="lazy">
-                <% } else { %><span class="logo-initials <%= companyTone(j.company_name) %> flex-shrink-0" aria-hidden="true"><%= companyInitials(j.company_name || 'Confidential') %></span><% } %>
-                <span class="badge-hub match-badge ms-auto"><%= r.score %>% match</span>
-              </div>
-              <a class="fw-semibold" href="/jobs/<%= j.slug %>"><%= j.title %></a>
-              <span class="small text-muted-2"><%= j.company_name || 'Confidential' %></span>
-              <span class="small text-muted-2 mb-2"><%= [jobLocation(j), pay].filter(Boolean).join(' · ') %></span>
-              <a class="btn btn-sm btn-primary mt-auto" href="/jobs/<%= j.slug %>#apply">Apply</a>
-            </div></div></div>
-          <% }); %>
-        </div>
-      </section>
-    <% } %>
-
-    <% if (!recommended.length) { %>
-      <div class="alert alert-info d-flex flex-wrap align-items-center gap-2 mb-4">
-        <i class="bi bi-stars"></i>
-        <span>Add your main role, clouds and skills to your profile and the roles that match you best appear here, with a match score.</span>
-        <a class="btn btn-sm btn-outline-primary ms-auto" href="/profile/settings#basics">Complete your profile</a>
-      </div>
-    <% } %>
-
-    <section class="mb-4" aria-labelledby="savedHeading">
-      <h2 class="h6 mb-2" id="savedHeading"><i class="bi bi-star-fill text-warning"></i> Saved roles</h2>
-      <% if (!saved.length) { %>
-        <div class="glass-card"><div class="card-body small text-muted-2">
-          Save roles from <a href="/jobs">Find Jobs</a> with <i class="bi bi-star"></i> and they appear here, ready to apply to.
-        </div></div>
-      <% } else { %>
-        <div class="glass-card"><ul class="list-unstyled mb-0">
-          <% saved.forEach(function (j) { const pay = formatRateRange(j); %>
-            <li class="d-flex flex-wrap align-items-center gap-3 apps-saved-row">
-              <% if (j.company_logo) { %><img class="logo-tile flex-shrink-0" src="<%= j.company_logo %>" alt="" loading="lazy">
-              <% } else { %><span class="logo-initials <%= companyTone(j.company_name) %> flex-shrink-0" aria-hidden="true"><%= companyInitials(j.company_name || 'Confidential') %></span><% } %>
-              <span class="flex-grow-1 min-w-0">
-                <a class="fw-semibold" href="/jobs/<%= j.slug %>"><%= j.title %></a>
-                <span class="d-block small text-muted-2"><%= [j.company_name || 'Confidential', jobLocation(j), pay].filter(Boolean).join(' · ') %></span>
-              </span>
-              <a class="btn btn-sm btn-primary" href="/jobs/<%= j.slug %>#apply">Apply</a>
-            </li>
-          <% }); %>
-        </ul></div>
-      <% } %>
-    </section>
+    <%- include('_appsSuggestions', { recommended: recommended, saved: saved, columns: 4 }) %>
 
   <% } else { %>
     <%# ------------------------------------------------------------ STATS %>
@@ -112,6 +59,13 @@
         <div class="small text-muted-2">average time to a first response</div>
       </div></div></div>
     </div>
+
+    <% if (readinessGaps.length) { %>
+      <%# With applications already going out this is a reminder, not a gate: one quiet line. %>
+      <p class="small apps-ready-line mb-3" role="status"><i class="bi bi-clipboard-check"></i>
+        For stronger applications: <%= readinessGaps.join(' · ') %> —
+        <a href="/profile/settings">Build your profile</a> · <a href="/cv-generator">CV Generator</a></p>
+    <% } %>
 
     <%# ------------------------------------------------------------ STATUS BAR %>
     <nav class="apps-status-bar mb-3" aria-label="Filter by status">
@@ -135,7 +89,7 @@
       <form class="d-flex flex-wrap gap-2 ms-lg-auto apps-filters" method="get" action="/dashboard/applications" data-auto-apply>
         <input type="hidden" name="view" value="<%= filters.view %>">
         <% if (filters.status) { %><input type="hidden" name="status" value="<%= filters.status %>"><% } %>
-        <input class="form-control form-control-sm" type="search" name="q" value="<%= filters.q %>" placeholder="Search title or company" aria-label="Search title or company">
+        <input class="form-control form-control-sm" type="search" name="q" value="<%= filters.q %>" placeholder="Search title or company" aria-label="Search title or company" data-auto-search>
         <select class="form-select form-select-sm" name="type" aria-label="Type of work">
           <option value="">Contract and permanent</option>
           <option value="contract" <%= filters.type === 'contract' ? 'selected' : '' %>>Contract</option>
@@ -144,7 +98,7 @@
         <select class="form-select form-select-sm" name="sort" aria-label="Sort">
           <% Object.keys(sorts).forEach(function (k) { %><option value="<%= k %>" <%= filters.sort === k ? 'selected' : '' %>><%= sorts[k] %></option><% }); %>
         </select>
-        <button class="btn btn-sm btn-outline-primary" type="submit">Apply</button>
+        <button class="btn btn-sm btn-outline-primary" type="submit" data-no-script-only>Apply</button>
       </form>
     </div>
 
@@ -159,7 +113,8 @@
       <% applications.forEach(function (a) {
            const job = { rate_min: a.rate_min, rate_max: a.rate_max, currency: a.job_currency, engagement_type: a.engagement_type, rate_visible: a.rate_visible, city: a.city, country: a.country, work_mode: a.work_mode };
            const pay = formatRateRange(job);
-           const canWithdraw = !['hired', 'rejected', 'withdrawn'].includes(a.status); %>
+           const hasOffer = a.status === 'offered' && a.job_status === 'open';
+           const canWithdraw = !['hired', 'rejected', 'withdrawn', 'offered'].includes(a.status); %>
         <article class="glass-card apps-row">
           <div class="card-body">
             <div class="d-flex gap-3 align-items-start">
@@ -174,7 +129,8 @@
                 </div>
                 <div class="small text-muted-2">
                   <%= a.company_name || 'Confidential' %>
-                  <%= [jobLocation(job), workModeLabel(a.work_mode), engagementLabel(a.engagement_type)].filter(Boolean).map(function (x) { return ' · ' + x; }).join('') %>
+                  <%# jobLocation already opens with "Remote" for a remote role, so the work mode is added only when it says something new. %>
+                  <%= [jobLocation(job), a.work_mode === 'remote' ? null : workModeLabel(a.work_mode), engagementLabel(a.engagement_type)].filter(Boolean).map(function (x) { return ' · ' + x; }).join('') %>
                 </div>
                 <div class="small mt-1 apps-facts">
                   <% if (pay) { %><span><i class="bi bi-cash"></i> <%= pay %></span><% } %>
@@ -182,7 +138,7 @@
                   <% if (a.day_rate) { %><span><i class="bi bi-tag"></i> You proposed <%= proposedRate(a) %></span><% } %>
                   <span><i class="bi bi-paperclip"></i>
                     <% if (a.cv_title || a.cv_filename) { %><a href="/applications/<%= a.id %>/cv"><%= a.cv_title || a.cv_filename %></a>
-                    <% } else { %>Profile only<% } %></span>
+                    <% } else { %>No CV attached · profile sent<% } %></span>
                 </div>
 
                 <%# The timeline: status changes from the event log, "Viewed" from viewed_at. %>
@@ -216,6 +172,23 @@
                   <input type="hidden" name="application_id" value="<%= a.id %>">
                   <button class="btn btn-sm <%= a.followUp ? 'btn-primary' : 'btn-outline-primary' %> w-100" type="submit">Message company</button>
                 </form>
+                <% if (hasOffer) { %>
+                  <%# Answering an offer: accept moves it to Hired, decline is a withdrawal with a note. %>
+                  <form method="post" action="/applications/<%= a.id %>/transition" data-confirm="Accept the offer for <%= a.job_title %>? The company is told straight away.">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="to_status" value="hired">
+                    <input type="hidden" name="note" value="Accepted the offer">
+                    <input type="hidden" name="redirectTo" value="<%= currentUrl %>">
+                    <button class="btn btn-sm btn-success w-100" type="submit"><i class="bi bi-check2"></i> Accept offer</button>
+                  </form>
+                  <form method="post" action="/applications/<%= a.id %>/transition" data-confirm="Decline the offer for <%= a.job_title %>? This cannot be undone.">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="to_status" value="withdrawn">
+                    <input type="hidden" name="note" value="Declined the offer">
+                    <input type="hidden" name="redirectTo" value="<%= currentUrl %>">
+                    <button class="btn btn-sm btn-outline-danger w-100" type="submit">Decline</button>
+                  </form>
+                <% } %>
                 <% if (canWithdraw) { %>
                   <form method="post" action="/applications/<%= a.id %>/transition" data-confirm="Withdraw your application for <%= a.job_title %>? You can apply again while the role is open.">
                     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -232,6 +205,10 @@
     </div>
 
     <%- include('../partials/pagination') %>
+
+    <div class="mt-5">
+      <%- include('_appsSuggestions', { recommended: recommended, saved: saved, columns: 3, showProfileHint: readiness.completeness < readiness.enough }) %>
+    </div>
   <% } %>
 </div>
 </section>

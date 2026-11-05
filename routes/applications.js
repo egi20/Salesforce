@@ -175,7 +175,10 @@ router.post(
         });
       }
 
-      req.flash('success', `Application moved to "${statusLabel(updated.status)}".`);
+      const answer = updated.previousStatus === 'offered' && !isEmployer
+        ? { hired: 'Offer accepted — congratulations.', withdrawn: 'Offer declined. The company has been told.' }[updated.status]
+        : null;
+      req.flash('success', answer || `Application moved to "${statusLabel(updated.status)}".`);
     } catch (err) {
       if (['INVALID_TRANSITION', 'FORBIDDEN', 'NOT_FOUND'].includes(err.code)) {
         req.flash('error', err.message);

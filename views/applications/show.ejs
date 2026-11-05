@@ -110,7 +110,7 @@
                 <label class="form-label" for="to_status">New status</label>
                 <select class="form-select" id="to_status" name="to_status" required>
                   <% transitions.forEach(function (t) { %>
-                    <% if (isEmployer || ['withdrawn','submitted'].includes(t)) { %>
+                    <% if (isEmployer || ['withdrawn','submitted'].includes(t) || (application.status === 'offered' && t === 'hired')) { %>
                       <option value="<%= t %>"><%= t %></option>
                     <% } %>
                   <% }); %>

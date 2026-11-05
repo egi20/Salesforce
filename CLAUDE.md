@@ -1185,6 +1185,11 @@ wholesale. The CV sent is `cv_document_id`, validated against the applicant's ow
 apply, and downloadable by exactly the two parties to the application. The status email goes
 to the consultant only when the COMPANY moves the application, never on their own withdraw.
 
+The consultant answers an offer: `Application.consultantMay` allows offered → hired (accept)
+and any withdrawal (decline is a withdrawal with a note), and nothing else of the company's.
+"Hired" still needs two decisions — the company's offer and the consultant's yes. On an
+offered row the list shows Accept / Decline instead of Withdraw.
+
 ## Hiding a profile from named companies
 
 For the consultant looking for their next contract while still in their current one. A public

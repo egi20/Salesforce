@@ -1025,6 +1025,18 @@
   });
 
   /*
+   * The SOW pack download a saved quote asked for ("Download SOW pack" on the form). The
+   * response is an attachment, so following it leaves this page where it is. The query
+   * string is dropped first, so reloading the page does not download the pack again.
+   */
+  var autoDownload = document.querySelector('[data-auto-download]');
+  if (autoDownload) {
+    var downloadUrl = autoDownload.getAttribute('data-auto-download');
+    if (window.history && window.history.replaceState) window.history.replaceState(null, '', window.location.pathname);
+    if (/^\/quotes\/[A-Za-z0-9-]+\/download\/package$/.test(downloadUrl)) window.location.href = downloadUrl;
+  }
+
+  /*
    * Seniority follows the years. Each level option carries its band ("Junior (0-2 yrs)"), and
    * typing years that fall outside the chosen level moves it to the one that fits, saying so
    * underneath. Only a convenience: the server refuses a mismatched pair either way.

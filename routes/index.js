@@ -19,7 +19,7 @@ const ConsultantProfile = require('../models/ConsultantProfile');
 const ConsultantHiddenCompany = require('../models/ConsultantHiddenCompany');
 const CompanyProfile = require('../models/CompanyProfile');
 const RateSubmission = require('../models/RateSubmission');
-const { CLOUD_FAMILIES } = require('../config/cloudFamilies');
+const { CLOUD_FAMILIES, cloudGroups } = require('../config/cloudFamilies');
 const { calculateEstimation, reconciliationProblems } = require('../utils/sowEstimation');
 const { POST_KINDS, isPostKind, postKind } = require('../config/community');
 const { toPlainText } = require('../utils/sanitize');
@@ -137,27 +137,36 @@ function greetingFor(now) {
  * that already exists; none of them describes something the Hub cannot do.
  */
 /*
- * "What's included in the SOW" — each line names the heading in utils/documents/sowDocx.js
- * that produces it, and a test asserts every one of those headings is really there. A
- * product page listing "Acceptance criteria" because a competitor's does would be a promise
- * the download does not keep; this list can only be what the generator writes.
+ * "What's included" on the SOW pack page, in two columns.
+ *
+ * The SOW column: each line names the heading in utils/documents/sowDocx.js that produces it,
+ * and a test asserts every one of those headings is really there. "Acceptance criteria" is on
+ * the list because section 2.2 now writes it — a line copied from a competitor's page before
+ * the document had it would have been a promise the download did not keep. Optional sections
+ * say when they appear.
+ *
+ * The pack column names the other two files and the two properties of all three.
  */
-const SOW_CONTENTS = Object.freeze([
-  { label: 'Cover page: client, contact, reference and date', heading: 'Prepared for' },
-  { label: 'Summary of effort, duration and budget', heading: "'Summary'" },
-  { label: 'Scope by cloud and module, with the days for each', heading: '1. Scope' },
-  { label: 'AppExchange add-ons', heading: '1.1 Add-on products' },
-  { label: 'Integrations', heading: '1.2 Integrations' },
-  { label: 'Delivery approach, phase by phase', heading: '2. Approach' },
-  { label: 'Timeline: weeks and a milestone for each phase', heading: '2.1 Timeline' },
-  { label: 'Team and commercials: roles, days, day rates and cost', heading: '3. Team and commercials' },
-  { label: 'How the effort was derived, multiplier by multiplier', heading: '3.1 How the effort was derived' },
-  { label: 'Assumptions', heading: '4. Assumptions' },
-  { label: 'Exclusions', heading: '5. Exclusions' },
-  { label: 'Validity of the estimate', heading: '. Validity' },
-  { label: 'Your standard terms', note: 'when set under Document branding', heading: '6. Terms', optional: true },
-  { label: 'Executive summary, approach narrative and risks', note: 'when you add them to the quote', heading: "'Executive summary'", optional: true }
-]);
+const SOW_INCLUDED = Object.freeze({
+  sow: [
+    { label: 'Executive summary', note: 'when you add one to the quote', heading: "'Executive summary'", optional: true },
+    { label: 'Scope by cloud and module, add-ons and integrations', heading: '1. Scope' },
+    { label: 'Phases & timeline, with a milestone per phase', heading: '2.1 Timeline' },
+    { label: 'Acceptance criteria for each phase', heading: '2.2 Acceptance criteria' },
+    { label: 'Team & roles: days and day rates', heading: '3. Team and commercials' },
+    { label: 'Pricing: implementation, hypercare and total', heading: "'Implementation'" },
+    { label: 'How the effort was derived', heading: '3.1 How the effort was derived' },
+    { label: 'Assumptions & exclusions', heading: '5. Exclusions' },
+    { label: 'Risks', note: 'when you add them to the quote', heading: 'What could move this estimate', optional: true },
+    { label: 'Terms and validity', note: 'your own terms when set under Document branding', heading: '. Validity' }
+  ],
+  pack: [
+    { label: 'Work breakdown + Gantt', note: '.xlsx, four sheets' },
+    { label: 'Summary deck', note: '.pptx, seven slides' },
+    { label: 'Your branding', note: 'colours, letterhead and standard clauses' },
+    { label: 'Figures that reconcile', note: 'all three read the same stored estimate' }
+  ]
+});
 
 const SERVICE_PAGES = {
   'staff-augmentation': {
@@ -211,7 +220,7 @@ const SERVICE_PAGES = {
     ],
     cta: { label: 'Start a quote', href: '/quotes/new' },
     aside: { text: 'Looking for your CV? Consultants have their own generator.', label: 'CV Generator', href: '/cv-generator' },
-    sowContents: SOW_CONTENTS
+    included: SOW_INCLUDED
   }
 };
 
@@ -252,7 +261,7 @@ router.get('/services/:page', (req, res, next) => {
   const model = SERVICE_PAGES[req.params.page];
   // The SOW pack is a product page with its own layout; the other three are short explainers.
   if (req.params.page === 'document-generator') {
-    return res.render('services/document-generator', { title: model.heading, model, sample: SOW_SAMPLE });
+    return res.render('services/document-generator', { title: model.heading, model, sample: SOW_SAMPLE, cloudGroups: cloudGroups() });
   }
   return res.render('services/engagement-model', { title: model.heading, model });
 });

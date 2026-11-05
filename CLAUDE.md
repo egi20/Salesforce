@@ -131,6 +131,18 @@ on screen and the figure in the stored quote could disagree, and the first chang
 `config/estimation.js` would make them. The four steps are a reading aid over ONE form —
 without scripting every step shows and the button at the bottom submits all of it.
 
+The form is read in `utils/quoteFormInputs.js`, both ways: `inputsFrom` (form → estimator
+input) and `valuesFromQuote` (stored quote → form), and a test round-trips a quote through
+both. That is what "Reuse details from your last quote" stands on — it reloads the form from
+the author's OWN quote (any other reference is treated as absent) and saves a NEW quote; the
+original, a statement made on a date, is never touched. Catalogue lookups there use
+`hasOwnProperty`: `COMPLEXITY_MULTIPLIERS['__proto__']` is truthy.
+
+"Download SOW pack" on the Review step SAVES first and then lands on the quote's page, which
+starts the download once (and drops the query string so a reload does not repeat it). A pack
+is always generated from a stored quote, never from a form; landing on the page means the
+author sees what was saved and a second click does not save a second copy.
+
 ## Generated documents
 
 `utils/documents/` holds one generator per format plus a shared validator, and
@@ -479,10 +491,15 @@ pack. They were one page whose only button was "Start a quote", which is where a
 following "CV Generator" landed. The Hub writes no cover letter — that is prose, and a
 generator that writes prose stops rendering the consultant's own claims.
 
-"What's included in the SOW" on that page is `SOW_CONTENTS` in `routes/index.js`, and each line
+"What's included" on that page is `SOW_INCLUDED` in `routes/index.js`, and each SOW line
 names the heading in `sowDocx.js` that produces it; a test asserts every heading is really
-there. A list copied from a competitor's page ("acceptance criteria", "change control") would
-promise sections this document does not have. Optional sections say when they appear.
+there. "Acceptance criteria" is listed because section 2.2 now WRITES it — the phase, its
+milestone from the stored timeline and `PHASE_ACCEPTANCE` from `config/estimation.js` (words,
+no figures, asserted for every phase at boot). It was added to the document before it was added
+to the page; the other order is a page promising a section the download does not have. 2.2 is
+a sub-section so nothing after it is renumbered. Optional sections say when they appear. The
+three cloud cards are `CLOUD_GROUPS` in `config/cloudFamilies.js`, and `cloudGroupProblems()`
+fails a test if a cloud is in no group or two.
 
 Every figure on the SOW pack page is a property of the generators — seven slides, four
 sheets, six numbered sections — and its sample timeline is computed at load by

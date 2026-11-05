@@ -185,8 +185,42 @@ function familyLabel(slug) {
   return FAMILY_LABELS.get(slug) || slug || '';
 }
 
+/*
+ * How the SOW page groups the clouds into three cards. Display only — every family must
+ * appear in exactly one group (`cloudGroupProblems`, asserted in a test), so adding a cloud
+ * to the catalogue without placing it here fails loudly rather than vanishing from the page.
+ */
+const CLOUD_GROUPS = Object.freeze([
+  { id: 'core', label: 'Core CRM', icon: 'bi-people', families: ['sales-cloud', 'service-cloud', 'revenue-cloud', 'field-service', 'experience-cloud'] },
+  { id: 'data', label: 'Marketing & Data', icon: 'bi-graph-up-arrow', families: ['marketing-cloud', 'data-cloud', 'analytics', 'agentforce'] },
+  { id: 'platform', label: 'Platform & Industries', icon: 'bi-boxes', families: ['platform', 'integration', 'commerce-cloud', 'industries'] }
+]);
+
+function cloudGroupProblems() {
+  const problems = [];
+  const seen = new Map();
+  for (const group of CLOUD_GROUPS) {
+    for (const slug of group.families) {
+      if (!FAMILY_LABELS.has(slug)) problems.push(`group "${group.id}" names unknown cloud "${slug}"`);
+      if (seen.has(slug)) problems.push(`cloud "${slug}" is in "${seen.get(slug)}" and "${group.id}"`);
+      seen.set(slug, group.id);
+    }
+  }
+  for (const f of CLOUD_FAMILIES) if (!seen.has(f.value)) problems.push(`cloud "${f.value}" is in no group`);
+  return problems;
+}
+
+/** The groups with each family's catalogue entry attached, for a view to list. */
+function cloudGroups() {
+  const byValue = new Map(CLOUD_FAMILIES.map((f) => [f.value, f]));
+  return CLOUD_GROUPS.map((g) => ({ ...g, families: g.families.map((slug) => byValue.get(slug)).filter(Boolean) }));
+}
+
 module.exports = {
   CLOUD_FAMILIES,
+  CLOUD_GROUPS,
+  cloudGroups,
+  cloudGroupProblems,
   ALL_MODULES,
   MODULE_BASE_EFFORTS,
   FAMILY_FOUNDATION_EFFORTS,

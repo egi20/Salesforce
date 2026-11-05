@@ -17,8 +17,9 @@ const {
   COMPANY_SIZE_MULTIPLIERS,
   catalogueVersion
 } = require('../config/estimation');
-const { CLOUD_FAMILIES, isValidFamily, isValidModule } = require('../config/cloudFamilies');
+const { CLOUD_FAMILIES } = require('../config/cloudFamilies');
 const { sanitizeRichText } = require('../utils/sanitize');
+const { inputsFrom, optionsFrom, hasScope, valuesFromQuote } = require('../utils/quoteFormInputs');
 const { returnTo } = require('../utils/returnTo');
 const { isDocumentKind, PACKAGE_KIND, generateDocument, generatePackage } = require('../services/quotePackage');
 const CompanyProfile = require('../models/CompanyProfile');
@@ -54,52 +55,8 @@ function catalogueLocals() {
   };
 }
 
-/**
- * Read the wizard form into the estimator's input shape.
- *
- * Everything the client can send is filtered against the catalogue here, so an unknown
- * slug is dropped rather than silently costed at a default. Free text survives as free
- * text and is costed explicitly as unmapped scope.
- */
-function inputsFrom(form) {
-  const asArray = (value) => (Array.isArray(value) ? value : [value].filter(Boolean));
 
-  return {
-    selectedFamilies: asArray(form.families).filter(isValidFamily),
-    selectedModules: asArray(form.modules).filter(isValidModule),
-    selectedIsvs: asArray(form.isvs).filter((id) => Object.prototype.hasOwnProperty.call(ISV_SOLUTIONS, id)),
-    complexity: COMPLEXITY_MULTIPLIERS[form.complexity] ? form.complexity : 'moderate',
-    customizationLevel: CUSTOMIZATION_MULTIPLIERS[form.customization_level] ? form.customization_level : 'medium',
-    clientIndustry: INDUSTRY_MULTIPLIERS[form.client_industry] ? form.client_industry : '',
-    companySize: COMPANY_SIZE_MULTIPLIERS[form.company_size] ? form.company_size : '',
-    numberOfUsers: form.number_of_users,
-    numberOfOrgs: form.number_of_orgs,
-    numberOfIntegrations: form.number_of_integrations,
-    integrationComplexity: ['simple', 'medium', 'complex'].includes(form.integration_complexity)
-      ? form.integration_complexity
-      : 'medium',
-    includeTraining: form.include_training === 'on',
-    includeSupport: form.include_support === 'on',
-    supportDurationDays: Math.max(0, Math.min(365, parseInt(form.support_duration_days, 10) || 0)),
-    otherModules: String(form.other_modules || '').slice(0, 1000),
-    otherIsvs: String(form.other_isvs || '').slice(0, 1000),
-    otherIntegrations: String(form.other_integrations || '').slice(0, 1000)
-  };
-}
 
-/** The two options that are not inputs to the effort, read the same way for preview and save. */
-function optionsFrom(form) {
-  return {
-    contingencyPercentage: Math.max(0, Math.min(50, parseInt(form.contingency_percentage, 10) || 15)),
-    currency: /^[A-Z]{3}$/.test(form.currency || '') ? form.currency : 'EUR'
-  };
-}
-
-function hasScope(inputs) {
-  return Boolean(
-    inputs.selectedFamilies.length || inputs.selectedModules.length || inputs.selectedIsvs.length || inputs.otherModules.trim()
-  );
-}
 
 /**
  * The running total beside the form: "Scope so far: 74 man-days · ~€55k".
@@ -133,7 +90,9 @@ router.post(
       implementationBudget: estimate.implementationBudget,
       supportBudget: estimate.supportBudget,
       totalBudget: estimate.totalBudget,
-      phases: estimate.phaseBreakdown.map((p) => ({ name: p.name, days: p.days }))
+      phases: estimate.phaseBreakdown.filter((p) => p.days > 0).map((p) => ({ name: p.name, days: p.days })),
+      team: estimate.resourceAllocation.map((r) => ({ name: r.name, days: r.days, totalCost: r.totalCost })),
+      timeline: estimate.timeline.map((t) => ({ phase: t.phase, startWeek: t.startWeek, endWeek: t.endWeek, milestone: t.milestone }))
     });
   })
 );
@@ -169,12 +128,27 @@ router.get(
     // Pre-fill nothing from the authoring company: the client is the subject of the quote,
     // and defaulting their name to the author's own company is a confusing wrong answer.
 
+    const ownerId = req.session.user.id;
+    /*
+     * "Use last quote": the form filled from one of the author's OWN quotes. A reference that
+     * is not theirs is treated as absent — 404 would confirm somebody else's quote exists.
+     */
+    const source = typeof req.query.from === 'string' ? await Quote.findByReference(req.query.from.slice(0, 40)) : null;
+    const reusedFrom = source && source.owner_user_id === ownerId ? source : null;
+    // Offered only on a fresh form: not after "Start blank", not when already reusing.
+    const lastQuote = reusedFrom || req.query.blank === '1' ? null : (await Quote.listForOwner(ownerId, { limit: 1 })).rows[0] || null;
+
     return renderNew(req, res, {
-      values: { include_training: 'on', include_support: 'on', support_duration_days: 30, number_of_users: 50, number_of_orgs: 1 },
-      errors: []
+      values: reusedFrom
+        ? valuesFromQuote(reusedFrom)
+        : { include_training: 'on', include_support: 'on', support_duration_days: 30, number_of_users: 50, number_of_orgs: 1 },
+      errors: [],
+      reusedFrom,
+      lastQuote
     });
   })
 );
+
 
 /*
  * The form, fresh or re-shown with errors. `quoteCount` is for the "Your quotes" link in the
@@ -183,7 +157,7 @@ router.get(
  */
 const CLIENT_FIELDS = ['client_company', 'client_name', 'client_email', 'project_name'];
 
-async function renderNew(req, res, { values, errors, status = 200 }) {
+async function renderNew(req, res, { values, errors, status = 200, reusedFrom = null, lastQuote = null }) {
   const stats = await Quote.statsForOwner(req.session.user.id);
   const errorStep = errors.length ? (errors.some((e) => CLIENT_FIELDS.includes(e.path)) ? 1 : 2) : 1;
   return res.status(status).render('quotes/new', {
@@ -192,6 +166,8 @@ async function renderNew(req, res, { values, errors, status = 200 }) {
     values,
     errors,
     errorStep,
+    reusedFrom,
+    lastQuote,
     quoteCount: stats.reduce((sum, s) => sum + Number(s.count), 0)
   });
 }
@@ -255,6 +231,16 @@ router.post(
       catalogueVersion: catalogueVersion()
     });
 
+    /*
+     * "Download SOW pack" saves first — a pack is generated from a STORED quote, never from a
+     * form — then lands on the quote's page, which starts the download. Landing on the page
+     * rather than on the file means the author sees what was saved, and a second click does
+     * not save a second copy.
+     */
+    if (req.body.then === 'download') {
+      req.flash('success', `Estimate ${quote.reference} saved. Your SOW pack is downloading.`);
+      return res.redirect(`/quotes/${quote.reference}?download=${PACKAGE_KIND}`);
+    }
     req.flash('success', `Estimate ${quote.reference} saved.`);
     return res.redirect(`/quotes/${quote.reference}`);
   })
@@ -350,6 +336,8 @@ router.get(
       transitions: Quote.TRANSITIONS[quote.status] || [],
       // A quote priced under an older catalogue is flagged rather than silently trusted.
       catalogueIsCurrent: quote.catalogue_version === catalogueVersion(),
+      // Set only by the redirect after "Download SOW pack"; main.js follows the link once.
+      autoDownload: req.query.download === PACKAGE_KIND ? `/quotes/${quote.reference}/download/${PACKAGE_KIND}` : null,
       ...catalogueLocals()
     });
   })

@@ -69,25 +69,109 @@ describe('the form works with scripting off', () => {
   });
 });
 
-describe("the SOW page lists only what the SOW contains", () => {
+describe('the SOW page lists only what the SOW contains', () => {
   const index = read('routes/index.js');
   const sow = read('utils/documents/sowDocx.js');
-  const block = index.slice(index.indexOf('const SOW_CONTENTS'), index.indexOf('const SERVICE_PAGES'));
+  const block = index.slice(index.indexOf('const SOW_INCLUDED'), index.indexOf('const SERVICE_PAGES'));
   const headings = [...block.matchAll(/heading: ('[^']*'|"[^"]*")/g)].map((m) => m[1].slice(1, -1));
 
-  test('the list is not empty', () => {
-    expect(headings.length).toBeGreaterThanOrEqual(12);
+  test('every SOW line names the heading that produces it', () => {
+    const sowBlock = block.slice(block.indexOf('sow: ['), block.indexOf('pack: ['));
+    const lines = sowBlock.match(/\{ label:/g) || [];
+    expect(lines.length).toBeGreaterThanOrEqual(8);
+    expect(headings.length).toBe(lines.length);
   });
 
   test.each(headings.map((h) => [h]))('"%s" is a heading the generator writes', (heading) => {
     expect(sow).toContain(heading);
   });
 
-  test('nothing is listed that the document does not have', () => {
-    expect(block).not.toMatch(/Acceptance criteria|Work breakdown structure|Change control/i);
+  test('acceptance criteria are listed because section 2.2 writes them', () => {
+    expect(block).toContain("heading: '2.2 Acceptance criteria'");
+    expect(sow).toContain("heading('2.2 Acceptance criteria'");
   });
 
-  test('the page offers Your quotes to a signed-in visitor', () => {
-    expect(read('views/services/document-generator.ejs')).toMatch(/href="\/quotes"><i class="bi bi-clock-history"><\/i> Your quotes/);
+  test('nothing is listed that the document does not have', () => {
+    expect(block).not.toMatch(/Work breakdown structure|Change control|Statement of compliance/i);
+  });
+
+  test('Your quotes is in the hero; a visitor is sent through sign-in to it', () => {
+    expect(read('views/services/document-generator.ejs')).toContain("currentUser ? '/quotes' : '/auth/login?redirect=%2Fquotes'");
+  });
+
+  test('the three cloud cards cover every cloud exactly once', () => {
+    const { cloudGroupProblems, cloudGroups, CLOUD_FAMILIES } = require('../../config/cloudFamilies');
+    expect(cloudGroupProblems()).toEqual([]);
+    expect(cloudGroups().reduce((n, g) => n + g.families.length, 0)).toBe(CLOUD_FAMILIES.length);
+  });
+});
+
+describe('section 2.2 of the SOW: acceptance criteria', () => {
+  const PizZip = require('pizzip');
+  const { calculateEstimation } = require('../../utils/sowEstimation');
+  const { PHASE_DISTRIBUTION, PHASE_ACCEPTANCE, catalogueVersion } = require('../../config/estimation');
+  const { generateSowDocx } = require('../../utils/documents/sowDocx');
+
+  test('every phase has a criterion', () => {
+    for (const id of Object.keys(PHASE_DISTRIBUTION)) expect(PHASE_ACCEPTANCE[id]).toBeTruthy();
+  });
+
+  test('the document carries one row per timeline phase, with its milestone', async () => {
+    const estimate = calculateEstimation({ selectedFamilies: ['sales-cloud'], selectedModules: ['cpq'], includeTraining: true, includeSupport: true, supportDurationDays: 30 });
+    const quote = {
+      reference: 'Q-TEST0001', client_company: 'Acme', client_name: 'Jane', project_name: 'Rollout',
+      estimate, catalogue_version: catalogueVersion(), created_at: new Date('2026-11-05T09:00:00Z')
+    };
+    const text = new PizZip(await generateSowDocx(quote)).file('word/document.xml').asText()
+      .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    expect(text).toContain('2.2 Acceptance criteria');
+    for (const t of estimate.timeline) {
+      expect(text).toContain(t.milestone);
+      expect(text).toContain(PHASE_ACCEPTANCE[t.phaseId].replace(/\u2019/g, '\u2019'));
+    }
+    // A sub-section: nothing after it was renumbered.
+    expect(text).toContain('3. Team and commercials');
+    expect(text).toContain('4. Assumptions');
+  });
+});
+
+describe('Reuse details from your last quote', () => {
+  const { inputsFrom, valuesFromQuote } = require('../../utils/quoteFormInputs');
+
+  test('a stored quote read back into the form gives the same inputs', () => {
+    const inputs = inputsFrom({
+      families: ['sales-cloud', 'revenue-cloud'], modules: ['cpq', 'lead-management'], isvs: ['isv-conga'],
+      complexity: 'complex', customization_level: 'high', client_industry: 'Retail', company_size: 'Medium (51-500)',
+      number_of_users: '120', number_of_orgs: '2', number_of_integrations: '3', integration_complexity: 'simple',
+      include_training: 'on', include_support: '', support_duration_days: '45',
+      other_modules: 'legacy approvals', other_integrations: 'SAP'
+    });
+    const quote = {
+      client_company: 'Acme', client_name: 'Jane', client_email: null, client_industry: 'Retail', company_size: 'Medium (51-500)',
+      project_name: 'Rollout', project_summary: '<p>Quote &amp; bill</p>',
+      inputs, estimate: { contingencyPercentage: 10, currency: 'GBP' }
+    };
+    const values = valuesFromQuote(quote);
+    const again = inputsFrom(values);
+    // Numbers come back as numbers rather than the strings a form posts; compare as strings.
+    const norm = (o) => JSON.parse(JSON.stringify(o, (k, v) => (typeof v === 'number' ? String(v) : v)));
+    expect(norm(again)).toEqual(norm(inputs));
+    expect(values).toMatchObject({ contingency_percentage: 10, currency: 'GBP', project_summary: 'Quote & bill' });
+  });
+
+  test("only the author's own quote can be reused", () => {
+    expect(read('routes/quotes.js')).toMatch(/const reusedFrom = source && source\.owner_user_id === ownerId \? source : null;/);
+  });
+
+  test('a key on Object.prototype is not a catalogue entry', () => {
+    const inputs = inputsFrom({ complexity: '__proto__', customization_level: 'constructor', client_industry: 'toString', isvs: ['__proto__'] });
+    expect(inputs).toMatchObject({ complexity: 'moderate', customizationLevel: 'medium', clientIndustry: '', selectedIsvs: [] });
+  });
+
+  test('Download SOW pack saves first, then downloads from the stored quote', () => {
+    const route = read('routes/quotes.js');
+    expect(route).toContain("if (req.body.then === 'download')");
+    expect(route).toContain('`/quotes/${quote.reference}?download=${PACKAGE_KIND}`');
+    expect(read('public/js/main.js')).toContain('window.history.replaceState(null, \'\', window.location.pathname)');
   });
 });

@@ -1,10 +1,5 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { icon: 'bi-calculator',
-  heading: 'New estimate',
-  sub: 'Pick the scope. The engine turns it into man-days, a phased plan, a team shape and a budget that all reconcile.'
-}) %>
-
 <%
   /*
    * ONE form in four steps: Client, Scope, Shape & options, Review.
@@ -23,24 +18,68 @@
   const modules = asList(values.modules);
   const isvs = asList(values.isvs);
   const cap = (s) => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
-  const steps = ['Client', 'Scope', 'Shape & options', 'Review'];
+  const steps = [
+    { label: 'Client info', icon: 'bi-building' },
+    { label: 'Scope', icon: 'bi-diagram-3' },
+    { label: 'Shape & options', icon: 'bi-sliders' },
+    { label: 'Review & generate', icon: 'bi-clipboard-check' }
+  ];
+  const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 %>
 
-<section class="glass-section pb-5">
+<%# A light page, not the glass gradient: a long form reads more easily on a quiet background. %>
+<section class="quote-page">
 <div class="container">
+  <header class="quote-head text-center">
+    <h1>SOW Quote Generator</h1>
+    <p>Complete the steps to get an estimate and the SOW pack.</p>
+    <div class="quote-head-links">
+      <a href="/quotes"><i class="bi bi-clock-history"></i> Your quotes<% if (quoteCount) { %> (<%= quoteCount %>)<% } %></a>
+      <span aria-hidden="true">·</span>
+      <a href="/services/document-generator">What's in the SOW pack</a>
+    </div>
+  </header>
+
   <%- include('../partials/flash') %>
 
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <a class="small fw-semibold" href="/quotes"><i class="bi bi-clock-history"></i> Your quotes<% if (quoteCount) { %> (<%= quoteCount %>)<% } %></a>
-    <a class="small" href="/services/document-generator">What you get: the SOW pack</a>
-  </div>
-
-  <%# Drawn by main.js; without scripting every step is visible and this bar would describe nothing. %>
+  <%# Drawn by quote-form.js; without scripting every step is visible and this bar would describe nothing. %>
   <ol class="quote-steps list-unstyled" data-quote-steps hidden>
-    <% steps.forEach(function (label, i) { %>
-      <li><button type="button" class="quote-step-tab" data-goto-step="<%= i + 1 %>"><span class="quote-step-n"><%= i + 1 %></span> <span class="quote-step-label"><%= label %></span></button></li>
+    <% steps.forEach(function (s, i) { %>
+      <li>
+        <button type="button" class="quote-step-tab" data-goto-step="<%= i + 1 %>">
+          <span class="quote-step-icon" aria-hidden="true"><i class="bi <%= s.icon %>"></i><i class="bi bi-check-lg quote-step-done"></i></span>
+          <span class="quote-step-label"><span class="visually-hidden">Step <%= i + 1 %>: </span><%= s.label %></span>
+        </button>
+      </li>
     <% }); %>
   </ol>
+
+  <%
+    /*
+     * "Reuse details from your last quote?" — offered on a fresh form when there is a last
+     * quote. "Use last quote" reloads the form filled from it (the owner's own row, checked
+     * server-side); "Start blank" just puts the offer away.
+     */
+  %>
+  <% if (reusedFrom) { %>
+    <div class="quote-reuse alert alert-info d-flex flex-wrap align-items-center gap-2">
+      <i class="bi bi-arrow-repeat"></i>
+      <span class="flex-grow-1">Filled from <strong><%= reusedFrom.reference %></strong> — <%= reusedFrom.client_company %>, <%= reusedFrom.project_name %>. Change anything before you save; the original is not touched.</span>
+      <a class="btn btn-sm btn-outline-primary" href="/quotes/new?blank=1">Start blank</a>
+    </div>
+  <% } else if (lastQuote) { %>
+    <div class="quote-reuse glass-card mb-3" data-quote-reuse>
+      <div class="card-body d-flex flex-wrap align-items-center gap-3">
+        <span class="sow-pack-icon mb-0" aria-hidden="true"><i class="bi bi-arrow-repeat"></i></span>
+        <div class="flex-grow-1">
+          <p class="fw-semibold mb-0">Reuse details from your last quote?</p>
+          <p class="small text-muted-2 mb-0"><%= lastQuote.reference %> · <%= lastQuote.client_company %> · <%= lastQuote.project_name %> · <%= fmtDate(lastQuote.created_at) %></p>
+        </div>
+        <a class="btn btn-primary btn-sm" href="/quotes/new?from=<%= encodeURIComponent(lastQuote.reference) %>">Use last quote</a>
+        <a class="btn btn-outline-primary btn-sm" href="/quotes/new?blank=1" data-dismiss-reuse>Start blank</a>
+      </div>
+    </div>
+  <% } %>
 
   <% if (errors.length) { %>
     <div class="alert alert-danger" role="alert">
@@ -51,12 +90,12 @@
   <form method="post" action="/quotes" class="row g-4" data-quote-form data-start-step="<%= errorStep %>">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-    <div class="col-lg-8">
+    <div class="col-lg-8 quote-main-col">
 
       <%# ---------------------------------------------------------------- 1. Client %>
       <section class="quote-step glass-card mb-3" data-step="1" aria-labelledby="step1">
         <div class="card-body">
-          <h2 class="h5 mb-3" id="step1"><span class="quote-step-n">1</span> Who it is for</h2>
+          <h2 class="h5 mb-3" id="step1"><span class="quote-step-n">1</span> Client info</h2>
           <div class="row g-2 mb-3">
             <div class="col-md-6">
               <label class="form-label" for="client_company">Client company <span aria-hidden="true">*</span></label>
@@ -108,7 +147,7 @@
           </div>
           <div class="quote-step-nav" data-step-nav hidden>
             <span></span>
-            <button type="button" class="btn btn-primary" data-next-step>Next: Scope <i class="bi bi-arrow-right"></i></button>
+            <button type="button" class="btn btn-primary" data-next-step>Next <i class="bi bi-arrow-right"></i></button>
           </div>
         </div>
       </section>
@@ -210,8 +249,8 @@
             </div>
           </div>
           <div class="quote-step-nav" data-step-nav hidden>
-            <button type="button" class="btn btn-outline-primary" data-prev-step><i class="bi bi-arrow-left"></i> Back</button>
-            <button type="button" class="btn btn-primary" data-next-step>Next: Shape &amp; options <i class="bi bi-arrow-right"></i></button>
+            <button type="button" class="btn btn-outline-primary" data-prev-step><i class="bi bi-arrow-left"></i> Previous</button>
+            <button type="button" class="btn btn-primary" data-next-step>Next <i class="bi bi-arrow-right"></i></button>
           </div>
         </div>
       </section>
@@ -228,7 +267,7 @@
                 <div class="col-sm-6 col-xl-3">
                   <input class="choice-card-input" type="radio" name="complexity" value="<%= c.id %>" id="cx-<%= c.id %>" <%= on ? 'checked' : '' %>>
                   <label class="choice-card" for="cx-<%= c.id %>">
-                    <span class="choice-card-title"><%= cap(c.id) %> <span class="text-muted-2">&times;<%= c.multiplier %></span></span>
+                    <span class="choice-card-title"><%= cap(c.id) %> <span class="text-muted-2">(&times;<%= c.multiplier %>)</span></span>
                     <span class="choice-card-desc"><%= c.description %></span>
                   </label>
                 </div>
@@ -243,7 +282,7 @@
                 <div class="col-sm-4">
                   <input class="choice-card-input" type="radio" name="customization_level" value="<%= c.id %>" id="cu-<%= c.id %>" <%= on ? 'checked' : '' %>>
                   <label class="choice-card" for="cu-<%= c.id %>">
-                    <span class="choice-card-title"><%= cap(c.id) %> <span class="text-muted-2">&times;<%= c.multiplier %></span></span>
+                    <span class="choice-card-title"><%= cap(c.id) %> <span class="text-muted-2">(&times;<%= c.multiplier %>)</span></span>
                     <span class="choice-card-desc"><%= c.description %></span>
                   </label>
                 </div>
@@ -298,8 +337,8 @@
             Excluding a phase does not shrink the project — its share is redistributed into build.
           </p>
           <div class="quote-step-nav" data-step-nav hidden>
-            <button type="button" class="btn btn-outline-primary" data-prev-step><i class="bi bi-arrow-left"></i> Back</button>
-            <button type="button" class="btn btn-primary" data-next-step>Next: Review <i class="bi bi-arrow-right"></i></button>
+            <button type="button" class="btn btn-outline-primary" data-prev-step><i class="bi bi-arrow-left"></i> Previous</button>
+            <button type="button" class="btn btn-primary" data-next-step>Next <i class="bi bi-arrow-right"></i></button>
           </div>
         </div>
       </section>
@@ -307,8 +346,41 @@
       <%# ---------------------------------------------------------------- 4. Review %>
       <section class="quote-step glass-card mb-3" data-step="4" aria-labelledby="step4">
         <div class="card-body">
-          <h2 class="h5 mb-3" id="step4"><span class="quote-step-n">4</span> Review</h2>
-          <%# Filled by main.js from the fields above; nothing here is a figure the page made up. %>
+          <h2 class="h5 mb-3" id="step4"><span class="quote-step-n">4</span> Review &amp; generate</h2>
+          <%
+            /*
+             * Filled by quote-form.js: the figures, phases, team and timeline come from
+             * POST /quotes/preview (the engine), the choices from the fields above. Without
+             * scripting this block stays empty and Save quote shows the full breakdown.
+             */
+          %>
+          <div class="quote-figures" data-review-figures hidden>
+            <div><span class="quote-figure-label">Total effort</span><span class="quote-figure" data-fig="days">—</span></div>
+            <div><span class="quote-figure-label">Duration</span><span class="quote-figure" data-fig="weeks">—</span></div>
+            <div><span class="quote-figure-label">Implementation</span><span class="quote-figure" data-fig="implementation">—</span></div>
+            <div><span class="quote-figure-label" data-fig-label="total">Total budget</span><span class="quote-figure" data-fig="total">—</span></div>
+          </div>
+          <div class="row g-3 mb-3" data-review-tables hidden>
+            <div class="col-md-6">
+              <h3 class="h6 mb-2">Phases</h3>
+              <table class="table table-sm quote-review-table mb-0">
+                <thead><tr><th scope="col">Phase</th><th scope="col" class="text-end">Days</th><th scope="col" class="text-end">Weeks</th></tr></thead>
+                <tbody data-review-phase-rows></tbody>
+              </table>
+            </div>
+            <div class="col-md-6">
+              <h3 class="h6 mb-2">Team</h3>
+              <table class="table table-sm quote-review-table mb-0">
+                <thead><tr><th scope="col">Role</th><th scope="col" class="text-end">Days</th><th scope="col" class="text-end">Cost</th></tr></thead>
+                <tbody data-review-team-rows></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="mb-3" data-review-timeline-box hidden>
+            <h3 class="h6 mb-2">Timeline</h3>
+            <div class="sow-gantt" data-review-timeline></div>
+          </div>
+          <h3 class="h6 mb-2">Your choices</h3>
           <dl class="quote-review" data-quote-review>
             <dt>Client</dt><dd data-review="client">—</dd>
             <dt>Project</dt><dd data-review="project">—</dd>
@@ -319,24 +391,23 @@
             <dt>Shape</dt><dd data-review="shape">—</dd>
             <dt>Included</dt><dd data-review="included">—</dd>
           </dl>
-          <div class="quote-review-phases" data-review-phases hidden>
-            <h3 class="h6 mb-2">Phases</h3>
-            <ul class="list-unstyled small mb-0" data-review-phase-list></ul>
-          </div>
           <p class="small text-muted-2 mt-3 mb-3">
-            Calculating saves the estimate to Your quotes with its full breakdown — phases, team,
-            timeline and budget — and from there you download the SOW pack.
+            Saving keeps the estimate in Your quotes exactly as priced today. Download SOW pack saves it
+            and then generates the SOW (.docx), work breakdown (.xlsx) and deck (.pptx) from it.
           </p>
           <div class="quote-step-nav quote-step-nav-final">
-            <button type="button" class="btn btn-outline-primary" data-prev-step hidden><i class="bi bi-arrow-left"></i> Back</button>
-            <button class="btn btn-primary" type="submit"><i class="bi bi-calculator"></i> Calculate estimate</button>
+            <button type="button" class="btn btn-outline-primary" data-prev-step hidden><i class="bi bi-arrow-left"></i> Previous</button>
+            <div class="d-flex flex-wrap gap-2">
+              <button class="btn btn-outline-primary" type="submit" name="then" value="view"><i class="bi bi-save"></i> Save quote</button>
+              <button class="btn btn-primary" type="submit" name="then" value="download"><i class="bi bi-file-earmark-zip"></i> Download SOW pack</button>
+            </div>
           </div>
         </div>
       </section>
     </div>
 
     <%# ------------------------------------------------------------------ the running total %>
-    <div class="col-lg-4">
+    <div class="col-lg-4 quote-aside-col">
       <aside class="quote-summary glass-card" aria-label="Scope so far">
         <div class="card-body">
           <h2 class="h6 mb-2">Scope so far</h2>
@@ -352,7 +423,9 @@
           <p class="form-text mb-3" data-preview-note>
             Worked out by the same engine as the saved estimate, so the figure here is the figure you will get.
           </p>
-          <button class="btn btn-primary w-100" type="submit"><i class="bi bi-calculator"></i> Calculate estimate</button>
+          <%# With scripting this goes to the Review step; without it, it saves. %>
+          <button class="btn btn-primary w-100" type="button" data-goto-review hidden>Review &amp; generate <i class="bi bi-arrow-right"></i></button>
+          <button class="btn btn-primary w-100" type="submit" name="then" value="view" data-no-script-only>Save quote</button>
           <a class="btn btn-outline-primary w-100 mt-2" href="/quotes">Cancel</a>
         </div>
       </aside>

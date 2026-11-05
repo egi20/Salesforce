@@ -70,6 +70,9 @@
   function show(step, options) {
     var scroll = !options || options.scroll !== false;
     current = step;
+    // CSS reads this: the running-total panel belongs to Scope and Shape, so on Client info
+    // and Review the form takes the whole width instead.
+    form.setAttribute('data-current-step', String(step));
     panels.forEach(function (p, i) { p.hidden = i + 1 !== step; });
     tabs.forEach(function (t) {
       var n = Number(t.getAttribute('data-goto-step'));
@@ -97,6 +100,23 @@
   });
   $$('[data-prev-step]', form).forEach(function (b) {
     b.addEventListener('click', function () { go(current - 1); });
+  });
+
+  var toReview = $('[data-goto-review]', form);
+  if (toReview) {
+    toReview.hidden = false;
+    toReview.addEventListener('click', function () { go(4); });
+  }
+
+  // "Start blank" puts the reuse offer away; without scripting it reloads with ?blank=1.
+  $$('[data-dismiss-reuse]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      var box = a.closest('[data-quote-reuse]');
+      if (box) box.hidden = true;
+      var first = $('#client_company', form);
+      if (first) first.focus();
+    });
   });
 
   form.addEventListener('submit', function (event) {
@@ -323,18 +343,90 @@
     if ($('#include_support', form).checked) included.push('Hypercare (' + valueOf('support_duration_days') + ' days)');
     setReview('included', included.length ? included.join(', ') : 'Neither — their share goes into build');
 
-    var phasesBox = $('[data-review-phases]', form);
-    var list = $('[data-review-phase-list]', form);
-    if (phasesBox && list) {
-      list.textContent = '';
-      var phases = lastPreview && !lastPreview.empty ? lastPreview.phases : [];
-      phases.forEach(function (p) {
-        var li = document.createElement('li');
-        li.textContent = p.name + ' — ' + p.days.toLocaleString('en-GB') + ' days';
-        list.appendChild(li);
-      });
-      phasesBox.hidden = phases.length === 0;
+    fillFigures(lastPreview && !lastPreview.empty ? lastPreview : null);
+  }
+
+  function exactMoney(amount, currency) {
+    try {
+      return new Intl.NumberFormat('en-GB', { style: 'currency', currency: currency, maximumFractionDigits: 0 }).format(amount);
+    } catch (e) {
+      return currency + ' ' + Math.round(amount).toLocaleString('en-GB');
     }
+  }
+
+  function cell(row, text, right) {
+    var td = document.createElement('td');
+    td.textContent = text;
+    if (right) td.className = 'text-end';
+    row.appendChild(td);
+  }
+
+  /*
+   * The figures, phases, team and timeline on Review — every number as the preview returned
+   * it. Built from DOM nodes; nothing here is parsed as markup.
+   */
+  function fillFigures(p) {
+    var figures = $('[data-review-figures]', form);
+    var tables = $('[data-review-tables]', form);
+    var timelineBox = $('[data-review-timeline-box]', form);
+    [figures, tables, timelineBox].forEach(function (el) { if (el) el.hidden = !p; });
+    if (!p) return;
+
+    var set = function (key, text) { var el = $('[data-fig="' + key + '"]', form); if (el) el.textContent = text; };
+    set('days', p.totalManDays.toLocaleString('en-GB') + ' man-days');
+    set('weeks', p.projectDurationWeeks + ' weeks');
+    set('implementation', exactMoney(p.implementationBudget, p.currency));
+    set('total', exactMoney(p.totalBudget, p.currency));
+    var totalLabel = $('[data-fig-label="total"]', form);
+    if (totalLabel) totalLabel.textContent = p.supportBudget > 0 ? 'Total incl. hypercare' : 'Total budget';
+
+    var weeksByPhase = {};
+    (p.timeline || []).forEach(function (t) { weeksByPhase[t.phase] = t.endWeek - t.startWeek + 1; });
+    var phaseRows = $('[data-review-phase-rows]', form);
+    phaseRows.textContent = '';
+    p.phases.forEach(function (ph) {
+      var tr = document.createElement('tr');
+      cell(tr, ph.name);
+      cell(tr, ph.days.toLocaleString('en-GB'), true);
+      cell(tr, weeksByPhase[ph.name] ? String(weeksByPhase[ph.name]) : '—', true);
+      phaseRows.appendChild(tr);
+    });
+
+    var teamRows = $('[data-review-team-rows]', form);
+    teamRows.textContent = '';
+    (p.team || []).forEach(function (r) {
+      var tr = document.createElement('tr');
+      cell(tr, r.name);
+      cell(tr, r.days.toLocaleString('en-GB'), true);
+      cell(tr, exactMoney(r.totalCost, p.currency), true);
+      teamRows.appendChild(tr);
+    });
+
+    var gantt = $('[data-review-timeline]', form);
+    gantt.textContent = '';
+    var weeks = p.projectDurationWeeks || 1;
+    (p.timeline || []).forEach(function (t) {
+      var row = document.createElement('div');
+      row.className = 'sow-gantt-row';
+      var label = document.createElement('span');
+      label.className = 'sow-gantt-label';
+      label.textContent = t.phase;
+      var track = document.createElement('span');
+      track.className = 'sow-gantt-track';
+      var bar = document.createElement('span');
+      bar.className = 'sow-gantt-bar';
+      bar.style.left = (((t.startWeek - 1) / weeks) * 100).toFixed(2) + '%';
+      bar.style.width = (((t.endWeek - t.startWeek + 1) / weeks) * 100).toFixed(2) + '%';
+      bar.title = t.milestone + ' — weeks ' + t.startWeek + '–' + t.endWeek;
+      track.appendChild(bar);
+      row.appendChild(label);
+      row.appendChild(track);
+      gantt.appendChild(row);
+    });
+    gantt.setAttribute('role', 'img');
+    gantt.setAttribute('aria-label', 'Timeline: ' + (p.timeline || []).map(function (t) {
+      return t.phase + ', weeks ' + t.startWeek + ' to ' + t.endWeek;
+    }).join('; '));
   }
 
   /* -------------------------------------------------------------------- start */

@@ -121,4 +121,19 @@ function matchScore(job, profile, { jobSkillIds = [], consultantSkillIds = [] } 
   return { score: Math.round((raw / MAX_SCORE) * 100), breakdown };
 }
 
-module.exports = { matchScore, WEIGHTS, MAX_SCORE };
+/**
+ * The reasons a card shows, read off the breakdown — only the parts that scored in full.
+ * One copy, beside the scorer, so the job board and My Applications explain a percentage
+ * the same way: a reason list kept in a route would drift from the weights it describes.
+ */
+function matchReasons(job, breakdown, { limit = 3 } = {}) {
+  const reasons = [];
+  if (breakdown.role === WEIGHTS.role) reasons.push('Matches your role');
+  if (breakdown.seniority === WEIGHTS.seniority) reasons.push('Experience level fits');
+  if (breakdown.skills >= Math.round(WEIGHTS.skills * 0.6)) reasons.push('Your skills');
+  if (breakdown.location === WEIGHTS.location) reasons.push(job.work_mode === 'remote' ? 'Remote' : 'In your country');
+  if (breakdown.rate === WEIGHTS.rate) reasons.push('Rate fits');
+  return reasons.slice(0, limit);
+}
+
+module.exports = { matchScore, matchReasons, WEIGHTS, MAX_SCORE };

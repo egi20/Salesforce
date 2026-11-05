@@ -18,7 +18,7 @@ const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination
 const { ROLE_CATEGORIES, isValidRole, ROLE_SLUGS, SENIORITY_LEVELS, roleLabel, seniorityLabel } = require('../config/roleTaxonomy');
 const { CLOUD_FAMILIES, ALL_MODULES, isValidModule, moduleLabel } = require('../config/cloudFamilies');
 const { jobPostingJsonLd } = require('../config/seoMeta');
-const { matchScore, WEIGHTS } = require('../utils/jobMatcher');
+const { matchScore, matchReasons } = require('../utils/jobMatcher');
 const { sanitizeRichText } = require('../utils/sanitize');
 const { returnTo } = require('../utils/returnTo');
 const countries = require('../config/all-countries.json');
@@ -142,17 +142,6 @@ function activeChipsFor(filters, sort) {
 const RECOMMEND_POOL = 100;
 const RECOMMEND_SHOWN = 4;
 const RECOMMEND_MIN_SCORE = 50;
-
-/** The reasons a card shows, read off the breakdown — only the parts that scored in full. */
-function matchReasons(job, breakdown) {
-  const reasons = [];
-  if (breakdown.role === WEIGHTS.role) reasons.push('Matches your role');
-  if (breakdown.seniority === WEIGHTS.seniority) reasons.push('Experience level fits');
-  if (breakdown.skills >= Math.round(WEIGHTS.skills * 0.6)) reasons.push('Your skills');
-  if (breakdown.location === WEIGHTS.location) reasons.push(job.work_mode === 'remote' ? 'Remote' : 'In your country');
-  if (breakdown.rate === WEIGHTS.rate) reasons.push('Rate fits');
-  return reasons.slice(0, 3);
-}
 
 async function recommendationsFor(userId) {
   const [profile, consultantSkillIds, { rows: pool }] = await Promise.all([

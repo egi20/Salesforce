@@ -102,3 +102,17 @@ describe('answering an offer', () => {
     expect(timeline({}, [{ from_status: 'offered', to_status: 'withdrawn', created_at: days(1) }])[0].label).toBe('Offer declined');
   });
 });
+
+describe('why a match is what it is', () => {
+  const { matchScore, matchReasons } = require('../../utils/jobMatcher');
+  it('names only the parts that matched in full, from the same breakdown the score uses', () => {
+    const job = { role: 'apex-developer', seniority: 'senior', work_mode: 'remote', rate_min: 500, rate_max: 800 };
+    const profile = { primary_role: 'apex-developer', seniority: 'lead', day_rate: 700, availability: 'immediate' };
+    const { breakdown } = matchScore(job, profile, { jobSkillIds: [1, 2], consultantSkillIds: [9] });
+    expect(matchReasons(job, breakdown)).toEqual(['Matches your role', 'Remote', 'Rate fits']);
+  });
+  it('lives beside the scorer, not in a route', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../../routes/jobs.js'), 'utf8');
+    expect(src).not.toMatch(/function matchReasons/);
+  });
+});

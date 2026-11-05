@@ -12,6 +12,8 @@
           <h2 class="h6 mb-0" id="recHeading"><i class="bi bi-stars"></i> <%= typeof recommendedWeak !== 'undefined' && recommendedWeak ? 'Closest open roles to your profile' : 'Roles that match your profile' %></h2>
           <a class="small" href="/jobs">See all roles</a>
         </div>
+        <p class="small text-muted-2 mb-2">The match weighs your role, skills, seniority, location, rate and availability against each role.
+          <a href="/profile/settings">Improve your matches → Build your profile</a></p>
         <div class="row g-3">
           <% recommended.forEach(function (r) { const j = r.job; const pay = formatRateRange(j); %>
             <div class="<%= recCol %>"><div class="glass-card h-100"><div class="card-body d-flex flex-column">
@@ -23,6 +25,9 @@
               <a class="fw-semibold" href="/jobs/<%= j.slug %>"><%= j.title %></a>
               <span class="small text-muted-2"><%= j.company_name || 'Confidential' %></span>
               <span class="small text-muted-2 mb-2"><%= [jobLocation(j), pay].filter(Boolean).join(' · ') %></span>
+              <%# Why the percentage is what it is: the parts of the profile that matched in full. %>
+              <span class="small mb-2 rec-reasons"><i class="bi bi-check2-circle"></i>
+                <%= r.reasons && r.reasons.length ? 'Matches: ' + r.reasons.join(' · ') : 'Few matches with your profile yet' %></span>
               <a class="btn btn-sm btn-primary mt-auto" href="/jobs/<%= j.slug %>#apply">Apply</a>
             </div></div></div>
           <% }); %>

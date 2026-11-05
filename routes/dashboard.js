@@ -13,7 +13,7 @@ const config = require('../config/config');
 const { isAuthenticated, isCompany, isConsultant } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
-const { matchScore } = require('../utils/jobMatcher');
+const { matchScore, matchReasons } = require('../utils/jobMatcher');
 const appStats = require('../utils/applicationStats');
 const ConsultantDocument = require('../models/ConsultantDocument');
 
@@ -327,11 +327,16 @@ router.get(
      * every role left above 40% had been applied for — so there it shows the three closest
      * open roles whatever their score, with the score, and says when none is a close match.
      */
+    // The job's own skills go in, as on the job board: without them every role scored the
+    // "no stated skills" half-mark and the % here disagreed with the % on Find Jobs.
+    const candidates = openJobs.filter((job) => !appliedIds.has(job.id));
+    const skillsByJob = candidates.length ? await Skill.idsForJobs(candidates.map((j) => j.id)) : new Map();
     const scored = (!hasAny || readiness.completeness >= readiness.enough)
-      ? openJobs
-        .filter((job) => !appliedIds.has(job.id))
-        // The same scorer the job page and the dashboard use, so the % here is the % there.
-        .map((job) => ({ job, ...matchScore(job, profile, { consultantSkillIds }) }))
+      ? candidates
+        .map((job) => {
+          const { score, breakdown } = matchScore(job, profile, { jobSkillIds: skillsByJob.get(job.id) || [], consultantSkillIds });
+          return { job, score, reasons: matchReasons(job, breakdown) };
+        })
         .filter((r) => r.score > 0)
         .sort((a, b) => b.score - a.score)
       : [];

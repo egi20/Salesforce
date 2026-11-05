@@ -2527,3 +2527,4 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
 
 .apps-ready-line { color: var(--text-medium); }
 .apps-ready-line i { color: #96590a; }
+.rec-reasons { color: #1d6f4f; }

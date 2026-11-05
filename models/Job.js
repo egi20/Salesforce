@@ -404,7 +404,8 @@ class Job {
   static async listSaved(userId, { limit = 20, offset = 0 } = {}) {
     const [rows] = await promisePool.query(
       `SELECT j.id, j.title, j.slug, j.role, j.status, j.rate_min, j.rate_max, j.currency,
-              cp.company_name, sj.created_at AS saved_at
+              j.rate_visible, j.engagement_type, j.work_mode, j.country, j.city,
+              cp.company_name, cp.logo AS company_logo, sj.created_at AS saved_at
          FROM saved_jobs sj
          JOIN jobs j ON j.id = sj.job_id
          LEFT JOIN company_profiles cp ON cp.user_id = j.company_user_id

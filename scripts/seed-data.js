@@ -1325,8 +1325,22 @@ async function seedDemo() {
   console.log('  notifications for admin, consultant1, Northwind and the recruiter');
 }
 
+/*
+ * consultant1 is the account people are told to sign in with, so it gets a full set of
+ * applications (scripts/seed-applications.js): without them My Applications only ever shows
+ * its empty state to whoever is reviewing it.
+ */
+async function seedConsultantApplications() {
+  const { seedApplicationsFor } = require('./seed-applications');
+  const [[c1]] = await promisePool.query("SELECT id FROM users WHERE email = 'consultant1@example.com'");
+  if (!c1) return;
+  const n = await seedApplicationsFor(c1.id, { log: () => {} });
+  console.log(`  ${n} demo applications for consultant1`);
+}
+
 seed()
   .then(seedDemo)
+  .then(seedConsultantApplications)
   .then(() => {
     console.log(`\nDone. Demo accounts (password: ${SEED_PASSWORD}):`);
     console.log('  admin@example.com                          superadmin');

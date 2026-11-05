@@ -4,6 +4,12 @@
 
 <%
   const fmtDay = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '');
+  // The figure the consultant typed, in the same shape as the role's pay: "€729 / day", "€99,681 / yr".
+  const proposedRate = (a) => {
+    const symbol = { EUR: '€', USD: '$', GBP: '£' }[a.currency];
+    const amount = Math.round(Number(a.day_rate)).toLocaleString('en-GB');
+    return (symbol ? symbol + amount : amount + ' ' + a.currency) + (a.engagement_type === 'permanent' ? ' / yr' : ' / day');
+  };
   const readinessGaps = [];
   if (readiness.completeness < readiness.enough) readinessGaps.push('profile ' + readiness.completeness + '%');
   if (!readiness.hasCv) readinessGaps.push('no CV uploaded');
@@ -69,20 +75,28 @@
       </div>
     <% } %>
 
-    <% if (saved.length) { %>
-      <section class="mb-4" aria-labelledby="savedHeading">
-        <h2 class="h6 mb-2" id="savedHeading"><i class="bi bi-star-fill text-warning"></i> Saved roles</h2>
+    <section class="mb-4" aria-labelledby="savedHeading">
+      <h2 class="h6 mb-2" id="savedHeading"><i class="bi bi-star-fill text-warning"></i> Saved roles</h2>
+      <% if (!saved.length) { %>
+        <div class="glass-card"><div class="card-body small text-muted-2">
+          Save roles from <a href="/jobs">Find Jobs</a> with <i class="bi bi-star"></i> and they appear here, ready to apply to.
+        </div></div>
+      <% } else { %>
         <div class="glass-card"><ul class="list-unstyled mb-0">
-          <% saved.forEach(function (j) { %>
-            <li class="d-flex flex-wrap align-items-center gap-2 apps-saved-row">
-              <span class="flex-grow-1"><a class="fw-semibold" href="/jobs/<%= j.slug %>"><%= j.title %></a>
-                <span class="small text-muted-2"> · <%= j.company_name || 'Confidential' %></span></span>
+          <% saved.forEach(function (j) { const pay = formatRateRange(j); %>
+            <li class="d-flex flex-wrap align-items-center gap-3 apps-saved-row">
+              <% if (j.company_logo) { %><img class="logo-tile flex-shrink-0" src="<%= j.company_logo %>" alt="" loading="lazy">
+              <% } else { %><span class="logo-initials <%= companyTone(j.company_name) %> flex-shrink-0" aria-hidden="true"><%= companyInitials(j.company_name || 'Confidential') %></span><% } %>
+              <span class="flex-grow-1 min-w-0">
+                <a class="fw-semibold" href="/jobs/<%= j.slug %>"><%= j.title %></a>
+                <span class="d-block small text-muted-2"><%= [j.company_name || 'Confidential', jobLocation(j), pay].filter(Boolean).join(' · ') %></span>
+              </span>
               <a class="btn btn-sm btn-primary" href="/jobs/<%= j.slug %>#apply">Apply</a>
             </li>
           <% }); %>
         </ul></div>
-      </section>
-    <% } %>
+      <% } %>
+    </section>
 
   <% } else { %>
     <%# ------------------------------------------------------------ STATS %>
@@ -165,7 +179,7 @@
                 <div class="small mt-1 apps-facts">
                   <% if (pay) { %><span><i class="bi bi-cash"></i> <%= pay %></span><% } %>
                   <span><i class="bi bi-calendar3"></i> Applied <%= fmtDay(a.created_at) %></span>
-                  <% if (a.day_rate) { %><span><i class="bi bi-tag"></i> You proposed <%= Math.round(a.day_rate) %> <%= a.currency %><%= a.engagement_type === 'permanent' ? '' : '/day' %></span><% } %>
+                  <% if (a.day_rate) { %><span><i class="bi bi-tag"></i> You proposed <%= proposedRate(a) %></span><% } %>
                   <span><i class="bi bi-paperclip"></i>
                     <% if (a.cv_title || a.cv_filename) { %><a href="/applications/<%= a.id %>/cv"><%= a.cv_title || a.cv_filename %></a>
                     <% } else { %>Profile only<% } %></span>

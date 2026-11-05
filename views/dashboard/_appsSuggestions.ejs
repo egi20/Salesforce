@@ -9,7 +9,7 @@
     <% if (recommended.length) { %>
       <section class="mb-4" aria-labelledby="recHeading">
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <h2 class="h6 mb-0" id="recHeading"><i class="bi bi-stars"></i> Roles that match your profile</h2>
+          <h2 class="h6 mb-0" id="recHeading"><i class="bi bi-stars"></i> <%= typeof recommendedWeak !== 'undefined' && recommendedWeak ? 'Closest open roles to your profile' : 'Roles that match your profile' %></h2>
           <a class="small" href="/jobs">See all roles</a>
         </div>
         <div class="row g-3">

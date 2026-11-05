@@ -321,15 +321,22 @@ router.get(
       Application.appliedJobIds(userId)
     ]);
     const saved = savedJobs.filter((j) => j.status === 'open' && !appliedIds.has(j.id)).slice(0, 6);
-    const recommended = (!hasAny || readiness.completeness >= readiness.enough)
+    /*
+     * With no applications only real matches (40%+) are offered: they are the way in. Below
+     * a list, the row is "what to look at next", and it used to vanish without a word once
+     * every role left above 40% had been applied for — so there it shows the three closest
+     * open roles whatever their score, with the score, and says when none is a close match.
+     */
+    const scored = (!hasAny || readiness.completeness >= readiness.enough)
       ? openJobs
         .filter((job) => !appliedIds.has(job.id))
         // The same scorer the job page and the dashboard use, so the % here is the % there.
         .map((job) => ({ job, ...matchScore(job, profile, { consultantSkillIds }) }))
-        .filter((r) => r.score >= 40)
+        .filter((r) => r.score > 0)
         .sort((a, b) => b.score - a.score)
-        .slice(0, hasAny ? 3 : 4)
       : [];
+    const recommended = hasAny ? scored.slice(0, 3) : scored.filter((r) => r.score >= 40).slice(0, 4);
+    const recommendedWeak = recommended.length > 0 && recommended[0].score < 40;
 
     const query = { view, status, type: engagement, q, sort };
     res.render('dashboard/applications', {
@@ -346,6 +353,7 @@ router.get(
       sorts: APP_SORTS,
       readiness,
       recommended,
+      recommendedWeak,
       saved,
       // Every link on the page is built from the current query with one thing changed.
       linkWith: (change) => {

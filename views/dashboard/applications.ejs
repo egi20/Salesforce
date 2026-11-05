@@ -207,7 +207,7 @@
     <%- include('../partials/pagination') %>
 
     <div class="mt-5">
-      <%- include('_appsSuggestions', { recommended: recommended, saved: saved, columns: 3, showProfileHint: readiness.completeness < readiness.enough }) %>
+      <%- include('_appsSuggestions', { recommended: recommended, recommendedWeak: recommendedWeak, saved: saved, columns: 3, showProfileHint: readiness.completeness < readiness.enough }) %>
     </div>
   <% } %>
 </div>

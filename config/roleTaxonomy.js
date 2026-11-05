@@ -219,11 +219,17 @@ const ROLE_ALIASES = {
  * fields beat one truncated at the call site: the form shows the band, the badge shows the
  * word.
  */
+/*
+ * The bands are in the labels ("Junior (0-2 yrs)"), so they are data as well: `minYears` and
+ * `maxYears` are what the labels say, and `seniorityForYears` / `seniorityFitsYears` read them.
+ * A directory card printing "Junior Apex Developer · 18 years experience" contradicts its own
+ * label, and the profile form now refuses that pair rather than publishing it.
+ */
 const SENIORITY_LEVELS = [
-  { value: 'junior', label: 'Junior (0-2 yrs)', short: 'Junior', multiplier: 0.65 },
-  { value: 'mid', label: 'Mid (3-5 yrs)', short: 'Mid', multiplier: 0.85 },
-  { value: 'senior', label: 'Senior (6-9 yrs)', short: 'Senior', multiplier: 1.0 },
-  { value: 'lead', label: 'Lead / Principal (10+ yrs)', short: 'Lead', multiplier: 1.25 }
+  { value: 'junior', label: 'Junior (0-2 yrs)', short: 'Junior', multiplier: 0.65, minYears: 0, maxYears: 2 },
+  { value: 'mid', label: 'Mid (3-5 yrs)', short: 'Mid', multiplier: 0.85, minYears: 3, maxYears: 5 },
+  { value: 'senior', label: 'Senior (6-9 yrs)', short: 'Senior', multiplier: 1.0, minYears: 6, maxYears: 9 },
+  { value: 'lead', label: 'Lead / Principal (10+ yrs)', short: 'Lead', multiplier: 1.25, minYears: 10, maxYears: Infinity }
 ];
 const SENIORITY_LABELS = new Map(SENIORITY_LEVELS.map((s) => [s.value, s]));
 
@@ -277,6 +283,21 @@ function seniorityLabel(slug, { full = false } = {}) {
   return full ? level.label : level.short;
 }
 
+/** The level whose band holds these years, or null for a missing or impossible figure. */
+function seniorityForYears(years) {
+  const n = Number(years);
+  if (years === null || years === undefined || years === '' || !Number.isInteger(n) || n < 0) return null;
+  const level = SENIORITY_LEVELS.find((s) => n >= s.minYears && n <= s.maxYears);
+  return level ? level.value : null;
+}
+
+/** True unless BOTH are given and disagree — either one alone is not a contradiction. */
+function seniorityFitsYears(slug, years) {
+  if (!slug || years === null || years === undefined || years === '') return true;
+  const expected = seniorityForYears(years);
+  return expected === null || expected === slug;
+}
+
 function baseDayRate(slug) {
   return BASE_DAY_RATES[slug] ?? null;
 }
@@ -290,6 +311,8 @@ module.exports = {
   SENIORITY_LEVELS,
   SENIORITY_MULTIPLIERS,
   seniorityLabel,
+  seniorityForYears,
+  seniorityFitsYears,
   taxonomyProblems,
   assertTaxonomyIntegrity,
   isValidRole,

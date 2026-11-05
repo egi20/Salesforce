@@ -1025,6 +1025,33 @@
   });
 
   /*
+   * Seniority follows the years. Each level option carries its band ("Junior (0-2 yrs)"), and
+   * typing years that fall outside the chosen level moves it to the one that fits, saying so
+   * underneath. Only a convenience: the server refuses a mismatched pair either way.
+   */
+  document.querySelectorAll('input[data-years-for]').forEach(function (years) {
+    var select = document.querySelector(years.getAttribute('data-years-for'));
+    if (!select) return;
+    var note = select.parentElement.querySelector('[data-seniority-note]');
+    function fits(option, n) {
+      var min = Number(option.getAttribute('data-min-years'));
+      var maxAttr = option.getAttribute('data-max-years');
+      return n >= min && (maxAttr === '' || n <= Number(maxAttr));
+    }
+    years.addEventListener('input', function () {
+      var n = Number(years.value);
+      if (years.value === '' || !Number.isInteger(n) || n < 0) { if (note) note.textContent = ''; return; }
+      var current = select.options[select.selectedIndex];
+      if (current && current.value && fits(current, n)) { if (note) note.textContent = ''; return; }
+      var match = Array.prototype.find.call(select.options, function (o) { return o.value && fits(o, n); });
+      if (!match) return;
+      select.value = match.value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      if (note) note.textContent = 'Set to ' + match.textContent.trim() + ' to match ' + n + (n === 1 ? ' year.' : ' years.');
+    });
+  });
+
+  /*
    * ★ Shortlist on a consultant card, without a reload. The form posts on its own without
    * scripting; any failure here falls back to that plain post.
    */

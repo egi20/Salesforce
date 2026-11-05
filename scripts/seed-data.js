@@ -80,7 +80,7 @@ const { catalogueVersion } = require('../config/estimation');
 const { dailySetFor, serverDate } = require('../config/challenges');
 const { PRIVACY_VERSION } = require('../config/legal-versions');
 const { sync: syncCategories } = require('./sync-categories');
-const { ROLE_SLUGS, ROLE_CATEGORIES, baseDayRate, roleLabel, seniorityLabel } = require('../config/roleTaxonomy');
+const { ROLE_SLUGS, ROLE_CATEGORIES, baseDayRate, roleLabel, seniorityLabel, seniorityForYears } = require('../config/roleTaxonomy');
 const { ALL_MODULES, CLOUD_FAMILIES } = require('../config/cloudFamilies');
 const { ALL_CERTIFICATIONS } = require('../config/certifications');
 
@@ -123,6 +123,64 @@ function jobDescription({ companyName, role, seniority, moduleLabels, isContract
   return `${companyName} needs a ${level} ${roleLabel(role)} for ${PROGRAMMES[index % PROGRAMMES.length]}, working across ${clouds}.\n\n` +
     `You will ${duties}. ${shape}\n\n` +
     'Tell us about a programme you delivered on these clouds and what you would do differently next time.';
+}
+
+/*
+ * Consultant bios that differ from card to card, for the same reason the job descriptions do:
+ * one sentence repeated down the directory made it look fake at a glance. Built from the row's
+ * own role, years and clouds plus a sector and a strength chosen by the role's category,
+ * deterministically from the index. Still invented — the production guard keeps them off a
+ * live site.
+ */
+const SECTORS = [
+  'manufacturing', 'financial services', 'retail and consumer goods', 'the public sector',
+  'healthcare and life sciences', 'SaaS and high tech', 'energy and utilities', 'professional services'
+];
+const RECENT_WORK = [
+  'a multi-country rollout that replaced three legacy CRMs',
+  'an org merge after an acquisition, with two sales teams on one process',
+  'a contact-centre transformation with a regulatory deadline',
+  'a quote-to-cash rebuild for a new subscription pricing model',
+  'a customer portal used by twelve thousand dealers',
+  'a data migration of fifteen years of account history',
+  'stabilising an org that had grown three hundred flows and no documentation'
+];
+const STRENGTHS_BY_CATEGORY = {
+  'Functional Consultants': [
+    'Most at home in discovery workshops, turning a messy process into one a sales team will actually use.',
+    'Known for UAT plans the business finishes and training material that outlives the project.',
+    'Pushes back on customisation when configuration will do, and writes down why.'
+  ],
+  'Technical Roles': [
+    'Writes Apex and LWC with tests that mean something, and leaves a pipeline the next team can run.',
+    'Happiest untangling an integration nobody has documented since go-live.',
+    'Reviews code the way they would want theirs reviewed: specific, quick and kind.'
+  ],
+  'AI & Agentforce': [
+    'Measures an agent against real cases before go-live rather than against a demo script.',
+    'Spends as much time on the data an agent is grounded in as on the prompt itself.'
+  ],
+  'Architecture & Leadership': [
+    'Makes the trade-offs early and in writing, so the delivery team builds on decisions rather than guesses.',
+    'Has sat on both sides of a design authority and knows which questions slow a programme down.'
+  ],
+  'Program & Business': [
+    'Keeps a multi-vendor team on one plan and a steering committee on one page.',
+    'Runs a RAID log people actually read, and escalates early rather than loudly.'
+  ],
+  'HR & Recruitment': [
+    'Hires for the profile a programme actually needs, not the one on the first draft of the brief.',
+    'Works with delivery leads to keep a hiring pipeline moving through the busy months.'
+  ]
+};
+
+function consultantBio({ role, years, clouds, index }) {
+  const strengths = STRENGTHS_BY_CATEGORY[CATEGORY_BY_ROLE[role]] || STRENGTHS_BY_CATEGORY['Functional Consultants'];
+  // Opens with what is particular to this person: the card already prints the role and the
+  // years above the bio, and two clamped lines repeating them would say nothing new.
+  return `Most recently on ${RECENT_WORK[(index * 3) % RECENT_WORK.length]}, across ${clouds.join(', ')}. ` +
+    `${strengths[index % strengths.length]} ` +
+    `${years === 1 ? 'A first year' : `${years} years`} in the ecosystem as a ${roleLabel(role)}, mostly in ${SECTORS[index % SECTORS.length]}.`;
 }
 
 const SKILL_POOL = [
@@ -278,22 +336,27 @@ async function seed() {
     }
 
     const role = ROLE_SLUGS[i % ROLE_SLUGS.length];
-    const seniority = ['junior', 'mid', 'senior', 'lead'][randomInt(0, 3)];
+    /*
+     * The level comes FROM the years, through the same bands the profile form enforces.
+     * Picked independently they produced "Junior Apex Developer · 18 years experience" on the
+     * directory card — a seed contradicting the label it was printed beside.
+     */
+    const years = randomInt(1, 18);
+    const seniority = seniorityForYears(years);
+    const clouds = pick(CLOUD_FAMILIES, randomInt(1, 3));
     const base = baseDayRate(role) || 600;
     const [homeCountry, homeCity] = PLACES[i % PLACES.length];
     const consultantWorkMode = ['remote', 'hybrid', 'onsite'][randomInt(0, 2)];
 
     await ConsultantProfile.ensureExists(user.id);
     /*
-     * One figure for the years, used in the bio AND the column: the directory card prints
-     * both, and "17 years experience" beside "5 years delivering…" was the seed contradicting
-     * itself. The headline is a professional title ("Senior CPQ & Billing Consultant"), not
-     * the seniority word the card already shows.
+     * One figure for the years, used in the bio AND the column, and a bio assembled from the
+     * row's own facts so no two cards read the same. The headline is a professional title
+     * ("Senior CPQ & Billing Consultant"), not the seniority word the card already shows.
      */
-    const years = randomInt(2, 18);
     await ConsultantProfile.update(user.id, {
       headline: `${seniorityLabel(seniority)} ${roleLabel(role)}`,
-      bio: `${years} years delivering Salesforce projects across Europe.`,
+      bio: consultantBio({ role, years, clouds: clouds.map((f) => f.label), index: i }),
       primary_role: role,
       seniority,
       years_experience: years,
@@ -312,7 +375,7 @@ async function seed() {
     }
     await ConsultantProfile.addExperience(user.id, {
       company: COMPANIES[i % COMPANIES.length][0],
-      title: `${seniority} consultant`,
+      title: `${seniorityLabel(seniority)} ${roleLabel(role)}`,
       startedOn: `${randomInt(2016, 2023)}-01-01`,
       isCurrent: true,
       description: 'Delivery across multiple clouds.'
@@ -322,7 +385,7 @@ async function seed() {
      * now needs at least one cloud (ConsultantProfile.listingProblems), so these come before
      * setPublic — without them every seeded profile would be refused and Browse Talent empty.
      */
-    await ConsultantProfile.setClouds(user.id, pick(CLOUD_FAMILIES, randomInt(1, 3)).map((f) => f.value));
+    await ConsultantProfile.setClouds(user.id, clouds.map((f) => f.value));
     await ConsultantProfile.setLanguages(user.id, [
       { language: 'English', level: i % 3 === 0 ? 'native' : 'fluent' },
       ...(i % 2 ? [{ language: ['German', 'Italian', 'Spanish', 'Albanian', 'Dutch', 'French'][i % 6], level: 'native' }] : [])

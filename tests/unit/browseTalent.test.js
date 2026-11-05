@@ -174,3 +174,68 @@ describe('a shortlist is private and goes with either account', () => {
     expect(route).toMatch(/'\/:id\/shortlist',\s*requireIdParam\('id'\),\s*isHiring,\s*writeLimiter/);
   });
 });
+
+describe('the level and the years cannot contradict each other', () => {
+  const { seniorityForYears, seniorityFitsYears, SENIORITY_LEVELS } = require('../../config/roleTaxonomy');
+
+  test('the bands are the ones the labels state, with no gap and no overlap', () => {
+    for (const level of SENIORITY_LEVELS) {
+      const [, min, max] = level.label.match(/\((\d+)-?(\d+)?\+? yrs\)/);
+      expect(level.minYears).toBe(Number(min));
+      expect(level.maxYears).toBe(max ? Number(max) : Infinity);
+    }
+    for (let y = 0; y <= 60; y += 1) expect(seniorityForYears(y)).not.toBeNull();
+    expect(seniorityForYears(2)).toBe('junior');
+    expect(seniorityForYears(3)).toBe('mid');
+    expect(seniorityForYears(9)).toBe('senior');
+    expect(seniorityForYears(18)).toBe('lead');
+  });
+
+  test('"Junior · 18 years" is refused; either one alone is fine', () => {
+    expect(seniorityFitsYears('junior', '18')).toBe(false);
+    expect(seniorityFitsYears('mid', 10)).toBe(false);
+    expect(seniorityFitsYears('senior', 7)).toBe(true);
+    expect(seniorityFitsYears('', 18)).toBe(true);
+    expect(seniorityFitsYears('lead', '')).toBe(true);
+  });
+
+  test('the profile save refuses a mismatched pair, and the seed derives the level from the years', () => {
+    expect(read('routes/profile.js')).toMatch(/if \(!seniorityFitsYears\(req\.body\.seniority, req\.body\.years_experience\)\)/);
+    const seed = read('scripts/seed-data.js');
+    expect(seed).toContain('const seniority = seniorityForYears(years);');
+    expect(seed).not.toMatch(/delivering Salesforce projects across Europe/);
+  });
+});
+
+describe('a visitor is told what the shortlist button does', () => {
+  test('signed out, it reads "Sign in to shortlist" and goes to sign-in, coming back to the list', () => {
+    const html = ejs.render(read('views/partials/consultant-card.ejs'), {
+      ...VIEW_HELPERS,
+      c: { user_id: 3, name: 'Ana Pjetri', rate_visible: 1, certifications: [] },
+      currentUser: null,
+      currentPath: '/consultants?clouds=data-cloud',
+      csrfToken: 't'
+    });
+    expect(html).toContain('Sign in to shortlist');
+    expect(html).toContain('/auth/login?redirect=%2Fconsultants%3Fclouds%3Ddata-cloud');
+  });
+
+  test('a company with no open role is offered the step before an invitation', () => {
+    const html = ejs.render(read('views/partials/consultant-card.ejs'), {
+      ...VIEW_HELPERS,
+      c: { user_id: 3, name: 'Ana Pjetri', rate_visible: 1, certifications: [] },
+      currentUser: { id: 9, isCompany: true },
+      currentPath: '/consultants',
+      csrfToken: 't',
+      shortlistedIds: new Set(),
+      canInvite: false
+    });
+    expect(html).not.toContain('Invite to apply');
+    expect(html).toContain('Post a role to invite');
+  });
+
+  test('"create a company account" pre-ticks only a public role', () => {
+    const route = read('routes/auth.js');
+    expect(route).toMatch(/const as = User\.PUBLIC_ROLES\.includes\(req\.query\.as\) \? req\.query\.as : null;/);
+  });
+});

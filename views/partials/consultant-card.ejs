@@ -98,12 +98,16 @@
           </button>
         </form>
       <% } else if (!currentUser) { %>
-        <a class="btn btn-sm btn-shortlist" href="/auth/login?redirect=<%= encodeURIComponent(backTo) %>" title="Sign in with a company account to shortlist">
-          <i class="bi bi-star" aria-hidden="true"></i> Shortlist
+        <%# Says what it does: a visitor pressing "Shortlist" and landing on a login form was surprised. %>
+        <a class="btn btn-sm btn-shortlist" href="/auth/login?redirect=<%= encodeURIComponent(backTo) %>">
+          <i class="bi bi-star" aria-hidden="true"></i> Sign in to shortlist
         </a>
       <% } %>
       <% if (invite) { %>
         <a class="btn btn-primary btn-sm" href="<%= profileUrl %>#approach">Invite to apply</a>
+      <% } else if (shortlist && currentUser && currentUser.isCompany) { %>
+        <%# An invitation is always about a role, so with none open the honest button is the step before it. %>
+        <a class="btn btn-outline-primary btn-sm" href="/jobs/new">Post a role to invite</a>
       <% } %>
     </div>
   </div>

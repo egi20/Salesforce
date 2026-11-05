@@ -62,9 +62,15 @@ router.get('/register', isGuest, registrationOpen, (req, res) => {
   // in-app browser passes on). Shape-checked before it is kept or echoed; first touch wins.
   const agentCode = SalesAgent.normaliseCode(req.query.a);
   if (agentCode && !req.session.salesAgentCode) req.session.salesAgentCode = agentCode;
+  /*
+   * `?as=company` pre-ticks one role card — "create a company account" from Browse Talent
+   * should not land on a form with Consultant ticked. Only a PUBLIC role can be pre-ticked,
+   * and the POST filters against PUBLIC_ROLES regardless, so this is a convenience only.
+   */
+  const as = User.PUBLIC_ROLES.includes(req.query.as) ? req.query.as : null;
   res.render('auth/register', {
     title: 'Create an account',
-    values: { ref, a: req.session.salesAgentCode || agentCode || '' },
+    values: { ref, a: req.session.salesAgentCode || agentCode || '', ...(as ? { user_types: [as] } : {}) },
     errors: [],
     redirect: safePath(req.query.redirect, '')
   });

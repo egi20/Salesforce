@@ -27,6 +27,14 @@
     <li><strong><%= stats.clouds %></strong> cloud<%= stats.clouds === 1 ? '' : 's' %> covered</li>
   </ul>
 
+  <% if (!currentUser) { %>
+    <p class="small text-muted-2 mb-3">
+      <i class="bi bi-buildings" aria-hidden="true"></i>
+      Hiring? <a href="/auth/login?redirect=<%= encodeURIComponent(returnUrl) %>">Sign in</a> or
+      <a href="/auth/register?as=company">create a company account</a> to shortlist consultants and invite them to apply for a role.
+    </p>
+  <% } %>
+
   <div class="job-search glass-card mb-4" role="search">
     <div class="card-body d-flex flex-column flex-md-row gap-2">
       <label class="visually-hidden" for="talentSearch">Search consultants</label>

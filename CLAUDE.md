@@ -1224,7 +1224,16 @@ files allowed to mention the table.
 
 "Invite to apply" goes to the approach form on the profile (`#approach`), and only for an
 account with an open role — a conversation is always anchored to one, so there is nothing to
-invite to without it.
+invite to without it. A company with none sees "Post a role to invite" instead, and a visitor
+sees "Sign in to shortlist": a button labelled "Shortlist" that lands on a login form is a
+button that said something it does not do.
+
+**The level and the years cannot contradict each other.** The seniority labels state their
+bands ("Junior (0-2 yrs)"), so `SENIORITY_LEVELS` carries `minYears`/`maxYears` and
+`seniorityFitsYears` refuses a mismatched pair on save — refused, not corrected, because which
+of the two is wrong is the consultant's to say. The form moves the level when the years are
+typed and says so. The seed derives the level from the years; picked independently they put
+"Junior Apex Developer · 18 years experience" on a card.
 
 ## Hiding a profile from named companies
 

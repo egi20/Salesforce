@@ -197,7 +197,8 @@
         <%# `#approach` is where "Invite to apply" on a directory card lands. %>
         <div class="glass-card mb-3 anchor-target" id="approach">
           <div class="card-body">
-            <h2 class="h6 mb-2">Approach about a role</h2>
+            <h2 class="h6 mb-2">Invite to apply</h2>
+            <p class="small text-muted-2 mb-2">Choose one of your open roles. They receive your message with the role attached and can apply from it.</p>
             <form method="post" action="/messages/start">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="kind" value="enquiry">

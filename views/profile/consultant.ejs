@@ -190,14 +190,16 @@
             <label class="form-label" for="seniority">Seniority</label>
             <select class="form-select" id="seniority" name="seniority">
               <option value="">Choose</option>
-              <% ['junior', 'mid', 'senior', 'lead'].forEach(function (s) { %>
-                <option value="<%= s %>" <%= profile.seniority === s ? 'selected' : '' %>><%= seniorityLabel(s, { full: true }) %></option>
+              <%# Each level carries its band, so main.js can keep it in step with the years. %>
+              <% seniorityLevels.forEach(function (s) { %>
+                <option value="<%= s.value %>" data-min-years="<%= s.minYears %>" data-max-years="<%= Number.isFinite(s.maxYears) ? s.maxYears : '' %>" <%= profile.seniority === s.value ? 'selected' : '' %>><%= s.label %></option>
               <% }); %>
             </select>
+            <p class="form-text mb-0" data-seniority-note aria-live="polite"></p>
           </div>
           <div class="col-md-3">
             <label class="form-label" for="years_experience">Years of experience <%- req %></label>
-            <input class="form-control" id="years_experience" name="years_experience" type="number" min="0" max="60" required value="<%= profile.years_experience !== null && profile.years_experience !== undefined ? profile.years_experience : '' %>">
+            <input class="form-control" id="years_experience" name="years_experience" type="number" min="0" max="60" required data-years-for="#seniority" value="<%= profile.years_experience !== null && profile.years_experience !== undefined ? profile.years_experience : '' %>">
           </div>
           <div class="col-md-6">
             <label class="form-label" for="country">Country <%- req %></label>

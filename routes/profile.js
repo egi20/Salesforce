@@ -16,7 +16,7 @@ const { extractText } = require('../utils/cvText');
 const { importFromText } = require('../utils/cvImport');
 const { requireIdParam } = require('../utils/ids');
 const { sanitizeRichText, plainTextToRichText } = require('../utils/sanitize');
-const { ROLE_CATEGORIES, ROLE_SLUGS } = require('../config/roleTaxonomy');
+const { ROLE_CATEGORIES, ROLE_SLUGS, SENIORITY_LEVELS, seniorityFitsYears, seniorityLabel } = require('../config/roleTaxonomy');
 const { CERTIFICATIONS } = require('../config/certifications');
 const { EU_COUNTRY_CODES } = require('../config/regions');
 const { AVAILABILITY, isValidAvailability } = require('../config/availability');
@@ -216,6 +216,7 @@ async function renderProfilePage(req, res) {
       sectionsDone,
       allModules: ALL_MODULES,
       roleCategories: ROLE_CATEGORIES,
+      seniorityLevels: SENIORITY_LEVELS,
       certificationGroups: CERTIFICATIONS,
       countries,
       minCompleteness: ConsultantProfile.MIN_COMPLETENESS_TO_PUBLISH,
@@ -254,6 +255,7 @@ router.post(
     body('hourly_rate').optional({ checkFalsy: true }).isFloat({ min: 0, max: 10000 }),
     body('annual_salary').optional({ checkFalsy: true }).isFloat({ min: 0, max: 10000000 }),
     body('years_experience').optional({ checkFalsy: true }).isInt({ min: 0, max: 60 }),
+    body('seniority').optional({ checkFalsy: true }).isIn(SENIORITY_LEVELS.map((s) => s.value)),
     body('given_name').optional({ checkFalsy: true }).isLength({ max: 100 }),
     body('family_name').optional({ checkFalsy: true }).isLength({ max: 100 }),
     body('phone').optional({ checkFalsy: true }).isLength({ max: 40 }),
@@ -265,6 +267,15 @@ router.post(
     if (!errors.isEmpty()) {
       req.flash('error', errors.array()[0].msg || 'Please check the form.');
       return res.redirect('/profile/settings');
+    }
+    /*
+     * The level and the years must agree, because the level's own label states its band
+     * ("Junior (0-2 yrs)") and the directory card prints both side by side. Refused rather
+     * than silently corrected: which of the two is wrong is the consultant's to say.
+     */
+    if (!seniorityFitsYears(req.body.seniority, req.body.years_experience)) {
+      req.flash('error', `${seniorityLabel(req.body.seniority, { full: true })} does not match ${req.body.years_experience} years of experience. Choose the level that fits, or correct the years.`);
+      return res.redirect('/profile/settings#basics');
     }
     const userId = req.session.user.id;
 

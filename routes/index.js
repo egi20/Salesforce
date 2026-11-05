@@ -11,6 +11,7 @@ const IssueReport = require('../models/IssueReport');
 const { ISSUE_KINDS, ISSUE_SEVERITIES, SCREENSHOTS, LIMITS: ISSUE_LIMITS } = require('../config/issues');
 const { screenshots } = require('../middleware/fileUpload');
 const Job = require('../models/Job');
+const SiteReview = require('../models/SiteReview');
 const config = require('../config/config');
 const Post = require('../models/Post');
 const Points = require('../models/Points');
@@ -356,28 +357,70 @@ router.get(
   })
 );
 
+/*
+ * The companies' half says what the code does for a COMPANY. The consultant line ("your
+ * profile is only as public as you choose") was being shown to people who have no profile.
+ * A published role is public by definition, so it is not claimed to be private.
+ */
+const COMPANY_PRIVACY_BENEFIT = {
+  icon: 'bi-shield-check',
+  title: 'Secure and private',
+  text: 'Applicants and estimates stay in your account, a role is public only once you publish it, and you can download or delete your data any time.'
+};
+
+/*
+ * Social proof only from rows that exist: public companies with open roles, and reviews a
+ * company or recruiter account wrote and an administrator approved. Below the threshold the
+ * strip is not shown at all — three logos read as "nobody uses this", and an invented
+ * testimonial is a lie told on the page that asks for trust.
+ */
+const HIRING_LOGOS_MIN = 4;
+
 router.get(
   '/companies-hub',
   asyncHandler(async (req, res) => {
     const user = req.session.user || null;
+    const isCompany = Boolean(user && user.isCompany);
     const viewer = await ConsultantHiddenCompany.viewerFor(user);
-    const [consultants, companies] = await Promise.all([
+    const [consultants, companies, jobs, hiring, reviews] = await Promise.all([
       ConsultantProfile.browse({ viewer }, { limit: 1 }),
-      CompanyProfile.browse({}, { limit: 1 })
+      CompanyProfile.browse({}, { limit: 1 }),
+      Job.browse({}, { limit: 1 }),
+      CompanyProfile.browse({}, { limit: 12 }),
+      SiteReview.list({ author_roles: ['company', 'recruiter'] }, { limit: 2 })
     ]);
+    const hiringNow = hiring.rows.filter((c) => Number(c.open_jobs) > 0).slice(0, 8);
 
-    const tools = [
+    const postRoleHref = isCompany ? '/jobs/new' : user ? '/profile/settings' : '/auth/register';
+    const hire = [
       { href: '/consultants', icon: 'bi-people', tone: 'icon-blue', title: 'Browse Talent', text: 'Consultants filtered by cloud, certification, seniority, availability and rate.' },
-      { href: '/quotes/new', icon: 'bi-calculator', tone: 'icon-navyblue', title: 'Get SOW Quote', text: 'Pick clouds and modules and get a phased plan, team shape, budget and timeline that add up line by line.' },
-      { href: user && user.isCompany ? '/jobs/new' : user ? '/profile/settings' : '/auth/register', icon: 'bi-plus-square', tone: 'icon-success', title: 'Post a role', text: 'Publish a contract or permanent role and manage applicants through a pipeline.' },
-      { href: '/services/staff-augmentation', icon: 'bi-person-plus', tone: 'icon-info', title: 'Staff Augmentation', text: 'Named consultants inside your team, on your backlog.' },
-      { href: '/services/project-based', icon: 'bi-kanban', tone: 'icon-blue', title: 'Project-Based', text: 'A defined scope delivered to a plan, priced from an estimate.' },
-      { href: '/services/managed-services', icon: 'bi-gear', tone: 'icon-navyblue', title: 'Managed Services', text: 'Ongoing support and improvement after go-live.' },
-      { href: '/recruiters', icon: 'bi-person-rolodex', tone: 'icon-success', title: 'Recruitment agencies', text: 'Agencies that specialise in Salesforce placements, by cloud.' }
+      { href: postRoleHref, icon: 'bi-plus-square', tone: 'icon-success', title: 'Post a role', text: 'Publish a contract or permanent role and manage applicants through a pipeline.' },
+      { href: '/recruiters', icon: 'bi-person-rolodex', tone: 'icon-info', title: 'Recruitment agencies', text: 'Agencies that specialise in Salesforce placements, by cloud.' }
     ];
-    if (user && user.isCompany) {
-      tools.push({ href: '/dashboard/applicants', icon: 'bi-kanban', tone: 'icon-info', title: 'Applicants', text: 'Every application across your roles, by stage.' });
+    if (isCompany) {
+      hire.push({ href: '/dashboard/applicants', icon: 'bi-kanban', tone: 'icon-navyblue', title: 'Applicants', text: 'Every application across your roles, by stage.' });
     }
+    /*
+     * Each point is something the Hub or the engagement page actually offers — no SLA, no
+     * "24/7", no monthly report, because nothing here produces one.
+     */
+    const engagement = [
+      {
+        href: '/services/staff-augmentation', icon: 'bi-person-plus', tone: 'icon-info', title: 'Staff Augmentation',
+        text: 'Named consultants inside your team, on your backlog.',
+        points: ['Choose named consultants from the directory', 'Your backlog, your stand-ups, your delivery lead', 'A day rate, for as long as the work runs']
+      },
+      {
+        href: '/services/project-based', icon: 'bi-kanban', tone: 'icon-blue', title: 'Project-Based',
+        text: 'A defined scope delivered to a plan, priced from an estimate.',
+        points: ['Scope and budget from an estimate that reconciles', 'A phased plan with team shape and timeline', 'SOW, work breakdown with Gantt, and deck included']
+      },
+      {
+        href: '/services/managed-services', icon: 'bi-gear', tone: 'icon-navyblue', title: 'Managed Services',
+        text: 'Ongoing support and improvement of a live org.',
+        points: ['Fixes and small enhancements after go-live', 'Release management for the live org', 'Scoped and agreed before anything is billed']
+      }
+    ];
 
     res.render('hubs/show', {
       title: 'Companies Hub',
@@ -394,24 +437,40 @@ router.get(
           { label: 'Get SOW Quote', href: '/quotes/new', icon: 'bi-calculator' }
         ],
         stats: headlineStats([
+          { value: jobs.total, min: HEADLINE_MIN.roles, label: 'open roles', href: '/jobs' },
           { value: consultants.total, min: HEADLINE_MIN.consultants, label: 'consultants on the Hub', href: '/consultants' },
           { value: companies.total, min: HEADLINE_MIN.companies, label: 'companies on the Hub', href: '/companies' },
           CLOUDS_COVERED
         ]),
-        tools,
+        // Two groups of three rather than seven cards in a row of three, which left one alone.
+        groups: [
+          { heading: 'Hire', text: 'Find a consultant yourself, publish a role, or work through an agency.', tools: hire },
+          {
+            heading: 'Engagement models',
+            text: 'Three ways to engage, each ending at a page that can do it.',
+            tools: engagement,
+            action: { label: 'Get SOW Quote', href: '/quotes/new', icon: 'bi-calculator', note: 'Pick clouds and modules — phases, team, budget and timeline that add up line by line.' }
+          }
+        ],
+        proof: {
+          companies: hiringNow.length >= HIRING_LOGOS_MIN ? hiringNow : [],
+          reviews: reviews.rows
+        },
         benefitsHeading: 'Why companies use Salesforce Hub',
         benefits: [
           { icon: 'bi-people', title: 'Salesforce specialists only', text: 'Every profile is a consultant on the platform, searchable by cloud, certification, seniority and availability.' },
           { icon: 'bi-calculator', title: 'Estimates that add up', text: 'Phases, team and budget reconcile line by line, and the documents are generated from the same figures.' },
           { icon: 'bi-kanban', title: 'One pipeline for every role', text: 'Applicants move through review, shortlist, interview and offer in one place.' },
-          PRIVACY_BENEFIT
+          COMPANY_PRIVACY_BENEFIT
         ],
         closing: {
           heading: 'Ready to find your next Salesforce consultant?',
           text: 'Browse public profiles, post a role, or scope the work first — browsing and posting cost nothing.',
-          cta: user && user.isCompany
-            ? { label: 'Post a role', href: '/jobs/new' }
-            : user ? { label: 'Browse talent', href: '/consultants' } : { label: 'Create your free company account', href: '/auth/register' }
+          ctas: [
+            user ? { label: 'Browse talent', href: '/consultants' } : { label: 'Create your free company account', href: '/auth/register' },
+            { label: 'Post a role', href: postRoleHref },
+            { label: 'Get SOW Quote', href: '/quotes/new' }
+          ]
         }
       }
     });

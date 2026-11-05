@@ -137,6 +137,15 @@ class SiteReview {
     if (filters.status === 'pending') clauses.push('r.approved_at IS NULL', 'r.hidden_at IS NULL');
     if (filters.status === 'hidden') clauses.push('r.hidden_at IS NOT NULL');
 
+    // Whose voice: the role label was DERIVED from the author's account flags at submission.
+    if (Array.isArray(filters.author_roles) && filters.author_roles.length) {
+      const roles = filters.author_roles.filter((r) => ['company', 'recruiter', 'consultant'].includes(r));
+      if (roles.length) {
+        clauses.push(`r.author_role IN (${roles.map(() => '?').join(', ')})`);
+        params.push(...roles);
+      }
+    }
+
     if (Number.isInteger(filters.min_rating)) {
       clauses.push('r.rating >= ?');
       params.push(filters.min_rating);

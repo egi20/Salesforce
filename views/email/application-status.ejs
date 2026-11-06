@@ -1,0 +1,10 @@
+<p>Hello <%= name %>,</p>
+<p>Your application for <strong><%= jobTitle %></strong><%= companyName ? ' at ' + companyName : '' %> is now <strong><%= statusLabel %></strong>.</p>
+<% if (note) { %><p style="padding:12px 16px;background:#f3f6fa;border-radius:8px"><%= note %></p><% } %>
+<p style="margin:24px 0">
+  <a href="<%= link %>"
+     style="background:#0b5cab;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">
+    See your applications
+  </a>
+</p>
+<p style="font-size:13px;color:#6b7280">You get this email when a company moves one of your applications. Nothing is sent when you change something yourself.</p>

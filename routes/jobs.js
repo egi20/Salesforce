@@ -9,19 +9,23 @@ const Application = require('../models/Application');
 const Notification = require('../models/Notification');
 const CompanyProfile = require('../models/CompanyProfile');
 const ConsultantProfile = require('../models/ConsultantProfile');
+const ConsultantDocument = require('../models/ConsultantDocument');
 const { isAuthenticated, isCompany, isConsultant, isEmailVerified } = require('../middleware/auth');
 const { writeLimiter } = require('../middleware/rateLimit');
 const { JOB_FEATURE_DAYS, JOB_FEATURE_PRICE_MINOR, formatMinor } = require('../config/payments');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
-const { ROLE_CATEGORIES, isValidRole, ROLE_SLUGS, SENIORITY_LEVELS } = require('../config/roleTaxonomy');
-const { CLOUD_FAMILIES, ALL_MODULES, isValidModule } = require('../config/cloudFamilies');
+const { ROLE_CATEGORIES, isValidRole, ROLE_SLUGS, SENIORITY_LEVELS, roleLabel, seniorityLabel } = require('../config/roleTaxonomy');
+const { CLOUD_FAMILIES, ALL_MODULES, isValidModule, moduleLabel } = require('../config/cloudFamilies');
 const { jobPostingJsonLd } = require('../config/seoMeta');
-const { matchScore, WEIGHTS } = require('../utils/jobMatcher');
+const { matchScore, matchReasons } = require('../utils/jobMatcher');
 const { sanitizeRichText } = require('../utils/sanitize');
 const { returnTo } = require('../utils/returnTo');
 const countries = require('../config/all-countries.json');
-const { ENGAGEMENT_SLUGS, WORK_MODE_SLUGS, hasDuration } = require('../config/jobTaxonomy');
+
+const COUNTRY_CODES = new Set(countries.map((c) => c.code));
+const { ENGAGEMENT_SLUGS, WORK_MODE_SLUGS, hasDuration, engagementLabel, workModeLabel } = require('../config/jobTaxonomy');
+const { countryName } = require('../utils/geo');
 
 const router = express.Router();
 
@@ -63,7 +67,9 @@ function filtersFrom(query) {
     seniority: listFrom(query.seniority, (v) => SENIORITIES.includes(v)),
     engagement_type: listFrom(query.engagement_type, (v) => ENGAGEMENTS.includes(v)),
     work_mode: listFrom(query.work_mode, (v) => WORK_MODES.includes(v)),
-    country: listFrom(query.country, (v) => /^[A-Z]{2}$/.test(v)),
+    // A real code from the country list, not any two capitals: "XX" passed the old shape check,
+    // reached the query and showed up as a filter chip.
+    country: listFrom(query.country, (v) => COUNTRY_CODES.has(v)),
     module: isValidModule(query.module) ? query.module : '',
     rate_min: query.rate_min || '',
     /*
@@ -78,6 +84,54 @@ function filtersFrom(query) {
 }
 
 /*
+ * The filters in force, as removable chips above the list — so somebody who scrolled past
+ * the sidebar can still see what is narrowing the list and undo one thing at a time.
+ *
+ * Built from the VALIDATED filters, never from the raw query: a value the builder dropped
+ * must not appear as though it were applied. Each chip's link is the current URL minus that
+ * one value (and minus the page number, since page 4 of a wider list means nothing here).
+ */
+const CHIP_FIELDS = [
+  ['role', roleLabel],
+  ['country', countryName],
+  ['seniority', (v) => seniorityLabel(v, { full: true })],
+  ['work_mode', workModeLabel],
+  ['engagement_type', engagementLabel]
+];
+
+function urlWithout(filters, sort, key, value) {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(filters)) {
+    if (k === 'posted_within_days') continue;
+    for (const item of Array.isArray(v) ? v : [v]) {
+      if (item === '' || item === null || item === undefined) continue;
+      if (k === key && (value === undefined || String(item) === String(value))) continue;
+      params.append(k, item);
+    }
+  }
+  if (sort && sort !== 'newest') params.set('sort', sort);
+  const qs = params.toString();
+  return qs ? `/jobs?${qs}` : '/jobs';
+}
+
+function activeChipsFor(filters, sort) {
+  const chips = [];
+  if (filters.q) chips.push({ label: `“${filters.q}”`, href: urlWithout(filters, sort, 'q') });
+  for (const [key, label] of CHIP_FIELDS) {
+    for (const value of filters[key]) chips.push({ label: label(value), href: urlWithout(filters, sort, key, value) });
+  }
+  if (filters.module) chips.push({ label: moduleLabel(filters.module), href: urlWithout(filters, sort, 'module') });
+  if (filters.posted) {
+    const w = POSTED_WINDOWS.find((x) => x.value === filters.posted);
+    chips.push({ label: w ? w.label : filters.posted, href: urlWithout(filters, sort, 'posted') });
+  }
+  if (filters.rate_min && Number(filters.rate_min) > 0) {
+    chips.push({ label: `Day rate from ${Math.round(Number(filters.rate_min))}`, href: urlWithout(filters, sort, 'rate_min') });
+  }
+  return chips;
+}
+
+/*
  * "Recommended for you": the open roles that score best against the consultant's profile.
  *
  * The SAME `matchScore` the job page and the dashboard use, so the percentage on a card here
@@ -88,17 +142,6 @@ function filtersFrom(query) {
 const RECOMMEND_POOL = 100;
 const RECOMMEND_SHOWN = 4;
 const RECOMMEND_MIN_SCORE = 50;
-
-/** The reasons a card shows, read off the breakdown — only the parts that scored in full. */
-function matchReasons(job, breakdown) {
-  const reasons = [];
-  if (breakdown.role === WEIGHTS.role) reasons.push('Matches your role');
-  if (breakdown.seniority === WEIGHTS.seniority) reasons.push('Experience level fits');
-  if (breakdown.skills >= Math.round(WEIGHTS.skills * 0.6)) reasons.push('Your skills');
-  if (breakdown.location === WEIGHTS.location) reasons.push(job.work_mode === 'remote' ? 'Remote' : 'In your country');
-  if (breakdown.rate === WEIGHTS.rate) reasons.push('Rate fits');
-  return reasons.slice(0, 3);
-}
 
 async function recommendationsFor(userId) {
   const [profile, consultantSkillIds, { rows: pool }] = await Promise.all([
@@ -132,10 +175,16 @@ router.get(
     const sort = ['newest', 'rate_desc', 'rate_asc'].includes(req.query.sort) ? req.query.sort : 'newest';
     const user = req.session.user || null;
 
-    const [{ rows, total }, facets, countryFacets, recommended] = await Promise.all([
+    const [{ rows, total }, facets, countryFacets, allCountries, seniorityFacets, modeFacets, engagementFacets, recommended] = await Promise.all([
       Job.browse(filters, { limit, offset, sort }),
       Job.facetByRole(filters),
-      Job.facetByCountry(filters),
+      Job.facet('country', filters),
+      // Every country with an open role at all: the list a reader picks from must not shrink
+      // because another group is ticked, or switching country means unticking first.
+      Job.facet('country', {}),
+      Job.facet('seniority', filters),
+      Job.facet('work_mode', filters),
+      Job.facet('engagement_type', filters),
       // Page one only: on page three the reader is working through the list, not deciding
       // where to start.
       user && user.isConsultant && page === 1 ? recommendationsFor(user.id) : Promise.resolve(null)
@@ -145,15 +194,24 @@ router.get(
     const savedIds = user ? await Job.savedIdsFor(user.id, shownIds) : new Set();
 
     /*
-     * The country list is the countries that HAVE roles under the other filters, with the
-     * count — plus any country already ticked, so un-ticking it stays possible when its
-     * count has dropped to nothing.
+     * The country list is every country with an open role, in a fixed order, each with its
+     * count under the OTHER groups' filters — so "Albania + Junior" still lists Germany, at
+     * (0) and muted, exactly as the role list does. A ticked country is kept even if it has
+     * no roles left at all, so it can always be unticked.
      */
-    const countryOptions = countryFacets.map((f) => ({ code: f.country, count: f.count }));
+    const countsOf = (facetRows) => Object.fromEntries(facetRows.map((f) => [f.value, f.count]));
+    const countryCounts = countsOf(countryFacets);
+    const countryOptions = allCountries.map((f) => ({ code: f.value, count: countryCounts[f.value] || 0 }));
     for (const code of filters.country) {
       if (!countryOptions.some((c) => c.code === code)) countryOptions.push({ code, count: 0 });
     }
     const roleCounts = Object.fromEntries(facets.map((f) => [f.role, f.count]));
+    const groupCounts = {
+      seniority: countsOf(seniorityFacets),
+      work_mode: countsOf(modeFacets),
+      engagement_type: countsOf(engagementFacets)
+    };
+    const chips = activeChipsFor(filters, sort);
 
     res.render('jobs/index', {
       title: res.locals.seo.title,
@@ -163,6 +221,7 @@ router.get(
       sort,
       facets,
       roleCounts,
+      groupCounts,
       countryOptions,
       recommended,
       savedIds,
@@ -170,8 +229,8 @@ router.get(
       returnUrl: req.originalUrl,
       roleCategories: ROLE_CATEGORIES,
       cloudFamilies: CLOUD_FAMILIES,
-      activeFilterCount: ['role', 'seniority', 'engagement_type', 'work_mode', 'country']
-        .reduce((n, k) => n + filters[k].length, 0) + ['q', 'module', 'posted', 'rate_min'].filter((k) => filters[k]).length,
+      activeChips: chips,
+      activeFilterCount: chips.length,
       pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/jobs', req.query, p)
     });
@@ -439,15 +498,19 @@ router.get(
     let application = null;
     let saved = false;
     let match = null;
+    let cvDocuments = [];
 
     if (req.session.user && req.session.user.isConsultant) {
       const userId = req.session.user.id;
-      const [rows, isSaved, profile, consultantSkillIds] = await Promise.all([
+      const [rows, isSaved, profile, consultantSkillIds, documents] = await Promise.all([
         Application.listForConsultant(userId, { limit: 200 }),
         Job.isSaved(userId, job.id),
         ConsultantProfile.findByUserId(userId),
-        Skill.idsForConsultant(userId)
+        Skill.idsForConsultant(userId),
+        ConsultantDocument.listFor(userId)
       ]);
+      // The consultant's uploaded CVs, default first: the apply form says which one goes.
+      cvDocuments = documents.filter((d) => d.kind === 'cv').sort((a, b) => b.is_default - a.is_default);
       application = rows.find((a) => a.job_id === job.id) || null;
       saved = isSaved;
       if (profile) {
@@ -474,6 +537,7 @@ router.get(
       application,
       saved,
       match,
+      cvDocuments,
       featuredUntil,
       jobFeatureDays: JOB_FEATURE_DAYS,
       jobFeaturePrice: formatMinor(JOB_FEATURE_PRICE_MINOR),
@@ -493,12 +557,24 @@ router.post(
     const job = await Job.findBySlug(req.params.slug);
     if (!job) return res.status(404).render('errors/404', { title: 'Not found' });
 
+    /*
+     * Which uploaded CV goes with the application. Only one of the applicant's OWN CVs is
+     * accepted: an id that is not theirs, or not a CV, becomes "no file" rather than an
+     * error, because the profile itself still goes with every application.
+     */
+    const cvId = Number(req.body.cv_document_id);
+    const ownCvs = Number.isInteger(cvId) && cvId > 0
+      ? (await ConsultantDocument.listFor(req.session.user.id)).filter((d) => d.kind === 'cv')
+      : [];
+    const cvDocumentId = ownCvs.some((d) => d.id === cvId) ? cvId : null;
+
     try {
       const { created } = await Application.apply(job.id, req.session.user.id, {
         coverLetter: req.body.cover_letter ? String(req.body.cover_letter).slice(0, 5000) : null,
         dayRate: req.body.day_rate || null,
         currency: req.body.currency || 'EUR',
-        availableFrom: req.body.available_from || null
+        availableFrom: req.body.available_from || null,
+        cvDocumentId
       });
 
       // Fire and forget, with a stable key: re-submitting cannot notify twice.
@@ -511,7 +587,7 @@ router.post(
         dedupeKey: `application:${job.id}:${req.session.user.id}`
       });
 
-      req.flash('success', created ? 'Application sent.' : 'Application updated.');
+      req.flash('success', created ? 'Application sent. Follow it under My Applications.' : 'Application updated.');
     } catch (err) {
       if (err.code === 'JOB_NOT_OPEN' || err.code === 'APPLICATION_CLOSED') {
         req.flash('error', err.message);

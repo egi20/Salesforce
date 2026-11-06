@@ -1,0 +1,53 @@
+<%
+  /*
+   * A reorderable list of projects or experience entries, each with Edit and Remove.
+   *
+   * Order: drag the handle (main.js posts the new order), or — without scripting, or from a
+   * keyboard — the ↑ ↓ buttons, which post one move each. Edit opens the same fields as Add,
+   * bound to that entry's own form (projEdit-<id> / expEdit-<id>, after the profile form).
+   *
+   *   kind   'projects' | 'experience'
+   *   items  rows, already in their saved order
+   */
+  const base = '/profile/consultant/' + kind;
+  const editForm = kind === 'projects' ? 'projEdit-' : 'expEdit-';
+  const ym = (d) => (d ? new Date(d).toISOString().slice(0, 7) : '');
+%>
+<% if (items.length) { %>
+  <ul class="entry-list list-unstyled mb-3" data-sortable="<%= base %>/order">
+    <% items.forEach(function (it, i) { %>
+      <li class="entry-item" data-sortable-item data-id="<%= it.id %>">
+        <div class="d-flex align-items-start gap-2">
+          <span class="entry-handle" data-sortable-handle title="Drag to reorder" aria-hidden="true"><i class="bi bi-grip-vertical"></i></span>
+          <div class="flex-grow-1 small">
+            <% if (kind === 'projects') { %>
+              <strong><%= it.name %></strong><% if (it.client) { %><span class="text-muted-2"> · <%= it.client %></span><% } %><br>
+              <span class="text-muted-2">
+                <% if (it.cloud) { %><%= moduleLabel(it.cloud) || it.cloud %> · <% } %>
+                <% if (it.role) { %><%= roleLabel(it.role) %> · <% } %>
+                <%= ym(it.started_on) %> – <%= it.is_current || !it.ended_on ? 'present' : ym(it.ended_on) %>
+              </span>
+            <% } else { %>
+              <strong><%= it.title %></strong> · <%= it.company %><br>
+              <span class="text-muted-2"><% if (it.location) { %><%= it.location %> · <% } %><%= ym(it.started_on) %> – <%= it.is_current ? 'present' : ym(it.ended_on) %></span>
+            <% } %>
+          </div>
+          <div class="entry-actions d-flex align-items-center gap-1">
+            <button class="btn btn-sm btn-link p-0" type="submit" form="removeForm" formaction="<%= base %>/<%= it.id %>/move" name="direction" value="up" aria-label="Move up" <%= i === 0 ? 'disabled' : '' %>><i class="bi bi-arrow-up"></i></button>
+            <button class="btn btn-sm btn-link p-0" type="submit" form="removeForm" formaction="<%= base %>/<%= it.id %>/move" name="direction" value="down" aria-label="Move down" <%= i === items.length - 1 ? 'disabled' : '' %>><i class="bi bi-arrow-down"></i></button>
+            <button class="btn btn-sm btn-link text-danger p-0 ms-1" type="submit" form="removeForm" formaction="<%= base %>/<%= it.id %>/delete" aria-label="Remove">&times;</button>
+          </div>
+        </div>
+        <details class="entry-edit">
+          <summary class="small">Edit</summary>
+          <% if (kind === 'projects') { %>
+            <%- include('_projectFields', { formId: editForm + it.id, item: it }) %>
+          <% } else { %>
+            <%- include('_experienceFields', { formId: editForm + it.id, item: it }) %>
+          <% } %>
+          <button class="btn btn-primary btn-sm mt-2" type="submit" form="<%= editForm + it.id %>">Save changes</button>
+        </details>
+      </li>
+    <% }); %>
+  </ul>
+<% } %>

@@ -5,7 +5,7 @@ const { body, validationResult } = require('express-validator');
 
 const Quote = require('../models/Quote');
 const { isAuthenticated, isEmailVerified } = require('../middleware/auth');
-const { writeLimiter } = require('../middleware/rateLimit');
+const { writeLimiter, previewLimiter } = require('../middleware/rateLimit');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
 const { calculateEstimation, reconciliationProblems } = require('../utils/sowEstimation');
@@ -17,8 +17,10 @@ const {
   COMPANY_SIZE_MULTIPLIERS,
   catalogueVersion
 } = require('../config/estimation');
-const { CLOUD_FAMILIES, isValidFamily, isValidModule } = require('../config/cloudFamilies');
+const { CLOUD_FAMILIES } = require('../config/cloudFamilies');
 const { sanitizeRichText } = require('../utils/sanitize');
+const { inputsFrom, optionsFrom, hasScope, valuesFromQuote } = require('../utils/quoteFormInputs');
+const { sowPageLocals } = require('../config/sowPack');
 const { returnTo } = require('../utils/returnTo');
 const { isDocumentKind, PACKAGE_KIND, generateDocument, generatePackage } = require('../services/quotePackage');
 const CompanyProfile = require('../models/CompanyProfile');
@@ -54,38 +56,47 @@ function catalogueLocals() {
   };
 }
 
-/**
- * Read the wizard form into the estimator's input shape.
- *
- * Everything the client can send is filtered against the catalogue here, so an unknown
- * slug is dropped rather than silently costed at a default. Free text survives as free
- * text and is costed explicitly as unmapped scope.
- */
-function inputsFrom(form) {
-  const asArray = (value) => (Array.isArray(value) ? value : [value].filter(Boolean));
 
-  return {
-    selectedFamilies: asArray(form.families).filter(isValidFamily),
-    selectedModules: asArray(form.modules).filter(isValidModule),
-    selectedIsvs: asArray(form.isvs).filter((id) => Object.prototype.hasOwnProperty.call(ISV_SOLUTIONS, id)),
-    complexity: COMPLEXITY_MULTIPLIERS[form.complexity] ? form.complexity : 'moderate',
-    customizationLevel: CUSTOMIZATION_MULTIPLIERS[form.customization_level] ? form.customization_level : 'medium',
-    clientIndustry: INDUSTRY_MULTIPLIERS[form.client_industry] ? form.client_industry : '',
-    companySize: COMPANY_SIZE_MULTIPLIERS[form.company_size] ? form.company_size : '',
-    numberOfUsers: form.number_of_users,
-    numberOfOrgs: form.number_of_orgs,
-    numberOfIntegrations: form.number_of_integrations,
-    integrationComplexity: ['simple', 'medium', 'complex'].includes(form.integration_complexity)
-      ? form.integration_complexity
-      : 'medium',
-    includeTraining: form.include_training === 'on',
-    includeSupport: form.include_support === 'on',
-    supportDurationDays: Math.max(0, Math.min(365, parseInt(form.support_duration_days, 10) || 0)),
-    otherModules: String(form.other_modules || '').slice(0, 1000),
-    otherIsvs: String(form.other_isvs || '').slice(0, 1000),
-    otherIntegrations: String(form.other_integrations || '').slice(0, 1000)
-  };
-}
+
+
+/**
+ * The running total beside the form: "Scope so far: 74 man-days · ~€55k".
+ *
+ * The SAME `inputsFrom` and the SAME `calculateEstimation` as the save below — never a
+ * second formula in the browser. A client-side copy of the engine would be the one place the
+ * figure on screen and the figure in the stored quote could disagree, and the first change
+ * to `config/estimation.js` would make them. Nothing is stored; it is answered and forgotten.
+ */
+router.post(
+  '/preview',
+  isEmailVerified,
+  previewLimiter,
+  asyncHandler(async (req, res) => {
+    const inputs = inputsFrom(req.body);
+    if (!hasScope(inputs)) return res.json({ success: true, empty: true });
+
+    const estimate = calculateEstimation(inputs, optionsFrom(req.body));
+    const mismatches = reconciliationProblems(estimate);
+    if (mismatches.length) {
+      const err = new Error(`Preview failed its own reconciliation checks: ${mismatches.join('; ')}`);
+      err.status = 500;
+      throw err;
+    }
+    return res.json({
+      success: true,
+      empty: false,
+      currency: estimate.currency,
+      totalManDays: estimate.totalManDays,
+      projectDurationWeeks: estimate.projectDurationWeeks,
+      implementationBudget: estimate.implementationBudget,
+      supportBudget: estimate.supportBudget,
+      totalBudget: estimate.totalBudget,
+      phases: estimate.phaseBreakdown.filter((p) => p.days > 0).map((p) => ({ name: p.name, days: p.days })),
+      team: estimate.resourceAllocation.map((r) => ({ name: r.name, days: r.days, totalCost: r.totalCost })),
+      timeline: estimate.timeline.map((t) => ({ phase: t.phase, startWeek: t.startWeek, endWeek: t.endWeek, milestone: t.milestone }))
+    });
+  })
+);
 
 router.get(
   '/',
@@ -99,7 +110,7 @@ router.get(
     ]);
 
     res.render('quotes/index', {
-      title: 'Quotes',
+      title: 'Your quotes',
       quotes: rows,
       stats,
       status,
@@ -118,14 +129,50 @@ router.get(
     // Pre-fill nothing from the authoring company: the client is the subject of the quote,
     // and defaulting their name to the author's own company is a confusing wrong answer.
 
-    res.render('quotes/new', {
-      title: 'New estimate',
-      ...catalogueLocals(),
-      values: { include_training: 'on', include_support: 'on', support_duration_days: 30, number_of_users: 50, number_of_orgs: 1 },
-      errors: []
+    const ownerId = req.session.user.id;
+    /*
+     * "Use last quote": the form filled from one of the author's OWN quotes. A reference that
+     * is not theirs is treated as absent — 404 would confirm somebody else's quote exists.
+     */
+    const source = typeof req.query.from === 'string' ? await Quote.findByReference(req.query.from.slice(0, 40)) : null;
+    const reusedFrom = source && source.owner_user_id === ownerId ? source : null;
+    // Offered only on a fresh form: not after "Start blank", not when already reusing.
+    const lastQuote = reusedFrom || req.query.blank === '1' ? null : (await Quote.listForOwner(ownerId, { limit: 1 })).rows[0] || null;
+
+    return renderNew(req, res, {
+      values: reusedFrom
+        ? valuesFromQuote(reusedFrom)
+        : { include_training: 'on', include_support: 'on', support_duration_days: 30, number_of_users: 50, number_of_orgs: 1 },
+      errors: [],
+      reusedFrom,
+      lastQuote
     });
   })
 );
+
+
+/*
+ * The form, fresh or re-shown with errors. `quoteCount` is for the "Your quotes" link in the
+ * page head; `errorStep` opens the wizard on the step that holds the first problem, so a
+ * refused save does not land somebody on step 1 looking for a mistake that is on step 2.
+ */
+const CLIENT_FIELDS = ['client_company', 'client_name', 'client_email', 'project_name'];
+
+async function renderNew(req, res, { values, errors, status = 200, reusedFrom = null, lastQuote = null }) {
+  const stats = await Quote.statsForOwner(req.session.user.id);
+  const errorStep = errors.length ? (errors.some((e) => CLIENT_FIELDS.includes(e.path)) ? 1 : 2) : 1;
+  return res.status(status).render('quotes/new', {
+    title: 'SOW Quote Generator',
+    ...catalogueLocals(),
+    ...sowPageLocals(),
+    values,
+    errors,
+    errorStep,
+    reusedFrom,
+    lastQuote,
+    quoteCount: stats.reduce((sum, s) => sum + Number(s.count), 0)
+  });
+}
 
 const quoteValidators = [
   body('client_company').trim().isLength({ min: 2, max: 200 }).withMessage('Who is this estimate for? Enter the client company.'),
@@ -146,11 +193,7 @@ router.post(
     const errors = validationResult(req);
 
     const inputs = inputsFrom(req.body);
-    const nothingSelected =
-      inputs.selectedFamilies.length === 0 &&
-      inputs.selectedModules.length === 0 &&
-      inputs.selectedIsvs.length === 0 &&
-      !inputs.otherModules.trim();
+    const nothingSelected = !hasScope(inputs);
 
     const problems = errors.array();
     if (nothingSelected) {
@@ -158,18 +201,10 @@ router.post(
     }
 
     if (problems.length) {
-      return res.status(422).render('quotes/new', {
-        title: 'New estimate',
-        ...catalogueLocals(),
-        values: req.body,
-        errors: problems
-      });
+      return renderNew(req, res, { values: req.body, errors: problems, status: 422 });
     }
 
-    const estimate = calculateEstimation(inputs, {
-      contingencyPercentage: Math.max(0, Math.min(50, parseInt(req.body.contingency_percentage, 10) || 15)),
-      currency: /^[A-Z]{3}$/.test(req.body.currency || '') ? req.body.currency : 'EUR'
-    });
+    const estimate = calculateEstimation(inputs, optionsFrom(req.body));
 
     // An estimate whose own parts do not add up must never be shown to a client. This is
     // the guard that makes the invariants in utils/sowEstimation.js real rather than
@@ -198,6 +233,16 @@ router.post(
       catalogueVersion: catalogueVersion()
     });
 
+    /*
+     * "Download SOW pack" saves first — a pack is generated from a STORED quote, never from a
+     * form — then lands on the quote's page, which starts the download. Landing on the page
+     * rather than on the file means the author sees what was saved, and a second click does
+     * not save a second copy.
+     */
+    if (req.body.then === 'download') {
+      req.flash('success', `Estimate ${quote.reference} saved. Your SOW pack is downloading.`);
+      return res.redirect(`/quotes/${quote.reference}?download=${PACKAGE_KIND}`);
+    }
     req.flash('success', `Estimate ${quote.reference} saved.`);
     return res.redirect(`/quotes/${quote.reference}`);
   })
@@ -293,6 +338,8 @@ router.get(
       transitions: Quote.TRANSITIONS[quote.status] || [],
       // A quote priced under an older catalogue is flagged rather than silently trusted.
       catalogueIsCurrent: quote.catalogue_version === catalogueVersion(),
+      // Set only by the redirect after "Download SOW pack"; main.js follows the link once.
+      autoDownload: req.query.download === PACKAGE_KIND ? `/quotes/${quote.reference}/download/${PACKAGE_KIND}` : null,
       ...catalogueLocals()
     });
   })

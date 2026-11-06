@@ -1,0 +1,204 @@
+<%- include('../partials/layout-start') %>
+
+<%
+  /*
+   * CV Generator — for consultants only. The SOW pack for companies is a different page
+   * (/services/document-generator); one page with both lost the consultant behind a
+   * "Start a quote" button.
+   */
+  const isConsultantView = mode === 'consultant';
+  const primaryHref = isConsultantView ? '#generate' : mode === 'visitor' ? '/auth/register' : '/profile/settings#consultant-setup';
+  const primaryLabel = isConsultantView ? 'Generate my CV' : mode === 'visitor' ? 'Create a free account' : 'Add the consultant role';
+  const secondaryHref = isConsultantView ? '#my-documents' : mode === 'visitor' ? '/auth/login?redirect=%2Fcv-generator' : '/consultant-hub';
+  const secondaryLabel = isConsultantView ? 'My documents' : mode === 'visitor' ? 'Sign in' : 'Consultant Hub';
+%>
+<section class="hub-hero">
+  <div class="container">
+    <div class="row align-items-center g-4">
+      <div class="col-lg-7">
+        <span class="hub-hero-badge mb-3"><i class="bi bi-file-earmark-person"></i> CV GENERATOR</span>
+        <h1>Your CV and rate card, generated from your profile</h1>
+        <p class="lead">One click turns your Hub profile into a clean CV you can edit in Word — and a rate card for agencies when you want one.</p>
+        <%# Each badge is something the generator does, not a slogan: it is free, the CV is one %>
+        <%# column with no tables or images (what an applicant tracking system reads cleanly), %>
+        <%# and its sections are the ones a Salesforce profile has. %>
+        <ul class="cv-hero-tags list-unstyled">
+          <li><i class="bi bi-check-circle-fill"></i> Free</li>
+          <li><i class="bi bi-check-circle-fill"></i> ATS-friendly</li>
+          <li><i class="bi bi-check-circle-fill"></i> Built for Salesforce roles</li>
+        </ul>
+        <div class="d-flex flex-wrap gap-3 mt-4">
+          <a class="btn btn-lg btn-primary" href="<%= primaryHref %>"><i class="bi bi-magic"></i> <%= primaryLabel %></a>
+          <a class="btn btn-lg btn-outline-light" href="<%= secondaryHref %>"><i class="bi bi-folder2-open"></i> <%= secondaryLabel %></a>
+        </div>
+      </div>
+      <div class="col-lg-5 d-none d-lg-flex justify-content-center" aria-hidden="true">
+        <div class="cv-hero-sheet">
+          <span class="l1"></span><span class="l2"></span><span class="l3"></span>
+          <span class="h"></span><span class="l4"></span><span class="l5"></span>
+          <span class="h"></span><span class="l4"></span><span class="l3"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <%# Three things the generator actually does — each one is a rule in the code, not a slogan. %>
+  <div class="row g-3 cv-benefits">
+    <div class="col-md-4"><div class="glass-card h-100"><div class="card-body d-flex gap-3">
+      <span class="icon-tile icon-navyblue"><i class="bi bi-filetype-docx"></i></span>
+      <div><h2 class="h6 mb-1">ATS-friendly</h2>
+        <p class="small text-muted-2 mb-0">One column, standard headings, no tables or images — the layout a recruiter's parser reads without shredding it.</p></div>
+    </div></div></div>
+    <div class="col-md-4"><div class="glass-card h-100"><div class="card-body d-flex gap-3">
+      <span class="icon-tile icon-navyblue"><i class="bi bi-chat-quote"></i></span>
+      <div><h2 class="h6 mb-1">Your words, never rewritten</h2>
+        <p class="small text-muted-2 mb-0">Every line comes from your profile exactly as you wrote it. Nothing is summarised, rephrased or invented.</p></div>
+    </div></div></div>
+    <div class="col-md-4"><div class="glass-card h-100"><div class="card-body d-flex gap-3">
+      <span class="icon-tile icon-navyblue"><i class="bi bi-cash-coin"></i></span>
+      <div><h2 class="h6 mb-1">Rate card for agencies</h2>
+        <p class="small text-muted-2 mb-0">A one-page rate card beside the CV, so the commercial offer travels separately from your history.</p></div>
+    </div></div></div>
+  </div>
+
+  <%- include('../partials/flash') %>
+
+  <% if (mode === 'no-role') { %>
+    <div class="glass-card mb-4"><div class="card-body d-flex flex-wrap align-items-center gap-3">
+      <div class="flex-grow-1">
+        <h2 class="h6 mb-1">The CV is built from a consultant profile</h2>
+        <p class="small text-muted-2 mb-0">This account has no consultant role yet. Add it, fill in your profile, and your CV is one click away. Hiring? The SOW pack for a quote is the <a href="/services/document-generator">Document Generator</a>.</p>
+      </div>
+      <a class="btn btn-primary" href="/profile/settings#consultant-setup">Add the consultant role</a>
+    </div></div>
+  <% } %>
+
+  <% if (isConsultantView) { %>
+    <% if (completeness < completeEnough) { %>
+      <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2" role="status">
+        <i class="bi bi-exclamation-triangle"></i>
+        <span>Your profile is <strong><%= completeness %>%</strong> complete — finish it for a better CV.</span>
+        <a class="btn btn-sm btn-outline-primary ms-auto" href="/profile/settings">Build your profile</a>
+      </div>
+    <% } %>
+
+    <form class="row g-4" id="generate" method="get" action="/cv-generator" data-cv-generator>
+      <input type="hidden" name="opts" value="1">
+      <div class="col-lg-5">
+        <div class="glass-card mb-3"><div class="card-body">
+          <h2 class="h6 mb-3">1. Choose a document</h2>
+          <% documents.forEach(function (d) { %>
+            <label class="cv-choice">
+              <input class="form-check-input" type="radio" name="doc" value="<%= d.value %>" <%= doc === d.value ? 'checked' : '' %>>
+              <span><strong><%= d.label %></strong> <span class="text-muted-2 small"><%= d.format %></span><br><span class="small text-muted-2"><%= d.text %></span></span>
+            </label>
+          <% }); %>
+          <div class="cv-choice is-static">
+            <i class="bi bi-envelope-paper text-primary"></i>
+            <span><strong>Cover letter</strong><br>
+              <span class="small text-muted-2">Written by you, for one role — the Hub does not write one for you. Upload yours under
+              <a href="/profile/settings#documents">Documents</a> and it appears in My documents below.</span></span>
+          </div>
+        </div></div>
+
+        <div class="glass-card mb-3"><div class="card-body">
+          <h2 class="h6 mb-1">2. Choose what goes on the CV</h2>
+          <p class="small text-muted-2 mb-2">Your name, contact line, profile, at-a-glance facts and skills are always included.</p>
+          <% sections.forEach(function (s) {
+               const empty = emptySections.includes(s.key); %>
+            <div class="form-check <%= empty ? 'is-empty' : '' %>">
+              <input class="form-check-input" type="checkbox" name="include" value="<%= s.key %>" id="inc-<%= s.key %>" <%= options[s.key] && !empty ? 'checked' : '' %> <%= empty ? 'disabled' : '' %>>
+              <label class="form-check-label" for="inc-<%= s.key %>"><%= s.label %>
+                <% if (empty) { %><span class="small text-muted-2">— not on your profile yet · <a href="/profile/settings#<%= s.key === 'rate' ? 'work' : 'salesforce' %>">add it</a></span><% } %>
+                <% if (s.key === 'rate') { %><span class="small text-muted-2 d-block">Off by default when your rate is "on request". The rate card always shows it.</span><% } %>
+              </label>
+            </div>
+          <% }); %>
+          <button class="btn btn-outline-primary btn-sm mt-3" type="submit" data-no-script-only>Update preview</button>
+        </div></div>
+
+        <div class="glass-card"><div class="card-body">
+          <h2 class="h6 mb-2">3. Download</h2>
+          <% if (missing.length) { %>
+            <%# Not a link at all until the CV has something in it: a disabled-looking anchor %>
+            <%# still downloads on a keyboard Enter. The route refuses the same case too. %>
+            <span class="btn btn-primary w-100 disabled" aria-disabled="true"><i class="bi bi-download"></i> Download CV</span>
+            <p class="small mb-0 mt-2 text-warning-strong"><i class="bi bi-info-circle"></i> Add <%= missing.join(' and ') %> to download — right now the CV would hold only your name and email.
+              <a href="/profile/settings">Build your profile</a></p>
+          <% } else { %>
+          <a class="btn btn-primary w-100" href="/cv-generator/download?<%= query %>" data-cv-download>
+            <i class="bi bi-download"></i> Download <%= documents.find(function (d) { return d.value === doc; }).label %>
+          </a>
+          <% } %>
+          <p class="small text-muted-2 mb-0 mt-2">Generated now from your profile and not kept here — edit the file freely. Change the profile and generate again for an up-to-date copy.</p>
+        </div></div>
+      </div>
+
+      <div class="col-lg-7">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <h2 class="h6 mb-0">Preview</h2>
+          <span class="small text-muted-2">Exactly what the .docx contains</span>
+        </div>
+        <div class="cv-preview" data-cv-preview aria-live="polite">
+          <%- include('_preview', { blocks: blocks }) %>
+        </div>
+      </div>
+    </form>
+  <% } %>
+
+  <section class="mt-5" aria-labelledby="how">
+    <h2 class="h5 mb-3" id="how">How it works</h2>
+    <ol class="row g-3 list-unstyled cv-steps">
+      <li class="col-sm-6 col-lg-3"><div class="glass-card h-100"><div class="card-body">
+        <span class="cv-step-n">1</span><h3 class="h6">Complete your profile</h3>
+        <p class="small text-muted-2 mb-0">Clouds, certifications, projects and experience — the CV is built from what you enter.</p>
+      </div></div></li>
+      <li class="col-sm-6 col-lg-3"><div class="glass-card h-100"><div class="card-body">
+        <span class="cv-step-n">2</span><h3 class="h6">Choose a document</h3>
+        <p class="small text-muted-2 mb-0">A CV, or the CV with a rate card, and which sections go on it.</p>
+      </div></div></li>
+      <li class="col-sm-6 col-lg-3"><div class="glass-card h-100"><div class="card-body">
+        <span class="cv-step-n">3</span><h3 class="h6">Preview</h3>
+        <p class="small text-muted-2 mb-0">See the CV before you download it. Nothing is reworded — every line is yours.</p>
+      </div></div></li>
+      <li class="col-sm-6 col-lg-3"><div class="glass-card h-100"><div class="card-body">
+        <span class="cv-step-n">4</span><h3 class="h6">Download</h3>
+        <p class="small text-muted-2 mb-0">A Word file you can edit and tailor to each role.</p>
+      </div></div></li>
+    </ol>
+  </section>
+
+  <% if (isConsultantView) { %>
+    <section class="mt-5" id="my-documents" aria-labelledby="my-docs-h">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <h2 class="h5 mb-0" id="my-docs-h">My documents</h2>
+        <a class="btn btn-sm btn-outline-primary" href="/profile/settings#documents"><i class="bi bi-upload"></i> Upload a CV or cover letter</a>
+      </div>
+      <%# Generated files are not listed here: they are made fresh on download (step 3 above) %>
+      <%# and never stored, so a second set of download buttons would only repeat that one. %>
+      <p class="small text-muted-2">Your own CVs and cover letters. Generated CVs are made fresh each time from step 3 above and never stored, so a copy can never be older than your profile.</p>
+      <div class="glass-card"><div class="card-body">
+          <% if (!uploads.length) { %>
+            <p class="small text-muted-2 mb-0">Nothing uploaded yet. Your own CVs and cover letters (PDF or .docx) live here once you add them.</p>
+          <% } else { %>
+            <ul class="list-unstyled mb-0">
+              <% uploads.forEach(function (u) { %>
+                <li class="d-flex align-items-center gap-2 py-1">
+                  <i class="bi <%= u.content_type === 'application/pdf' ? 'bi-file-earmark-pdf' : 'bi-file-earmark-word' %> text-primary"></i>
+                  <span class="flex-grow-1 small"><strong><%= u.title || u.filename %></strong>
+                    <span class="text-muted-2">· <%= u.kind === 'cv' ? 'CV' : 'Cover letter' %><%= u.is_default ? ' · default' : '' %></span></span>
+                  <a class="btn btn-sm btn-link" href="/profile/consultant/documents/<%= u.id %>/download">Download</a>
+                </li>
+              <% }); %>
+            </ul>
+          <% } %>
+      </div></div>
+    </section>
+  <% } %>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

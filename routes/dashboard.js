@@ -13,7 +13,9 @@ const config = require('../config/config');
 const { isAuthenticated, isCompany, isConsultant } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
-const { matchScore } = require('../utils/jobMatcher');
+const { matchScore, matchReasons } = require('../utils/jobMatcher');
+const appStats = require('../utils/applicationStats');
+const ConsultantDocument = require('../models/ConsultantDocument');
 
 const router = express.Router();
 
@@ -244,17 +246,130 @@ router.get(
   })
 );
 
+/*
+ * The consultant's application tracker.
+ *
+ * Everything listed goes through `Application.buildFilter` with the consultant scope — the
+ * same builder the company board uses — so a tab's count is the number of rows behind it.
+ * The whole state is in the query string (view, status, type, search, sort), so a filtered
+ * list is a link and Back works.
+ *
+ * With no applications at all the page is a starting point instead of an empty table:
+ * readiness (profile and CV), roles that match the profile, and saved roles to apply to.
+ */
+const APP_VIEWS = ['active', 'archived', 'all'];
+const APP_SORTS = { recent: 'Last updated', newest: 'Newest first', oldest: 'Oldest first' };
+
 router.get(
   '/applications',
   isConsultant,
   asyncHandler(async (req, res) => {
-    const { page, perPage, limit, offset } = paginationFrom(req.query);
-    const applications = await Application.listForConsultant(req.session.user.id, { limit, offset });
+    const userId = req.session.user.id;
+    const status = Application.STATUSES.includes(req.query.status) ? req.query.status : '';
+    // Picking a status means "show me those", wherever they live, so it opens on All.
+    const view = APP_VIEWS.includes(req.query.view) ? req.query.view : status ? 'all' : 'active';
+    const engagement = ['contract', 'permanent'].includes(req.query.type) ? req.query.type : '';
+    const q = req.query.q ? String(req.query.q).trim().slice(0, 120) : '';
+    const sort = Object.prototype.hasOwnProperty.call(APP_SORTS, req.query.sort) ? req.query.sort : 'recent';
+    const filters = {
+      status,
+      engagement,
+      q,
+      archived: view === 'active' ? false : view === 'archived' ? true : undefined
+    };
 
+    const { page, perPage, limit, offset } = paginationFrom(req.query);
+    const [{ rows, total }, counts, statsRows, overall] = await Promise.all([
+      Application.browseForConsultant(userId, filters, { limit, offset, sort }),
+      Application.countsForConsultant(userId, filters),
+      Application.statsRowsForConsultant(userId),
+      // Unfiltered: "has this person ever applied" decides the empty state, not a search.
+      q || engagement ? Application.countsForConsultant(userId, {}) : null
+    ]);
+    const hasAny = (overall || counts).total > 0;
+
+    const eventsById = await Application.eventsFor(rows.map((r) => r.id));
+    const now = new Date();
+    const applications = rows.map((a) => ({
+      ...a,
+      timeline: appStats.timeline(a, eventsById[a.id] || []),
+      followUp: appStats.followUpDue(a, now)
+    }));
+
+    // Readiness and suggestions: always computed for the empty state, and readiness alone
+    // when there are applications (shown only if something is missing).
+    const [profile, documents] = await Promise.all([
+      ConsultantProfile.ensureExists(userId),
+      ConsultantDocument.listFor(userId)
+    ]);
+    const readiness = {
+      completeness: profile ? profile.completeness : 0,
+      hasCv: documents.some((d) => d.kind === 'cv'),
+      enough: ConsultantProfile.MIN_COMPLETENESS_TO_PUBLISH
+    };
+
+    /*
+     * Saved roles and suggestions show in BOTH states: with no applications they are the way
+     * in, with some they are what to do next. Anything already applied for is left out of
+     * both, and suggestions need a profile complete enough to match against — a match % from
+     * a half-empty profile is a number that means nothing.
+     */
+    const [consultantSkillIds, { rows: openJobs }, savedJobs, appliedIds] = await Promise.all([
+      Skill.idsForConsultant(userId),
+      Job.browse({}, { limit: 60, sort: 'newest' }),
+      Job.listSaved(userId, { limit: 12 }),
+      Application.appliedJobIds(userId)
+    ]);
+    const saved = savedJobs.filter((j) => j.status === 'open' && !appliedIds.has(j.id)).slice(0, 6);
+    /*
+     * With no applications only real matches (40%+) are offered: they are the way in. Below
+     * a list, the row is "what to look at next", and it used to vanish without a word once
+     * every role left above 40% had been applied for — so there it shows the three closest
+     * open roles whatever their score, with the score, and says when none is a close match.
+     */
+    // The job's own skills go in, as on the job board: without them every role scored the
+    // "no stated skills" half-mark and the % here disagreed with the % on Find Jobs.
+    const candidates = openJobs.filter((job) => !appliedIds.has(job.id));
+    const skillsByJob = candidates.length ? await Skill.idsForJobs(candidates.map((j) => j.id)) : new Map();
+    const scored = (!hasAny || readiness.completeness >= readiness.enough)
+      ? candidates
+        .map((job) => {
+          const { score, breakdown } = matchScore(job, profile, { jobSkillIds: skillsByJob.get(job.id) || [], consultantSkillIds });
+          return { job, score, reasons: matchReasons(job, breakdown) };
+        })
+        .filter((r) => r.score > 0)
+        .sort((a, b) => b.score - a.score)
+      : [];
+    const recommended = hasAny ? scored.slice(0, 3) : scored.filter((r) => r.score >= 40).slice(0, 4);
+    const recommendedWeak = recommended.length > 0 && recommended[0].score < 40;
+
+    const query = { view, status, type: engagement, q, sort };
     res.render('dashboard/applications', {
       title: 'Your applications',
       applications,
-      pagination: paginationMeta({ page, perPage, total: applications.length + offset }),
+      total,
+      counts,
+      hasAny,
+      stats: appStats.summary(statsRows, now),
+      statusLabels: appStats.STATUS_LABELS,
+      statusOrder: appStats.STATUS_ORDER,
+      followUpDays: appStats.FOLLOW_UP_DAYS,
+      filters: query,
+      sorts: APP_SORTS,
+      readiness,
+      recommended,
+      recommendedWeak,
+      saved,
+      // Every link on the page is built from the current query with one thing changed.
+      linkWith: (change) => {
+        const params = new URLSearchParams();
+        const merged = { ...query, ...change };
+        for (const [k, v] of Object.entries(merged)) if (v && !(k === 'sort' && v === 'recent') && !(k === 'view' && v === 'active')) params.set(k, v);
+        const str = params.toString();
+        return `/dashboard/applications${str ? `?${str}` : ''}`;
+      },
+      currentUrl: req.originalUrl,
+      pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/dashboard/applications', req.query, p)
     });
   })

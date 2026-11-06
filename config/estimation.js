@@ -157,6 +157,23 @@ const PHASE_MILESTONES = {
   support: 'Hypercare complete'
 };
 
+/*
+ * What "accepted" means for each phase — section 2.2 of the SOW. Words, not figures: nothing
+ * here moves an estimate, so it is not part of `catalogueVersion()`. Every phase must have
+ * one (asserted below), because a phase with a milestone and no way to accept it is the
+ * argument a project has at its last steering committee.
+ */
+const PHASE_ACCEPTANCE = {
+  discovery: 'The client approves the requirements and the prioritised backlog in writing.',
+  design: 'The client\u2019s named owner approves the solution design.',
+  build: 'The agreed backlog is demonstrated working in a sandbox.',
+  testing: 'The client completes user acceptance testing with no open defect of the highest severity.',
+  migration: 'Migrated record counts reconcile with the source and the client confirms them.',
+  training: 'The planned sessions are delivered and the materials handed over.',
+  deployment: 'The solution is live in production and available to its users.',
+  support: 'The hypercare window has ended and every open item is closed or handed over.'
+};
+
 /**
  * Fail the boot rather than ship a silently wrong estimate.
  * Returns a list of problems; empty means consistent.
@@ -172,6 +189,7 @@ function estimationProblems() {
 
   for (const [id, phase] of Object.entries(PHASE_DISTRIBUTION)) {
     if (!PHASE_MILESTONES[id]) problems.push(`phase "${id}" has no milestone`);
+    if (!PHASE_ACCEPTANCE[id]) problems.push(`phase "${id}" has no acceptance criterion`);
     if (!phase.name || !phase.description) problems.push(`phase "${id}" is missing a name or description`);
   }
 
@@ -200,6 +218,7 @@ module.exports = {
   INTEGRATION_DAYS,
   UNMAPPED_ITEM_DAYS,
   PHASE_MILESTONES,
+  PHASE_ACCEPTANCE,
   estimationProblems,
   assertEstimationIntegrity
 };

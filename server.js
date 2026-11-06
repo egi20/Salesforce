@@ -323,6 +323,7 @@ app.use('/consultants', require('./routes/consultants'));
 app.use('/companies', require('./routes/companies'));
 app.use('/community', require('./routes/community'));
 app.use('/jobs', require('./routes/jobs'));
+app.use('/cv-generator', require('./routes/cvGenerator'));
 app.use('/applications', require('./routes/applications'));
 app.use('/quotes', require('./routes/quotes'));
 app.use('/rates', require('./routes/rates'));

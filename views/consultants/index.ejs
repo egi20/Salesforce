@@ -1,122 +1,250 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { icon: 'bi-people', heading: 'Salesforce consultants', sub: 'Certified specialists across every cloud. Filter by role, credential, availability and rate.' }) %>
+<%- include('../partials/page-header', { icon: 'bi-people', heading: 'Salesforce consultants', sub: 'Certified specialists across every cloud. Filter by cloud, credential, experience, availability and rate.' }) %>
+
+<%
+  /*
+   * ONE form drives the board — the search box, the sidebar and the sort control — through
+   * `form="talentFilters"`, so a search never drops the ticked filters and ticking one never
+   * drops the search. The shortlist buttons on the cards are forms of their own, which is why
+   * the rest are tied to this one by id rather than nested inside it.
+   *
+   * It works with scripting off: every control submits with the Show button. main.js applies
+   * on change, filters the long lists as you type, and shortlists without a reload.
+   */
+  const has = (list, value) => Array.isArray(list) && list.includes(value);
+  const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
+%>
 
 <section class="glass-section pb-5">
 <div class="container">
   <%- include('../partials/flash') %>
 
+  <%# Each figure is a count of what this visitor can browse, worked out on this request. %>
+  <ul class="talent-stats list-unstyled d-flex flex-wrap gap-2 mb-3" aria-label="Directory at a glance">
+    <li><strong><%= stats.consultants %></strong> consultant<%= stats.consultants === 1 ? '' : 's' %></li>
+    <li><a href="/consultants?availability=immediate"><strong><%= stats.availableNow %></strong> available now</a></li>
+    <li><strong><%= stats.clouds %></strong> cloud<%= stats.clouds === 1 ? '' : 's' %> covered</li>
+  </ul>
+
+  <% if (!currentUser) { %>
+    <p class="small text-muted-2 mb-3">
+      <i class="bi bi-buildings" aria-hidden="true"></i>
+      Hiring? <a href="/auth/login?redirect=<%= encodeURIComponent(returnUrl) %>">Sign in</a> or
+      <a href="/auth/register?as=company">create a company account</a> to shortlist consultants and invite them to apply for a role.
+    </p>
+  <% } %>
+
+  <div class="job-search glass-card mb-4" role="search">
+    <div class="card-body d-flex flex-column flex-md-row gap-2">
+      <label class="visually-hidden" for="talentSearch">Search consultants</label>
+      <div class="job-search-field flex-grow-1">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input class="form-control form-control-lg" id="talentSearch" name="q" form="talentFilters" type="search" maxlength="120"
+               value="<%= filters.q %>" placeholder="Name, headline or keyword — e.g. CPQ, Apex, Data Cloud">
+      </div>
+      <button class="btn btn-primary btn-lg px-4" type="submit" form="talentFilters">Search</button>
+    </div>
+  </div>
+
   <div class="row g-4">
     <aside class="col-lg-3">
-      <form class="glass-panel filter-panel" method="get" action="/consultants">
-        <h2 class="mb-3">Filters</h2>
+      <div class="job-sidebar" data-sticky-sidebar>
+      <details class="filter-disclosure" open data-fold-below="992">
+        <summary class="btn btn-outline-primary w-100 mb-3"><i class="bi bi-sliders"></i> Filters<% if (activeFilterCount) { %> (<%= activeFilterCount %>)<% } %></summary>
+      <form class="glass-panel filter-panel" id="talentFilters" method="get" action="/consultants" data-auto-apply>
+        <div class="filter-panel-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="mb-0">Filters</h2>
+            <% if (activeFilterCount) { %>
+              <a class="small fw-semibold" href="/consultants">Clear all (<%= activeFilterCount %>)</a>
+            <% } else { %>
+              <span class="small text-muted-2" aria-disabled="true">Clear all</span>
+            <% } %>
+          </div>
 
-        <div class="mb-3">
-          <label class="form-label" for="c-q">Keyword</label>
-          <input class="form-control" id="c-q" name="q" value="<%= filters.q %>" placeholder="Name or headline">
-        </div>
+          <% if (canShortlist) { %>
+            <fieldset class="filter-group">
+              <legend>Shortlist</legend>
+              <%- include('../jobs/_check', { name: 'shortlist', value: '1', id: 'f-shortlist', label: 'My shortlist only', count: shortlistTotal, ticked: filters.shortlist === '1' }) %>
+              <p class="form-text mb-0">Only your company sees its shortlist. The consultant is not told.</p>
+            </fieldset>
+          <% } %>
 
-        <div class="mb-3">
-          <label class="form-label" for="c-role">Role</label>
-          <select class="form-select" id="c-role" name="role">
-            <option value="">Any role</option>
-            <% roleCategories.forEach(function (cat) { %>
-              <optgroup label="<%= cat.category %>">
-                <% cat.roles.forEach(function (r) { %>
-                  <option value="<%= r.value %>" <%= filters.role === r.value ? 'selected' : '' %>><%= r.label %></option>
+          <fieldset class="filter-group">
+            <legend>Cloud</legend>
+            <% cloudFamilies.forEach(function (f) { %>
+              <%- include('../jobs/_check', { name: 'clouds', value: f.value, id: 'cloud-' + f.value, label: f.label, count: counts.clouds[f.value] || 0, ticked: has(filters.clouds, f.value) }) %>
+            <% }); %>
+          </fieldset>
+
+          <fieldset class="filter-group">
+            <legend>Role</legend>
+            <label class="visually-hidden" for="roleSearch">Search roles</label>
+            <input class="form-control form-control-sm mb-2" id="roleSearch" type="search" placeholder="Search roles…"
+                   data-filter-list="#roleList" autocomplete="off">
+            <div class="filter-scroll" id="roleList">
+              <% roleCategories.forEach(function (cat) { %>
+                <div class="filter-subgroup" data-filter-group>
+                  <div class="filter-subhead"><%= cat.category %></div>
+                  <% cat.roles.forEach(function (r) { %>
+                    <%- include('../jobs/_check', { name: 'role', value: r.value, id: 'role-' + r.value, label: r.label, count: counts.role[r.value] || 0, ticked: has(filters.role, r.value), searchable: true }) %>
+                  <% }); %>
+                </div>
+              <% }); %>
+            </div>
+          </fieldset>
+
+          <fieldset class="filter-group">
+            <legend>Certification</legend>
+            <% if (certOptions.length === 0) { %>
+              <p class="small text-muted-2 mb-0">No listed consultant has added an official certification yet.</p>
+            <% } else { %>
+              <label class="visually-hidden" for="certSearch">Search certifications</label>
+              <input class="form-control form-control-sm mb-2" id="certSearch" type="search" placeholder="Search certifications…"
+                     data-filter-list="#certList" autocomplete="off">
+              <div class="filter-scroll filter-scroll-sm" id="certList">
+                <div data-filter-group>
+                  <% certOptions.forEach(function (c, i) { %>
+                    <%- include('../jobs/_check', { name: 'certifications', value: c.name, id: 'cert-' + i, label: certificationLabel(c.name), count: c.count, ticked: has(filters.certifications, c.name), searchable: true }) %>
+                  <% }); %>
+                </div>
+              </div>
+            <% } %>
+          </fieldset>
+
+          <fieldset class="filter-group">
+            <legend>Experience</legend>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="min_years" value="" id="years-any" <%= filters.min_years ? '' : 'checked' %>>
+              <label class="form-check-label" for="years-any">Any</label>
+            </div>
+            <% minYearsOptions.forEach(function (y) { const n = counts.years[y] || 0; const ticked = filters.min_years === String(y); %>
+              <div class="form-check <%= n === 0 && !ticked ? 'is-empty' : '' %>">
+                <input class="form-check-input" type="radio" name="min_years" value="<%= y %>" id="years-<%= y %>" <%= ticked ? 'checked' : '' %> <%= n === 0 && !ticked ? 'disabled' : '' %>>
+                <label class="form-check-label" for="years-<%= y %>"><%= y %>+ years<% if (!ticked) { %> <span class="filter-count">(<%= n %>)</span><% } %></label>
+              </div>
+            <% }); %>
+          </fieldset>
+
+          <fieldset class="filter-group">
+            <legend>Availability</legend>
+            <% availabilityOptions.forEach(function (a) { %>
+              <%- include('../jobs/_check', { name: 'availability', value: a.value, id: 'avail-' + a.value, label: a.label, count: counts.availability[a.value] || 0, ticked: has(filters.availability, a.value) }) %>
+            <% }); %>
+          </fieldset>
+
+          <fieldset class="filter-group">
+            <legend>Country</legend>
+            <% if (countryOptions.length === 0) { %>
+              <p class="small text-muted-2 mb-0">No listed consultant names a country yet.</p>
+            <% } else { %>
+              <div class="filter-scroll filter-scroll-sm">
+                <% countryOptions.forEach(function (c) { %>
+                  <%- include('../jobs/_check', { name: 'country', value: c.code, id: 'country-' + c.code, label: countryName(c.code), count: c.count, ticked: has(filters.country, c.code) }) %>
                 <% }); %>
-              </optgroup>
+              </div>
+            <% } %>
+          </fieldset>
+
+          <fieldset class="filter-group">
+            <legend>Seniority</legend>
+            <% ['junior', 'mid', 'senior', 'lead'].forEach(function (v) { %>
+              <%- include('../jobs/_check', { name: 'seniority', value: v, id: 'sen-' + v, label: seniorityLabel(v, { full: true }), count: counts.seniority[v] || 0, ticked: has(filters.seniority, v) }) %>
             <% }); %>
-          </select>
-        </div>
+          </fieldset>
 
-        <div class="row g-2 mb-3">
-          <div class="col-6">
-            <label class="form-label" for="c-seniority">Seniority</label>
-            <select class="form-select" id="c-seniority" name="seniority">
-              <option value="">Any</option>
-              <% ['junior','mid','senior','lead'].forEach(function (s) { %>
-                <option value="<%= s %>" <%= filters.seniority === s ? 'selected' : '' %>><%= seniorityLabel(s, { full: true }) %></option>
-              <% }); %>
-            </select>
-          </div>
-          <div class="col-6">
-            <label class="form-label" for="c-mode">Work mode</label>
-            <select class="form-select" id="c-mode" name="work_mode">
-              <option value="">Any</option>
-              <% ['remote','hybrid','onsite'].forEach(function (m) { %>
-                <option value="<%= m %>" <%= filters.work_mode === m ? 'selected' : '' %>><%= workModeLabel(m) %></option>
-              <% }); %>
-            </select>
-          </div>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label" for="c-availability">Availability</label>
-          <select class="form-select" id="c-availability" name="availability">
-            <option value="">Any</option>
-            <option value="immediate" <%= filters.availability === 'immediate' ? 'selected' : '' %>>Immediately</option>
-            <option value="two_weeks" <%= filters.availability === 'two_weeks' ? 'selected' : '' %>>Within 2 weeks</option>
-            <option value="one_month" <%= filters.availability === 'one_month' ? 'selected' : '' %>>Within a month</option>
-          </select>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label" for="c-country">Country</label>
-          <select class="form-select" id="c-country" name="country">
-            <option value="">Any country</option>
-            <% countries.forEach(function (c) { %>
-              <option value="<%= c.code %>" <%= filters.country === c.code ? 'selected' : '' %>><%= c.name %></option>
+          <fieldset class="filter-group">
+            <legend>Work mode</legend>
+            <% ['remote', 'hybrid', 'onsite'].forEach(function (v) { %>
+              <%- include('../jobs/_check', { name: 'work_mode', value: v, id: 'mode-' + v, label: workModeLabel(v), count: counts.work_mode[v] || 0, ticked: has(filters.work_mode, v) }) %>
             <% }); %>
-          </select>
+          </fieldset>
+
+          <fieldset class="filter-group">
+            <legend>Profile</legend>
+            <% if (linkedinEnabled) { %>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="linkedin_verified" value="1" id="f-linkedin" <%= filters.linkedin_verified ? 'checked' : '' %>>
+                <label class="form-check-label" for="f-linkedin">LinkedIn verified</label>
+              </div>
+            <% } %>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="trailhead" value="1" id="f-trailhead" <%= filters.trailhead ? 'checked' : '' %>>
+              <label class="form-check-label" for="f-trailhead">Shows a Trailhead record</label>
+            </div>
+          </fieldset>
+
+          <fieldset class="filter-group mb-0">
+            <legend>Maximum day rate</legend>
+            <label class="visually-hidden" for="f-rate">Maximum day rate</label>
+            <input class="form-control form-control-sm" id="f-rate" name="rate_max" type="number" min="0" step="1"
+                   value="<%= filters.rate_max %>" placeholder="Any">
+            <p class="form-text mb-0">Profiles with the rate on request are always included.</p>
+          </fieldset>
         </div>
 
-        <div class="mb-3">
-          <label class="form-label" for="c-rate">Maximum day rate</label>
-          <input class="form-control" id="c-rate" name="rate_max" type="number" min="0" step="1" value="<%= filters.rate_max %>">
+        <div class="filter-panel-actions" data-no-script-only>
+          <button class="btn btn-primary w-100" type="submit">Show <%= plural(pagination.total, 'consultant', 'consultants') %></button>
         </div>
-
-        <div class="form-check mb-3">
-          <input class="form-check-input" type="checkbox" id="c-cert" name="certified" value="1" <%= filters.certified === '1' ? 'checked' : '' %>>
-          <label class="form-check-label" for="c-cert">Certified only</label>
-        </div>
-
-        <button class="btn btn-primary w-100 mb-2" type="submit">Apply filters</button>
-        <a class="btn btn-outline-primary w-100" href="/consultants">Clear</a>
       </form>
+      </details>
+      </div>
     </aside>
 
     <div class="col-lg-9">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <p class="mb-0 text-muted-2"><strong><%= pagination.total %></strong> consultant<%= pagination.total === 1 ? '' : 's' %></p>
-        <form method="get" class="d-flex align-items-center gap-2">
-          <% Object.entries(filters).forEach(function (e) { if (e[1]) { %>
-            <input type="hidden" name="<%= e[0] %>" value="<%= e[1] %>">
-          <% } }); %>
-          <label class="form-label mb-0 small" for="c-sort">Sort</label>
-          <select class="form-select form-select-sm" id="c-sort" name="sort" onchange="this.form.submit()">
+      <div class="job-results" data-results aria-live="polite">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <p class="mb-0 text-muted-2"><strong><%= pagination.total %></strong> consultant<%= pagination.total === 1 ? '' : 's' %> found</p>
+        <div class="d-flex align-items-center gap-2">
+          <label class="form-label mb-0 small" for="sort">Sort</label>
+          <select class="form-select form-select-sm" id="sort" name="sort" form="talentFilters" data-auto-apply-field>
             <option value="relevance" <%= sort === 'relevance' ? 'selected' : '' %>>Best match</option>
             <option value="newest" <%= sort === 'newest' ? 'selected' : '' %>>Newest</option>
             <option value="rate_asc" <%= sort === 'rate_asc' ? 'selected' : '' %>>Lowest rate</option>
             <option value="rate_desc" <%= sort === 'rate_desc' ? 'selected' : '' %>>Highest rate</option>
           </select>
-        </form>
+        </div>
       </div>
+
+      <% if (activeChips.length) { %>
+        <div class="active-filters d-flex flex-wrap align-items-center gap-2 mb-3" aria-label="Active filters">
+          <% activeChips.forEach(function (c) { %>
+            <a class="filter-chip" href="<%= c.href %>" aria-label="Remove filter: <%= c.label %>">
+              <%= c.label %> <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </a>
+          <% }); %>
+          <a class="small fw-semibold ms-1" href="/consultants">Clear all</a>
+        </div>
+      <% } else { %>
+        <div class="mb-3"></div>
+      <% } %>
 
       <% if (consultants.length === 0) { %>
         <div class="empty-state glass-card">
           <i class="bi bi-people"></i>
-          <p class="mb-1">No consultants match these filters.</p>
-          <a href="/consultants">Clear the filters</a>
+          <% if (filters.shortlist && activeChips.length === 1) { %>
+            <p class="fw-semibold mb-1">Your shortlist is empty.</p>
+            <p class="small mb-3">Press ★ Shortlist on a consultant's card to keep them here. Only your company sees this list.</p>
+            <a class="btn btn-primary btn-sm" href="/consultants">Browse consultants</a>
+          <% } else if (activeChips.length) { %>
+            <p class="fw-semibold mb-1">No consultants match <%= activeChips.length === 1 ? 'this filter' : 'these ' + activeChips.length + ' filters' %>.</p>
+            <p class="small mb-3">Remove one of the filters above to widen the search.</p>
+            <a class="btn btn-primary btn-sm" href="/consultants">Clear filters</a>
+          <% } else { %>
+            <p class="fw-semibold mb-1">No consultant has published a profile yet.</p>
+            <p class="small mb-0">Profiles appear here as soon as consultants make them public.</p>
+          <% } %>
         </div>
       <% } else { %>
         <div class="row g-3">
           <% consultants.forEach(function (c) { %>
-            <div class="col-md-6 col-xl-4"><%- include('../partials/consultant-card', { c: c }) %></div>
+            <div class="col-md-6 col-xxl-4"><%- include('../partials/consultant-card', { c: c }) %></div>
           <% }); %>
         </div>
         <%- include('../partials/pagination') %>
       <% } %>
+      </div>
     </div>
   </div>
 </div>

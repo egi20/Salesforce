@@ -64,9 +64,14 @@ const PAGE_META = {
       'Ongoing support and enhancement of a live Salesforce org, without hiring a permanent admin.'
   },
   '/services/document-generator': {
-    title: 'Salesforce SOW, CV and rate card generator',
+    title: 'Salesforce SOW pack generator — SOW, work breakdown and deck',
     description:
-      'Turn a scope estimate into a matching SOW, work breakdown and deck, and a consultant profile into a CV and rate card. Nothing is stored.'
+      'Turn a Salesforce scope estimate into a matching SOW, work breakdown with Gantt and summary deck. All three read the same figures. Nothing is stored.'
+  },
+  '/cv-generator': {
+    title: 'Free Salesforce CV generator — CV and rate card from your profile',
+    description:
+      'Generate an ATS-friendly CV and a rate card from your Salesforce Hub profile: choose the sections, preview it, download a Word file. Free, and nothing is reworded.'
   },
   '/consultant-hub': {
     title: 'Consultant Hub — Salesforce jobs, profiles and day rates',
@@ -98,7 +103,7 @@ const PAGE_META = {
 // links to it.
 const PUBLIC_PATHS = ['/', '/about', '/blog', '/consultant-hub', '/companies-hub',
   '/services/staff-augmentation', '/services/project-based', '/services/managed-services',
-  '/services/document-generator', '/jobs', '/consultants', '/companies', '/rates', '/recruiters', '/success-stories', '/tax-advisory', '/faq', '/contact', '/legal/privacy', '/legal/terms'];
+  '/services/document-generator', '/cv-generator', '/jobs', '/consultants', '/companies', '/rates', '/recruiters', '/success-stories', '/tax-advisory', '/faq', '/contact', '/legal/privacy', '/legal/terms'];
 
 function canonicalUrl(path) {
   const clean = String(path || '/').split('?')[0];

@@ -75,6 +75,22 @@ class Skill {
     await promisePool.query('INSERT IGNORE INTO consultant_skills (user_id, skill_id, level) VALUES ?', [values]);
   }
 
+  /**
+   * Replace a consultant's skills with a level and, optionally, years of use for each.
+   * Level is one of the column's own ENUM values; anything else becomes 'proficient' rather
+   * than failing the save. Years are capped at 50 — a typo, not a career.
+   */
+  static async setDetailedForConsultant(userId, entries) {
+    const LEVELS = ['familiar', 'proficient', 'expert'];
+    await promisePool.query('DELETE FROM consultant_skills WHERE user_id = ?', [userId]);
+    if (!entries || entries.length === 0) return;
+    const values = entries.map((e) => {
+      const years = Number.parseInt(e.years, 10);
+      return [userId, e.skillId, LEVELS.includes(e.level) ? e.level : 'proficient', Number.isFinite(years) && years >= 0 ? Math.min(years, 50) : null];
+    });
+    await promisePool.query('INSERT IGNORE INTO consultant_skills (user_id, skill_id, level, years) VALUES ?', [values]);
+  }
+
   static async setForJob(jobId, skillIds) {
     await promisePool.query('DELETE FROM job_skills WHERE job_id = ?', [jobId]);
     if (!skillIds || skillIds.length === 0) return;
@@ -94,7 +110,7 @@ class Skill {
 
   static async forConsultant(userId) {
     const [rows] = await promisePool.query(
-      `SELECT s.id, s.slug, s.name, cs.level
+      `SELECT s.id, s.slug, s.name, cs.level, cs.years
          FROM consultant_skills cs JOIN skills s ON s.id = cs.skill_id
         WHERE cs.user_id = ? ORDER BY s.name`,
       [userId]

@@ -1,0 +1,37 @@
+<%
+  /* The project fields, for Add (formId projAddForm, empty item) and Edit (projEdit-<id>). */
+  const d = (v) => (v ? new Date(v).toISOString().slice(0, 10) : '');
+  const uid = formId;
+%>
+<div class="row g-2 mt-1">
+  <div class="col-md-6"><label class="form-label small" for="<%= uid %>-name">Project <span class="req">*</span></label>
+    <input class="form-control form-control-sm" id="<%= uid %>-name" name="name" form="<%= formId %>" maxlength="200" required value="<%= item.name || '' %>" placeholder="e.g. Quote-to-cash rollout"></div>
+  <div class="col-md-6"><label class="form-label small" for="<%= uid %>-client">Client or industry</label>
+    <input class="form-control form-control-sm" id="<%= uid %>-client" name="client" form="<%= formId %>" maxlength="180" value="<%= item.client || '' %>"></div>
+  <div class="col-md-6"><label class="form-label small" for="<%= uid %>-cloud">Cloud or module</label>
+    <select class="form-select form-select-sm" id="<%= uid %>-cloud" name="cloud" form="<%= formId %>">
+      <option value="">—</option>
+      <% allModules.forEach(function (m) { %><option value="<%= m.value %>" <%= item.cloud === m.value ? 'selected' : '' %>><%= m.familyLabel %> — <%= m.label %></option><% }); %>
+    </select></div>
+  <div class="col-md-6"><label class="form-label small" for="<%= uid %>-role">Your role</label>
+    <select class="form-select form-select-sm" id="<%= uid %>-role" name="role" form="<%= formId %>">
+      <option value="">—</option>
+      <% roleCategories.forEach(function (cat) { %>
+        <optgroup label="<%= cat.category %>">
+          <% cat.roles.forEach(function (r) { %><option value="<%= r.value %>" <%= item.role === r.value ? 'selected' : '' %>><%= r.label %></option><% }); %>
+        </optgroup>
+      <% }); %>
+    </select></div>
+  <div class="col-6 col-md-3"><label class="form-label small" for="<%= uid %>-start">Start</label>
+    <input class="form-control form-control-sm" id="<%= uid %>-start" name="started_on" type="date" form="<%= formId %>" value="<%= d(item.started_on) %>"></div>
+  <div class="col-6 col-md-3"><label class="form-label small" for="<%= uid %>-end">End</label>
+    <input class="form-control form-control-sm" id="<%= uid %>-end" name="ended_on" type="date" form="<%= formId %>" value="<%= d(item.ended_on) %>"></div>
+  <div class="col-md-6 d-flex align-items-end">
+    <div class="form-check mb-1">
+      <input class="form-check-input" type="checkbox" name="is_current" id="<%= uid %>-current" form="<%= formId %>" <%= item.is_current ? 'checked' : '' %>>
+      <label class="form-check-label small" for="<%= uid %>-current">Current project</label>
+    </div>
+  </div>
+  <div class="col-12"><label class="form-label small" for="<%= uid %>-desc">Description</label>
+    <textarea class="form-control form-control-sm" id="<%= uid %>-desc" name="description" form="<%= formId %>" rows="3" placeholder="What you actually did. It goes on your CV as you write it."><%= item.description ? toPlainText(item.description) : '' %></textarea></div>
+</div>

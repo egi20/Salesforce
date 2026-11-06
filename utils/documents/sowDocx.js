@@ -23,6 +23,7 @@ const {
 const { HEX, FONT, formatNumber, formatMoney, formatDate, paletteFor, letterheadLines } = require('./brand');
 const { assertDocumentOpens } = require('./validate');
 const { familyLabel, moduleLabel } = require('../../config/cloudFamilies');
+const { PHASE_ACCEPTANCE } = require('../../config/estimation');
 
 /**
  * Statement of work, rendered from a stored quote.
@@ -315,6 +316,21 @@ function approachSection(estimate, brand) {
         brand,
         footer: ['Total', '', `${estimate.projectDurationWeeks} wk`, '']
       }
+    ),
+
+    /*
+     * 2.2, a sub-section so nothing after it is renumbered. Rendered from the stored timeline
+     * (phase and milestone) plus the catalogue's wording for each phase — no figure here.
+     */
+    heading('2.2 Acceptance criteria', HeadingLevel.HEADING_2, brand),
+    para('Each phase is complete when its milestone is reached and the client confirms acceptance in writing.', {
+      size: 22,
+      color: HEX.inkMuted
+    }),
+    table(
+      [{ label: 'Phase' }, { label: 'Milestone' }, { label: 'Accepted when' }],
+      estimate.timeline.map((t) => [t.phase, t.milestone, PHASE_ACCEPTANCE[t.phaseId] || 'The client confirms the milestone in writing.']),
+      { widths: [22, 23, 55], brand }
     )
   ];
 }

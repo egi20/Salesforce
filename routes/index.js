@@ -11,6 +11,7 @@ const IssueReport = require('../models/IssueReport');
 const { ISSUE_KINDS, ISSUE_SEVERITIES, SCREENSHOTS, LIMITS: ISSUE_LIMITS } = require('../config/issues');
 const { screenshots } = require('../middleware/fileUpload');
 const Job = require('../models/Job');
+const SiteReview = require('../models/SiteReview');
 const config = require('../config/config');
 const Post = require('../models/Post');
 const Points = require('../models/Points');
@@ -19,6 +20,8 @@ const ConsultantHiddenCompany = require('../models/ConsultantHiddenCompany');
 const CompanyProfile = require('../models/CompanyProfile');
 const RateSubmission = require('../models/RateSubmission');
 const { CLOUD_FAMILIES } = require('../config/cloudFamilies');
+const { PACK_CARDS } = require('../config/sowPack');
+const { calculateEstimation, reconciliationProblems } = require('../utils/sowEstimation');
 const { POST_KINDS, isPostKind, postKind } = require('../config/community');
 const { toPlainText } = require('../utils/sanitize');
 const legalVersions = require('../config/legal-versions');
@@ -168,16 +171,24 @@ const SERVICE_PAGES = {
     ],
     cta: { label: 'Browse consultants', href: '/consultants' }
   },
+  /*
+   * The SOW pack, for a company buying work. It used to share this page with the
+   * consultant's CV, and the consultant arriving from "CV Generator" found only "Start a
+   * quote" — so the CV has its own page now (/cv-generator) and this one says where it went.
+   */
   'document-generator': {
-    heading: 'CV & document generator',
+    heading: 'Document Generator — the SOW pack',
+    label: 'FOR COMPANIES',
     icon: 'bi-file-earmark-text',
-    intro: 'Every quote on the Hub can be turned into a matching SOW, work breakdown and summary deck — and every consultant profile into a CV and rate card.',
+    intro: 'Turn a scope estimate into the documents a project starts with: a statement of work, a work breakdown and a summary deck.',
     points: [
-      'A scope estimate becomes a downloadable SOW (.docx), work breakdown with Gantt (.xlsx) and summary deck (.pptx), zipped together — all three read the same stored figures, so they cannot contradict each other.',
-      'A consultant profile becomes a formatted CV and rate card on demand, rendered from the profile rather than written by anything else.',
-      'Nothing is generated until you ask for it, and nothing is stored afterwards — the source is always the quote or the profile, not the file.'
+      'A downloadable SOW (.docx), work breakdown with Gantt (.xlsx) and summary deck (.pptx), zipped together.',
+      'All three read the same stored figures, so they cannot contradict each other — or the estimate on the page.',
+      'Your own colours, letterhead and standard clauses, set once under Document branding.',
+      'Nothing is generated until you ask for it, and nothing is stored afterwards — the source is always the quote, not the file.'
     ],
-    cta: { label: 'Start a quote', href: '/quotes/new' }
+    cta: { label: 'Start a quote', href: '/quotes/new' },
+    aside: { text: 'Looking for your CV? Consultants have their own generator.', label: 'CV Generator', href: '/cv-generator' }
   }
 };
 
@@ -190,10 +201,37 @@ const SERVICE_PAGES = {
  * `AppSetting.isValidKey` and `ImageBlob`'s table lookup already avoid, arriving here
  * through a URL segment anybody can type.
  */
+/*
+ * The SOW pack's sample timeline, computed ONCE at load by the same estimator every quote
+ * uses — not drawn by hand. A sample a company looks at before starting must be something
+ * the engine actually produces, and it is held to the same reconciliation check a real
+ * quote is: if the engine ever disagreed with itself, the boot would say so here.
+ */
+const SOW_SAMPLE = (() => {
+  const estimate = calculateEstimation({
+    selectedModules: ['lead-management', 'opportunity-management', 'forecasting', 'case-management', 'omni-channel', 'knowledge'],
+    complexity: 'complex',
+    numberOfUsers: 400,
+    numberOfIntegrations: 3,
+    customizationLevel: 'heavy'
+  });
+  const problems = reconciliationProblems(estimate);
+  if (problems.length) throw new Error(`SOW sample failed reconciliation: ${problems.join('; ')}`);
+  return {
+    scope: 'Sales Cloud and Service Cloud · six modules · three integrations · 400 users',
+    weeks: estimate.projectDurationWeeks,
+    timeline: estimate.timeline.map(({ phase, startWeek, endWeek, milestone }) => ({ phase, startWeek, endWeek, milestone }))
+  };
+})();
+
 router.get('/services/:page', (req, res, next) => {
   if (!Object.prototype.hasOwnProperty.call(SERVICE_PAGES, req.params.page)) return next();
   const model = SERVICE_PAGES[req.params.page];
-  res.render('services/engagement-model', { title: model.heading, model });
+  // The SOW pack is a product page with its own layout; the other three are short explainers.
+  if (req.params.page === 'document-generator') {
+    return res.render('services/document-generator', { title: model.heading, model, sample: SOW_SAMPLE, packCards: PACK_CARDS });
+  }
+  return res.render('services/engagement-model', { title: model.heading, model });
 });
 
 /*
@@ -261,12 +299,12 @@ router.get(
      * signed-in account adds the consultant role in settings (add-only, see
      * routes/profile.js), and only a visitor is sent to sign up.
      */
-    const profileHref = isConsultant ? '/profile/consultant' : user ? '/profile/settings' : '/auth/register';
+    const profileHref = user ? '/profile/settings' : '/auth/register';
 
     const tools = [
       { href: '/jobs', icon: 'bi-briefcase', tone: 'icon-blue', title: 'Find Jobs', text: 'Contract and permanent roles, filtered by cloud, role, seniority, work mode and rate.' },
       { href: profileHref, icon: 'bi-person-gear', tone: 'icon-navyblue', title: 'Build Profile', text: 'Your clouds, certifications, delivery history and availability, in a profile companies can find. You decide whether it is public, and whether the rate is shown.' },
-      { href: '/services/document-generator', icon: 'bi-file-earmark-person', tone: 'icon-info', title: 'CV Generator', text: 'A formatted CV and rate card, generated from your own profile in one click — private by default.' },
+      { href: '/cv-generator', icon: 'bi-file-earmark-person', tone: 'icon-info', title: 'CV Generator', text: 'A formatted CV and rate card, generated from your own profile in one click — private by default.' },
       { href: '/rates', icon: 'bi-graph-up', tone: 'icon-success', title: 'Rate & Salary Index', text: 'Day rates contributed by consultants. No figure is published from fewer than three people.' },
       { href: '/rates/calculator', icon: 'bi-calculator', tone: 'icon-blue', title: 'Rate calculator', text: 'What a day rate comes to over a year once holidays, illness and the bench are taken out.' },
       { href: '/tax-advisory', icon: 'bi-signpost-split', tone: 'icon-navyblue', title: 'Tax Optimization', text: 'Get introduced to a tax specialist who works with contractors in your situation.' }
@@ -297,7 +335,7 @@ router.get(
         // product there is paid for by a company.
         freeNote: 'Free for consultants — no fees, no subscription.',
         actions: user
-          ? [{ label: 'Find Jobs', href: '/jobs', icon: 'bi-briefcase' }, { label: 'CV Generator', href: '/services/document-generator', icon: 'bi-file-earmark-person' }]
+          ? [{ label: 'Find Jobs', href: '/jobs', icon: 'bi-briefcase' }, { label: 'CV Generator', href: '/cv-generator', icon: 'bi-file-earmark-person' }]
           : [{ label: 'Sign Up Free', href: '/auth/register', icon: 'bi-person-plus' }, { label: 'Find Jobs', href: '/jobs', icon: 'bi-briefcase' }],
         stats,
         tools,
@@ -320,28 +358,70 @@ router.get(
   })
 );
 
+/*
+ * The companies' half says what the code does for a COMPANY. The consultant line ("your
+ * profile is only as public as you choose") was being shown to people who have no profile.
+ * A published role is public by definition, so it is not claimed to be private.
+ */
+const COMPANY_PRIVACY_BENEFIT = {
+  icon: 'bi-shield-check',
+  title: 'Secure and private',
+  text: 'Applicants and estimates stay in your account, a role is public only once you publish it, and you can download or delete your data any time.'
+};
+
+/*
+ * Social proof only from rows that exist: public companies with open roles, and reviews a
+ * company or recruiter account wrote and an administrator approved. Below the threshold the
+ * strip is not shown at all — three logos read as "nobody uses this", and an invented
+ * testimonial is a lie told on the page that asks for trust.
+ */
+const HIRING_LOGOS_MIN = 4;
+
 router.get(
   '/companies-hub',
   asyncHandler(async (req, res) => {
     const user = req.session.user || null;
+    const isCompany = Boolean(user && user.isCompany);
     const viewer = await ConsultantHiddenCompany.viewerFor(user);
-    const [consultants, companies] = await Promise.all([
+    const [consultants, companies, jobs, hiring, reviews] = await Promise.all([
       ConsultantProfile.browse({ viewer }, { limit: 1 }),
-      CompanyProfile.browse({}, { limit: 1 })
+      CompanyProfile.browse({}, { limit: 1 }),
+      Job.browse({}, { limit: 1 }),
+      CompanyProfile.browse({}, { limit: 12 }),
+      SiteReview.list({ author_roles: ['company', 'recruiter'] }, { limit: 2 })
     ]);
+    const hiringNow = hiring.rows.filter((c) => Number(c.open_jobs) > 0).slice(0, 8);
 
-    const tools = [
+    const postRoleHref = isCompany ? '/jobs/new' : user ? '/profile/settings' : '/auth/register';
+    const hire = [
       { href: '/consultants', icon: 'bi-people', tone: 'icon-blue', title: 'Browse Talent', text: 'Consultants filtered by cloud, certification, seniority, availability and rate.' },
-      { href: '/quotes/new', icon: 'bi-calculator', tone: 'icon-navyblue', title: 'Get SOW Quote', text: 'Pick clouds and modules and get a phased plan, team shape, budget and timeline that add up line by line.' },
-      { href: user && user.isCompany ? '/jobs/new' : user ? '/profile/settings' : '/auth/register', icon: 'bi-plus-square', tone: 'icon-success', title: 'Post a role', text: 'Publish a contract or permanent role and manage applicants through a pipeline.' },
-      { href: '/services/staff-augmentation', icon: 'bi-person-plus', tone: 'icon-info', title: 'Staff Augmentation', text: 'Named consultants inside your team, on your backlog.' },
-      { href: '/services/project-based', icon: 'bi-kanban', tone: 'icon-blue', title: 'Project-Based', text: 'A defined scope delivered to a plan, priced from an estimate.' },
-      { href: '/services/managed-services', icon: 'bi-gear', tone: 'icon-navyblue', title: 'Managed Services', text: 'Ongoing support and improvement after go-live.' },
-      { href: '/recruiters', icon: 'bi-person-rolodex', tone: 'icon-success', title: 'Recruitment agencies', text: 'Agencies that specialise in Salesforce placements, by cloud.' }
+      { href: postRoleHref, icon: 'bi-plus-square', tone: 'icon-success', title: 'Post a role', text: 'Publish a contract or permanent role and manage applicants through a pipeline.' },
+      { href: '/recruiters', icon: 'bi-person-rolodex', tone: 'icon-info', title: 'Recruitment agencies', text: 'Agencies that specialise in Salesforce placements, by cloud.' }
     ];
-    if (user && user.isCompany) {
-      tools.push({ href: '/dashboard/applicants', icon: 'bi-kanban', tone: 'icon-info', title: 'Applicants', text: 'Every application across your roles, by stage.' });
+    if (isCompany) {
+      hire.push({ href: '/dashboard/applicants', icon: 'bi-kanban', tone: 'icon-navyblue', title: 'Applicants', text: 'Every application across your roles, by stage.' });
     }
+    /*
+     * Each point is something the Hub or the engagement page actually offers — no SLA, no
+     * "24/7", no monthly report, because nothing here produces one.
+     */
+    const engagement = [
+      {
+        href: '/services/staff-augmentation', icon: 'bi-person-plus', tone: 'icon-info', title: 'Staff Augmentation',
+        text: 'Named consultants inside your team, on your backlog.',
+        points: ['Choose named consultants from the directory', 'Your backlog, your stand-ups, your delivery lead', 'A day rate, for as long as the work runs']
+      },
+      {
+        href: '/services/project-based', icon: 'bi-kanban', tone: 'icon-blue', title: 'Project-Based',
+        text: 'A defined scope delivered to a plan, priced from an estimate.',
+        points: ['Scope and budget from an estimate that reconciles', 'A phased plan with team shape and timeline', 'SOW, work breakdown with Gantt, and deck included']
+      },
+      {
+        href: '/services/managed-services', icon: 'bi-gear', tone: 'icon-navyblue', title: 'Managed Services',
+        text: 'Ongoing support and improvement of a live org.',
+        points: ['Fixes and small enhancements after go-live', 'Release management for the live org', 'Scoped and agreed before anything is billed']
+      }
+    ];
 
     res.render('hubs/show', {
       title: 'Companies Hub',
@@ -355,27 +435,43 @@ router.get(
         freeNote: 'Browsing talent and posting roles are free. Featured placement is optional.',
         actions: [
           { label: 'Browse Talent', href: '/consultants', icon: 'bi-people' },
-          { label: 'Get SOW Quote', href: '/quotes/new', icon: 'bi-calculator' }
+          { label: 'Get SOW Quote', href: '/quotes/new#wizard', icon: 'bi-calculator' }
         ],
         stats: headlineStats([
+          { value: jobs.total, min: HEADLINE_MIN.roles, label: 'open roles', href: '/jobs' },
           { value: consultants.total, min: HEADLINE_MIN.consultants, label: 'consultants on the Hub', href: '/consultants' },
           { value: companies.total, min: HEADLINE_MIN.companies, label: 'companies on the Hub', href: '/companies' },
           CLOUDS_COVERED
         ]),
-        tools,
+        // Two groups of three rather than seven cards in a row of three, which left one alone.
+        groups: [
+          { heading: 'Hire', text: 'Find a consultant yourself, publish a role, or work through an agency.', tools: hire },
+          {
+            heading: 'Engagement models',
+            text: 'Three ways to engage, each ending at a page that can do it.',
+            tools: engagement,
+            action: { label: 'Get SOW Quote', href: '/quotes/new#wizard', icon: 'bi-calculator', note: 'Pick clouds and modules — phases, team, budget and timeline that add up line by line.' }
+          }
+        ],
+        proof: {
+          companies: hiringNow.length >= HIRING_LOGOS_MIN ? hiringNow : [],
+          reviews: reviews.rows
+        },
         benefitsHeading: 'Why companies use Salesforce Hub',
         benefits: [
           { icon: 'bi-people', title: 'Salesforce specialists only', text: 'Every profile is a consultant on the platform, searchable by cloud, certification, seniority and availability.' },
           { icon: 'bi-calculator', title: 'Estimates that add up', text: 'Phases, team and budget reconcile line by line, and the documents are generated from the same figures.' },
           { icon: 'bi-kanban', title: 'One pipeline for every role', text: 'Applicants move through review, shortlist, interview and offer in one place.' },
-          PRIVACY_BENEFIT
+          COMPANY_PRIVACY_BENEFIT
         ],
         closing: {
           heading: 'Ready to find your next Salesforce consultant?',
           text: 'Browse public profiles, post a role, or scope the work first — browsing and posting cost nothing.',
-          cta: user && user.isCompany
-            ? { label: 'Post a role', href: '/jobs/new' }
-            : user ? { label: 'Browse talent', href: '/consultants' } : { label: 'Create your free company account', href: '/auth/register' }
+          ctas: [
+            user ? { label: 'Browse talent', href: '/consultants' } : { label: 'Create your free company account', href: '/auth/register' },
+            { label: 'Post a role', href: postRoleHref },
+            { label: 'Get SOW Quote', href: '/quotes/new#wizard' }
+          ]
         }
       }
     });

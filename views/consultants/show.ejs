@@ -4,7 +4,14 @@
 <div class="container py-4">
   <%- include('../partials/flash') %>
 
-  <% if (!profile.is_public) { %>
+  <% if (typeof preview !== 'undefined' && preview) { %>
+    <div class="alert alert-info d-flex flex-wrap align-items-center gap-2">
+      <span><i class="bi bi-eye"></i> <strong>Preview</strong> — this is what a signed-in company sees<%= profile.is_public ? '' : ' (only companies you applied to, while your profile is private)' %>.</span>
+      <a class="btn btn-sm btn-primary ms-auto" href="/profile/settings">Back to your profile</a>
+    </div>
+  <% } else if (!profile.is_public && typeof appliedHere !== 'undefined' && appliedHere) { %>
+    <div class="alert alert-info">This profile is private. You can see it because this consultant applied to one of your roles.</div>
+  <% } else if (!profile.is_public) { %>
     <div class="alert alert-warning">This profile is hidden from the directory. Only you and admins can see it.</div>
   <% } %>
 
@@ -43,6 +50,12 @@
             </div>
           </div>
 
+          <% if (clouds.length) { %>
+            <div class="d-flex flex-wrap gap-1 mb-2" aria-label="Clouds">
+              <% clouds.forEach(function (c) { %><span class="badge-hub cloud"><i class="bi bi-cloud"></i> <%= familyLabel(c) %></span><% }); %>
+            </div>
+          <% } %>
+
           <% if (profile.bio) { %>
             <hr>
             <h2 class="h6">About</h2>
@@ -50,6 +63,30 @@
           <% } %>
         </div>
       </div>
+
+      <%# Delivery history first: for a contractor the engagements are the substance (same order as the generated CV). %>
+      <% if (typeof projects !== 'undefined' && projects.length) { %>
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-3">Projects</h2>
+            <ul class="timeline">
+              <% projects.forEach(function (p) { %>
+                <li>
+                  <strong><%= p.name %></strong><% if (p.client) { %> · <%= p.client %><% } %>
+                  <div class="small text-muted-2">
+                    <%= [p.cloud ? moduleLabel(p.cloud) : null, p.role ? roleLabel(p.role) : null].filter(Boolean).join(' · ') %>
+                    <% if (p.started_on) { %>
+                      <%= (p.cloud || p.role) ? ' · ' : '' %><%= new Date(p.started_on).toISOString().slice(0, 7) %> —
+                      <%= p.is_current ? 'present' : (p.ended_on ? new Date(p.ended_on).toISOString().slice(0, 7) : '') %>
+                    <% } %>
+                  </div>
+                  <% if (p.description) { %><div class="small mt-1"><%- sanitizeRichText(p.description) %></div><% } %>
+                </li>
+              <% }); %>
+            </ul>
+          </div>
+        </div>
+      <% } %>
 
       <% if (experiences.length) { %>
         <div class="glass-card mb-3">
@@ -109,13 +146,20 @@
               <p class="mb-1"><span class="badge-hub"><i class="bi bi-eye-slash"></i> Only you can see these</span></p>
             <% } %>
           <% } %>
-          <p class="mb-1">
-            <span class="badge-hub <%= profile.availability === 'immediate' ? 'ok' : '' %>">
-              <%= { immediate: 'Available now', two_weeks: 'Available in 2 weeks', one_month: 'Available in a month', not_available: 'Not currently available' }[profile.availability] %>
-            </span>
-          </p>
+          <% if (profile.availability) { %>
+            <p class="mb-1">
+              <span class="badge-hub <%= profile.availability === 'immediate' ? 'ok' : '' %>">
+                <%= availabilityLabel(profile.availability) %>
+              </span>
+            </p>
+          <% } %>
           <p class="small text-muted-2 mb-0">
-            <%= workModeLabel(profile.work_mode) %><%= profile.willing_to_travel ? ' · willing to travel' : '' %>
+            <%= [workModeLabel(profile.work_mode), profile.willing_to_travel ? 'willing to travel' : null].filter(Boolean).join(' · ') %>
+            <% const openTo = [profile.open_to_contract ? 'contract' : null, profile.open_to_permanent ? 'permanent' : null].filter(Boolean); %>
+            <% if (openTo.length) { %><br>Open to <%= openTo.join(' and ') %> roles<% } %>
+            <% if (profile.available_from && !['not_available', 'busy'].includes(profile.availability)) { %><br>Available from <%= new Date(profile.available_from).toISOString().slice(0, 10) %><% } %>
+            <% if (profile.works_anywhere) { %><br>Works anywhere, remotely<% } %>
+            <% if (workCountries.length) { %><br><%= profile.works_anywhere ? 'Also on site in' : 'Works in' %> <%= workCountries.map(function (c) { return countryName(c); }).join(', ') %><% } %>
           </p>
 
           <% if (canSeeContact) { %>
@@ -144,15 +188,17 @@
 
           <% if (isSelf) { %>
             <hr>
-            <a class="btn btn-primary w-100" href="/profile/consultant">Edit your profile</a>
+            <a class="btn btn-primary w-100" href="/profile/settings">Edit your profile</a>
           <% } %>
         </div>
       </div>
 
       <% if (hiringJobs && hiringJobs.length && !isSelf) { %>
-        <div class="glass-card mb-3">
+        <%# `#approach` is where "Invite to apply" on a directory card lands. %>
+        <div class="glass-card mb-3 anchor-target" id="approach">
           <div class="card-body">
-            <h2 class="h6 mb-2">Approach about a role</h2>
+            <h2 class="h6 mb-2">Invite to apply</h2>
+            <p class="small text-muted-2 mb-2">Choose one of your open roles. They receive your message with the role attached and can apply from it.</p>
             <form method="post" action="/messages/start">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="kind" value="enquiry">
@@ -183,11 +229,39 @@
             <ul class="list-unstyled mb-0 small">
               <% certifications.forEach(function (c) { %>
                 <li class="mb-1">
-                  <i class="bi bi-patch-check text-success"></i> <%= c.name %>
+                  <i class="bi bi-patch-check text-success"></i>
+                  <% if (c.credential_url) { %><a href="<%= c.credential_url %>" rel="nofollow noopener noreferrer" target="_blank"><%= c.name %></a><% } else { %><%= c.name %><% } %>
                   <% if (c.earned_on) { %><span class="text-muted-2">· <%= new Date(c.earned_on).getFullYear() %></span><% } %>
                 </li>
               <% }); %>
             </ul>
+          </div>
+        </div>
+      <% } %>
+
+      <% if (languages.length) { %>
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-2">Languages</h2>
+            <ul class="list-unstyled mb-0 small">
+              <% languages.forEach(function (l) { %><li><%= l.language %> <span class="text-muted-2">· <%= l.level %></span></li><% }); %>
+            </ul>
+          </div>
+        </div>
+      <% } %>
+
+      <% if (profile.trailblazer_url || profile.trailhead_rank) { %>
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <h2 class="h6 mb-2">Trailhead</h2>
+            <p class="small mb-1">
+              <% if (profile.trailhead_rank) { %><strong><%= profile.trailhead_rank %></strong><% } %>
+              <% if (profile.trailhead_badges) { %> · <%= profile.trailhead_badges %> badges<% } %>
+            </p>
+            <% if (profile.trailblazer_url) { %>
+              <a class="small" href="<%= profile.trailblazer_url %>" rel="nofollow noopener noreferrer" target="_blank">Check on Trailhead</a>
+              <span class="small text-muted-2">(as stated by the member)</span>
+            <% } %>
           </div>
         </div>
       <% } %>
@@ -197,7 +271,9 @@
           <div class="card-body">
             <h2 class="h6 mb-2">Skills</h2>
             <div class="d-flex flex-wrap gap-1">
-              <% skills.forEach(function (s) { %><span class="badge-hub"><%= s.name %></span><% }); %>
+              <% skills.forEach(function (s) { %>
+                <span class="badge-hub" title="<%= { familiar: 'Beginner', proficient: 'Proficient', expert: 'Expert' }[s.level] || '' %>"><%= s.name %><% if (s.level === 'expert') { %> ★<% } %><% if (s.years) { %> · <%= s.years %>y<% } %></span>
+              <% }); %>
             </div>
           </div>
         </div>

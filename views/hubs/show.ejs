@@ -44,34 +44,94 @@
         <div class="hub-hero-art">
           <span class="hub-hero-glow"></span>
           <span class="hub-hero-tile"><img src="/images/logo-mark.svg" alt="" width="150" height="150"></span>
-          <span class="hub-hero-chip chip-a"><i class="bi <%= model.tools[0].icon %>"></i></span>
-          <span class="hub-hero-chip chip-b"><i class="bi <%= model.tools[1].icon %>"></i></span>
-          <span class="hub-hero-chip chip-c"><i class="bi <%= model.tools[3].icon %>"></i></span>
+          <% const heroTools = model.tools || model.groups.reduce(function (all, g) { return all.concat(g.tools); }, []); %>
+          <span class="hub-hero-chip chip-a"><i class="bi <%= heroTools[0].icon %>"></i></span>
+          <span class="hub-hero-chip chip-b"><i class="bi <%= heroTools[1].icon %>"></i></span>
+          <span class="hub-hero-chip chip-c"><i class="bi <%= heroTools[3].icon %>"></i></span>
         </div>
       </div>
     </div>
   </div>
 </section>
 
+<%
+  /*
+   * One card. A group of four uses quarter-width columns so a row never ends with one card
+   * left alone; `points` are the short, checkable lines an engagement model offers.
+   */
+  const card = function (t, count) {
+    return { t: t, col: count === 4 ? 'col-md-6 col-lg-3' : 'col-md-6 col-lg-4' };
+  };
+  const groups = model.groups || [{ tools: model.tools }];
+%>
 <section class="glass-section pb-5">
 <div class="container">
-  <div class="row g-3">
-    <% model.tools.forEach(function (t) { %>
-      <div class="col-md-6 col-lg-4">
-        <a class="glass-card hub-tool d-flex flex-column h-100 text-reset" href="<%= t.href %>">
-          <div class="card-body d-flex flex-column">
-            <span class="icon-tile icon-tile-sm <%= t.tone %> mb-3"><i class="bi <%= t.icon %>"></i></span>
-            <h2 class="h5 mb-2"><%= t.title %></h2>
-            <p class="small text-muted-2 mb-3"><%= t.text %></p>
-            <%# Says the card is a link, which a card on its own does not. %>
-            <span class="hub-tool-more mt-auto">Explore <i class="bi bi-arrow-right"></i></span>
-          </div>
-        </a>
+  <% groups.forEach(function (g, gi) { %>
+    <% if (g.heading) { %>
+      <div class="hub-group-head <%= gi ? 'mt-5' : '' %>">
+        <h2 class="h4 mb-1"><%= g.heading %></h2>
+        <% if (g.text) { %><p class="text-muted-2 mb-3"><%= g.text %></p><% } %>
       </div>
-    <% }); %>
-  </div>
+    <% } %>
+    <div class="row g-3">
+      <% g.tools.forEach(function (tool) { const c = card(tool, g.tools.length); const t = c.t; %>
+        <div class="<%= c.col %>">
+          <a class="glass-card hub-tool d-flex flex-column h-100 text-reset" href="<%= t.href %>">
+            <div class="card-body d-flex flex-column">
+              <span class="icon-tile icon-tile-sm <%= t.tone %> mb-3"><i class="bi <%= t.icon %>"></i></span>
+              <%# h3 under a group heading, h2 when the cards are the page's first level. %>
+              <% if (g.heading) { %><h3 class="h5 mb-2"><%= t.title %></h3><% } else { %><h2 class="h5 mb-2"><%= t.title %></h2><% } %>
+              <p class="small text-muted-2 mb-3"><%= t.text %></p>
+              <% if (t.points && t.points.length) { %>
+                <ul class="hub-tool-points list-unstyled small mb-3">
+                  <% t.points.forEach(function (pt) { %><li><i class="bi bi-check2"></i> <%= pt %></li><% }); %>
+                </ul>
+              <% } %>
+              <%# Says the card is a link, which a card on its own does not. %>
+              <span class="hub-tool-more mt-auto">Explore <i class="bi bi-arrow-right"></i></span>
+            </div>
+          </a>
+        </div>
+      <% }); %>
+    </div>
+    <% if (g.action) { %>
+      <div class="hub-group-action d-flex flex-wrap align-items-center gap-3 mt-3">
+        <a class="btn btn-primary" href="<%= g.action.href %>"><i class="bi <%= g.action.icon %>"></i> <%= g.action.label %></a>
+        <% if (g.action.note) { %><span class="small text-muted-2"><%= g.action.note %></span><% } %>
+      </div>
+    <% } %>
+  <% }); %>
 </div>
 </section>
+
+<%# Real rows only (see routes/index.js): absent rather than invented. %>
+<% if (model.proof && (model.proof.companies.length || model.proof.reviews.length)) { %>
+  <section class="hub-proof">
+    <div class="container">
+      <% if (model.proof.companies.length) { %>
+        <h2 class="h6 text-center text-muted-2 text-uppercase mb-3">Companies hiring on the Hub now</h2>
+        <ul class="hub-proof-logos list-unstyled">
+          <% model.proof.companies.forEach(function (c) { %>
+            <li><a href="/companies/<%= c.slug %>" title="<%= c.company_name %> — <%= c.open_jobs %> open role<%= Number(c.open_jobs) === 1 ? '' : 's' %>">
+              <% if (c.logo) { %><img class="logo-tile" src="<%= c.logo %>" alt="" loading="lazy">
+              <% } else { %><span class="logo-initials <%= companyTone(c.company_name) %>" aria-hidden="true"><%= companyInitials(c.company_name) %></span><% } %>
+              <span><%= c.company_name %></span></a></li>
+          <% }); %>
+        </ul>
+      <% } %>
+      <% if (model.proof.reviews.length) { %>
+        <div class="row g-3 justify-content-center mt-2">
+          <% model.proof.reviews.forEach(function (r) { %>
+            <div class="col-md-6"><figure class="glass-card h-100 mb-0"><div class="card-body">
+              <blockquote class="mb-2">“<%= r.body.length > 280 ? r.body.slice(0, 280) + '…' : r.body %>”</blockquote>
+              <figcaption class="small text-muted-2">— <%= r.author_name %>, <%= r.author_role %> · <a href="/success-stories">All reviews</a></figcaption>
+            </div></figure></div>
+          <% }); %>
+        </div>
+      <% } %>
+    </div>
+  </section>
+<% } %>
 
 <section class="hub-benefits">
   <div class="container">
@@ -96,7 +156,12 @@
   <div class="container text-center">
     <h2><%= model.closing.heading %></h2>
     <p class="lead mx-auto"><%= model.closing.text %></p>
-    <a class="btn btn-lg btn-light" href="<%= model.closing.cta.href %>"><%= model.closing.cta.label %></a>
+    <% const ctas = model.closing.ctas || [model.closing.cta]; %>
+    <div class="d-flex flex-wrap justify-content-center gap-3">
+      <% ctas.forEach(function (c, i) { %>
+        <a class="btn btn-lg <%= i === 0 ? 'btn-light' : 'btn-outline-light' %>" href="<%= c.href %>"><%= c.label %></a>
+      <% }); %>
+    </div>
   </div>
 </section>
 

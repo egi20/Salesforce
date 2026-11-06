@@ -1,11 +1,13 @@
 'use strict';
 
-const { sanitizeRichText, toPlainText, jsonForScript } = require('./sanitize');
+const { sanitizeRichText, toPlainText, richTextToEditable, jsonForScript } = require('./sanitize');
 const { roleLabel, seniorityLabel } = require('../config/roleTaxonomy');
 const { moduleLabel, familyLabel } = require('../config/cloudFamilies');
 const { engagementLabel, workModeLabel, rateUnit } = require('../config/jobTaxonomy');
 const { countryName } = require('./geo');
-const { formatRateRange, jobLocation, postedAgo, companyInitials, companyTone } = require('./jobDisplay');
+const { availabilityLabel } = require('../config/availability');
+const { formatRateRange, jobLocation, postedAgo, companyInitials, companyTone, consultantRate } = require('./jobDisplay');
+const { certificationLabel, shortCertificationName } = require('../config/certifications');
 const chartColors = require('./chartColors');
 
 /**
@@ -24,6 +26,7 @@ const chartColors = require('./chartColors');
 const VIEW_HELPERS = Object.freeze({
   sanitizeRichText,
   toPlainText,
+  richTextToEditable,
   jsonForScript,
   roleLabel,
   seniorityLabel,
@@ -33,6 +36,7 @@ const VIEW_HELPERS = Object.freeze({
   workModeLabel,
   rateUnit,
   countryName,
+  availabilityLabel,
   // Job cards. `postedAgo` reads the clock at render time, which is the one input here that
   // is not its argument; it reads nothing from the request.
   formatRateRange,
@@ -40,6 +44,10 @@ const VIEW_HELPERS = Object.freeze({
   postedAgo,
   companyInitials,
   companyTone,
+  // Consultant cards.
+  consultantRate,
+  certificationLabel,
+  shortCertificationName,
   // The admin charts' palette. A constant rather than a function, and frozen, so no render
   // can change what the next one draws with.
   chartColors

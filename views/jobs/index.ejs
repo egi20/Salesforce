@@ -72,18 +72,8 @@
               <% roleCategories.forEach(function (cat) { %>
                 <div class="filter-subgroup" data-filter-group>
                   <div class="filter-subhead"><%= cat.category %></div>
-                  <% cat.roles.forEach(function (r) { const id = 'role-' + r.value; %>
-                    <%
-                      /* A role with no open roles under the other filters is shown as (0) and
-                         cannot be ticked — a click that can only produce an empty list is a
-                         click wasted. One already ticked stays live, so it can be unticked. */
-                      const count = roleCounts[r.value] || 0;
-                      const ticked = has(filters.role, r.value);
-                    %>
-                    <div class="form-check <%= count === 0 && !ticked ? 'is-empty' : '' %>" data-filter-item>
-                      <input class="form-check-input" type="checkbox" name="role" value="<%= r.value %>" id="<%= id %>" <%= ticked ? 'checked' : '' %> <%= count === 0 && !ticked ? 'disabled' : '' %>>
-                      <label class="form-check-label" for="<%= id %>"><%= r.label %> <span class="filter-count">(<%= count %>)</span></label>
-                    </div>
+                  <% cat.roles.forEach(function (r) { %>
+                    <%- include('_check', { name: 'role', value: r.value, id: 'role-' + r.value, label: r.label, count: roleCounts[r.value] || 0, ticked: has(filters.role, r.value), searchable: true }) %>
                   <% }); %>
                 </div>
               <% }); %>
@@ -93,14 +83,11 @@
           <fieldset class="filter-group">
             <legend>Country</legend>
             <% if (countryOptions.length === 0) { %>
-              <p class="small text-muted-2 mb-0">No roles name a country under these filters.</p>
+              <p class="small text-muted-2 mb-0">No open role names a country yet.</p>
             <% } else { %>
               <div class="filter-scroll filter-scroll-sm">
-                <% countryOptions.forEach(function (c) { const id = 'country-' + c.code; %>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="country" value="<%= c.code %>" id="<%= id %>" <%= has(filters.country, c.code) ? 'checked' : '' %>>
-                    <label class="form-check-label" for="<%= id %>"><%= countryName(c.code) %> <span class="text-muted-2">(<%= c.count %>)</span></label>
-                  </div>
+                <% countryOptions.forEach(function (c) { %>
+                  <%- include('_check', { name: 'country', value: c.code, id: 'country-' + c.code, label: countryName(c.code), count: c.count, ticked: has(filters.country, c.code) }) %>
                 <% }); %>
               </div>
             <% } %>
@@ -108,31 +95,22 @@
 
           <fieldset class="filter-group">
             <legend>Seniority</legend>
-            <% ['junior', 'mid', 'senior', 'lead'].forEach(function (s) { %>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="seniority" value="<%= s %>" id="sen-<%= s %>" <%= has(filters.seniority, s) ? 'checked' : '' %>>
-                <label class="form-check-label" for="sen-<%= s %>"><%= seniorityLabel(s, { full: true }) %></label>
-              </div>
+            <% ['junior', 'mid', 'senior', 'lead'].forEach(function (v) { %>
+              <%- include('_check', { name: 'seniority', value: v, id: 'sen-' + v, label: seniorityLabel(v, { full: true }), count: groupCounts.seniority[v] || 0, ticked: has(filters.seniority, v) }) %>
             <% }); %>
           </fieldset>
 
           <fieldset class="filter-group">
             <legend>Work mode</legend>
-            <% ['remote', 'hybrid', 'onsite'].forEach(function (w) { %>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="work_mode" value="<%= w %>" id="mode-<%= w %>" <%= has(filters.work_mode, w) ? 'checked' : '' %>>
-                <label class="form-check-label" for="mode-<%= w %>"><%= workModeLabel(w) %></label>
-              </div>
+            <% ['remote', 'hybrid', 'onsite'].forEach(function (v) { %>
+              <%- include('_check', { name: 'work_mode', value: v, id: 'mode-' + v, label: workModeLabel(v), count: groupCounts.work_mode[v] || 0, ticked: has(filters.work_mode, v) }) %>
             <% }); %>
           </fieldset>
 
           <fieldset class="filter-group">
             <legend>Engagement</legend>
-            <% ['contract', 'permanent'].forEach(function (e) { %>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="engagement_type" value="<%= e %>" id="eng-<%= e %>" <%= has(filters.engagement_type, e) ? 'checked' : '' %>>
-                <label class="form-check-label" for="eng-<%= e %>"><%= engagementLabel(e) %></label>
-              </div>
+            <% ['contract', 'permanent'].forEach(function (v) { %>
+              <%- include('_check', { name: 'engagement_type', value: v, id: 'eng-' + v, label: engagementLabel(v), count: groupCounts.engagement_type[v] || 0, ticked: has(filters.engagement_type, v) }) %>
             <% }); %>
           </fieldset>
 
@@ -183,7 +161,7 @@
           <h2 class="h6 mb-1">Stand out in applications</h2>
           <p class="small text-muted-2 mb-3">A formatted CV and rate card, generated from your profile in one click — free.</p>
           <a class="btn btn-outline-primary btn-sm w-100"
-             href="<%= currentUser && currentUser.isConsultant ? '/profile/consultant' : '/services/document-generator' %>">Build my free CV</a>
+             href="<%= currentUser && currentUser.isConsultant ? '/cv-generator' : '/cv-generator' %>">Build my free CV</a>
         </div>
       </div>
       </div>
@@ -194,7 +172,7 @@
         <section class="recommended mb-4" aria-labelledby="recommendedHeading">
           <div class="d-flex justify-content-between align-items-baseline mb-2">
             <h2 class="h5 mb-0" id="recommendedHeading"><i class="bi bi-stars"></i> Recommended for you</h2>
-            <a class="small" href="/profile/consultant">Based on your profile</a>
+            <a class="small" href="/profile/settings">Based on your profile</a>
           </div>
           <div class="row g-3">
             <% recommended.jobs.forEach(function (r) { %>
@@ -208,7 +186,7 @@
         <div class="alert alert-info d-flex align-items-center gap-2 mb-4">
           <i class="bi bi-stars"></i>
           <span>Add your main role to your profile and we will show the roles that match you best.
-            <a href="/profile/consultant">Complete your profile</a></span>
+            <a href="/profile/settings#basics">Complete your profile</a></span>
         </div>
       <% } else if (currentUser && !currentUser.isConsultant && pagination.page === 1) { %>
         <div class="match-teaser glass-card mb-4">
@@ -228,7 +206,9 @@
         </div>
       <% } %>
 
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <%# The list and everything describing it, faded while a new filter loads (main.js). %>
+      <div class="job-results" data-results aria-live="polite">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
         <p class="mb-0 text-muted-2"><strong><%= pagination.total %></strong> role<%= pagination.total === 1 ? '' : 's' %> found</p>
         <div class="d-flex align-items-center gap-2">
           <label class="form-label mb-0 small" for="sort">Sort</label>
@@ -240,16 +220,43 @@
         </div>
       </div>
 
+      <%
+        /*
+         * What is narrowing the list, where the list is: somebody who scrolled past the sidebar
+         * can see it and undo one filter at a time. Each × is a plain link to the same page
+         * minus that one value, so it works without scripting.
+         */
+      %>
+      <% if (activeChips.length) { %>
+        <div class="active-filters d-flex flex-wrap align-items-center gap-2 mb-3" aria-label="Active filters">
+          <% activeChips.forEach(function (c) { %>
+            <a class="filter-chip" href="<%= c.href %>" aria-label="Remove filter: <%= c.label %>">
+              <%= c.label %> <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </a>
+          <% }); %>
+          <a class="small fw-semibold ms-1" href="/jobs">Clear all</a>
+        </div>
+      <% } else { %>
+        <div class="mb-3"></div>
+      <% } %>
+
       <% if (jobs.length === 0) { %>
         <div class="empty-state glass-card">
           <i class="bi bi-search"></i>
-          <p class="mb-1">No roles match these filters.</p>
-          <a href="/jobs">Clear the filters</a>
+          <% if (activeChips.length) { %>
+            <p class="fw-semibold mb-1">No roles match <%= activeChips.length === 1 ? 'this filter' : 'these ' + activeChips.length + ' filters' %>.</p>
+            <p class="small mb-3">Remove one of the filters above to widen the search, or start again from every open role.</p>
+            <a class="btn btn-primary btn-sm" href="/jobs">Clear filters</a>
+          <% } else { %>
+            <p class="fw-semibold mb-1">There are no open roles right now.</p>
+            <p class="small mb-0">New roles appear here as soon as companies publish them.</p>
+          <% } %>
         </div>
       <% } else { %>
         <% jobs.forEach(function (job) { %><%- include('../partials/job-card', { job: job }) %><% }); %>
         <%- include('../partials/pagination') %>
       <% } %>
+      </div>
     </div>
   </div>
 </div>

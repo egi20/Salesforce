@@ -1,6 +1,7 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { icon: model.icon, heading: model.heading, label: 'ENGAGEMENT MODEL' }) %>
+<%# The eyebrow belongs to the page: three of these are engagement models, the SOW pack is not. %>
+<%- include('../partials/page-header', { icon: model.icon, heading: model.heading, label: model.label || 'ENGAGEMENT MODEL' }) %>
 
 <section class="glass-section pb-5">
 <div class="container">
@@ -16,6 +17,13 @@
         <% }); %>
       </ul>
       <a class="btn btn-primary" href="<%= model.cta.href %>"><%= model.cta.label %></a>
+      <% if (model.aside) { %>
+        <div class="glass-card mt-4"><div class="card-body d-flex flex-wrap align-items-center gap-3">
+          <i class="bi bi-file-earmark-person fs-4 text-primary"></i>
+          <span class="flex-grow-1"><%= model.aside.text %></span>
+          <a class="btn btn-outline-primary btn-sm" href="<%= model.aside.href %>"><%= model.aside.label %></a>
+        </div></div>
+      <% } %>
     </div>
   </div>
 </div>

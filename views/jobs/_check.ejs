@@ -1,0 +1,19 @@
+<%
+  /*
+   * One filter checkbox, the same in every group (role, country, seniority, work mode,
+   * engagement), so the groups cannot drift apart again.
+   *
+   *   count   roles this box would add under the OTHER groups' filters
+   *   ticked  already selected
+   *
+   * A box with nothing to add stays in the list, muted and not tickable — removing it made
+   * the list shrink under the reader's hand. A ticked box shows no count: on it the number
+   * read as a contradiction ("Albania (0)" while Albania was being filtered on), and the list
+   * itself answers. A ticked box is never disabled, so it can always be unticked.
+   */
+  const empty = count === 0 && !ticked;
+%>
+<div class="form-check <%= empty ? 'is-empty' : '' %>"<% if (typeof searchable !== 'undefined' && searchable) { %> data-filter-item<% } %>>
+  <input class="form-check-input" type="checkbox" name="<%= name %>" value="<%= value %>" id="<%= id %>" <%= ticked ? 'checked' : '' %> <%= empty ? 'disabled' : '' %>>
+  <label class="form-check-label" for="<%= id %>"><%= label %><% if (!ticked) { %> <span class="filter-count">(<%= count %>)</span><% } %></label>
+</div>

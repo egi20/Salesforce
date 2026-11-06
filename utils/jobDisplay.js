@@ -94,4 +94,20 @@ function companyTone(name) {
   return `tone-${(hash % TONE_COUNT) + 1}`;
 }
 
-module.exports = { formatRateRange, jobLocation, postedAgo, companyInitials, companyTone };
+/*
+ * A consultant's own figure for a card: "€763 / day", else "€95 / hour", else "€90k / yr".
+ * Null when there is none to print — and a HIDDEN rate arrives here as null already
+ * (`ConsultantProfile.browse` selects it through `hiddenUnlessVisible`), so this cannot
+ * print a figure the consultant kept back even if a caller forgets to check.
+ */
+function consultantRate(c) {
+  if (!c || !c.rate_visible) return null;
+  const prefix = moneyPrefix(c.currency);
+  const n = (v) => Number(v);
+  if (n(c.day_rate) > 0) return `${prefix}${compact(c.day_rate, false)} / day`;
+  if (n(c.hourly_rate) > 0) return `${prefix}${compact(c.hourly_rate, false)} / hour`;
+  if (n(c.annual_salary) > 0) return `${prefix}${compact(c.annual_salary, true)} / yr`;
+  return null;
+}
+
+module.exports = { formatRateRange, jobLocation, postedAgo, companyInitials, companyTone, consultantRate };

@@ -19,8 +19,8 @@
           ['/consultant-hub', 'Consultant Hub'],
           ['/jobs', 'Find Jobs'],
           // A visitor builds a profile by signing up; a consultant edits the one they have.
-          [currentUser && currentUser.isConsultant ? '/profile/consultant' : '/auth/register', 'Build Profile'],
-          ['/services/document-generator', 'CV Generator'],
+          [currentUser ? '/profile/settings' : '/auth/register', 'Build Profile'],
+          ['/cv-generator', 'CV Generator'],
           // A consultant's tool first; it stays under Services too, as it does in the menu.
           ['/rates', 'Rate & Salary Index'],
           ['/rates/calculator', 'Rate calculator']
@@ -28,7 +28,7 @@
         ['Companies Hub', [
           ['/companies-hub', 'Companies Hub'],
           ['/consultants', 'Browse Talent'],
-          ['/quotes/new', 'Get SOW Quote'],
+          ['/quotes/new#wizard', 'Get SOW Quote'],
           ['/services/staff-augmentation', 'Staff Augmentation'],
           ['/services/project-based', 'Project-Based'],
           ['/services/managed-services', 'Managed Services'],

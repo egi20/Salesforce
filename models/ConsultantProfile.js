@@ -3,6 +3,13 @@
 const { promisePool, withTransaction } = require('../config/database');
 const { containsPattern } = require('../utils/likePattern');
 const { isValidRole } = require('../config/roleTaxonomy');
+const { isValidFamily } = require('../config/cloudFamilies');
+const { isKnownCertification } = require('../config/certifications');
+
+const COUNTRY_CODES = new Set(require('../config/all-countries.json').map((c) => c.code));
+// Basic / Fluent / Native, the levels the spec names (migration 037 maps the older four).
+const LANGUAGE_LEVELS = Object.freeze(['basic', 'fluent', 'native']);
+const SKILL_LEVELS = Object.freeze(['familiar', 'proficient', 'expert']);
 
 /**
  * Fields that count towards profile completeness, with their weights.
@@ -23,6 +30,66 @@ const COMPLETENESS_FIELDS = [
 
 const MIN_COMPLETENESS_TO_PUBLISH = 60;
 
+/*
+ * Where a newly added project or experience goes: after the last one the owner arranged, or
+ * at 0 (date order) while nothing has been arranged yet. `table` is one of two fixed names.
+ */
+async function nextSortOrder(table, userId) {
+  const [[{ top }]] = await promisePool.query(`SELECT COALESCE(MAX(sort_order), 0) AS top FROM ${table} WHERE user_id = ?`, [userId]);
+  // Number(): MariaDB hands COALESCE(MAX(..)) back as a string, and "5" + 1 is "51".
+  const n = Number(top) || 0;
+  return n === 0 ? 0 : n + 1;
+}
+
+/*
+ * What a profile must state before it can be LISTED, beyond the completeness floor: a role
+ * and at least one cloud. Browse Talent filters by both, so a profile without them is one no
+ * company search can ever return — publishing it only adds a card nobody can find by asking.
+ *
+ * Checked when the owner PUBLISHES, never by un-publishing somebody who is already listed:
+ * profiles listed before clouds existed must not vanish from the directory the day this ships.
+ */
+function listingProblems(profile, { cloudCount = 0 } = {}) {
+  const problems = [];
+  if (!profile || !profile.primary_role) problems.push('choose your primary role');
+  if (cloudCount < 1) problems.push('pick at least one cloud you work on');
+  // The spec's listing minimum is role + cloud + availability: a card that cannot say whether
+  // somebody is free is the one question every company opens it to answer.
+  if (!profile || !profile.availability) problems.push('set your availability');
+  if (!profile || profile.completeness < MIN_COMPLETENESS_TO_PUBLISH) {
+    problems.push(`reach ${MIN_COMPLETENESS_TO_PUBLISH}% complete`);
+  }
+  return problems;
+}
+
+/*
+ * The next things worth doing, biggest gain first, for the progress bar's hint ("add three
+ * skills to reach 80%"). Derived from the SAME weights `completenessOf` scores with, so the
+ * promised percentage is the one the bar will show after the change.
+ */
+const STEP_LABELS = Object.freeze({
+  headline: 'add a professional title',
+  bio: 'write a short bio',
+  primary_role: 'choose your primary role',
+  seniority: 'set your seniority',
+  country: 'add your country',
+  day_rate: 'add your day rate',
+  availability: 'set your availability',
+  profile_picture: 'add a photo'
+});
+
+function nextSteps(profile, { skillCount = 0, certificationCount = 0, experienceCount = 0 } = {}) {
+  const steps = [];
+  for (const field of COMPLETENESS_FIELDS) {
+    const value = profile ? profile[field.key] : null;
+    const ok = field.satisfied ? field.satisfied(value) : value !== null && value !== undefined && String(value).trim() !== '';
+    if (!ok) steps.push({ label: STEP_LABELS[field.key], gain: field.weight });
+  }
+  if (skillCount < 3) steps.push({ label: `add ${3 - skillCount} more skill${3 - skillCount === 1 ? '' : 's'}`, gain: 10 });
+  if (certificationCount < 1) steps.push({ label: 'add a certification', gain: 5 });
+  if (experienceCount < 1) steps.push({ label: 'add your work experience', gain: 5 });
+  return steps.sort((a, b) => b.gain - a.gain);
+}
 /** Pure function: 0..100 completeness for a profile row plus its child-record counts. */
 function completenessOf(profile, { skillCount = 0, certificationCount = 0, experienceCount = 0 } = {}) {
   let score = 0;
@@ -55,6 +122,14 @@ function completenessOf(profile, { skillCount = 0, certificationCount = 0, exper
  * people a reader of /consultants cannot find.
  */
 const LISTED_CONDITIONS = Object.freeze(['cp.is_public = 1', 'cp.admin_hidden_at IS NULL', 'u.is_active = 1']);
+
+/** "Has a Trailhead record": a rank or at least one badge, as typed on the profile. */
+const TRAILHEAD_CONDITION = '(cp.trailhead_rank IS NOT NULL OR cp.trailhead_badges > 0)';
+
+function asList(value) {
+  const raw = Array.isArray(value) ? value : value ? [value] : [];
+  return [...new Set(raw.map(String).filter(Boolean))];
+}
 
 function buildFilter(filters = {}) {
   // The directory requires every listed condition; see `Moderation.setProfileHidden`.
@@ -94,25 +169,56 @@ function buildFilter(filters = {}) {
     params.push(filters.viewer.companyUserId, filters.viewer.companyNameKey || '\u0000');
   }
 
-  if (filters.role && isValidRole(filters.role)) {
-    where.push('cp.primary_role = ?');
-    params.push(filters.role);
+  /*
+   * Each checkbox group is a list (one value per ticked box) and means "any of these"; the
+   * groups combine with AND. A scalar is still accepted, because the hubs and the search page
+   * pass one value. A role is re-checked against the taxonomy here as well as in the route.
+   */
+  const roles = asList(filters.role).filter(isValidRole);
+  if (roles.length) {
+    where.push('cp.primary_role IN (?)');
+    params.push(roles);
   }
-  if (filters.seniority) {
-    where.push('cp.seniority = ?');
-    params.push(filters.seniority);
+  for (const [key, column] of [['seniority', 'cp.seniority'], ['country', 'cp.country'], ['work_mode', 'cp.work_mode'], ['availability', 'cp.availability']]) {
+    const values = asList(filters[key]);
+    if (values.length) {
+      where.push(`${column} IN (?)`);
+      params.push(values);
+    }
   }
-  if (filters.country) {
-    where.push('cp.country = ?');
-    params.push(filters.country);
+  const clouds = asList(filters.clouds).filter(isValidFamily);
+  if (clouds.length) {
+    where.push('EXISTS (SELECT 1 FROM consultant_clouds fcl WHERE fcl.user_id = cp.user_id AND fcl.family IN (?))');
+    params.push(clouds);
   }
-  if (filters.work_mode) {
-    where.push('cp.work_mode = ?');
-    params.push(filters.work_mode);
+  /*
+   * Official names only: the profile form accepts free text for a credential, and a filter
+   * that matched free text would be a filter on whatever somebody typed.
+   */
+  const certifications = asList(filters.certifications).filter(isKnownCertification);
+  if (certifications.length) {
+    where.push('EXISTS (SELECT 1 FROM consultant_certifications fcc WHERE fcc.user_id = cp.user_id AND fcc.name IN (?))');
+    params.push(certifications);
   }
-  if (filters.availability) {
-    where.push('cp.availability = ?');
-    params.push(filters.availability);
+  const minYears = Number(filters.min_years);
+  if (Number.isInteger(minYears) && minYears > 0) {
+    where.push('cp.years_experience >= ?');
+    params.push(minYears);
+  }
+  if (filters.linkedin_verified === '1') where.push('cp.linkedin_verified = 1');
+  if (filters.trailhead === '1') where.push(TRAILHEAD_CONDITION);
+  /*
+   * A company's own shortlist. It narrows; it never widens — every condition above still
+   * applies, so a shortlisted profile that went private or hid itself from this company
+   * drops out of the shortlist too.
+   */
+  if (filters.shortlisted_by) {
+    where.push('EXISTS (SELECT 1 FROM company_shortlists sl WHERE sl.user_id = ? AND sl.consultant_user_id = cp.user_id)');
+    params.push(filters.shortlisted_by);
+  }
+  if (filters.user_ids && filters.user_ids.length) {
+    where.push('cp.user_id IN (?)');
+    params.push(filters.user_ids);
   }
   if (filters.certified === '1') {
     where.push('EXISTS (SELECT 1 FROM consultant_certifications cc WHERE cc.user_id = cp.user_id)');
@@ -179,6 +285,14 @@ const RANK_EXPRESSION = `(
 const hiddenUnlessVisible = (column) => `CASE WHEN cp.rate_visible = 1 THEN cp.${column} ELSE NULL END`;
 const RATE_OR_NULL = hiddenUnlessVisible('day_rate');
 
+const FACET_COLUMNS = Object.freeze({
+  role: 'cp.primary_role',
+  country: 'cp.country',
+  seniority: 'cp.seniority',
+  work_mode: 'cp.work_mode',
+  availability: 'cp.availability'
+});
+
 const SORTS = {
   relevance: `${RANK_EXPRESSION} DESC, cp.updated_at DESC`,
   newest: 'cp.created_at DESC',
@@ -215,10 +329,11 @@ class ConsultantProfile {
   static async update(userId, fields) {
     const allowed = [
       'headline', 'bio', 'primary_role', 'seniority', 'years_experience',
-      'country', 'city', 'timezone', 'work_mode', 'willing_to_travel',
+      'country', 'city', 'timezone', 'work_mode', 'willing_to_travel', 'works_anywhere',
       'day_rate', 'hourly_rate', 'annual_salary', 'currency', 'rate_visible',
       'availability', 'available_from',
-      'linkedin_url', 'website_url', 'trailblazer_url', 'phone'
+      'linkedin_url', 'website_url', 'trailblazer_url', 'phone',
+      'open_to_contract', 'open_to_permanent', 'trailhead_rank', 'trailhead_badges'
     ];
 
     const sets = [];
@@ -263,8 +378,11 @@ class ConsultantProfile {
         return { published: false, completeness: row.completeness, adminHidden: true };
       }
 
-      if (isPublic && row.completeness < MIN_COMPLETENESS_TO_PUBLISH) {
-        return { published: false, completeness: row.completeness };
+      if (isPublic) {
+        const [[profile]] = await conn.query('SELECT primary_role, availability, completeness FROM consultant_profiles WHERE user_id = ?', [userId]);
+        const [[{ cloudCount }]] = await conn.query('SELECT COUNT(*) AS cloudCount FROM consultant_clouds WHERE user_id = ?', [userId]);
+        const problems = listingProblems(profile, { cloudCount });
+        if (problems.length) return { published: false, completeness: row.completeness, problems };
       }
       await conn.query('UPDATE consultant_profiles SET is_public = ? WHERE user_id = ?', [isPublic ? 1 : 0, userId]);
       return { published: Boolean(isPublic), completeness: row.completeness };
@@ -318,7 +436,8 @@ class ConsultantProfile {
               ${hiddenUnlessVisible('hourly_rate')} AS hourly_rate,
               ${hiddenUnlessVisible('annual_salary')} AS annual_salary,
               cp.currency, cp.rate_visible, cp.availability, cp.profile_picture,
-              cp.linkedin_verified, cp.completeness, u.name,
+              cp.linkedin_verified, cp.completeness, u.name, cp.years_experience, cp.bio,
+              cp.trailhead_rank, cp.trailhead_badges, ${TRAILHEAD_CONDITION} AS has_trailhead,
               (SELECT COUNT(*) FROM consultant_certifications cc WHERE cc.user_id = cp.user_id) AS certification_count
          FROM consultant_profiles cp JOIN users u ON u.id = cp.user_id
         WHERE ${clause}
@@ -332,7 +451,81 @@ class ConsultantProfile {
       params
     );
 
+    /*
+     * The certification names a card shows, for the whole page in one query rather than one
+     * per card. Newest first, so the line under a name is what they most recently earned.
+     */
+    const byUser = new Map(rows.map((r) => [r.user_id, r]));
+    for (const r of rows) r.certifications = [];
+    if (rows.length) {
+      const [certs] = await promisePool.query(
+        `SELECT user_id, name FROM consultant_certifications WHERE user_id IN (?)
+          ORDER BY earned_on IS NULL, earned_on DESC, name ASC`,
+        [[...byUser.keys()]]
+      );
+      for (const c of certs) byUser.get(c.user_id).certifications.push(c.name);
+    }
+
     return { rows, total };
+  }
+
+  /** How many listed consultants match — the same builder as the list, so the same rows. */
+  static async count(filters = {}) {
+    const { clause, params } = buildFilter(filters);
+    const [[{ total }]] = await promisePool.query(
+      `SELECT COUNT(*) AS total FROM consultant_profiles cp JOIN users u ON u.id = cp.user_id WHERE ${clause}`,
+      params
+    );
+    return Number(total);
+  }
+
+  /**
+   * How many listed consultants each value of one filter group would show, under every OTHER
+   * group's filters — the group's own selection is left out, exactly as `Job.facet` does, so
+   * ticking "Italy" does not turn every other country into (0).
+   *
+   * Through `buildFilter`, so the viewer clause applies: a company that a consultant hid
+   * from does not see them counted either. A count is a measurement too.
+   */
+  static async facet(field, filters = {}) {
+    const { clause, params } = buildFilter({ ...filters, [field]: undefined });
+    const base = 'FROM consultant_profiles cp JOIN users u ON u.id = cp.user_id';
+    let sql;
+    if (FACET_COLUMNS[field]) {
+      const column = FACET_COLUMNS[field];
+      sql = `SELECT ${column} AS value, COUNT(*) AS count ${base}
+              WHERE ${clause} AND ${column} IS NOT NULL GROUP BY ${column}`;
+    } else if (field === 'clouds') {
+      sql = `SELECT x.family AS value, COUNT(DISTINCT cp.user_id) AS count ${base}
+               JOIN consultant_clouds x ON x.user_id = cp.user_id
+              WHERE ${clause} GROUP BY x.family`;
+    } else if (field === 'certifications') {
+      sql = `SELECT x.name AS value, COUNT(DISTINCT cp.user_id) AS count ${base}
+               JOIN consultant_certifications x ON x.user_id = cp.user_id
+              WHERE ${clause} GROUP BY x.name`;
+    } else {
+      throw new Error(`No facet for "${field}"`);
+    }
+    const [rows] = await promisePool.query(sql, params);
+    const out = rows.map((r) => ({ value: r.value, count: Number(r.count) }));
+    // Free-text credentials are not filterable (see buildFilter), so they are not offered.
+    return field === 'certifications' ? out.filter((r) => isKnownCertification(r.value)) : out;
+  }
+
+  /**
+   * Counts for the minimum-experience choices: how many would show at "N+ years" under the
+   * other filters. One query, a SUM per threshold.
+   */
+  static async yearsFacet(filters = {}, thresholds = []) {
+    if (!thresholds.length) return {};
+    const { clause, params } = buildFilter({ ...filters, min_years: undefined });
+    // Aliased: identical expressions would collapse into one column name in the result row.
+    const sums = thresholds.map((_, i) => `COALESCE(SUM(cp.years_experience >= ?), 0) AS t${i}`).join(', ');
+    const [[row]] = await promisePool.query(
+      `SELECT ${sums} FROM consultant_profiles cp JOIN users u ON u.id = cp.user_id WHERE ${clause}`,
+      [...thresholds, ...params]
+    );
+    return Object.fromEntries(thresholds.map((t, i) => [t, Number(row[`t${i}`])]));
   }
 
   static async listCertifications(userId) {
@@ -343,13 +536,13 @@ class ConsultantProfile {
     return rows;
   }
 
-  static async addCertification(userId, { name, credentialId = null, earnedOn = null, expiresOn = null }) {
+  static async addCertification(userId, { name, credentialId = null, credentialUrl = null, earnedOn = null, expiresOn = null }) {
     await promisePool.query(
-      `INSERT INTO consultant_certifications (user_id, name, credential_id, earned_on, expires_on)
-       VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE credential_id = VALUES(credential_id), earned_on = VALUES(earned_on),
-                               expires_on = VALUES(expires_on)`,
-      [userId, name, credentialId, earnedOn, expiresOn]
+      `INSERT INTO consultant_certifications (user_id, name, credential_id, credential_url, earned_on, expires_on)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE credential_id = VALUES(credential_id), credential_url = VALUES(credential_url),
+                               earned_on = VALUES(earned_on), expires_on = VALUES(expires_on)`,
+      [userId, name, credentialId, credentialUrl, earnedOn, expiresOn]
     );
     await ConsultantProfile.recomputeCompleteness(userId);
   }
@@ -361,7 +554,7 @@ class ConsultantProfile {
 
   static async listExperiences(userId) {
     const [rows] = await promisePool.query(
-      'SELECT * FROM consultant_work_experiences WHERE user_id = ? ORDER BY is_current DESC, started_on DESC',
+      'SELECT * FROM consultant_work_experiences WHERE user_id = ? ORDER BY sort_order, is_current DESC, started_on DESC, id',
       [userId]
     );
     return rows;
@@ -369,9 +562,10 @@ class ConsultantProfile {
 
   static async addExperience(userId, exp) {
     await promisePool.query(
-      `INSERT INTO consultant_work_experiences (user_id, company, title, started_on, ended_on, is_current, description)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [userId, exp.company, exp.title, exp.startedOn, exp.endedOn || null, exp.isCurrent ? 1 : 0, exp.description || null]
+      `INSERT INTO consultant_work_experiences (user_id, sort_order, company, title, location, started_on, ended_on, is_current, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, await nextSortOrder('consultant_work_experiences', userId), exp.company, exp.title || '', exp.location || null,
+        exp.startedOn, exp.isCurrent ? null : exp.endedOn || null, exp.isCurrent ? 1 : 0, exp.description || null]
     );
     await ConsultantProfile.recomputeCompleteness(userId);
   }
@@ -396,7 +590,7 @@ class ConsultantProfile {
   static async listProjects(userId) {
     const [rows] = await promisePool.query(
       `SELECT * FROM consultant_projects WHERE user_id = ?
-        ORDER BY ended_on IS NULL DESC, ended_on DESC, started_on DESC`,
+        ORDER BY sort_order, ended_on IS NULL DESC, ended_on DESC, started_on DESC, id`,
       [userId]
     );
     return rows;
@@ -404,16 +598,19 @@ class ConsultantProfile {
 
   static async addProject(userId, project) {
     await promisePool.query(
-      `INSERT INTO consultant_projects (user_id, name, client, cloud, role, started_on, ended_on, description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO consultant_projects (user_id, sort_order, name, client, cloud, role, started_on, ended_on, is_current, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
+        await nextSortOrder('consultant_projects', userId),
         project.name,
         project.client || null,
         project.cloud || null,
         project.role || null,
         project.startedOn || null,
-        project.endedOn || null,
+        // A current engagement has no end date, whatever the form also carried.
+        project.isCurrent ? null : project.endedOn || null,
+        project.isCurrent ? 1 : 0,
         project.description || null
       ]
     );
@@ -425,5 +622,150 @@ class ConsultantProfile {
     await ConsultantProfile.recomputeCompleteness(userId);
   }
 }
+
+/*
+ * The lists a profile states about its owner: clouds, languages and the countries they will
+ * work in. Each REPLACES the whole list in one transaction (the form posts every ticked box),
+ * and validates every element against its catalogue — a value that is not ours is dropped
+ * here, not stored and filtered later.
+ */
+async function replaceList(table, column, userId, values, extraColumn = null) {
+  await withTransaction(async (conn) => {
+    await conn.query(`DELETE FROM ${table} WHERE user_id = ?`, [userId]);
+    if (values.length === 0) return;
+    const cols = extraColumn ? `(user_id, ${column}, ${extraColumn})` : `(user_id, ${column})`;
+    const rows = values.map((v) => (extraColumn ? [userId, v[0], v[1]] : [userId, v]));
+    await conn.query(`INSERT IGNORE INTO ${table} ${cols} VALUES ?`, [rows]);
+  });
+}
+
+ConsultantProfile.listClouds = async function listClouds(userId) {
+  const [rows] = await promisePool.query('SELECT family FROM consultant_clouds WHERE user_id = ? ORDER BY family', [userId]);
+  return rows.map((r) => r.family);
+};
+
+ConsultantProfile.setClouds = async function setClouds(userId, families) {
+  const valid = [...new Set((families || []).map(String))].filter(isValidFamily).slice(0, 20);
+  await replaceList('consultant_clouds', 'family', userId, valid);
+  return valid;
+};
+
+ConsultantProfile.listLanguages = async function listLanguages(userId) {
+  const [rows] = await promisePool.query(
+    `SELECT language, level FROM consultant_languages WHERE user_id = ?
+      ORDER BY FIELD(level, 'native', 'fluent', 'basic'), language`,
+    [userId]
+  );
+  return rows;
+};
+
+ConsultantProfile.setLanguages = async function setLanguages(userId, entries) {
+  const seen = new Set();
+  const valid = [];
+  for (const { language, level } of entries || []) {
+    const name = String(language || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+    if (!name || !LANGUAGE_LEVELS.includes(level) || seen.has(name.toLowerCase())) continue;
+    seen.add(name.toLowerCase());
+    valid.push([name, level]);
+    if (valid.length === 10) break;
+  }
+  await replaceList('consultant_languages', 'language', userId, valid, 'level');
+  return valid;
+};
+
+ConsultantProfile.listWorkCountries = async function listWorkCountries(userId) {
+  const [rows] = await promisePool.query('SELECT country FROM consultant_work_countries WHERE user_id = ? ORDER BY country', [userId]);
+  return rows.map((r) => r.country);
+};
+
+ConsultantProfile.setWorkCountries = async function setWorkCountries(userId, codes) {
+  const valid = [...new Set((codes || []).map(String))].filter((c) => COUNTRY_CODES.has(c)).slice(0, 40);
+  await replaceList('consultant_work_countries', 'country', userId, valid);
+  return valid;
+};
+
+ConsultantProfile.listingProblems = listingProblems;
+ConsultantProfile.nextSteps = nextSteps;
+ConsultantProfile.LANGUAGE_LEVELS = LANGUAGE_LEVELS;
+ConsultantProfile.SKILL_LEVELS = SKILL_LEVELS;
+
+/*
+ * EDITING AND ORDERING projects and experience.
+ *
+ * Ownership is part of every WHERE: an id from somebody else's list updates nothing. The
+ * order is an explicit `sort_order` (migration 037); rows that have never been moved all
+ * carry 0 and fall back to the date order, so the FIRST move renumbers the whole list in the
+ * order the owner was looking at, and from then on the numbers are the order.
+ */
+const ENTRY_TABLES = Object.freeze({ projects: 'consultant_projects', experience: 'consultant_work_experiences' });
+
+function entryTable(kind) {
+  if (!Object.prototype.hasOwnProperty.call(ENTRY_TABLES, kind)) throw new Error(`No entry list "${kind}"`);
+  return ENTRY_TABLES[kind];
+}
+
+async function orderedIds(conn, kind, userId) {
+  const listSql = kind === 'projects'
+    ? 'SELECT id FROM consultant_projects WHERE user_id = ? ORDER BY sort_order, ended_on IS NULL DESC, ended_on DESC, started_on DESC, id FOR UPDATE'
+    : 'SELECT id FROM consultant_work_experiences WHERE user_id = ? ORDER BY sort_order, is_current DESC, started_on DESC, id FOR UPDATE';
+  const [rows] = await conn.query(listSql, [userId]);
+  return rows.map((r) => r.id);
+}
+
+async function writeOrder(conn, kind, userId, ids) {
+  const table = entryTable(kind);
+  for (let i = 0; i < ids.length; i += 1) {
+    // eslint-disable-next-line no-await-in-loop -- a handful of rows, inside one transaction
+    await conn.query(`UPDATE ${table} SET sort_order = ? WHERE id = ? AND user_id = ?`, [i + 1, ids[i], userId]);
+  }
+}
+
+ConsultantProfile.moveEntry = async function moveEntry(kind, userId, id, direction) {
+  entryTable(kind);
+  return withTransaction(async (conn) => {
+    const ids = await orderedIds(conn, kind, userId);
+    const at = ids.indexOf(Number(id));
+    const to = direction === 'up' ? at - 1 : at + 1;
+    if (at < 0 || to < 0 || to >= ids.length) return false;
+    [ids[at], ids[to]] = [ids[to], ids[at]];
+    await writeOrder(conn, kind, userId, ids);
+    return true;
+  });
+};
+
+/** A whole new order from a drag. Refused unless it is exactly the owner's ids, rearranged. */
+ConsultantProfile.setEntryOrder = async function setEntryOrder(kind, userId, requested) {
+  entryTable(kind);
+  return withTransaction(async (conn) => {
+    const ids = await orderedIds(conn, kind, userId);
+    const wanted = (requested || []).map(Number);
+    const same = wanted.length === ids.length && new Set(wanted).size === ids.length && wanted.every((x) => ids.includes(x));
+    if (!same) return false;
+    await writeOrder(conn, kind, userId, wanted);
+    return true;
+  });
+};
+
+ConsultantProfile.updateProject = async function updateProject(userId, id, project) {
+  const [result] = await promisePool.query(
+    `UPDATE consultant_projects
+        SET name = ?, client = ?, cloud = ?, role = ?, started_on = ?, ended_on = ?, is_current = ?, description = ?
+      WHERE id = ? AND user_id = ?`,
+    [project.name, project.client || null, project.cloud || null, project.role || null, project.startedOn || null,
+      project.isCurrent ? null : project.endedOn || null, project.isCurrent ? 1 : 0, project.description || null, id, userId]
+  );
+  return result.affectedRows === 1;
+};
+
+ConsultantProfile.updateExperience = async function updateExperience(userId, id, exp) {
+  const [result] = await promisePool.query(
+    `UPDATE consultant_work_experiences
+        SET company = ?, title = ?, location = ?, started_on = ?, ended_on = ?, is_current = ?, description = ?
+      WHERE id = ? AND user_id = ?`,
+    [exp.company, exp.title || '', exp.location || null, exp.startedOn, exp.isCurrent ? null : exp.endedOn || null,
+      exp.isCurrent ? 1 : 0, exp.description || null, id, userId]
+  );
+  return result.affectedRows === 1;
+};
 
 module.exports = ConsultantProfile;

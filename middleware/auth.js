@@ -61,7 +61,9 @@ function isConsultant(req, res, next) {
   const user = req.session && req.session.user;
   if (!user) return denyAuth(req, res, 'Please sign in to continue.');
   if (user.isConsultant) return next();
-  return denyRole(req, res, 'That area is for consultant accounts.');
+  // Sent to where the role is added rather than to the home page: "Build Profile" from an
+  // account without the role used to land on an empty dashboard with nothing to act on.
+  return denyRole(req, res, 'That area is for consultant profiles. Add the consultant role to set up a profile.', '/profile/settings');
 }
 
 function isCompany(req, res, next) {
@@ -69,6 +71,18 @@ function isCompany(req, res, next) {
   if (!user) return denyAuth(req, res, 'Please sign in to continue.');
   if (user.isCompany) return next();
   return denyRole(req, res, 'That area is for company accounts.');
+}
+
+/**
+ * Somebody hiring: a company account or a recruiter. Both may shortlist and approach
+ * consultants — a recruiter account can do what a company account can (CLAUDE.md, Recruiters),
+ * and a second guard written for the purpose would be the reference's mistake again.
+ */
+function isHiring(req, res, next) {
+  const user = req.session && req.session.user;
+  if (!user) return denyAuth(req, res, 'Please sign in to continue.');
+  if (user.isCompany || user.isRecruiter) return next();
+  return denyRole(req, res, 'That is for company and recruiter accounts.');
 }
 
 /**
@@ -152,6 +166,7 @@ module.exports = {
   isGuest,
   isConsultant,
   isCompany,
+  isHiring,
   isRecruiter,
   isAdmin,
   isSuperadmin,

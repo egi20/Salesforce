@@ -17,7 +17,8 @@ const { GLOBAL_MONTHLY_BUDGET_USD } = require('./assistant');
  */
 
 const MODEL = process.env.CV_IMPORT_MODEL || 'claude-haiku-4-5-20251001';
-const MAX_OUTPUT_TOKENS = 1200;
+// Room for up to a dozen experience and project entries as well as the basics.
+const MAX_OUTPUT_TOKENS = 3000;
 
 const PRICE_PER_MTOK_INPUT = Number(process.env.CV_IMPORT_PRICE_INPUT_USD || 1);
 const PRICE_PER_MTOK_OUTPUT = Number(process.env.CV_IMPORT_PRICE_OUTPUT_USD || 5);

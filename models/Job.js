@@ -60,6 +60,15 @@ function pushMatch(where, params, column, values) {
   }
 }
 
+/** The columns the board counts by, keyed by filter field. */
+const FACET_COLUMNS = Object.freeze({
+  role: 'j.role',
+  country: 'j.country',
+  seniority: 'j.seniority',
+  work_mode: 'j.work_mode',
+  engagement_type: 'j.engagement_type'
+});
+
 /**
  * THE single WHERE builder for job browsing.
  *
@@ -317,29 +326,28 @@ class Job {
     return { rows, total };
   }
 
-  /** Counts per role for the browse sidebar, using the same filter minus `role`. */
-  static async facetByRole(filters = {}) {
-    const { clause, params } = buildFilter({ ...filters, role: undefined });
+  /*
+   * Counts per value of one filter field, for the board's checkbox groups — the usual facet
+   * rule: the field's OWN selection is left out (ticking Albania must not make Germany read
+   * 0), every other field's selection applies. The column comes from this fixed map, never
+   * from the caller, because a column name cannot be a placeholder.
+   */
+  static async facet(field, filters = {}) {
+    const column = FACET_COLUMNS[field];
+    if (!column) throw new Error(`No facet for "${field}"`);
+    const { clause, params } = buildFilter({ ...filters, [field]: undefined });
     const [rows] = await promisePool.query(
-      `SELECT j.role, COUNT(*) AS count FROM jobs j WHERE ${clause} GROUP BY j.role ORDER BY count DESC`,
+      `SELECT ${column} AS value, COUNT(*) AS count FROM jobs j
+        WHERE ${clause} AND ${column} IS NOT NULL
+        GROUP BY ${column} ORDER BY count DESC, ${column}`,
       params
     );
     return rows;
   }
 
-  /**
-   * Counts per country, using the same filter minus `country` — so the board offers the
-   * countries that actually have roles, with how many, instead of every country on earth.
-   */
-  static async facetByCountry(filters = {}) {
-    const { clause, params } = buildFilter({ ...filters, country: undefined });
-    const [rows] = await promisePool.query(
-      `SELECT j.country, COUNT(*) AS count FROM jobs j
-        WHERE ${clause} AND j.country IS NOT NULL
-        GROUP BY j.country ORDER BY count DESC, j.country`,
-      params
-    );
-    return rows;
+  /** Counts per role for the browse sidebar, using the same filter minus `role`. */
+  static async facetByRole(filters = {}) {
+    return (await Job.facet('role', filters)).map((r) => ({ role: r.value, count: r.count }));
   }
 
   /** Which of these jobs the user has saved, as a Set of ids — one query for a whole page. */
@@ -396,7 +404,8 @@ class Job {
   static async listSaved(userId, { limit = 20, offset = 0 } = {}) {
     const [rows] = await promisePool.query(
       `SELECT j.id, j.title, j.slug, j.role, j.status, j.rate_min, j.rate_max, j.currency,
-              cp.company_name, sj.created_at AS saved_at
+              j.rate_visible, j.engagement_type, j.work_mode, j.country, j.city,
+              cp.company_name, cp.logo AS company_logo, sj.created_at AS saved_at
          FROM saved_jobs sj
          JOIN jobs j ON j.id = sj.job_id
          LEFT JOIN company_profiles cp ON cp.user_id = j.company_user_id

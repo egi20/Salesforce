@@ -136,6 +136,29 @@ rather than hand-maintained, because a version someone has to remember to bump i
 that is wrong. A stored quote keeps the version it was priced under and is NEVER
 recomputed on read — it is a statement made to a client on a date.
 
+**The running total on `/quotes/new` is the engine, asked.** `POST /quotes/preview` reads the
+form with the same `inputsFrom` and `optionsFrom` the save uses and runs `calculateEstimation`,
+reconciliation check included; it stores nothing and has its own limiter. There is no copy of
+the formula in `public/js/quote-form.js`, and a test asserts the file holds no multiplier, no
+effort figure and no rate: a second implementation in the browser is the one place the figure
+on screen and the figure in the stored quote could disagree, and the first change to
+`config/estimation.js` would make them. The four steps are a reading aid over ONE form —
+without scripting every step shows and the button at the bottom submits all of it. The form
+sits under `#wizard`, below the page's own introduction; a refused save or a reused quote
+re-renders the whole page, so the script scrolls back to the form (`data-focus-wizard`).
+
+The form is read in `utils/quoteFormInputs.js`, both ways: `inputsFrom` (form → estimator
+input) and `valuesFromQuote` (stored quote → form), and a test round-trips a quote through
+both. That is what "Reuse details from your last quote" stands on — it reloads the form from
+the author's OWN quote (any other reference is treated as absent) and saves a NEW quote; the
+original, a statement made on a date, is never touched. Catalogue lookups there use
+`hasOwnProperty`: `COMPLEXITY_MULTIPLIERS['__proto__']` is truthy.
+
+"Download SOW pack" on the Review step SAVES first and then lands on the quote's page, which
+starts the download once (and drops the query string so a reload does not repeat it). A pack
+is always generated from a stored quote, never from a form; landing on the page means the
+author sees what was saved and a second click does not save a second copy.
+
 ## Generated documents
 
 `utils/documents/` holds one generator per format plus a shared validator, and
@@ -467,6 +490,45 @@ this lands in a `Content-Disposition` header on every download they make.
 
 Documents are generated on demand and never stored: a profile changes, and the stale copy
 is the one someone would eventually send.
+
+**The CV preview IS the document.** `utils/documents/cvLayout.js` decides what a CV contains
+— sections, order, every line — as plain blocks, and both renderers only lay them out:
+`cvDocx.js` as Word paragraphs, `views/cv/_preview.ejs` as HTML. Two renderers each deciding
+content would drift the first time one gained a line, and the consultant would download
+something other than what they approved. A test asserts every previewed string reaches the
+.docx. The rate is off by default when the profile keeps it "on request".
+
+The dossier turns the stored bio and descriptions back into plain text with
+`richTextToEditable`: they are sanitised HTML since the profile form escapes and paragraphs
+them, and the generator was printing `<p>` into every CV.
+
+`/cv-generator` is the consultant's page and `/services/document-generator` the company's SOW
+pack. They were one page whose only button was "Start a quote", which is where a consultant
+following "CV Generator" landed. The Hub writes no cover letter — that is prose, and a
+generator that writes prose stops rendering the consultant's own claims.
+
+The SOW pack is introduced in ONE place: `/quotes/new`, above the form — How it works,
+Supported Salesforce clouds and What's included in the SOW, as partials (`views/partials/sow/`)
+fed by `config/sowPack.js`. `/services/document-generator` keeps only what is its own: the three
+file cards, why they agree, and a sample timeline. Both pages once carried the same three
+sections, which was two places to disagree; a test asserts the pack page restates none of
+them. "Get SOW Quote" links to `/quotes/new#wizard` (the form); "SOW Generator" to the top. Each line of `SOW_SECTIONS` names the heading in
+`sowDocx.js` that produces it; a test asserts every heading is really there. "Acceptance criteria" is listed because section 2.2 now WRITES it — the phase, its
+milestone from the stored timeline and `PHASE_ACCEPTANCE` from `config/estimation.js` (words,
+no figures, asserted for every phase at boot). It was added to the document before it was added
+to the page; the other order is a page promising a section the download does not have. 2.2 is
+a sub-section so nothing after it is renumbered. Optional sections say when they appear. The
+three cloud cards are `CLOUD_GROUPS` in `config/cloudFamilies.js`, and `cloudGroupProblems()`
+fails a test if a cloud is in no group or two.
+
+The SOW pack page names what is IN each file rather than counting it — a count with no list
+behind it ("seven slides") is a claim a reader cannot check, and it was. `PACK_CARDS` lists each
+file's contents, and a test reads the SOW's numbered headings, `addWorksheet` and `addSlide`
+from the generators and fails if a card stops naming one. Its sample timeline is computed at load by
+`calculateEstimation` and held to `reconciliationProblems`, the same as a real quote. A
+product page that draws its own Gantt by hand is a promise the download does not have to
+keep. A CV section with nothing in it (no Trailhead, no rate) is shown unticked and disabled,
+and a thin profile previews as grey bars, never as sample words.
 
 ## Referrals and commissions
 
@@ -819,11 +881,9 @@ Specialisms are cloud FAMILIES, derived from `config/cloudFamilies.js`, so addin
 adds a specialism. The directory filters on them with `JSON_CONTAINS`, not a LIKE over the
 serialised array — `LIKE '%sales-cloud%'` would also match a future `sales-cloud-einstein`.
 
-Not built: candidate shortlists. **A shortlist** holds other people's profiles, and who may
-see that a consultant is on one is not an obvious question. The reference promises it in a
-route comment and ships nothing — `routes/recruiters.js` says "Phase 3 adds placement &
-commission tracking" and `models/RecruiterProfile.js` says counters will "later" be computed
-"from shortlists/placements tables". Verified: no shortlist table, model or route exists there.
+Candidate shortlists were listed here as "not built", because who may see that a consultant
+is on one is not an obvious question; the reference promises them in a route comment and ships
+nothing. They are now built (migration 041), and the answer is in "Browse Talent" below.
 
 **PLACEMENT TRACKING IS A DIFFERENT MATTER, AND THIS FILE WAS WRONG ABOUT IT.** It previously
 said the reference "promises both in a route comment and ships neither". Half of that is
@@ -1117,6 +1177,116 @@ for the production case; until this guard, the only thing between a live site an
 of invented people was somebody remembering which command to type. `SEED_ALLOW_PRODUCTION=yes`
 is the override, spelled out rather than any truthy value so an orchestrator exporting `0`
 cannot switch it on.
+
+## Build your profile
+
+`/profile/settings` is ONE page for everybody: the consultant sections plus Account for a
+consultant, Account alone (with a button that adds the role) for anybody else.
+`/profile/consultant` redirects there, so there is one URL to link and one to remember.
+
+**Uploaded CVs and cover letters are the one place this codebase serves a document it did
+not build**, and it is only defensible because of what `utils/documentUpload.js` refuses
+before a byte is stored: anything but PDF and .docx (a legacy .doc cannot be told apart from
+its macros without a full parser), a .docx with macros, embedded objects or an external
+template relationship, a PDF naming JavaScript, Launch, EmbeddedFile, RichMedia or XFA. The
+bytes live in `consultant_documents`, never on disk, every list query leaves the `bytes`
+column out, and the download is ONLY ever an attachment with `nosniff` — a PDF can hide a
+keyword in a compressed stream, so inline display is the one door that stays shut.
+
+**Import from CV never writes on its own.** The model's answer is laid out as ticked boxes
+(built from DOM nodes, never `innerHTML`); basics land in the form and wait for Save, and the
+ticked projects and experience go through `/profile/consultant/import-entries`, which shapes
+each entry with the same `projectFrom`/`experienceFrom` a hand-typed one uses.
+
+**A company the consultant APPLIED to can open the profile even while it is private**, and
+even if that company is on the hidden list: applying is the consultant choosing to show it.
+A moderator's takedown still wins. The page says so beside the switch — the rule existed in
+the copy before it existed in the route, and a privacy note that is not true is worse than
+none. `?preview=company` renders the page as a signed-in company sees it (rate hidden when on
+request, no owner controls) and is honoured only for the owner.
+
+**No answer is pre-filled** (migration 038). Availability and work mode are NULL until
+chosen and neither type of work is pre-ticked: a default the form shows as a selection is a
+fact somebody can publish by pressing Save without reading. Once answered, "Choose…" is
+disabled so a listed profile cannot go back to saying nothing — and listing needs an
+availability, as the spec's minimum says. "Anywhere (remote)" is its own column,
+`works_anywhere`, not every country code at once; "Anywhere in EU" ticks the 27 codes in
+`config/regions.js`, so a stored list is still a list a country filter can match.
+
+`nextSortOrder` wraps the MAX in `Number()`: MariaDB returns `COALESCE(MAX(..))` as a string,
+and `"5" + 1` gave an imported project sort order 51.
+
+## The consultant's applications
+
+`/dashboard/applications` lists through `Application.buildFilter` with the CONSULTANT scope,
+`Application.forConsultant(id)` — the same builder the company board uses, not a second one,
+so a tab's count is the number of rows behind it. A missing scope still throws.
+
+"Seen by the company" is `viewed_at` OR the first company move, whichever came first. A move
+is read from WHICH transition happened, not from the event's actor: the consultant can only
+withdraw or re-submit, so any other step is the company's — even when its actor was erased
+and is NULL. Reading the actor first made every seeded and every erased-employer application
+look unanswered. `viewed_at` is set by a conditional UPDATE on the employer's GET of the
+application: the one exception to "no GET writes", because "opened" can only be observed on a
+read, and it is idempotent and inserts nothing.
+
+Private notes live in `application_notes`, never as a column on `applications`: the employer
+side reads `a.*`, and a note only one party may read must not sit in a row the other selects
+wholesale. The CV sent is `cv_document_id`, validated against the applicant's own CVs on
+apply, and downloadable by exactly the two parties to the application. The status email goes
+to the consultant only when the COMPANY moves the application, never on their own withdraw.
+
+The consultant answers an offer: `Application.consultantMay` allows offered → hired (accept)
+and any withdrawal (decline is a withdrawal with a note), and nothing else of the company's.
+"Hired" still needs two decisions — the company's offer and the consultant's yes. On an
+offered row the list shows Accept / Decline instead of Withdraw.
+
+## Browse Talent
+
+`/consultants` is built the way `/jobs` is: one form, checkbox groups with a count beside each
+value, applied on change, chips with × above the list. Each count leaves out its OWN group
+(`ConsultantProfile.facet`, the same rule as `Job.facet`), so ticking Italy does not turn every
+other country into (0). Every count, the hero figures included, goes through `buildFilter` with
+the viewer: a consultant who hid from this company is not counted for it either — a count is a
+measurement too.
+
+The hero says "24 consultants · 6 available now · 13 clouds covered", and each is a count of
+what this viewer can browse. "Clouds covered" counts clouds at least one listed consultant
+works in, never the size of the catalogue: thirteen clouds in a config file is a claim about
+nobody.
+
+The certification filter offers OFFICIAL names only (`config/certifications.js`), and only
+those somebody listed holds. The profile accepts free text for a credential, and a filter on
+free text is a filter on whatever somebody typed.
+
+The card is built from stored facts. Its title is role plus seniority ("Senior CPQ & Billing
+Consultant"), not the headline, which in practice repeated the seniority badge. A hidden rate
+reads "Rate on request" and arrives as NULL from `browse`, so `consultantRate()` cannot print
+it even if a template forgets. "LinkedIn verified" means what the LinkedIn section says it
+means; the Trailhead badge is TYPED on the profile, so it is neutral-coloured and titled "As
+stated on the profile".
+
+**The shortlist answers the question this file used to leave open.** It is private to the
+company or recruiter that made it — the consultant is never told and cannot see it, and nothing
+anybody else reads joins on `company_shortlists`. It never makes anybody visible: adding refuses
+a profile the account could not find in the directory, and the shortlist view is a
+`shortlisted_by` clause in `buildFilter`, which only narrows, so a profile that went private or
+hid itself from that company drops out. It goes with either account: the company's rows through
+`PURGE`, and every entry naming an erased consultant through `PURGE_AS_SUBJECT`. A test pins the
+files allowed to mention the table.
+
+"Invite to apply" goes to the approach form on the profile (`#approach`), and only for an
+account with an open role — a conversation is always anchored to one, so there is nothing to
+invite to without it. A company with none sees "Post a role to invite" instead, and a visitor
+sees "Sign in to shortlist": a button labelled "Shortlist" that lands on a login form is a
+button that said something it does not do.
+
+**The level and the years cannot contradict each other.** The seniority labels state their
+bands ("Junior (0-2 yrs)"), so `SENIORITY_LEVELS` carries `minYears`/`maxYears` and
+`seniorityFitsYears` refuses a mismatched pair on save — refused, not corrected, because which
+of the two is wrong is the consultant's to say. The form moves the level when the years are
+typed and says so. The seed derives the level from the years; picked independently they put
+"Junior Apex Developer · 18 years experience" on a card.
 
 ## Hiding a profile from named companies
 

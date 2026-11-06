@@ -106,6 +106,41 @@ function toPlainText(html, maxLength = 0) {
 }
 
 /**
+ * The bio is edited in a plain <textarea> but stored as sanitised rich text, so the two
+ * conversions live together. A textarea shows its value literally: rendering the stored HTML
+ * into it put "<p>…</p>" in front of the consultant and counted the tags against the
+ * 1,000-character limit.
+ *
+ * richTextToEditable: paragraphs become blank lines, <br> a line break, markup goes.
+ */
+function richTextToEditable(html) {
+  if (!html) return '';
+  const withBreaks = String(html)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n\n');
+  return decodeEntities(sanitizeHtml(withBreaks, { allowedTags: [], allowedAttributes: {} }))
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
+ * plainTextToRichText: what the consultant typed is TEXT. It is escaped, never parsed, so
+ * "<b>" typed into a bio stays the four characters it was; blank lines make paragraphs.
+ */
+function plainTextToRichText(text) {
+  const escaped = String(text || '')
+    .replace(/\r\n?/g, '\n')
+    .trim()
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  if (!escaped) return '';
+  return sanitizeRichText(escaped.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`).join(''));
+}
+
+/**
  * Serialise a value for embedding inside a <script> block.
  *
  * `</script>` inside a string would close the block early, and U+2028/U+2029 are
@@ -121,4 +156,4 @@ function jsonForScript(value) {
     .replace(/\u2029/g, '\\u2029');
 }
 
-module.exports = { sanitizeRichText, toPlainText, jsonForScript };
+module.exports = { sanitizeRichText, toPlainText, richTextToEditable, plainTextToRichText, jsonForScript };

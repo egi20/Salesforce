@@ -87,3 +87,24 @@ describe('jsonForScript', () => {
     expect(jsonForScript(null)).toBe('null');
   });
 });
+
+describe('the bio, edited as text and stored as paragraphs', () => {
+  const { richTextToEditable, plainTextToRichText } = require('../../utils/sanitize');
+
+  it('shows stored markup as the words, with paragraphs as blank lines', () => {
+    expect(richTextToEditable('<p>15 years &amp; counting.</p><p>Line one<br>line two</p>'))
+      .toBe('15 years & counting.\n\nLine one\nline two');
+    expect(richTextToEditable(null)).toBe('');
+  });
+
+  it('stores typed text escaped, never parsed', () => {
+    expect(plainTextToRichText('Apex <b>and</b> LWC')).toBe('<p>Apex &lt;b&gt;and&lt;/b&gt; LWC</p>');
+    expect(plainTextToRichText('<script>alert(1)</script>')).not.toMatch(/<script/);
+    expect(plainTextToRichText('  ')).toBe('');
+  });
+
+  it('round-trips what the consultant typed', () => {
+    const typed = 'First paragraph & more.\n\nSecond, line one\nline two';
+    expect(richTextToEditable(plainTextToRichText(typed))).toBe(typed);
+  });
+});

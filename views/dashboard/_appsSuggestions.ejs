@@ -1,0 +1,67 @@
+<%
+  /*
+   * Roles to look at next: suggestions that match the profile and the roles the consultant
+   * saved. Shown with no applications (the way in) and below the list (what to do next);
+   * the route leaves out anything already applied for. `columns` sets the card width.
+   */
+  const recCol = typeof columns !== 'undefined' && columns === 3 ? 'col-md-4' : 'col-md-6 col-xl-3';
+%>
+    <% if (recommended.length) { %>
+      <section class="mb-4" aria-labelledby="recHeading">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h2 class="h6 mb-0" id="recHeading"><i class="bi bi-stars"></i> <%= typeof recommendedWeak !== 'undefined' && recommendedWeak ? 'Closest open roles to your profile' : 'Roles that match your profile' %></h2>
+          <a class="small" href="/jobs">See all roles</a>
+        </div>
+        <p class="small text-muted-2 mb-2">The match weighs your role, skills, seniority, location, rate and availability against each role.
+          <a href="/profile/settings">Improve your matches → Build your profile</a></p>
+        <div class="row g-3">
+          <% recommended.forEach(function (r) { const j = r.job; const pay = formatRateRange(j); %>
+            <div class="<%= recCol %>"><div class="glass-card h-100"><div class="card-body d-flex flex-column">
+              <div class="d-flex gap-2 align-items-start mb-2">
+                <% if (j.company_logo) { %><img class="logo-tile flex-shrink-0" src="<%= j.company_logo %>" alt="" loading="lazy">
+                <% } else { %><span class="logo-initials <%= companyTone(j.company_name) %> flex-shrink-0" aria-hidden="true"><%= companyInitials(j.company_name || 'Confidential') %></span><% } %>
+                <span class="badge-hub match-badge ms-auto"><%= r.score %>% match</span>
+              </div>
+              <a class="fw-semibold" href="/jobs/<%= j.slug %>"><%= j.title %></a>
+              <span class="small text-muted-2"><%= j.company_name || 'Confidential' %></span>
+              <span class="small text-muted-2 mb-2"><%= [jobLocation(j), pay].filter(Boolean).join(' · ') %></span>
+              <%# Why the percentage is what it is: the parts of the profile that matched in full. %>
+              <span class="small mb-2 rec-reasons"><i class="bi bi-check2-circle"></i>
+                <%= r.reasons && r.reasons.length ? 'Matches: ' + r.reasons.join(' · ') : 'Few matches with your profile yet' %></span>
+              <a class="btn btn-sm btn-primary mt-auto" href="/jobs/<%= j.slug %>#apply">Apply</a>
+            </div></div></div>
+          <% }); %>
+        </div>
+      </section>
+    <% } %>
+
+    <% if (!recommended.length && (typeof showProfileHint === 'undefined' || showProfileHint)) { %>
+      <div class="alert alert-info d-flex flex-wrap align-items-center gap-2 mb-4">
+        <i class="bi bi-stars"></i>
+        <span>Add your main role, clouds and skills to your profile and the roles that match you best appear here, with a match score.</span>
+        <a class="btn btn-sm btn-outline-primary ms-auto" href="/profile/settings#basics">Complete your profile</a>
+      </div>
+    <% } %>
+
+    <section class="mb-4" aria-labelledby="savedHeading">
+      <h2 class="h6 mb-2" id="savedHeading"><i class="bi bi-star-fill text-warning"></i> Saved roles</h2>
+      <% if (!saved.length) { %>
+        <div class="glass-card"><div class="card-body small text-muted-2">
+          Save roles from <a href="/jobs">Find Jobs</a> with <i class="bi bi-star"></i> and they appear here, ready to apply to.
+        </div></div>
+      <% } else { %>
+        <div class="glass-card"><ul class="list-unstyled mb-0">
+          <% saved.forEach(function (j) { const pay = formatRateRange(j); %>
+            <li class="d-flex flex-wrap align-items-center gap-3 apps-saved-row">
+              <% if (j.company_logo) { %><img class="logo-tile flex-shrink-0" src="<%= j.company_logo %>" alt="" loading="lazy">
+              <% } else { %><span class="logo-initials <%= companyTone(j.company_name) %> flex-shrink-0" aria-hidden="true"><%= companyInitials(j.company_name || 'Confidential') %></span><% } %>
+              <span class="flex-grow-1 min-w-0">
+                <a class="fw-semibold" href="/jobs/<%= j.slug %>"><%= j.title %></a>
+                <span class="d-block small text-muted-2"><%= [j.company_name || 'Confidential', jobLocation(j), pay].filter(Boolean).join(' · ') %></span>
+              </span>
+              <a class="btn btn-sm btn-primary" href="/jobs/<%= j.slug %>#apply">Apply</a>
+            </li>
+          <% }); %>
+        </ul></div>
+      <% } %>
+    </section>

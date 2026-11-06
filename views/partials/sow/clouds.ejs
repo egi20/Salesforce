@@ -1,0 +1,28 @@
+<%
+  /*
+   * "Supported Salesforce clouds" — generated from config/cloudFamilies.js through
+   * cloudGroups(), the same catalogue the estimator prices from, so a cloud added there
+   * appears here and a cloud in no group fails a test.
+   */
+%>
+<section aria-labelledby="clouds" class="sow-block">
+  <h2 class="sow-block-title mb-1" id="clouds">Supported Salesforce clouds</h2>
+  <p class="text-center text-muted-2 mb-4">Every module carries its own effort in days — the catalogue the estimate is built from.</p>
+  <div class="row g-3">
+    <% cloudGroups.forEach(function (g, i) { %>
+      <div class="col-md-4">
+        <div class="sow-cloud-card h-100">
+          <div class="sow-cloud-head tone-<%= i + 1 %>"><i class="bi <%= g.icon %>" aria-hidden="true"></i> <%= g.label %></div>
+          <ul class="list-unstyled mb-0">
+            <% g.families.forEach(function (f) { %>
+              <li>
+                <span><i class="bi bi-check-lg sow-tick" aria-hidden="true"></i> <%= f.label %></span>
+                <span class="text-muted-2 small"><%= f.modules.length %> module<%= f.modules.length === 1 ? '' : 's' %></span>
+              </li>
+            <% }); %>
+          </ul>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+</section>

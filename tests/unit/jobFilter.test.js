@@ -131,3 +131,34 @@ describe('several values in one job filter field', () => {
     expect(params[0].length).toBeLessThanOrEqual(30);
   });
 });
+
+describe('the board validates countries against the country list', () => {
+  it('accepts a real code and nothing that merely looks like one', () => {
+    // "XX" passed a two-capitals shape check, reached the query and was shown as a filter chip.
+    const fs = require('fs');
+    const path = require('path');
+    const source = fs.readFileSync(path.join(__dirname, '..', '..', 'routes', 'jobs.js'), 'utf8');
+    expect(source).toMatch(/country: listFrom\(query\.country, \(v\) => COUNTRY_CODES\.has\(v\)\)/);
+    expect(source).not.toMatch(/country: listFrom\(query\.country, \(v\) => \/\^\[A-Z\]\{2\}\$\/\.test\(v\)\)/);
+  });
+});
+
+describe('job board facets', () => {
+  const { promisePool } = require('../../config/database');
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('counts a group without its own selection but with every other group', async () => {
+    const spy = jest.spyOn(promisePool, 'query').mockResolvedValue([[]]);
+    await Job.facet('country', { country: ['AL'], seniority: ['junior'] });
+    const [sql, params] = spy.mock.calls[0];
+    expect(sql).toContain('GROUP BY j.country');
+    expect(sql).not.toContain('j.country = ?');
+    expect(sql).toContain('j.seniority = ?');
+    expect(params).toEqual(['junior']);
+  });
+
+  it('refuses a field that is not in its fixed column map', async () => {
+    await expect(Job.facet('id; DROP TABLE jobs', {})).rejects.toThrow(/No facet/);
+  });
+});

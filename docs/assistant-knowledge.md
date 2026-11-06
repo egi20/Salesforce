@@ -36,8 +36,8 @@ An account can hold both roles at once.
 People name pages by the menu label they see, so these are the labels:
 
 - **Consultant Hub** — the hub page itself (`/consultant-hub`, every consultant tool on one
-  page), Find Jobs (`/jobs`), Build Profile (`/profile/consultant`, or sign-up
-  for a visitor), CV Generator (`/services/document-generator`).
+  page), Find Jobs (`/jobs`), Build Profile (`/profile/settings`, or sign-up
+  for a visitor), CV Generator (`/cv-generator`).
 - **Companies Hub** — the hub page itself (`/companies-hub`, every hiring tool on one page),
   Browse Talent (`/consultants`), Get SOW Quote (`/quotes/new`), and the
   three engagement models: Staff Augmentation, Project-Based, Managed Services.
@@ -59,22 +59,22 @@ People name pages by the menu label they see, so these are the labels:
 | `/companies-hub` | One page listing every hiring tool: browse consultants, post a role, scope estimate, engagement models, agencies. |
 | `/jobs` | Browse open roles. Filter by cloud, role, seniority, work mode, country and rate. |
 | `/jobs/new` | Post a role. Company accounts only. |
-| `/consultants` | The consultant directory. Only profiles their owners have made public appear. |
+| `/consultants` | Browse Talent, the consultant directory. Only profiles their owners have made public appear. Filter by cloud, role, official certification, minimum years of experience, availability, country, seniority, work mode, LinkedIn verified, Trailhead and maximum day rate; each option shows how many consultants it would show, and filters apply as you tick them. Cards show the title, years of experience, country, rate (or "Rate on request"), availability, certifications and a short bio. Signed-out visitors see "Sign in to shortlist" and a link to create a company account. Company and recruiter accounts can press ★ Shortlist to keep a private list (only that company sees it; the consultant is not told) and filter to "My shortlist only"; with an open role they also see "Invite to apply", which opens the approach form on the profile; a company with no open role sees "Post a role to invite". On the profile form the seniority level must match the years of experience (Junior 0–2, Mid 3–5, Senior 6–9, Lead 10+); typing the years moves the level to match. |
 | `/companies` | The company directory. |
 | `/rates` | The day-rate index: percentiles and trends by role, seniority and country. |
 | `/rates/submit` | Contribute your own day rate. This is what keeps the index alive. |
 | `/rates/calculator` | What a day rate is worth over a year once holiday, the bench and running costs come out. Public, stateless, and **before tax**. |
 | `/profile/consultant/download/package` | A consultant's CV and rate card, rendered from their profile as a zip. Also `/cv` and `/rate-card` individually. |
-| `/quotes/new` | The scope estimator: pick clouds and modules, get a phased plan, team shape, budget and timeline. |
+| `/quotes/new` | SOW Quote Generator. The page opens with "Get your SOW quote in minutes" (Start new quote, View history), how it works, the supported Salesforce clouds and what the SOW contains; the form follows, in four steps: 1. Client info, 2. Scope (every cloud with its modules, searchable, plus AppExchange add-ons and integrations), 3. Shape & options (complexity, customisation, users, orgs, contingency, currency, training and hypercare), 4. Review & generate (man-days, duration, budget, phases, team and timeline). On Scope and Shape a panel shows the running total as you choose, worked out by the same engine as the saved estimate. If you have a quote already, "Use last quote" fills the form from it (a new quote is saved; the old one is unchanged). Save quote keeps it in Your quotes; Download SOW pack saves it and downloads the pack. |
 | `/quotes` | Your saved estimates, and the SOW, work-breakdown and summary-deck downloads for each. |
 | `/community` | Questions, discussions, articles and wins. Questions can have an accepted answer. |
 | `/community/new` | Write a post. |
 | `/messages` | Your conversations. Threads are anchored to an application or a specific role. |
 | `/dashboard` | Your home: applications, roles, saved jobs, activity. |
-| `/profile/consultant` | Build or edit your consultant profile. |
+| `/dashboard/applications` | My Applications, for consultants: every application with its status (Applied, In review, Shortlisted, Interview, Offer, Hired, Rejected, Withdrawn), whether the company has viewed it, the CV that was sent, the rate you proposed and a timeline. Filter by status, Active or Archived, contract or permanent, or search; add a private note only you can see; message the company or withdraw. When a company makes you an offer, the row shows Accept offer and Decline instead of Withdraw. A nudge appears after 14 days with no reply. With no applications yet it shows roles that match your profile and your saved roles. You get an email when a company moves one of your applications. |
 | `/profile/company` | Build or edit your company profile. |
 | `/profile/company/template` | Document branding: your colours, letterhead and standard clauses. |
-| `/profile/settings` | Account settings, roles, password, LinkedIn verification. |
+| `/profile/settings` | "Build your profile": one page with sections for Basics, Salesforce (clouds, certifications, Trailhead), Work & rate, Projects & experience, Documents (upload a CV or cover letter as PDF or .docx — older .doc files are not accepted), Privacy, and Account (email, password, roles, LinkedIn, your data). "Import from CV" reads a .docx or .txt CV and shows what it found; nothing is kept until you tick it and save. "Preview public profile" shows the page as a signed-in company sees it. An account without the consultant role sees only the Account section and a button to add the role. `/profile/consultant` redirects here. |
 | `/payments` | What the two paid things cost. |
 | `/payments/history` | Your payments and invoices. |
 | `/referrals` | The referral scheme: get a link, see what it has earned, set payout details. |
@@ -92,8 +92,9 @@ People name pages by the menu label they see, so these are the labels:
 | `/challenges/leaderboard` | Who scored what today and over the last thirty days. |
 | `/search` | One box across jobs, consultants, companies, agencies and the community. |
 | `/services/staff-augmentation`, `/services/project-based`, `/services/managed-services` | The three shapes an engagement can take, and which one fits. Each ends at the consultant directory or the scope estimator. |
-| `/services/document-generator` | What the Hub generates: a quote becomes an SOW, work breakdown and deck; a profile becomes a CV and rate card. Nothing is stored. |
-| `/profile/consultant` | Where a consultant builds their profile. Three optional figures — a day rate, an hourly rate and the salary a permanent role would have to pay. None is calculated from another. One switch hides all three: the profile then reads "Rate on request" to everyone else, while the figures still drive match scores and the rate card. |
+| `/services/document-generator` | Document Generator, for companies: a quote becomes an SOW, work breakdown and deck. Nothing is stored. "The SOW pack: three documents from one estimate", with Start new quote and Your quotes. One card per file says what is in it: the SOW (scope, add-ons and integrations; approach, timeline and acceptance criteria; team and commercials; assumptions, exclusions, your terms and validity), the work breakdown (summary, WBS with a weekly Gantt, scope, team and cost) and the deck (title, at a glance, scope, approach, timeline, team and commercials, assumptions and next steps). It also explains why the three agree and shows a sample timeline. How it works, the supported clouds and the full list of SOW sections are on /quotes/new. It points consultants to the CV Generator. |
+| `/cv-generator` | CV Generator, for consultants: a CV (.docx) or CV + rate card (.zip) generated from the profile. Choose the sections (projects, employment, certifications, Trailhead, day rate), preview, download. "My documents" lists uploaded CVs and cover letters. The Hub does not write cover letters; upload your own. Visitors are asked to create an account. |
+| `/profile/settings` (Work & rate, Privacy) | Where a consultant sets their rates. Three optional figures — a day rate, an hourly rate and the salary a permanent role would have to pay. None is calculated from another. One switch hides all three: the profile then reads "Rate on request" to everyone else, while the figures still drive match scores and the rate card. A private profile is out of the directory, but a company the consultant applied to can still open the profile they were sent. |
 | `/admin/analytics` | Administrators: the site's own counts (visitors and sign-ups by country, the daily challenge, monthly growth), with screens for Google Analytics 4 and Cloudflare Web Analytics beside it where those are configured. |
 | `/admin/applications` | Superadmins only: the state of every application on the site — never its content — and how many have sat untouched. |
 | `/admin/tests` | An administrator's panel that makes real requests against this site's own routes and records what they answered. Admin accounts. |

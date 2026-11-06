@@ -1,0 +1,42 @@
+<%
+  /*
+   * The CV as HTML, from the SAME blocks utils/documents/cvDocx.js lays out as Word
+   * paragraphs (utils/documents/cvLayout.js). Nothing here decides what is on the CV — only
+   * how a block looks on screen — so what is previewed is what downloads.
+   * Every string is the consultant's own and goes through the escaping tag.
+   */
+%>
+<%
+  /*
+   * With nothing but a name and an email the real preview is two lines over a blank page,
+   * which reads as "broken". Below the consultant's own lines, the shape of a full CV is
+   * drawn in grey bars — never invented text: words on a preview would be words the
+   * consultant might think the Hub wrote for them.
+   */
+  const thin = !blocks.some(function (b) { return b.kind === 'heading'; });
+%>
+<div class="cv-page" aria-label="CV preview">
+  <% blocks.forEach(function (b) { %>
+    <% if (b.kind === 'name') { %><div class="cv-name"><%= b.text %></div>
+    <% } else if (b.kind === 'headline') { %><div class="cv-headline"><%= b.text %></div>
+    <% } else if (b.kind === 'contact') { %><div class="cv-contact"><%= b.text %></div>
+    <% } else if (b.kind === 'heading') { %><div class="cv-heading"><%= b.text %></div>
+    <% } else if (b.kind === 'fact') { %><div class="cv-fact"><span><%= b.label %></span><span><%= b.value %></span></div>
+    <% } else if (b.kind === 'bullet') { %><div class="cv-bullet"><%= b.text %></div>
+    <% } else if (b.kind === 'entry') { %><div class="cv-entry"><strong><%= b.left %></strong><span><%= b.right %></span></div>
+    <% } else if (b.kind === 'subtitle') { %><div class="cv-subtitle"><%= b.text %></div>
+    <% } else { %><p class="cv-para"><%= b.text %></p><% } %>
+  <% }); %>
+  <% if (thin) { %>
+    <div class="cv-sample" aria-hidden="true">
+      <% [['Profile', [100, 92, 60]], ['At a glance', [45, 55, 40]], ['Skills', [88]], ['Delivery history', [70, 100, 85]], ['Employment', [65, 95]]].forEach(function (sec) { %>
+        <div class="cv-heading"><%= sec[0] %></div>
+        <% sec[1].forEach(function (w) { %><span class="cv-sample-line" style="width:<%= w %>%"></span><% }); %>
+      <% }); %>
+    </div>
+    <div class="cv-sample-note">
+      <p class="mb-2"><strong>Fill your profile to see your CV here.</strong></p>
+      <a class="btn btn-sm btn-primary" href="/profile/settings">Build your profile</a>
+    </div>
+  <% } %>
+</div>

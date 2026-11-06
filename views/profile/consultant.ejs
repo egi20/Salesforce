@@ -1,482 +1,678 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { icon: 'bi-person-badge', heading: 'Build Your Professional Profile', sub: 'Create a compelling profile that showcases your expertise.' }) %>
+<% if (!consultantMode) { %>
+  <%- include('../partials/page-header', { icon: 'bi-person-gear', heading: 'Build Your Professional Profile', sub: 'Create a compelling profile that showcases your expertise' }) %>
+
+  <section class="glass-section pb-5">
+  <div class="container">
+    <%- include('../partials/flash') %>
+    <%
+      /*
+       * An account without the consultant role sees the account section only, opened at its
+       * roles, with the one step that turns this page into "Build your profile".
+       */
+    %>
+    <div class="glass-card mb-4 setup-consultant" id="consultant-setup">
+      <div class="card-body d-flex flex-column flex-md-row align-items-md-center gap-3">
+        <span class="icon-tile icon-tile-sm icon-navyblue flex-shrink-0"><i class="bi bi-person-badge"></i></span>
+        <div class="flex-grow-1">
+          <h2 class="h6 mb-1">Add the consultant role to set up a profile</h2>
+          <p class="small text-muted-2 mb-0">A consultant profile is what companies find in Browse Talent. Adding the role keeps everything this account already does.</p>
+        </div>
+        <form method="post" action="/profile/settings/roles" class="flex-shrink-0">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <% if (user.is_company) { %><input type="hidden" name="roles" value="company"><% } %>
+          <% if (user.is_recruiter) { %><input type="hidden" name="roles" value="recruiter"><% } %>
+          <button class="btn btn-primary" type="submit" name="roles" value="consultant"><i class="bi bi-person-plus"></i> Set up my consultant profile</button>
+        </form>
+      </div>
+    </div>
+    <%- include('_account') %>
+  </div>
+  </section>
+<% } else { %>
+
+<%- include('../partials/page-header', { icon: 'bi-person-badge', heading: 'Build your profile', sub: 'Your clouds, certifications, delivery history and availability — in a profile companies can find.' }) %>
+
+<%
+  /*
+   * ONE PAGE: the consultant profile and the account settings.
+   *
+   * The sections sit in a sticky menu on the left, each with ✓ when it is done. Without
+   * scripting the menu is a list of anchors and every section is on the page; with scripting
+   * (public/js/main.js) only the chosen section shows, and a link with no #section opens the
+   * first one that is not done yet.
+   *
+   * There is ONE profile form — Basics, Salesforce, Work & rate and Privacy are saved by the
+   * same Save button. The things that are lists of their own (certifications, projects,
+   * experience, documents) and everything under Account are separate forms. Forms cannot
+   * nest, so those are empty <form> elements after the profile form, and their fields join
+   * them through `form="…"`; the Account section is rendered after the profile form entirely.
+   */
+  const nameParts = String(currentUser.name || '').trim().split(/\s+/);
+  const firstName = nameParts.shift() || '';
+  const lastName = nameParts.join(' ');
+  const iso = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
+  const month = (d) => (d ? new Date(d).toISOString().slice(0, 7) : '');
+  const tabs = [
+    ['basics', 'Basics', 'bi-person'],
+    ['salesforce', 'Salesforce', 'bi-cloud'],
+    ['work', 'Work & rate', 'bi-briefcase'],
+    ['projects', 'Projects & experience', 'bi-kanban'],
+    ['documents', 'Documents', 'bi-file-earmark-text'],
+    ['privacy', 'Privacy', 'bi-shield-lock'],
+    ['account', 'Account', 'bi-gear']
+  ];
+  const firstOpen = (tabs.find(function (t) { return t[0] !== 'account' && !sectionsDone[t[0]]; }) || tabs[0])[0];
+  const levelLabel = { familiar: 'Beginner', proficient: 'Proficient', expert: 'Expert' };
+  const languageLabel = { basic: 'Basic', fluent: 'Fluent', native: 'Native' };
+  const step = nextSteps[0];
+  const skillRows = skills.concat([{}, {}]);
+  const languageRows = languages.concat([{}]);
+  const kb = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
+  const req = '<span class="req" aria-hidden="true">*</span>';
+%>
 
 <section class="glass-section pb-5">
 <div class="container">
   <%- include('../partials/flash') %>
 
-  <div class="glass-card mb-4">
+  <div class="glass-card mb-3">
     <div class="card-body">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-2">
-        <div>
-          <h2 class="h6 mb-1">Profile completeness — <%= profile.completeness %>%</h2>
-          <p class="small text-muted-2 mb-0">
-            <%= profile.completeness >= minCompleteness
-                ? 'Complete enough to be listed publicly.'
-                : 'Reach ' + minCompleteness + '% to be listed in the directory.' %>
+      <%
+        /*
+         * Two columns that never wrap into each other: the text takes what is left and may
+         * break onto more lines, the import button keeps its place on the right. With
+         * flex-wrap the button dropped under a long "To be listed: …" line and sat on the
+         * left. On a phone it takes its own full-width row (.profile-progress-actions).
+         */
+      %>
+      <div class="profile-progress-head mb-2">
+        <div class="profile-progress-text">
+          <h2 class="h6 mb-1">Profile <%= profile.completeness %>% complete<% if (step) { %> — <%= step.label %> to reach <%= Math.min(100, profile.completeness + step.gain) %>%<% } %></h2>
+          <p class="small mb-0">
+            <% if (profile.is_public) { %>
+              <span class="badge-hub ok"><i class="bi bi-check2"></i> Visible to companies in Browse Talent</span>
+            <% } else if (listingProblems.length) { %>
+              <span class="text-warning-strong"><i class="bi bi-eye-slash"></i> Your profile isn't visible to companies yet.</span>
+              <span class="text-muted-2">To be listed: <%= listingProblems.join(', ') %>.</span>
+            <% } else { %>
+              <span class="text-warning-strong"><i class="bi bi-eye-slash"></i> Your profile isn't visible to companies yet.</span>
+              <span class="text-muted-2">It is ready — switch it on under <a href="#privacy" data-tab-link="privacy">Privacy</a>.</span>
+            <% } %>
           </p>
         </div>
-        <form method="post" action="/profile/consultant/visibility" class="d-flex align-items-center gap-2">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <div class="form-check form-switch mb-0">
-            <input class="form-check-input" type="checkbox" role="switch" id="is_public" name="is_public"
-                   <%= profile.is_public ? 'checked' : '' %> onchange="this.form.submit()">
-            <label class="form-check-label" for="is_public">Listed in the directory</label>
-          </div>
-        </form>
+        <div class="profile-progress-actions">
+          <button class="btn btn-primary btn-sm" type="button" id="importCvBtn"><i class="bi bi-magic"></i> Import from CV</button>
+          <p class="small text-muted-2 mb-0 mt-1 text-nowrap">.docx or .txt — reviewed before saving</p>
+        </div>
       </div>
-      <div class="meter <%= profile.completeness >= minCompleteness ? 'ready' : '' %>">
-        <i style="width:<%= profile.completeness %>%"></i>
-      </div>
+      <input class="d-none" id="cvImportFile" type="file" accept=".docx,.txt">
+      <p class="small mb-2 d-none" id="cvImportStatus"></p>
+      <div class="d-none" id="cvImportReview"></div>
+      <div class="meter <%= profile.completeness >= minCompleteness ? 'ready' : '' %>"><i style="width:<%= profile.completeness %>%"></i></div>
     </div>
   </div>
 
-  <div class="row g-4">
-    <div class="col-lg-8">
-      <%
-        const nameParts = String(currentUser.name || '').trim().split(/\s+/);
-        const firstName = nameParts.shift() || '';
-        const lastName = nameParts.join(' ');
-      %>
-      <form method="post" action="/profile/consultant" class="glass-card mb-4" id="consultantProfileForm">
-        <div class="card-body">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
-            <h2 class="h6 mb-0"><i class="bi bi-person-badge"></i> Consultant Profile</h2>
-            <button class="btn btn-outline-primary btn-sm" type="button" id="importCvBtn">
-              <i class="bi bi-magic"></i> Import from CV
-            </button>
+  <div class="row g-3">
+    <aside class="col-lg-3">
+      <nav class="profile-tabs" aria-label="Profile sections" data-first-open="<%= firstOpen %>">
+        <% tabs.forEach(function (t) { const done = sectionsDone[t[0]]; %>
+          <a class="profile-tab" href="#<%= t[0] %>" data-tab-link="<%= t[0] %>">
+            <i class="bi <%= t[2] %>" aria-hidden="true"></i> <span class="flex-grow-1"><%= t[1] %></span>
+            <% if (done) { %><i class="bi bi-check-circle-fill tab-done" aria-label="complete"></i><% } %>
+          </a>
+        <% }); %>
+        <a class="profile-tab profile-tab-preview" href="/consultants/<%= profile.user_id %>?preview=company" target="_blank" rel="noopener">
+          <i class="bi bi-eye" aria-hidden="true"></i> <span class="flex-grow-1">Preview public profile</span>
+        </a>
+      </nav>
+    </aside>
+
+    <div class="col-lg-9">
+  <form method="post" action="/profile/consultant" id="consultantProfileForm" data-profile-tabs>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="tab" value="<%= firstOpen %>" data-current-tab>
+
+    <%# ------------------------------------------------------------------- BASICS %>
+    <section class="glass-card profile-section mb-3" id="basics" data-tab="basics">
+      <div class="card-body">
+        <h2 class="h5 mb-1">Basics</h2>
+        <p class="small text-muted-2 mb-3">Fields marked <span class="req">*</span> are needed for a complete profile.</p>
+
+        <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
+          <img class="avatar" style="width:96px;height:96px" src="<%= profile.profile_picture || '/images/avatar-placeholder.svg' %>" alt="">
+          <div>
+            <div class="d-flex gap-2 mb-1">
+              <button class="btn btn-outline-primary btn-sm" type="button" id="changePhotoBtn"><i class="bi bi-upload"></i> Change photo</button>
+              <% if (profile.profile_picture) { %>
+                <button class="btn btn-outline-danger btn-sm" type="button" id="removePhotoBtn"><i class="bi bi-trash"></i> Remove</button>
+              <% } %>
+            </div>
+            <p class="small text-muted-2 mb-0">JPG, PNG or WebP, up to 5 MB. 400×400 works best.</p>
           </div>
-          <p class="small text-muted-2 mb-3">Add or update your professional details as a consultant.</p>
-          <input class="d-none" id="cvImportFile" type="file" accept=".docx,.txt">
-          <p class="small text-muted-2 mb-3 d-none" id="cvImportStatus"></p>
-
-          <hr>
-          <h2 class="h6 mb-3"><i class="bi bi-camera"></i> Profile Photo</h2>
-          <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
-            <img class="avatar" style="width:96px;height:96px"
-                 src="<%= profile.profile_picture || '/images/avatar-placeholder.svg' %>" alt="">
-            <div>
-              <div class="d-flex gap-2 mb-1">
-                <button class="btn btn-outline-primary btn-sm" type="button" id="changePhotoBtn">
-                  <i class="bi bi-upload"></i> Change Photo
-                </button>
-                <% if (profile.profile_picture) { %>
-                  <button class="btn btn-outline-danger btn-sm" type="button" id="removePhotoBtn">
-                    <i class="bi bi-trash"></i> Remove
-                  </button>
-                <% } %>
-              </div>
-              <p class="small text-muted-2 mb-0">JPG, PNG, WebP or GIF. Max 5MB. Recommended: 400&times;400px</p>
-            </div>
-          </div>
-          <input class="d-none" id="photoFile" type="file" accept="image/*">
-
-          <hr>
-          <div class="row g-2 mb-3">
-            <div class="col-md-6">
-              <label class="form-label" for="given_name">Your First Name *</label>
-              <input class="form-control" id="given_name" name="given_name" maxlength="100" required value="<%= firstName %>">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label" for="family_name">Your Last Name *</label>
-              <input class="form-control" id="family_name" name="family_name" maxlength="100" required value="<%= lastName %>">
-            </div>
-          </div>
-
-          <div class="row g-2 mb-3">
-            <div class="col-md-6">
-              <label class="form-label" for="phone">Phone</label>
-              <input class="form-control" id="phone" name="phone" type="tel" maxlength="40" value="<%= profile.phone || '' %>">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label" for="headline">Title</label>
-              <input class="form-control" id="headline" name="headline" maxlength="200"
-                     value="<%= profile.headline || '' %>" placeholder="Senior CPQ consultant, 8 years, remote across EU">
-            </div>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label" for="bio">Bio</label>
-            <textarea class="form-control" id="bio" name="bio" rows="8"><%= profile.bio || '' %></textarea>
-          </div>
-
-          <div class="row g-2 mb-3">
-            <div class="col-md-6">
-              <label class="form-label" for="primary_role">Primary role</label>
-              <select class="form-select" id="primary_role" name="primary_role">
-                <option value="">Choose</option>
-                <% roleCategories.forEach(function (cat) { %>
-                  <optgroup label="<%= cat.category %>">
-                    <% cat.roles.forEach(function (r) { %>
-                      <option value="<%= r.value %>" <%= profile.primary_role === r.value ? 'selected' : '' %>><%= r.label %></option>
-                    <% }); %>
-                  </optgroup>
-                <% }); %>
-              </select>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label" for="seniority">Seniority</label>
-              <select class="form-select" id="seniority" name="seniority">
-                <option value="">Choose</option>
-                <% ['junior','mid','senior','lead'].forEach(function (s) { %>
-                  <option value="<%= s %>" <%= profile.seniority === s ? 'selected' : '' %>><%= s %></option>
-                <% }); %>
-              </select>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label" for="years_experience">Years</label>
-              <input class="form-control" id="years_experience" name="years_experience" type="number" min="0" max="60"
-                     value="<%= profile.years_experience || '' %>">
-            </div>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label" for="skills">Skills</label>
-            <input class="form-control" id="skills" name="skills"
-                   value="<%= skills.map(function (s) { return s.name; }).join(', ') %>"
-                   placeholder="Apex, LWC, CPQ, Flow, Data Cloud">
-            <p class="form-text">Comma separated. These drive matching and employer filters.</p>
-          </div>
-
-          <hr>
-          <h2 class="h6 mb-3">Location and availability</h2>
-
-          <div class="row g-2 mb-3">
-            <div class="col-md-4">
-              <label class="form-label" for="country">Country</label>
-              <select class="form-select" id="country" name="country">
-                <option value="">Choose</option>
-                <% countries.forEach(function (c) { %>
-                  <option value="<%= c.code %>" <%= profile.country === c.code ? 'selected' : '' %>><%= c.name %></option>
-                <% }); %>
-              </select>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label" for="city">City</label>
-              <input class="form-control" id="city" name="city" value="<%= profile.city || '' %>">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label" for="work_mode">Work mode</label>
-              <select class="form-select" id="work_mode" name="work_mode">
-                <% ['remote','hybrid','onsite'].forEach(function (m) { %>
-                  <option value="<%= m %>" <%= profile.work_mode === m ? 'selected' : '' %>><%= m %></option>
-                <% }); %>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" id="willing_to_travel" name="willing_to_travel"
-                   <%= profile.willing_to_travel ? 'checked' : '' %>>
-            <label class="form-check-label" for="willing_to_travel">Willing to travel</label>
-          </div>
-
-          <div class="row g-2 mb-3">
-            <div class="col-md-3">
-              <%
-                /*
-                 * `step="1"`, not `step="10"`.
-                 *
-                 * A number input with `step="10"` is INVALID for any value that is not a
-                 * multiple of ten, and the browser then silently refuses to submit the
-                 * whole form. A consultant whose rate was 752 could not save their profile
-                 * at all — not the rate, not their bio, nothing — and the page gave no
-                 * reason beyond a tooltip on a field they had not touched. The same
-                 * attribute was on both job rate fields and on the rate submission.
-                 */
-              %>
-              <label class="form-label" for="day_rate">Day rate</label>
-              <input class="form-control" id="day_rate" name="day_rate" type="number" min="0" step="1"
-                     value="<%= profile.day_rate ? Math.round(profile.day_rate) : '' %>">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label" for="hourly_rate">Hourly rate</label>
-              <input class="form-control" id="hourly_rate" name="hourly_rate" type="number" min="0" step="1"
-                     value="<%= profile.hourly_rate ? Math.round(profile.hourly_rate) : '' %>">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label" for="annual_salary">Permanent roles from</label>
-              <input class="form-control" id="annual_salary" name="annual_salary" type="number" min="0" step="1"
-                     value="<%= profile.annual_salary ? Math.round(profile.annual_salary) : '' %>">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label" for="currency">Currency</label>
-              <select class="form-select" id="currency" name="currency">
-                <% ['EUR','USD','GBP','CHF'].forEach(function (c) { %>
-                  <option value="<%= c %>" <%= profile.currency === c ? 'selected' : '' %>><%= c %></option>
-                <% }); %>
-              </select>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label" for="availability">Availability</label>
-              <select class="form-select" id="availability" name="availability">
-                <option value="not_available" <%= profile.availability === 'not_available' ? 'selected' : '' %>>Not available</option>
-                <option value="immediate" <%= profile.availability === 'immediate' ? 'selected' : '' %>>Immediately</option>
-                <option value="two_weeks" <%= profile.availability === 'two_weeks' ? 'selected' : '' %>>Within 2 weeks</option>
-                <option value="one_month" <%= profile.availability === 'one_month' ? 'selected' : '' %>>Within a month</option>
-              </select>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label" for="available_from">From</label>
-              <input class="form-control" id="available_from" name="available_from" type="date"
-                     value="<%= profile.available_from ? new Date(profile.available_from).toISOString().slice(0,10) : '' %>">
-            </div>
-          </div>
-
-          <%
-            /*
-             * NOTHING HERE IS DERIVED FROM ANYTHING ELSE HERE.
-             *
-             * An hourly rate is not a day rate divided by eight — the divisor is a contract
-             * term, 7 or 7.5 or 8, and picking one would put a figure on this profile that
-             * its owner never agreed to. An expected salary is not a converted day rate
-             * either: it is a different engagement, with holiday, sick pay and employer
-             * contributions inside it rather than on top. Fill in the ones that apply to
-             * you and leave the rest blank.
-             */
-          %>
-          <p class="form-text mt-0 mb-3">
-            Fill in whichever apply. Nothing is calculated from anything else — an hourly
-            rate is not a day rate divided by eight, and a salary is a different kind of
-            engagement, not a converted rate. <strong>The day rate</strong> is the one your
-            match scores and your rate card use.
-          </p>
-
-          <%
-            /*
-             * A public profile is how you get found; your day rate is the number you
-             * negotiate with, and until now the two were the same decision. The employer
-             * side has had this since the beginning — a role can be advertised without its
-             * budget — and the consultant had no equivalent.
-             *
-             * An unticked checkbox posts nothing, so this is phrased as "show it" and the
-             * route reads the absence as "hide it". The alternative wording would make a
-             * missing field mean "publish", which is the wrong way round for a figure.
-             */
-          %>
-          <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" id="rate_visible" name="rate_visible"
-                   <%= profile.rate_visible ? 'checked' : '' %>>
-            <label class="form-check-label" for="rate_visible">Show my day rate on my public profile</label>
-            <p class="form-text mb-0">
-              Untick it and your profile reads <strong>“Rate on request”</strong> to everyone
-              but you — all three figures, not just the day rate, because an hourly rate
-              times a working day gives the day rate back. They are kept: they still drive
-              your match scores and your rate card, and they stop answering the directory’s
-              rate filter and rate sorting, so nothing can be narrowed down from outside.
-            </p>
-          </div>
-
-          <hr>
-          <h2 class="h6 mb-3">Links</h2>
-          <div class="row g-2 mb-3">
-            <div class="col-md-4">
-              <label class="form-label" for="linkedin_url">LinkedIn</label>
-              <input class="form-control" id="linkedin_url" name="linkedin_url" type="url" value="<%= profile.linkedin_url || '' %>">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label" for="trailblazer_url">Trailblazer</label>
-              <input class="form-control" id="trailblazer_url" name="trailblazer_url" type="url" value="<%= profile.trailblazer_url || '' %>">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label" for="website_url">Website</label>
-              <input class="form-control" id="website_url" name="website_url" type="url" value="<%= profile.website_url || '' %>">
-            </div>
-          </div>
-
-          <button class="btn btn-primary" type="submit">Save profile</button>
-          <a class="btn btn-outline-primary" href="/consultants/<%= profile.user_id %>">Preview</a>
+          <input class="d-none" id="photoFile" type="file" accept="image/jpeg,image/png,image/webp">
         </div>
-      </form>
-    </div>
 
-    <div class="col-lg-4">
-      <div class="glass-card mb-4">
-        <div class="card-body">
-          <h2 class="h6 mb-2">Certifications</h2>
-          <% if (certifications.length) { %>
-            <ul class="list-unstyled small mb-3">
-              <% certifications.forEach(function (c) { %>
-                <li class="d-flex justify-content-between align-items-center mb-1">
-                  <span><i class="bi bi-patch-check text-success"></i> <%= c.name %></span>
-                  <form method="post" action="/profile/consultant/certifications/<%= c.id %>/delete">
-                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                    <button class="btn btn-sm btn-link text-danger p-0" type="submit" aria-label="Remove">&times;</button>
-                  </form>
-                </li>
-              <% }); %>
-            </ul>
-          <% } %>
-          <form method="post" action="/profile/consultant/certifications">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <label class="form-label" for="cert-name">Add a certification</label>
-            <select class="form-select mb-2" id="cert-name" name="name" required>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="given_name">First name <%- req %></label>
+            <input class="form-control" id="given_name" name="given_name" maxlength="100" required value="<%= firstName %>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="family_name">Last name <%- req %></label>
+            <input class="form-control" id="family_name" name="family_name" maxlength="100" required value="<%= lastName %>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="headline">Professional title <%- req %></label>
+            <input class="form-control" id="headline" name="headline" maxlength="200" required value="<%= profile.headline || '' %>" placeholder="Senior CPQ Consultant">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="phone">Phone</label>
+            <input class="form-control" id="phone" name="phone" type="tel" maxlength="40" value="<%= profile.phone || '' %>">
+            <p class="form-text mb-0">Shown only to signed-in hiring accounts, like your email.</p>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="primary_role">Primary role <%- req %></label>
+            <select class="form-select" id="primary_role" name="primary_role" required>
               <option value="">Choose</option>
+              <% roleCategories.forEach(function (cat) { %>
+                <optgroup label="<%= cat.category %>">
+                  <% cat.roles.forEach(function (r) { %>
+                    <option value="<%= r.value %>" <%= profile.primary_role === r.value ? 'selected' : '' %>><%= r.label %></option>
+                  <% }); %>
+                </optgroup>
+              <% }); %>
+            </select>
+            <p class="form-text mb-0">The same roles as the Jobs filters — it drives your match scores.</p>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="seniority">Seniority</label>
+            <select class="form-select" id="seniority" name="seniority">
+              <option value="">Choose</option>
+              <%# Each level carries its band, so main.js can keep it in step with the years. %>
+              <% seniorityLevels.forEach(function (s) { %>
+                <option value="<%= s.value %>" data-min-years="<%= s.minYears %>" data-max-years="<%= Number.isFinite(s.maxYears) ? s.maxYears : '' %>" <%= profile.seniority === s.value ? 'selected' : '' %>><%= s.label %></option>
+              <% }); %>
+            </select>
+            <p class="form-text mb-0" data-seniority-note aria-live="polite"></p>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="years_experience">Years of experience <%- req %></label>
+            <input class="form-control" id="years_experience" name="years_experience" type="number" min="0" max="60" required data-years-for="#seniority" value="<%= profile.years_experience !== null && profile.years_experience !== undefined ? profile.years_experience : '' %>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="country">Country <%- req %></label>
+            <select class="form-select" id="country" name="country" required>
+              <option value="">Choose</option>
+              <% countries.forEach(function (c) { %>
+                <option value="<%= c.code %>" <%= profile.country === c.code ? 'selected' : '' %>><%= c.name %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="city">City</label>
+            <input class="form-control" id="city" name="city" maxlength="120" value="<%= profile.city || '' %>">
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="bio">Professional bio</label>
+            <textarea class="form-control" id="bio" name="bio" rows="6" maxlength="1000" data-char-count="#bioCount"
+                      placeholder="What you deliver, on which clouds, for what kind of client."><%= richTextToEditable(profile.bio) %></textarea>
+            <p class="form-text mb-0"><span id="bioCount"><%= richTextToEditable(profile.bio).length %></span> / 1,000 characters. A blank line starts a new paragraph.</p>
+          </div>
+        </div>
+
+        <h3 class="h6 mt-4 mb-2">Languages</h3>
+        <datalist id="languageList">
+          <% ['English', 'German', 'French', 'Spanish', 'Italian', 'Portuguese', 'Dutch', 'Polish', 'Romanian', 'Albanian', 'Greek', 'Swedish', 'Danish', 'Norwegian', 'Finnish', 'Czech', 'Hungarian', 'Turkish', 'Arabic', 'Hindi', 'Japanese', 'Chinese'].forEach(function (l) { %><option value="<%= l %>"><% }); %>
+        </datalist>
+        <div data-rows="language">
+          <% languageRows.forEach(function (l) { %>
+            <div class="row g-2 mb-2 align-items-center" data-row>
+              <div class="col-7"><input class="form-control form-control-sm" name="language_name" list="languageList" maxlength="60" value="<%= l.language || '' %>" placeholder="Language" aria-label="Language"></div>
+              <div class="col-4">
+                <select class="form-select form-select-sm" name="language_level" aria-label="Level">
+                  <% languageLevels.forEach(function (lv) { %><option value="<%= lv %>" <%= (l.level || 'fluent') === lv ? 'selected' : '' %>><%= languageLabel[lv] %></option><% }); %>
+                </select>
+              </div>
+              <div class="col-1 text-end"><button class="btn btn-sm btn-link text-danger p-0" type="button" data-remove-row aria-label="Remove language">&times;</button></div>
+            </div>
+          <% }); %>
+        </div>
+        <button class="btn btn-outline-primary btn-sm" type="button" data-add-row="language"><i class="bi bi-plus"></i> Add language</button>
+
+        <h3 class="h6 mt-4 mb-2">Links</h3>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="linkedin_url">LinkedIn URL
+              <%# Confirmed only when LinkedIn sign-in actually did it (Account) — never for a typed link. %>
+              <% if (profile.linkedin_verified) { %><span class="badge-hub ok ms-1"><i class="bi bi-patch-check"></i> Confirmed</span><% } %>
+            </label>
+            <input class="form-control" id="linkedin_url" name="linkedin_url" type="url" maxlength="255" value="<%= profile.linkedin_url || '' %>" placeholder="https://www.linkedin.com/in/…">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="website_url">Website</label>
+            <input class="form-control" id="website_url" name="website_url" type="url" maxlength="255" value="<%= profile.website_url || '' %>">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <%# --------------------------------------------------------------- SALESFORCE %>
+    <section class="glass-card profile-section mb-3" id="salesforce" data-tab="salesforce">
+      <div class="card-body">
+        <h2 class="h5 mb-1">Salesforce</h2>
+        <p class="small text-muted-2 mb-3">Clouds and skills are what companies search Browse Talent by.</p>
+
+        <h3 class="h6 mb-2">Clouds you work on <%- req %></h3>
+        <div class="row g-1 mb-1">
+          <% cloudFamilies.forEach(function (f) { %>
+            <div class="col-sm-6 col-lg-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="clouds" value="<%= f.value %>" id="cloud-<%= f.value %>" <%= clouds.includes(f.value) ? 'checked' : '' %>>
+                <label class="form-check-label" for="cloud-<%= f.value %>"><%= f.label %></label>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+        <p class="form-text mb-4">Pick at least one — it is needed to be listed. The same list companies filter Browse Talent by.</p>
+
+        <h3 class="h6 mb-2">Skills</h3>
+        <div class="row g-2 small text-muted-2 d-none d-md-flex"><div class="col-md-6">Skill</div><div class="col-md-3">Level</div><div class="col-md-2">Years</div></div>
+        <div data-rows="skill">
+          <% skillRows.forEach(function (sk) { %>
+            <div class="row g-2 mb-2 align-items-center" data-row>
+              <div class="col-md-6"><input class="form-control form-control-sm" name="skill_name" maxlength="80" value="<%= sk.name || '' %>" placeholder="e.g. Apex, CPQ, Flow" aria-label="Skill"></div>
+              <div class="col-6 col-md-3">
+                <select class="form-select form-select-sm" name="skill_level" aria-label="Level">
+                  <% skillLevels.forEach(function (lv) { %><option value="<%= lv %>" <%= (sk.level || 'proficient') === lv ? 'selected' : '' %>><%= levelLabel[lv] %></option><% }); %>
+                </select>
+              </div>
+              <div class="col-4 col-md-2"><input class="form-control form-control-sm" name="skill_years" type="number" min="0" max="50" value="<%= sk.years !== null && sk.years !== undefined ? sk.years : '' %>" placeholder="Years" aria-label="Years"></div>
+              <div class="col-2 col-md-1 text-end"><button class="btn btn-sm btn-link text-danger p-0" type="button" data-remove-row aria-label="Remove skill">&times;</button></div>
+            </div>
+          <% }); %>
+        </div>
+        <button class="btn btn-outline-primary btn-sm mb-4" type="button" data-add-row="skill"><i class="bi bi-plus"></i> Add skill</button>
+
+        <h3 class="h6 mb-2">Salesforce certifications</h3>
+        <% if (certifications.length) { %>
+          <ul class="list-unstyled small mb-3">
+            <% certifications.forEach(function (c) { %>
+              <li class="d-flex justify-content-between align-items-center border-top py-2">
+                <span>
+                  <i class="bi bi-patch-check text-success"></i> <%= c.name %>
+                  <% if (c.earned_on) { %><span class="text-muted-2">· <%= month(c.earned_on) %></span><% } %>
+                  <% if (c.credential_url) { %>· <a href="<%= c.credential_url %>" target="_blank" rel="noopener noreferrer">credential</a><% } %>
+                </span>
+                <button class="btn btn-sm btn-link text-danger p-0" type="submit" form="removeForm"
+                        formaction="/profile/consultant/certifications/<%= c.id %>/delete" aria-label="Remove <%= c.name %>">&times;</button>
+              </li>
+            <% }); %>
+          </ul>
+        <% } %>
+        <div class="row g-2 align-items-end mb-4">
+          <div class="col-md-5">
+            <label class="form-label small" for="cert-name">Certification</label>
+            <select class="form-select form-select-sm" id="cert-name" name="name" form="certAddForm" required>
+              <option value="">Choose from the official list</option>
               <% certificationGroups.forEach(function (g) { %>
                 <optgroup label="<%= g.group %>">
                   <% g.items.forEach(function (i) { %><option value="<%= i %>"><%= i %></option><% }); %>
                 </optgroup>
               <% }); %>
             </select>
-            <input class="form-control form-control-sm mb-2" name="earned_on" type="date" aria-label="Earned on">
-            <button class="btn btn-outline-primary w-100 btn-sm" type="submit">Add</button>
-          </form>
-        </div>
-      </div>
-
-      <div class="glass-card">
-        <div class="card-body">
-          <h2 class="h6 mb-2">Experience</h2>
-          <% if (experiences.length) { %>
-            <ul class="list-unstyled small mb-3">
-              <% experiences.forEach(function (e) { %>
-                <li class="d-flex justify-content-between align-items-start mb-2">
-                  <span><strong><%= e.title %></strong><br><span class="text-muted-2"><%= e.company %></span></span>
-                  <form method="post" action="/profile/consultant/experience/<%= e.id %>/delete">
-                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                    <button class="btn btn-sm btn-link text-danger p-0" type="submit" aria-label="Remove">&times;</button>
-                  </form>
-                </li>
-              <% }); %>
-            </ul>
-          <% } %>
-          <form method="post" action="/profile/consultant/experience">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <input class="form-control form-control-sm mb-2" name="title" placeholder="Job title" required>
-            <input class="form-control form-control-sm mb-2" name="company" placeholder="Company" required>
-            <div class="row g-1 mb-2">
-              <div class="col-6"><input class="form-control form-control-sm" name="started_on" type="date" required aria-label="Started"></div>
-              <div class="col-6"><input class="form-control form-control-sm" name="ended_on" type="date" aria-label="Ended"></div>
-            </div>
-            <div class="form-check mb-2">
-              <input class="form-check-input" type="checkbox" name="is_current" id="is_current">
-              <label class="form-check-label small" for="is_current">Current role</label>
-            </div>
-            <button class="btn btn-outline-primary w-100 btn-sm" type="submit">Add</button>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="row g-4 mt-1">
-    <div class="col-lg-7">
-      <div class="glass-card">
-        <div class="card-body">
-          <h2 class="h6 mb-1">Delivery history</h2>
-          <p class="small text-muted-2">
-            The engagements themselves, as distinct from who employed you. On a contractor's
-            CV this is the substance — which orgs, which clouds, what shipped — and through an
-            agency the employer line is often the same name every time.
-          </p>
-
-          <% if (projects.length) { %>
-            <ul class="list-unstyled small mb-3">
-              <% projects.forEach(function (p) { %>
-                <li class="d-flex justify-content-between align-items-start border-top py-2">
-                  <span>
-                    <strong><%= p.name %></strong>
-                    <% if (p.client) { %><span class="text-muted-2"> · <%= p.client %></span><% } %>
-                    <br>
-                    <span class="text-muted-2">
-                      <% if (p.cloud) { %><%= moduleLabel(p.cloud) || p.cloud %> · <% } %>
-                      <% if (p.role) { %><%= roleLabel(p.role) %> · <% } %>
-                      <%= p.started_on ? new Date(p.started_on).toISOString().slice(0, 7) : '' %>
-                      <% if (p.ended_on) { %>– <%= new Date(p.ended_on).toISOString().slice(0, 7) %><% } else { %>– present<% } %>
-                    </span>
-                  </span>
-                  <form method="post" action="/profile/consultant/projects/<%= p.id %>/delete">
-                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                    <button class="btn btn-sm btn-link text-danger p-0" type="submit" aria-label="Remove">&times;</button>
-                  </form>
-                </li>
-              <% }); %>
-            </ul>
-          <% } %>
-
-          <form method="post" action="/profile/consultant/projects">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <div class="row g-2 mb-2">
-              <div class="col-md-7">
-                <label class="visually-hidden" for="proj-name">Engagement</label>
-                <input class="form-control form-control-sm" id="proj-name" name="name"
-                       placeholder="What it was, e.g. Quote-to-cash rollout" maxlength="200" required>
-              </div>
-              <div class="col-md-5">
-                <label class="visually-hidden" for="proj-client">Client</label>
-                <input class="form-control form-control-sm" id="proj-client" name="client"
-                       placeholder="Client (optional)" maxlength="180">
-              </div>
-            </div>
-            <div class="row g-2 mb-2">
-              <div class="col-md-6">
-                <label class="visually-hidden" for="proj-cloud">Cloud or module</label>
-                <select class="form-select form-select-sm" id="proj-cloud" name="cloud">
-                  <option value="">Cloud or module</option>
-                  <% allModules.forEach(function (m) { %>
-                    <option value="<%= m.value %>"><%= m.familyLabel %> — <%= m.label %></option>
-                  <% }); %>
-                </select>
-              </div>
-              <div class="col-md-6">
-                <label class="visually-hidden" for="proj-role">Your role</label>
-                <select class="form-select form-select-sm" id="proj-role" name="role">
-                  <option value="">Your role</option>
-                  <% roleCategories.forEach(function (cat) { %>
-                    <optgroup label="<%= cat.category %>">
-                      <% cat.roles.forEach(function (r) { %>
-                        <option value="<%= r.value %>"><%= r.label %></option>
-                      <% }); %>
-                    </optgroup>
-                  <% }); %>
-                </select>
-              </div>
-            </div>
-            <div class="row g-2 mb-2">
-              <div class="col-6"><input class="form-control form-control-sm" name="started_on" type="date" aria-label="Started"></div>
-              <div class="col-6"><input class="form-control form-control-sm" name="ended_on" type="date" aria-label="Ended"></div>
-            </div>
-            <div class="mb-2">
-              <label class="visually-hidden" for="proj-description">What you did</label>
-              <textarea class="form-control form-control-sm" id="proj-description" name="description" rows="3"
-                        placeholder="What you actually did. This goes on the CV as you write it — nothing rewrites it."></textarea>
-            </div>
-            <button class="btn btn-outline-primary btn-sm" type="submit">Add engagement</button>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-5">
-      <div class="glass-card">
-        <div class="card-body">
-          <span class="icon-tile icon-navy mb-3"><i class="bi bi-file-earmark-arrow-down"></i></span>
-          <h2 class="h6">Your documents</h2>
-          <p class="small text-muted-2">
-            A CV and a rate card, rendered from this profile. Nothing is summarised, rephrased or
-            invented — what is written here is what comes out, so they are yours to edit freely.
-            Generated on demand, never stored: the stale copy is the one you would eventually send.
-          </p>
-          <a class="btn btn-primary w-100 mb-2" href="/profile/consultant/download/package">
-            <i class="bi bi-download"></i> Both, zipped
-          </a>
-          <div class="d-flex gap-2">
-            <a class="btn btn-outline-primary btn-sm flex-grow-1" href="/profile/consultant/download/cv">CV (.docx)</a>
-            <a class="btn btn-outline-primary btn-sm flex-grow-1" href="/profile/consultant/download/rate-card">Rate card (.docx)</a>
           </div>
-          <hr>
+          <div class="col-md-3">
+            <label class="form-label small" for="cert-date">Earned</label>
+            <input class="form-control form-control-sm" id="cert-date" name="earned_on" type="date" form="certAddForm">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small" for="cert-url">Credential URL</label>
+            <input class="form-control form-control-sm" id="cert-url" name="credential_url" type="url" maxlength="255" form="certAddForm" placeholder="https://trailhead.salesforce.com/…">
+          </div>
+          <div class="col-12"><button class="btn btn-outline-primary btn-sm" type="submit" form="certAddForm"><i class="bi bi-plus"></i> Add certification</button></div>
+        </div>
+
+        <h3 class="h6 mb-2">Trailhead</h3>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="trailblazer_url">Trailblazer profile URL</label>
+            <input class="form-control" id="trailblazer_url" name="trailblazer_url" type="url" maxlength="255" value="<%= profile.trailblazer_url || '' %>" placeholder="https://www.salesforce.com/trailblazer/…">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="trailhead_rank">Rank</label>
+            <select class="form-select" id="trailhead_rank" name="trailhead_rank">
+              <option value="">—</option>
+              <% trailheadRanks.forEach(function (r) { %><option value="<%= r %>" <%= profile.trailhead_rank === r ? 'selected' : '' %>><%= r %></option><% }); %>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="trailhead_badges">Badges</label>
+            <input class="form-control" id="trailhead_badges" name="trailhead_badges" type="number" min="0" max="10000" value="<%= profile.trailhead_badges !== null && profile.trailhead_badges !== undefined ? profile.trailhead_badges : '' %>">
+          </div>
+        </div>
+        <p class="form-text mb-0">As stated by you; the profile links to Trailhead so a company can check it there.</p>
+      </div>
+    </section>
+
+    <%# -------------------------------------------------------------- WORK & RATE %>
+    <section class="glass-card profile-section mb-3" id="work" data-tab="work">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Work &amp; rate</h2>
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <span class="form-label d-block">Type of work <%- req %></span>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="open_to_contract" name="open_to_contract" <%= profile.open_to_contract ? 'checked' : '' %>>
+              <label class="form-check-label" for="open_to_contract">Contract</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="open_to_permanent" name="open_to_permanent" <%= profile.open_to_permanent ? 'checked' : '' %>>
+              <label class="form-check-label" for="open_to_permanent">Permanent</label>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="availability">Availability <%- req %></label>
+            <select class="form-select" id="availability" name="availability">
+              <%# Blank until chosen: a pre-selected answer is one somebody can save without reading. %>
+              <%# Once answered it cannot be blanked again: a listed profile must keep saying whether somebody is free. %>
+              <option value="" <%= profile.availability ? 'disabled' : 'selected' %>>Choose…</option>
+              <% availabilityOptions.forEach(function (a) { %>
+                <%# The two "in N weeks" values stay selectable only for a profile that holds one: %>
+                <%# "Available from" says the same thing more precisely. %>
+                <% if (['two_weeks', 'one_month'].includes(a.value) && profile.availability !== a.value) return; %>
+                <option value="<%= a.value %>" <%= profile.availability === a.value ? 'selected' : '' %>><%= a.label %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="available_from">Available from</label>
+            <input class="form-control" id="available_from" name="available_from" type="date" value="<%= iso(profile.available_from) %>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="work_mode">Work mode</label>
+            <select class="form-select" id="work_mode" name="work_mode">
+              <option value="" <%= profile.work_mode ? 'disabled' : 'selected' %>>Choose…</option>
+              <% ['remote', 'hybrid', 'onsite'].forEach(function (m) { %>
+                <option value="<%= m %>" <%= profile.work_mode === m ? 'selected' : '' %>><%= workModeLabel(m) %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="col-md-6 d-flex align-items-end">
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="willing_to_travel" name="willing_to_travel" <%= profile.willing_to_travel ? 'checked' : '' %>>
+              <label class="form-check-label" for="willing_to_travel">Willing to travel</label>
+            </div>
+          </div>
+          <div class="col-12">
+            <span class="form-label d-block" id="workCountriesLabel">Countries you will work in <span class="text-muted-2 small">(<span data-country-count><%= workCountries.length %></span> chosen)</span></span>
+            <%
+              /*
+               * Without JavaScript this is the searchable checkbox list below. With it, the list
+               * is hidden and driven from a search box: matches appear under the box, a chosen
+               * country becomes a chip with ×, and the checkboxes stay the only thing posted —
+               * so the server reads one shape whichever the browser showed.
+               */
+            %>
+            <div class="country-picker d-none" data-country-picker="#workCountryList" data-eu="<%= euCountryCodes.join(',') %>">
+              <div class="d-flex flex-wrap gap-2 mb-2">
+                <button class="btn btn-outline-primary btn-sm" type="button" data-country-eu><i class="bi bi-globe-europe-africa"></i> Anywhere in EU</button>
+                <div class="form-check form-check-inline align-self-center mb-0 ms-1">
+                  <input class="form-check-input" type="checkbox" id="works_anywhere_js" data-mirror="#works_anywhere" <%= profile.works_anywhere ? 'checked' : '' %>>
+                  <label class="form-check-label" for="works_anywhere_js">Anywhere (remote)</label>
+                </div>
+              </div>
+              <div class="country-chips d-flex flex-wrap gap-1 mb-2" data-country-chips aria-live="polite"></div>
+              <div class="position-relative">
+                <input class="form-control" type="search" placeholder="Type a country…" aria-labelledby="workCountriesLabel" autocomplete="off" data-country-search>
+                <ul class="country-suggest list-unstyled d-none" data-country-suggest role="listbox"></ul>
+              </div>
+            </div>
+            <div data-country-fallback>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="works_anywhere" name="works_anywhere" <%= profile.works_anywhere ? 'checked' : '' %>>
+              <label class="form-check-label" for="works_anywhere">Anywhere (remote)</label>
+            </div>
+            <input class="form-control form-control-sm mb-2" type="search" placeholder="Search countries…" aria-label="Search countries" data-filter-list="#workCountryList" autocomplete="off">
+            <div class="filter-scroll border rounded p-2" id="workCountryList">
+              <div data-filter-group>
+                <% countries.forEach(function (c) { const id = 'wc-' + c.code; %>
+                  <div class="form-check" data-filter-item>
+                    <input class="form-check-input" type="checkbox" name="work_countries" value="<%= c.code %>" id="<%= id %>" <%= workCountries.includes(c.code) ? 'checked' : '' %>>
+                    <label class="form-check-label" for="<%= id %>"><%= c.name %></label>
+                  </div>
+                <% }); %>
+              </div>
+            </div>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="h6 mt-4 mb-2">Rate</h3>
+        <%
+          /*
+           * NOTHING HERE IS DERIVED FROM ANYTHING ELSE HERE. An hourly rate is not a day rate
+           * divided by eight, and a salary is a different engagement, not a converted rate.
+           * The day rate is bounded 200–3,000 as the spec states; `step="1"` because `step="10"`
+           * once made a rate of 752 invalid and silently blocked the whole form.
+           */
+        %>
+        <div class="row g-3">
+          <%
+            /*
+             * Each figure belongs to a type of work: the day and hourly rate to contract, the
+             * salary to permanent. The star and the field follow the boxes above (data-for);
+             * without JavaScript every field shows and the star reads "if you chose it".
+             */
+          %>
+          <div class="col-md-3" data-for-work="open_to_contract">
+            <label class="form-label" for="day_rate">Day rate <span class="small text-muted-2">(contract)</span> <%- req %></label>
+            <input class="form-control" id="day_rate" name="day_rate" type="number" min="200" max="3000" step="1" value="<%= profile.day_rate ? Math.round(profile.day_rate) : '' %>">
+          </div>
+          <div class="col-md-3" data-for-work="open_to_contract">
+            <label class="form-label" for="hourly_rate">Hourly rate <span class="small text-muted-2">(contract)</span></label>
+            <input class="form-control" id="hourly_rate" name="hourly_rate" type="number" min="0" step="1" value="<%= profile.hourly_rate ? Math.round(profile.hourly_rate) : '' %>">
+          </div>
+          <div class="col-md-3" data-for-work="open_to_permanent">
+            <label class="form-label" for="annual_salary">Annual salary <span class="small text-muted-2">(permanent)</span> <%- req %></label>
+            <input class="form-control" id="annual_salary" name="annual_salary" type="number" min="0" step="1" value="<%= profile.annual_salary ? Math.round(profile.annual_salary) : '' %>">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="currency">Currency <%- req %></label>
+            <select class="form-select" id="currency" name="currency">
+              <% ['EUR', 'USD', 'GBP', 'CHF'].forEach(function (c) { %>
+                <option value="<%= c %>" <%= profile.currency === c ? 'selected' : '' %>><%= c %></option>
+              <% }); %>
+            </select>
+          </div>
+        </div>
+        <p class="form-text mb-0 d-none" data-rate-none>Choose Contract or Permanent above to enter your rate.</p>
+        <p class="form-text mb-0">
+          <span data-rate-help>Day rate between 200 and 3,000, for contract work; annual salary for permanent roles.</span>
+          Nothing is calculated from anything else.
+          <a href="/rates/calculator" target="_blank" rel="noopener">Check the market rate <i class="bi bi-box-arrow-up-right"></i></a>
+        </p>
+      </div>
+    </section>
+
+    <%# ---------------------------------------------------- PROJECTS & EXPERIENCE %>
+    <section class="glass-card profile-section mb-3" id="projects" data-tab="projects">
+      <div class="card-body">
+        <h2 class="h5 mb-1">Projects</h2>
+        <p class="small text-muted-2 mb-3">The engagements themselves — which orgs, which clouds, what shipped. Drag <i class="bi bi-grip-vertical"></i> to reorder.</p>
+        <%- include('_entryList', { kind: 'projects', items: projects }) %>
+        <details class="entry-add mb-4" <%= projects.length === 0 ? 'open' : '' %>>
+          <summary class="btn btn-outline-primary btn-sm"><i class="bi bi-plus"></i> Add project</summary>
+          <%- include('_projectFields', { formId: 'projAddForm', item: {} }) %>
+          <button class="btn btn-primary btn-sm mt-2" type="submit" form="projAddForm">Add project</button>
+        </details>
+
+        <h2 class="h5 mb-1">Work experience</h2>
+        <p class="small text-muted-2 mb-3">The companies you worked for or through.</p>
+        <%- include('_entryList', { kind: 'experience', items: experiences }) %>
+        <details class="entry-add" <%= experiences.length === 0 ? 'open' : '' %>>
+          <summary class="btn btn-outline-primary btn-sm"><i class="bi bi-plus"></i> Add experience</summary>
+          <%- include('_experienceFields', { formId: 'expAddForm', item: {} }) %>
+          <button class="btn btn-primary btn-sm mt-2" type="submit" form="expAddForm">Add experience</button>
+        </details>
+      </div>
+    </section>
+
+    <%# ---------------------------------------------------------------- DOCUMENTS %>
+    <section class="glass-card profile-section mb-3" id="documents" data-tab="documents">
+      <div class="card-body">
+        <h2 class="h5 mb-1">Documents</h2>
+        <p class="small text-muted-2 mb-3">Your own CVs and cover letters, plus a CV generated from this profile.</p>
+
+        <% if (documents.length) { %>
+          <ul class="list-unstyled small mb-3">
+            <% documents.forEach(function (d) { %>
+              <li class="d-flex flex-wrap justify-content-between align-items-center gap-2 border-top py-2">
+                <span>
+                  <i class="bi <%= d.content_type === 'application/pdf' ? 'bi-file-earmark-pdf' : 'bi-file-earmark-word' %>"></i>
+                  <strong><%= d.title || d.filename %></strong>
+                  <span class="text-muted-2">· <%= d.kind === 'cv' ? 'CV' : 'Cover letter' %> · <%= kb(d.byte_size) %></span>
+                  <% if (d.is_default) { %><span class="badge-hub ok ms-1">Default</span><% } %>
+                </span>
+                <span class="d-flex gap-2">
+                  <a class="btn btn-outline-primary btn-sm" href="/profile/consultant/documents/<%= d.id %>/download">Download</a>
+                  <% if (!d.is_default) { %>
+                    <button class="btn btn-outline-primary btn-sm" type="submit" form="removeForm" formaction="/profile/consultant/documents/<%= d.id %>/default">Set as default</button>
+                  <% } %>
+                  <button class="btn btn-outline-danger btn-sm" type="submit" form="removeForm" formaction="/profile/consultant/documents/<%= d.id %>/delete" aria-label="Delete <%= d.title || d.filename %>"><i class="bi bi-trash"></i></button>
+                </span>
+              </li>
+            <% }); %>
+          </ul>
+        <% } %>
+
+        <div class="row g-2 align-items-end mb-2">
+          <div class="col-md-5">
+            <label class="form-label small" for="docFile">File</label>
+            <input class="form-control form-control-sm" id="docFile" name="document" type="file" form="docUploadForm" accept=".pdf,.docx" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small" for="docKind">Type</label>
+            <select class="form-select form-select-sm" id="docKind" name="kind" form="docUploadForm">
+              <option value="cv">CV</option>
+              <option value="cover_letter">Cover letter</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small" for="docTitle">Title (optional)</label>
+            <input class="form-control form-control-sm" id="docTitle" name="title" maxlength="120" form="docUploadForm" placeholder="e.g. CPQ-focused CV">
+          </div>
+          <div class="col-md-6">
+            <div class="form-check mb-0">
+              <input class="form-check-input" type="checkbox" id="docDefault" name="is_default" form="docUploadForm">
+              <label class="form-check-label small" for="docDefault">Set as default</label>
+            </div>
+          </div>
+          <div class="col-md-6 text-md-end"><button class="btn btn-outline-primary btn-sm" type="submit" form="docUploadForm"><i class="bi bi-upload"></i> Upload</button></div>
+        </div>
+        <p class="form-text mb-4">
+          PDF or Word (.docx), up to <%= documentMaxMb %> MB. Older .doc files and documents with macros,
+          scripts or links to outside templates are refused — save as PDF or .docx instead.
+        </p>
+
+        <h3 class="h6 mb-2">Generated from your profile</h3>
+        <div class="d-flex flex-wrap gap-2 mb-4">
+          <a class="btn btn-primary btn-sm" href="/profile/consultant/download/cv"><i class="bi bi-file-earmark-word"></i> Generate CV (.docx)</a>
+          <a class="btn btn-outline-primary btn-sm" href="/profile/consultant/download/package">CV + rate card (.zip)</a>
+          <a class="btn btn-outline-primary btn-sm" href="/cv-generator">Open the CV Generator</a>
+        </div>
+
+        <h3 class="h6 mb-2">What's next</h3>
+        <ol class="whats-next">
+          <li><a href="#documents" data-focus="docFile">Upload your CV</a> — or <a href="#" data-click="importCvBtn">import it</a> to fill the fields you have not typed yet.</li>
+          <li><a href="/profile/consultant/download/cv">Generate a CV</a> from the finished profile.</li>
+          <li><a href="/jobs">Browse jobs</a> — every role shows how well it matches you.</li>
+        </ol>
+      </div>
+    </section>
+
+    <%# ------------------------------------------------------------------ PRIVACY %>
+    <section class="glass-card profile-section mb-3" id="privacy" data-tab="privacy">
+      <div class="card-body">
+        <h2 class="h5 mb-1">Privacy</h2>
+        <p class="small text-muted-2 mb-3">You decide who sees your profile and your rate.</p>
+
+        <div class="privacy-row">
+          <div class="form-check form-switch mb-0">
+            <%# Its own form (visibilityForm), so listing changes at once and independently of Save. %>
+            <input class="form-check-input" type="checkbox" role="switch" id="is_public" name="is_public" form="visibilityForm"
+                   <%= profile.is_public ? 'checked' : '' %> data-submit-on-change>
+            <label class="form-check-label fw-semibold" for="is_public">Public — list my profile in Browse Talent</label>
+            <button class="btn btn-outline-primary btn-sm ms-2" type="submit" form="visibilityForm" data-no-script-only>Update</button>
+          </div>
           <p class="small text-muted-2 mb-0">
-            Working out what to charge? The
-            <a href="/rates/calculator">rate calculator</a> shows what a day rate is worth over a
-            year once holiday, the bench and running costs come out of it.
+            <% if (profile.is_public) { %>
+              Companies can find you. Switch off to make the profile private; nothing is deleted.
+            <% } else if (listingProblems.length) { %>
+              Private for now. To list it: <%= listingProblems.join(', ') %>.
+            <% } else { %>
+              Private. Ready to be listed whenever you are.
+            <% } %>
+            <strong>A company you apply to sees the profile you sent them, even while it is private.</strong>
           </p>
         </div>
+
+        <div class="privacy-row">
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" id="rate_visible" name="rate_visible" <%= profile.rate_visible ? 'checked' : '' %>>
+            <label class="form-check-label fw-semibold" for="rate_visible">Show my rates</label>
+          </div>
+          <p class="small text-muted-2 mb-0">
+            Untick it and every figure reads <strong>“Rate on request”</strong> to companies. Your rates still
+            drive your match scores and rate card, and stop answering the directory's rate filter.
+            Saved with the profile.
+          </p>
+        </div>
+
+        <div class="privacy-row border-0 mb-0 pb-0">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span class="fw-semibold">Hide from specific companies
+              <% if (hiddenCompanyCount) { %><span class="badge-hub ms-1"><%= hiddenCompanyCount %></span><% } %></span>
+            <a class="btn btn-outline-primary btn-sm" href="/profile/hidden-companies">Search and manage</a>
+          </div>
+          <p class="small text-muted-2 mb-0">Your current employer included: a company you name cannot see your profile in Browse Talent or by its link.</p>
+        </div>
       </div>
+    </section>
+
+    <%# Stays at the bottom of the window while the page scrolls. %>
+    <div class="profile-savebar">
+      <span class="small text-muted-2 me-auto" data-unsaved-note>Projects, certifications and documents save as you add them.</span>
+      <a class="btn btn-outline-primary" href="/consultants/<%= profile.user_id %>?preview=company" target="_blank" rel="noopener"><i class="bi bi-eye"></i> Preview</a>
+      <button class="btn btn-primary" type="submit"><i class="bi bi-check2"></i> Save profile</button>
+    </div>
+  </form>
+
+  <%- include('_account') %>
     </div>
   </div>
+
+  <form id="visibilityForm" method="post" action="/profile/consultant/visibility"><input type="hidden" name="_csrf" value="<%= csrfToken %>"></form>
+  <form id="certAddForm" method="post" action="/profile/consultant/certifications"><input type="hidden" name="_csrf" value="<%= csrfToken %>"></form>
+  <form id="projAddForm" method="post" action="/profile/consultant/projects"><input type="hidden" name="_csrf" value="<%= csrfToken %>"></form>
+  <form id="expAddForm" method="post" action="/profile/consultant/experience"><input type="hidden" name="_csrf" value="<%= csrfToken %>"></form>
+  <% projects.forEach(function (p) { %>
+    <form id="projEdit-<%= p.id %>" method="post" action="/profile/consultant/projects/<%= p.id %>"><input type="hidden" name="_csrf" value="<%= csrfToken %>"></form>
+  <% }); %>
+  <% experiences.forEach(function (e) { %>
+    <form id="expEdit-<%= e.id %>" method="post" action="/profile/consultant/experience/<%= e.id %>"><input type="hidden" name="_csrf" value="<%= csrfToken %>"></form>
+  <% }); %>
+  <%# CSRF goes in the query for a multipart upload: the token is checked after multer parses %>
+  <%# the body (middleware/csrf.js), and the hidden field below carries it there. %>
+  <form id="docUploadForm" method="post" action="/profile/consultant/documents" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="<%= csrfToken %>"></form>
+  <%# Every × and move names its own target with `formaction`. The default action deliberately %>
+  <%# goes nowhere: an empty post to the profile route would save a profile with every field blank. %>
+  <form id="removeForm" method="post" action="/profile/consultant/no-target"><input type="hidden" name="_csrf" value="<%= csrfToken %>"></form>
 </div>
 </section>
+
+<% } %>
 
 <%- include('../partials/layout-end') %>

@@ -4,12 +4,38 @@ const ErrorLog = require('../models/ErrorLog');
 const config = require('../config/config');
 const { isNavigation } = require('./auth');
 const { returnTo } = require('../utils/returnTo');
+const { routeExists } = require('../utils/routeExists');
 
 function notFound(req, res) {
   if (!isNavigation(req)) {
     return res.status(404).json({ success: false, error: 'Not found' });
   }
   return res.status(404).render('errors/404', { title: 'Page not found' });
+}
+
+/**
+ * A CSRF refusal from a scanner is not an error — it is the defence working — and writing
+ * them down buries the one refusal that matters, a real form failing for real people. SAP
+ * Hub's production log was nothing but these (POST /graphql, /xmlrpc.php, /api, POST /), and
+ * this site sits on the same internet. The rule, in the order SAP Hub learned it:
+ *
+ *  1. No route here answers that path. A real form only ever posts to a route that exists,
+ *     so a refusal on /graphql is a scanner whatever headers it sent — the one test a
+ *     headless browser cannot pass. `routeExists` asks the router itself and answers yes
+ *     when unsure, so an unknown shape never hides a real failure.
+ *  2. No session cookie. Every form is served from a page that issues `sfhub.sid`.
+ *  3. The cookie but no person: not signed in and no `Sec-Fetch-Site`, which every current
+ *     browser sends on a form post. Every response sets the cookie, a 404 included, so a
+ *     scanner with a cookie jar carries one.
+ *
+ * Those still get the 403; they are just not written down.
+ */
+function isScannerCsrfRefusal(err, req) {
+  if (!err || err.code !== 'EBADCSRFTOKEN') return false;
+  if (req.app && !routeExists(req.app, req.method, req.path)) return true;
+  if (!/(?:^|;\s*)sfhub\.sid=/.test(req.get('cookie') || '')) return true;
+  const signedIn = Boolean(req.session && req.session.user);
+  return !signedIn && !req.get('sec-fetch-site');
 }
 
 /**
@@ -42,7 +68,7 @@ function errorHandler(err, req, res, next) {
     return next(err);
   }
   // Fire and forget: persisting the log must not delay or break the response.
-  ErrorLog.record(err, req, status);
+  if (!isScannerCsrfRefusal(err, req)) ErrorLog.record(err, req, status);
 
   if (err.code === 'EBADCSRFTOKEN') {
     if (!isNavigation(req)) {
@@ -71,4 +97,4 @@ function asyncHandler(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 }
 
-module.exports = { notFound, errorHandler, asyncHandler };
+module.exports = { isScannerCsrfRefusal, notFound, errorHandler, asyncHandler };

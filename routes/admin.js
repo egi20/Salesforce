@@ -433,15 +433,32 @@ router.get(
   })
 );
 
+function errorFiltersFrom(source) {
+  const s = source || {};
+  return {
+    q: typeof s.q === 'string' ? s.q.trim().slice(0, 200) : '',
+    statusCode: typeof s.status_code === 'string' ? s.status_code : '',
+    from: typeof s.from === 'string' ? s.from : '',
+    to: typeof s.to === 'string' ? s.to : ''
+  };
+}
+
 router.get(
   '/errors',
   asyncHandler(async (req, res) => {
     const { page, perPage, limit, offset } = paginationFrom(req.query, { defaultPerPage: 50 });
-    const { rows, total } = await ErrorLog.list({ limit, offset });
+    const filters = errorFiltersFrom(req.query);
+    const [{ rows, total }, statusCodes] = await Promise.all([
+      ErrorLog.list(filters, { limit, offset }),
+      ErrorLog.statusCodes()
+    ]);
 
     res.render('admin/errors', {
       title: 'Error log',
       errors: rows,
+      filters,
+      statusCodes,
+      query: req.query,
       pagination: paginationMeta({ page, perPage, total }),
       pageUrl: (p) => pageUrl('/admin/errors', req.query, p)
     });
@@ -458,7 +475,7 @@ router.get(
 router.get(
   '/errors/export.csv',
   asyncHandler(async (req, res) => {
-    const rows = await ErrorLog.exportRows();
+    const rows = await ErrorLog.exportRows(errorFiltersFrom(req.query));
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="errors.csv"');
     res.setHeader('Cache-Control', 'private, no-store');
@@ -569,6 +586,40 @@ router.get(
       priceInput: assistantConfig.PRICE_PER_MTOK_INPUT,
       priceOutput: assistantConfig.PRICE_PER_MTOK_OUTPUT
     });
+  })
+);
+
+/**
+ * POST /admin/errors/delete-matching — delete the entries the current filter shows.
+ *
+ * Superadmin, like the purge: it cannot be undone. See ErrorLog.deleteMatching for the two
+ * guards (a filter is required, and the count shown must still be the count matched).
+ */
+router.post(
+  '/errors/delete-matching',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const filters = errorFiltersFrom(req.body);
+    const back = `/admin/errors?${new URLSearchParams({
+      q: filters.q, status_code: filters.statusCode, from: filters.from, to: filters.to
+    }).toString()}`;
+    const expected = Number.parseInt(req.body.expected_count, 10);
+    if (!Number.isInteger(expected) || expected < 1) {
+      req.flash('error', 'Nothing to delete.');
+      return res.redirect(back);
+    }
+    try {
+      const removed = await ErrorLog.deleteMatching(filters, expected);
+      req.flash('success', `Deleted ${removed} error ${removed === 1 ? 'entry' : 'entries'}.`);
+      return res.redirect('/admin/errors');
+    } catch (err) {
+      if (err.code === 'ERROR_LOG_NO_FILTER' || err.code === 'ERROR_LOG_COUNT_MISMATCH') {
+        req.flash('error', err.message);
+        return res.redirect(back);
+      }
+      throw err;
+    }
   })
 );
 

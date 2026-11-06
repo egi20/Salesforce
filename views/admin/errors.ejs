@@ -7,12 +7,79 @@
   <%- include('./_tabs', { current: 'errors' }) %>
   <%- include('../partials/flash') %>
 
-  <% if (errors.length) { %>
-    <p class="text-end mb-2">
-      <%# Without stack traces, and with formula-like cells neutralised (utils/csv.js). %>
-      <a class="btn btn-sm btn-outline-primary" href="/admin/errors/export.csv"><i class="bi bi-download"></i> Export CSV</a>
-    </p>
+  <div class="glass-card mb-3">
+    <div class="card-body">
+      <form class="row g-2 align-items-end" method="get" action="/admin/errors">
+        <div class="col-md-4">
+          <label class="form-label" for="q">Search the message or the path</label>
+          <input class="form-control" type="search" id="q" name="q" maxlength="200" value="<%= filters.q %>">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="status_code">Status</label>
+          <select class="form-select" id="status_code" name="status_code">
+            <option value="">Any</option>
+            <% statusCodes.forEach(function (c) { %>
+              <option value="<%= c %>" <%= String(filters.statusCode) === String(c) ? 'selected' : '' %>><%= c %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="from">From</label>
+          <input class="form-control" type="date" id="from" name="from" value="<%= filters.from %>">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="to">To</label>
+          <input class="form-control" type="date" id="to" name="to" value="<%= filters.to %>">
+        </div>
+        <div class="col-md-2 d-grid gap-2">
+          <button class="btn btn-primary" type="submit">Filter</button>
+          <a class="btn btn-outline-secondary btn-sm" href="/admin/errors">Clear</a>
+        </div>
+      </form>
+      <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+        <%# Without stack traces, and with formula-like cells neutralised (utils/csv.js). %>
+        <a class="btn btn-sm btn-outline-primary" href="/admin/errors/export.csv?<%= new URLSearchParams(query).toString() %>"><i class="bi bi-download"></i> Export these</a>
+        <span class="form-text"><strong><%= pagination.total %></strong> match.</span>
+      </div>
+    </div>
+  </div>
+
+  <% const anyErrorFilter = Boolean(filters.q || filters.statusCode || filters.from || filters.to); %>
+  <% if (currentUser && currentUser.isSuperadmin && anyErrorFilter && pagination.total > 0) { %>
+    <%#
+      Deletes exactly what the filter above lists, and nothing without a filter. The count goes
+      with the form: if the filter matches a different number when it is pressed, nothing is
+      deleted.
+    -%>
+    <div class="glass-card mb-3">
+      <div class="card-body d-flex flex-wrap align-items-center gap-3">
+        <form method="post" action="/admin/errors/delete-matching" class="m-0" id="errDeleteMatching"
+              data-confirm="Permanently delete the <%= pagination.total %> entries this filter shows? This cannot be undone.">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="q" value="<%= filters.q %>">
+          <input type="hidden" name="status_code" value="<%= filters.statusCode %>">
+          <input type="hidden" name="from" value="<%= filters.from %>">
+          <input type="hidden" name="to" value="<%= filters.to %>">
+          <input type="hidden" name="expected_count" value="<%= pagination.total %>">
+          <button class="btn btn-outline-danger" type="submit"><i class="bi bi-trash"></i> Delete these <%= pagination.total %></button>
+        </form>
+        <%# A listener, not an inline onsubmit: helmet's default script-src-attr refuses those. -%>
+        <script>
+          (function () {
+            var f = document.getElementById('errDeleteMatching');
+            if (f) f.addEventListener('submit', function (e) {
+              if (!window.confirm(f.getAttribute('data-confirm'))) e.preventDefault();
+            });
+          })();
+        </script>
+        <p class="small text-muted-2 mb-0">
+          For entries already fixed. Deletes only what is filtered here, and nothing if the
+          count has changed since this page loaded.
+        </p>
+      </div>
+    </div>
   <% } %>
+
   <% if (errors.length === 0) { %>
     <div class="empty-state glass-card"><i class="bi bi-check-circle"></i>No errors recorded.</div>
   <% } else { %>

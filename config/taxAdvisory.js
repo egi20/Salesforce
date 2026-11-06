@@ -17,6 +17,10 @@
  * different file would move the refusal one directory to the left, so a test asserts this
  * module exposes nothing rate-, saving- or tax-shaped either.
  *
+ * (The page in front of this enquiry now has a take-home calculator, and it is NOT that one:
+ * it applies the Albania program's own published payroll, runs in the browser and stores
+ * nothing. See config/taxProgram.js. This module still computes nothing.)
+ *
  * What IS real here is the introduction: a consultant wants to talk to somebody who knows
  * their jurisdiction. So this is an ENQUIRY, not a calculation, and every field below
  * earns its place by being needed to route that enquiry to the right person.
@@ -39,12 +43,20 @@
  * diagnosis: it decides who reads the enquiry, nothing else.
  */
 const TOPICS = Object.freeze([
+  { value: 'program', label: 'Joining the Albania employment program' },
   { value: 'structure', label: 'How I should be set up (employed, freelance, company)' },
   { value: 'cross_border', label: 'Working for clients in another country' },
   { value: 'relocation', label: 'Moving country, or already moved' },
   { value: 'first_contract', label: 'Going contracting for the first time' },
   { value: 'other', label: 'Something else' }
 ]);
+
+/**
+ * The topic "Apply now" on /tax-advisory preselects. An application to the Albania program
+ * is an enquiry like any other — same six questions, same consent, same retention — routed
+ * to the people who run the program rather than to an outside specialist.
+ */
+const PROGRAM_TOPIC = 'program';
 
 /**
  * How somebody works TODAY. Coarse on purpose: it is the one fact that decides whether
@@ -110,24 +122,6 @@ const LIMITS = Object.freeze({
  */
 const RETENTION_DAYS = 180;
 
-/**
- * What the page promises, in one place, so the marketing copy and the code cannot drift.
- * These strings are rendered escaped and are deliberately narrow: the Hub introduces, it
- * does not advise, and it publishes no figure.
- */
-const PROMISE = Object.freeze({
-  does: [
-    'Passes what you write to a specialist who works in your country.',
-    'Tells you who they are before anything else happens.',
-    'Keeps your enquiry for a stated period and then deletes it.'
-  ],
-  doesNot: [
-    'Calculate your tax, your take-home pay, or a saving.',
-    'Ask for your salary, your employer, or your notice period.',
-    'Give you advice. The Hub is not an accountant and is not regulated to be one.'
-  ]
-});
-
 function isTopic(value) {
   return TOPICS.some((t) => t.value === value);
 }
@@ -161,6 +155,7 @@ function assertAdvisoryIntegrity() {
     }
   }
   if (!OPEN_STATUSES.length) throw new Error('at least one status must hold the open reservation');
+  if (!isTopic(PROGRAM_TOPIC)) throw new Error('PROGRAM_TOPIC must be a declared topic');
   if (!(RETENTION_DAYS > 0)) throw new Error('retention must be a positive number of days');
   if (LIMITS.questionMin >= LIMITS.question) throw new Error('question bounds are inverted');
   return true;
@@ -168,13 +163,13 @@ function assertAdvisoryIntegrity() {
 
 module.exports = {
   TOPICS,
+  PROGRAM_TOPIC,
   ARRANGEMENTS,
   TRANSITIONS,
   STATUSES,
   OPEN_STATUSES,
   LIMITS,
   RETENTION_DAYS,
-  PROMISE,
   isTopic,
   isArrangement,
   canTransition,

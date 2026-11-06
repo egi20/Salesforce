@@ -1,0 +1,60 @@
+{
+  "_note": "TEST FIXTURE. Invented figures for tests only; not the program's rates.",
+  "currency": "EUR",
+  "entityName": "Fixture Entity",
+  "techPark": "Fixture Park",
+  "typicalSavingAnnualMinor": {
+    "min": 600000,
+    "max": 1800000
+  },
+  "averageSavingAnnualMinor": 1100000,
+  "taxTreaties": 40,
+  "onboardingWeeks": 2,
+  "reviewHours": 48,
+  "minimumGrossMonthlyMinor": 400000,
+  "payroll": {
+    "monthsPerYear": 12,
+    "contributions": [
+      {
+        "label": "Social insurance",
+        "rateBps": 950,
+        "capMonthlyMinor": 500000,
+        "reducesTaxableIncome": true
+      },
+      {
+        "label": "Health insurance",
+        "rateBps": 170,
+        "capMonthlyMinor": null,
+        "reducesTaxableIncome": true
+      },
+      {
+        "label": "Not deductible",
+        "rateBps": 100,
+        "capMonthlyMinor": null,
+        "reducesTaxableIncome": false
+      }
+    ],
+    "incomeTax": {
+      "label": "Income tax",
+      "brackets": [
+        {
+          "fromMonthlyMinor": 0,
+          "rateBps": 0
+        },
+        {
+          "fromMonthlyMinor": 300000,
+          "rateBps": 1300
+        },
+        {
+          "fromMonthlyMinor": 600000,
+          "rateBps": 2300
+        }
+      ]
+    },
+    "fee": {
+      "label": "Program fee",
+      "rateBps": 300,
+      "fixedMonthlyMinor": 5000
+    }
+  }
+}

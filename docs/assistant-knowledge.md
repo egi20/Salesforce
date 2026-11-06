@@ -41,8 +41,8 @@ People name pages by the menu label they see, so these are the labels:
 - **Companies Hub** — the hub page itself (`/companies-hub`, every hiring tool on one page),
   Browse Talent (`/consultants`), Get SOW Quote (`/quotes/new`), and the
   three engagement models: Staff Augmentation, Project-Based, Managed Services.
-- **Services** — Tax Optimization (`/tax-advisory`; it introduces a specialist and
-  calculates nothing), Rate & Salary Index (`/rates`, which links
+- **Services** — Tax Optimization (`/tax-advisory`; employment through the Hub's Albania
+  entity, with a take-home calculator once its payroll rates are published), Rate & Salary Index (`/rates`, which links
   to the calculator), SOW Generator (`/quotes/new`), Document Generator.
 - The company directory (`/companies`) and the agency directory (`/recruiters`) are in the
   footer, under Companies Hub, not in the top menu.
@@ -82,8 +82,8 @@ People name pages by the menu label they see, so these are the labels:
 | `/notifications` | Your notifications. |
 | `/auth/register` | Create a free account. |
 | `/auth/login` | Sign in. |
-| `/tax-advisory` | What the tax advisory service is: an introduction to a specialist who works in your country. It does not calculate anything. |
-| `/tax-advisory/enquire` | Describe your situation and ask to be introduced. Open to anyone, signed in or not. Six questions, none about pay. |
+| `/tax-advisory` | Tax optimization: keep your clients and location and be employed through the Hub's Albania entity (a technology park with reduced social contributions). How it works in three steps, why Albania, who is eligible, an FAQ, and a calculator that shows the program's Albanian payroll applied to your gross — it runs in the browser and stores nothing, and says "coming soon" until the rates are published. Home-country tax obligations still apply; the Hub is not a tax advisor. `/tax-optimization` redirects here. |
+| `/tax-advisory/enquire` | Apply to the program ("Apply now" opens it with the program preselected) or ask about your setup ("Contact us"). Open to anyone, signed in or not. Six questions, none about pay; kept for 180 days, then deleted. |
 | `/success-stories` | Case studies from real projects, plus reviews members have left. |
 | `/success-stories/reviews` | Read member reviews, or leave one. You need an account to leave one. |
 | `/recruiters` | The directory of recruitment agencies and headhunters. |

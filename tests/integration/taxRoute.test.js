@@ -8,6 +8,7 @@ const { attachViewHelpers } = require('../../utils/viewHelpers');
 
 const { notFound, errorHandler } = require('../../middleware/errorHandler');
 const TaxEnquiry = require('../../models/TaxEnquiry');
+const TaxProgram = require('../../models/TaxProgram');
 const email = require('../../utils/email');
 const { RETENTION_DAYS } = require('../../config/taxAdvisory');
 
@@ -94,14 +95,94 @@ const GOOD = {
 describe('the tax advisory pages', () => {
   afterEach(() => jest.restoreAllMocks());
 
-  it('renders the service page and states what it will not do', async () => {
+  /*
+   * The program page reads two optional things from the database. Both are stubbed here: the
+   * route treats a failure as a missing section, and these tests are about what is shown.
+   */
+  function stubProgram({ stories = [], active = 0 } = {}) {
+    jest.spyOn(TaxProgram, 'liveStories').mockResolvedValue(stories);
+    jest.spyOn(TaxProgram, 'activeCount').mockResolvedValue(active);
+  }
+
+  it('renders the program page and states what it will not do', async () => {
+    stubProgram();
     const res = await request(buildApp()).get('/tax-advisory');
 
     expect(res.status).toBe(200);
-    expect(res.text).toMatch(/Calculate your tax/);
+    expect(res.text).toMatch(/Maximize your take-home pay/);
+    expect(res.text).toMatch(/Take over your home-country tax obligations/);
     expect(res.text).toMatch(new RegExp(`${RETENTION_DAYS} days`));
-    // The honest alternative to a savings calculator is offered by name.
     expect(res.text).toMatch(/rates\/calculator/);
+    expect(res.text).toMatch(/enquire\?topic=program/);
+  });
+
+  it('shows "coming soon" instead of a figure while the payroll is not configured', async () => {
+    stubProgram();
+    const res = await request(buildApp()).get('/tax-advisory');
+    expect(res.text).toMatch(/Calculator coming soon/);
+    expect(res.text).not.toMatch(/id="tax-payroll"/);
+    expect(res.text).not.toMatch(/tax-calculator\.js/);
+  });
+
+  it('gives the calculator nothing that could be submitted', async () => {
+    stubProgram();
+    const res = await request(buildApp()).get('/tax-advisory');
+    const form = res.text.match(/<form id="tax-calc"[\s\S]*?<\/form>/)[0];
+    // No action, no method, and no named input: a browser submitting this form sends nothing.
+    expect(form).not.toMatch(/\saction=|\smethod=|\sname=/);
+  });
+
+  it('hides the stories section entirely when no story has consent', async () => {
+    stubProgram({ stories: [] });
+    const res = await request(buildApp()).get('/tax-advisory');
+    expect(res.text).not.toMatch(/Real success stories/);
+  });
+
+  it('shows a consented story with first name and initial', async () => {
+    stubProgram({
+      stories: [TaxProgram.present({
+        id: 1, name: 'Arta Krasniqi', role: 'Salesforce Architect', country_code: 'DE', currency: 'EUR',
+        gross_before_minor: 700000, net_before_minor: 400000, gross_after_minor: 700000, net_after_minor: 560000,
+        quote: 'Same clients, more at the end of the month.'
+      })]
+    });
+    const res = await request(buildApp()).get('/tax-advisory');
+    expect(res.text).toMatch(/Real success stories/);
+    expect(res.text).toMatch(/Arta K\./);
+    expect(res.text).not.toMatch(/Krasniqi/);
+    expect(res.text).toMatch(/\+€1,600\/month \| \+€19,200\/year/);
+  });
+
+  it('shows the participant count only from ten upwards', async () => {
+    stubProgram({ active: 9 });
+    let res = await request(buildApp()).get('/tax-advisory');
+    expect(res.text).not.toMatch(/tax-trust-figure/);
+
+    jest.restoreAllMocks();
+    stubProgram({ active: 12 });
+    res = await request(buildApp()).get('/tax-advisory');
+    expect(res.text).toMatch(/<p class="tax-trust-figure mb-1">12<\/p>/);
+  });
+
+  it('still renders when the database cannot be read', async () => {
+    jest.spyOn(TaxProgram, 'liveStories').mockRejectedValue(new Error('ECONNREFUSED'));
+    jest.spyOn(TaxProgram, 'activeCount').mockRejectedValue(new Error('ECONNREFUSED'));
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const res = await request(buildApp()).get('/tax-advisory');
+    expect(res.status).toBe(200);
+    expect(res.text).not.toMatch(/Real success stories/);
+  });
+
+  it('opens the application form with the program preselected', async () => {
+    const res = await request(buildApp()).get('/tax-advisory/enquire?topic=program');
+    expect(res.text).toMatch(/Apply to the Albania employment program/);
+    expect(res.text).toMatch(/<option value="program" selected>/);
+  });
+
+  it('ignores a topic that is not declared', async () => {
+    const res = await request(buildApp()).get('/tax-advisory/enquire?topic=%22%3E%3Cscript%3E');
+    expect(res.text).toMatch(/Ask about your setup/);
+    expect(res.text).not.toMatch(/"><script>/);
   });
 
   it('shows no field asking what anyone earns', async () => {

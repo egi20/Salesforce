@@ -64,6 +64,10 @@ const PURGE = Object.freeze([
   'saved_jobs',
   // A company's own shortlist (migration 041).
   'company_shortlists',
+  // The Albania program (migration 042): membership, and a story with their pay in it. A
+  // story is published on consent, and an erased account has withdrawn every consent there is.
+  'tax_program_participants',
+  'tax_program_stories',
   'post_votes',
   'idea_votes',
   'challenge_attempts'

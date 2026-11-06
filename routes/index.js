@@ -307,7 +307,7 @@ router.get(
       { href: '/cv-generator', icon: 'bi-file-earmark-person', tone: 'icon-info', title: 'CV Generator', text: 'A formatted CV and rate card, generated from your own profile in one click — private by default.' },
       { href: '/rates', icon: 'bi-graph-up', tone: 'icon-success', title: 'Rate & Salary Index', text: 'Day rates contributed by consultants. No figure is published from fewer than three people.' },
       { href: '/rates/calculator', icon: 'bi-calculator', tone: 'icon-blue', title: 'Rate calculator', text: 'What a day rate comes to over a year once holidays, illness and the bench are taken out.' },
-      { href: '/tax-advisory', icon: 'bi-signpost-split', tone: 'icon-navyblue', title: 'Tax Optimization', text: 'Get introduced to a tax specialist who works with contractors in your situation.' }
+      { href: '/tax-advisory', icon: 'bi-signpost-split', tone: 'icon-navyblue', title: 'Tax Optimization', text: 'Keep your clients and your location, and be employed through our Albania entity.' }
     ];
     if (isConsultant) {
       tools.push(

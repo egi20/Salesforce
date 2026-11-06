@@ -333,6 +333,9 @@ app.use('/referrals', require('./routes/referrals'));
 app.use('/linkedin', require('./routes/linkedin'));
 app.use('/search', require('./routes/search'));
 app.use('/tax-advisory', require('./routes/tax'));
+// The name people know the page by (and the path the reference used). A permanent redirect,
+// so there is one URL to index and one to link.
+app.get('/tax-optimization', (req, res) => res.redirect(301, '/tax-advisory'));
 app.use('/challenges', require('./routes/challenges'));
 app.use('/recruiters', require('./routes/recruiters'));
 app.use('/success-stories', require('./routes/stories'));

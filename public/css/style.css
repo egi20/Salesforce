@@ -2886,3 +2886,73 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
 .quote-step-nav .btn:disabled { opacity: 0.4; }
 /* Shares the row with the icon and the buttons instead of claiming a full line and stacking them. */
 .quotes-empty-text { flex: 1 1 18rem; min-width: 0; }
+
+/*
+ * Tax optimization (/tax-advisory). The hero reuses .hub-hero; the calculator is a white card
+ * on it. Gains are the same green as .badge-hub.ok, and only ever text on white.
+ */
+.tax-hero-accent { display: block; color: var(--primary-blue-bright); }
+.tax-hero-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: 0.75rem;
+  margin: var(--space-6) 0 0;
+}
+.tax-hero-stats li {
+  display: flex; flex-direction: column; padding: 0.85rem 1rem; border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.tax-hero-stats strong { font-size: 1.5rem; font-weight: 800; line-height: 1.1; color: #fff; }
+.tax-hero-stats span { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.82); }
+.tax-calc-card {
+  background: #fff; color: var(--text-dark); border-radius: 1rem; padding: 1.5rem;
+  box-shadow: 0 24px 50px rgba(1, 32, 63, 0.35);
+}
+.tax-calc-card h2 { color: var(--primary-navy); }
+.tax-result { margin-top: 1rem; padding: 1rem; border-radius: var(--radius-lg); background: var(--sky-wash); border: 1px solid var(--border-color); }
+.tax-result-main { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 0.75rem; }
+.tax-result-label, .tax-result-diff span { font-size: 0.8rem; color: var(--text-light); }
+.tax-result-net { font-size: 1.6rem; color: var(--primary-navy); }
+.tax-result-diff > div { display: flex; flex-direction: column; }
+.tax-result-diff strong { font-size: 1.15rem; color: var(--primary-navy); }
+.tax-result-diff strong.is-gain, .tax-story-figures .is-after { color: #1d6f4f; }
+.tax-result-diff strong.is-loss { color: #b42318; }
+.tax-result-lines { margin: 0.75rem 0; }
+.tax-result-lines summary { cursor: pointer; color: var(--primary-blue); }
+.tax-result-lines li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.2rem 0; border-bottom: 1px dashed var(--border-color); }
+.tax-result-note { color: var(--text-medium); }
+.tax-soon { display: flex; gap: 0.75rem; padding: 0.9rem 1rem; border-radius: var(--radius-lg); background: var(--sky-wash); border: 1px solid var(--border-color); }
+.tax-soon > .bi { font-size: 1.25rem; color: var(--primary-blue); }
+.tax-more { display: flex; gap: 0.5rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); color: var(--text-medium); }
+.tax-more .bi { color: var(--primary-blue); }
+.tax-section { padding: 3.5rem 0; }
+.tax-section-alt { background: var(--sky-wash); }
+.tax-info-box { display: flex; gap: 0.75rem; padding: 1rem 1.25rem; border-radius: var(--radius-lg); background: #fff; border-left: 4px solid var(--primary-blue); box-shadow: var(--shadow-sm); }
+.tax-info-box > .bi { color: var(--primary-blue); font-size: 1.15rem; }
+.tax-eligible { max-width: 40rem; }
+.tax-eligible li { display: flex; gap: 0.6rem; margin-bottom: 0.6rem; }
+.tax-eligible li .bi { color: var(--primary-blue); margin-top: 0.15rem; }
+.tax-slider-nav { display: flex; gap: 0.5rem; }
+.tax-story-track {
+  display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 2rem) / 3); gap: 1rem;
+  overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 0.5rem;
+}
+.tax-story-card { scroll-snap-align: start; background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.25rem; box-shadow: var(--shadow-sm); }
+.tax-avatar {
+  display: inline-flex; align-items: center; justify-content: center; width: 2.75rem; height: 2.75rem; flex-shrink: 0;
+  border-radius: 50%; background: var(--accent-gradient); color: #fff; font-weight: 700;
+}
+.tax-story-figures { display: grid; gap: 0.35rem; margin-bottom: 0.75rem; font-size: 0.9rem; }
+.tax-story-figures > div { display: flex; justify-content: space-between; gap: 0.75rem; }
+.tax-story-figures dt { font-weight: 500; color: var(--text-light); }
+.tax-story-figures dd { margin: 0; font-weight: 600; }
+.tax-pill { display: inline-block; padding: 0.3rem 0.75rem; border-radius: 999px; background: rgba(29, 111, 79, 0.12); color: #1d6f4f; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.75rem; }
+.tax-quote { color: var(--text-medium); font-style: italic; }
+.tax-trust-figure { font-size: 1.75rem; font-weight: 800; color: var(--primary-navy); }
+.tax-disclaimer { padding: 1.25rem; border: 2px solid var(--primary-blue); border-radius: var(--radius-lg); background: #fff; }
+.tax-disclaimer h3 { color: var(--primary-navy); }
+.tax-cta-note { color: rgba(255, 255, 255, 0.85); }
+@media (max-width: 767.98px) {
+  .tax-story-track { grid-auto-columns: 85%; }
+  .tax-section { padding: 2.5rem 0; }
+}
+.tax-hero h1 { font-size: clamp(2rem, 1.5rem + 1.6vw, 2.6rem); }
+@media (min-width: 768px) and (max-width: 991.98px) { .tax-story-track { grid-auto-columns: calc((100% - 1rem) / 2); } }

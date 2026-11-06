@@ -1,101 +1,346 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', {
-  icon: 'bi-signpost-split',
-  heading: 'Tax advisory',
-  sub: 'We introduce you to somebody who knows your jurisdiction. We do not calculate anything.'
-}) %>
+<%
+  /*
+   * Tax optimization — the Albania employment program.
+   *
+   * EVERY FIGURE ON THIS PAGE comes from config/tax-program.json (owned by finance and legal)
+   * or from the database, and a figure that is not there is not shown: no stat tile, no range
+   * in the sub-heading, no number in an answer. Stories appear only with consent; with none,
+   * the section is not rendered at all. Nothing here is copied from another site.
+   *
+   * The calculator runs in the browser on the program's own payroll parameters. Its inputs
+   * have no `name` and its form no action, so what somebody types cannot be posted anywhere.
+   */
+  const calcReady = Boolean(program.payroll);
+  const applyHref = '/tax-advisory/enquire?topic=' + encodeURIComponent(programTopic);
+  const contactHref = '/tax-advisory/enquire';
+%>
 
-<section class="glass-section pb-5">
-<div class="container">
-  <%- include('../partials/flash') %>
-
-  <div class="row g-4">
-    <div class="col-lg-7">
-      <div class="glass-card h-100"><div class="card-body p-4">
-        <h2 class="h5 mb-3">What this is</h2>
-        <p>
-          Consultants who work across borders, or who have just gone contracting, usually
-          have the same first question: how should I actually be set up? It is a good
-          question and it does not have a general answer — it depends on where you are
-          tax-resident, what kind of entity you work through, your VAT position, and how
-          you pay yourself.
+<section class="hub-hero tax-hero">
+  <div class="container">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <span class="hub-hero-badge mb-3"><i class="bi bi-graph-up-arrow"></i> TAX OPTIMIZATION</span>
+        <h1>Maximize your take-home pay <span class="tax-hero-accent">without changing your work</span></h1>
+        <p class="lead">
+          Keep your clients. Keep your location. Increase your take-home pay<% if (program.savingRange) { %> by <%= program.savingRange %> a year<% } %>
+          by moving your employment to our Albania entity.
         </p>
-        <p class="mb-0">
-          So we do the one useful thing a marketplace can do here. You describe your
-          situation, we tell you who we think should read it, and if you agree we put you
-          in touch. Everything after that is between you and them.
-        </p>
-      </div></div>
-    </div>
+        <% if (program.stats.length) { %>
+          <ul class="tax-hero-stats list-unstyled">
+            <% program.stats.forEach(function (s) { %>
+              <li><strong><%= s.value %></strong><span><%= s.label %></span></li>
+            <% }); %>
+          </ul>
+        <% } %>
+        <div class="d-flex flex-wrap gap-3 mt-4">
+          <a class="btn btn-lg btn-light" href="<%= applyHref %>"><i class="bi bi-send"></i> Apply now</a>
+          <a class="btn btn-lg btn-outline-light" href="#how-it-works">How it works</a>
+        </div>
+      </div>
 
-    <div class="col-lg-5">
-      <div class="glass-card h-100"><div class="card-body p-4">
-        <h2 class="h6 text-uppercase text-muted-2 mb-3">What we do</h2>
-        <ul class="list-unstyled mb-4">
-          <% promise.does.forEach(function (line) { %>
-            <li class="d-flex gap-2 mb-2">
-              <i class="bi bi-check-circle-fill text-success flex-shrink-0 mt-1"></i>
-              <span><%= line %></span>
-            </li>
-          <% }); %>
-        </ul>
+      <div class="col-lg-6">
+        <div class="tax-calc-card" id="calculator">
+          <h2 class="h5 mb-1"><i class="bi bi-calculator text-primary"></i> Calculate your savings</h2>
+          <p class="small text-muted-2 mb-3">Runs in your browser. Nothing you type here is sent to us or stored.</p>
 
-        <h2 class="h6 text-uppercase text-muted-2 mb-3">What we do not do</h2>
-        <ul class="list-unstyled mb-0">
-          <% promise.doesNot.forEach(function (line) { %>
-            <li class="d-flex gap-2 mb-2">
-              <i class="bi bi-x-circle-fill text-danger flex-shrink-0 mt-1"></i>
-              <span><%= line %></span>
-            </li>
-          <% }); %>
-        </ul>
-      </div></div>
+          <form id="tax-calc" class="tax-calc-form" novalidate data-no-guard="true" <% if (!calcReady) { %>data-disabled="true"<% } %>>
+            <div class="mb-3">
+              <label class="form-label" for="tax-gross">Gross monthly (<%= program.currency %>)</label>
+              <input class="form-control" id="tax-gross" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 6,000" <%= calcReady ? '' : 'disabled' %>>
+              <div class="form-text">Before taxes</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="tax-net">Net monthly take-home (<%= program.currency %>)</label>
+              <input class="form-control" id="tax-net" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 3,600" <%= calcReady ? '' : 'disabled' %>>
+              <div class="form-text">What you actually receive</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="tax-country">Country/region <span class="text-muted-2">(optional)</span></label>
+              <select class="form-select" id="tax-country" <%= calcReady ? '' : 'disabled' %>>
+                <option value="">Where you live</option>
+                <% countries.forEach(function (c) { %><option value="<%= c.name %>"><%= c.name %></option><% }); %>
+              </select>
+            </div>
+            <p class="tax-calc-error small text-danger mb-2" id="tax-calc-error" role="alert" hidden></p>
+            <button class="btn btn-primary w-100" type="submit" <%= calcReady ? '' : 'disabled' %>>Calculate my savings</button>
+          </form>
+
+          <% if (calcReady) { %>
+            <script type="application/json" id="tax-payroll"><%- jsonForScript({ payroll: program.payroll, currency: program.currency }) %></script>
+            <noscript><p class="small mt-3 mb-0">The calculator needs JavaScript. <a href="<%= contactHref %>">Ask about your setup</a> instead.</p></noscript>
+            <div class="tax-result" id="tax-result" aria-live="polite" hidden>
+              <div class="tax-result-main">
+                <span class="tax-result-label">New net per month</span>
+                <strong class="tax-result-net" data-out="net"></strong>
+              </div>
+              <div class="row g-2 tax-result-diff">
+                <div class="col-6"><span>Per month</span><strong data-out="month"></strong></div>
+                <div class="col-6"><span>Per year</span><strong data-out="year"></strong></div>
+              </div>
+              <details class="tax-result-lines small">
+                <summary>What payroll withholds</summary>
+                <ul class="list-unstyled mb-0" data-out="lines"></ul>
+              </details>
+              <p class="tax-result-note small mb-0">
+                <i class="bi bi-info-circle"></i>
+                Indicative only — your home-country tax obligations still apply<span data-out="country"></span>.
+              </p>
+            </div>
+          <% } else { %>
+            <div class="tax-soon mt-3" role="status">
+              <i class="bi bi-hourglass-split"></i>
+              <div>
+                <strong>Calculator coming soon</strong>
+                <p class="small mb-0">We will show figures here once the program's payroll rates are published. Until then, <a href="<%= contactHref %>">ask about your setup</a> and we will work it through with you.</p>
+              </div>
+            </div>
+          <% } %>
+
+          <%# The rate calculator answers a different question, and both are worth having. %>
+          <div class="tax-more small mt-3">
+            <i class="bi bi-bar-chart-line"></i>
+            <span>Want the full picture? <a href="/rates/calculator">Open the rate calculator</a> — billable days, costs and what a day rate comes to over a year.</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
-
-  <%
-    /*
-     * The honest replacement for the reference implementation's savings calculator.
-     *
-     * That calculator asked for your gross and net, assumed your entire burden becomes a
-     * flat percentage of gross after restructuring, and printed the difference as a
-     * monthly and annual saving. The percentage was an admin setting. A number that looks
-     * like tax advice but is a guess is worse than no number, because people act on it.
-     *
-     * What is offered instead is a calculator that computes what it can actually know:
-     * days, costs and a net BEFORE tax, with every non-billable day named. It says
-     * plainly that tax is not in it.
-     */
-  %>
-  <div class="glass-card mt-4"><div class="card-body p-4">
-    <div class="row align-items-center g-3">
-      <div class="col-md-8">
-        <h2 class="h5 mb-2">Looking for a number?</h2>
-        <p class="mb-0 text-muted-2">
-          We will not show you a saving. What we can show you is the arithmetic that does
-          not depend on your jurisdiction: billable days after holiday, illness, bench and
-          admin, your costs, and what is left before tax. The rate calculator does that,
-          it is public, and it keeps nothing.
-        </p>
-      </div>
-      <div class="col-md-4 text-md-end">
-        <a class="btn btn-outline-primary" href="/rates/calculator">
-          <i class="bi bi-calculator"></i> Open the rate calculator
-        </a>
-      </div>
-    </div>
-  </div></div>
-
-  <div class="text-center mt-5">
-    <a class="btn btn-primary btn-lg" href="/tax-advisory/enquire">
-      <i class="bi bi-envelope"></i> Ask about your setup
-    </a>
-    <p class="small text-muted-2 mt-3 mb-0">
-      Six questions. We keep your enquiry for <%= retentionDays %> days and then delete it.
-    </p>
-  </div>
-</div>
 </section>
+
+<section class="glass-section tax-section" id="how-it-works">
+  <div class="container">
+    <%- include('../partials/flash') %>
+    <div class="text-center mb-4">
+      <h2 class="sow-block-title mb-2">How it works</h2>
+      <p class="text-muted-2 mb-0">Three steps to increase your take-home pay</p>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="sow-white-card h-100">
+          <span class="cv-step-n">1</span>
+          <h3 class="h6">Apply &amp; get approved</h3>
+          <p class="small text-muted-2 mb-0">
+            Tell us about your setup in six questions.
+            <% if (program.reviewHours !== null) { %>We review eligible applications within <%= program.reviewHours %> hours.<% } else { %>We review every eligible application and come back to you.<% } %>
+          </p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="sow-white-card h-100">
+          <span class="cv-step-n">2</span>
+          <h3 class="h6">Sign your employment contract</h3>
+          <p class="small text-muted-2 mb-0">An ordinary Albanian employment contract with our entity. You see what payroll withholds before you sign.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="sow-white-card h-100">
+          <span class="cv-step-n">3</span>
+          <h3 class="h6">Start earning more</h3>
+          <p class="small text-muted-2 mb-0">Keep working for your clients. You are paid every month through Albanian payroll.</p>
+        </div>
+      </div>
+    </div>
+    <div class="tax-info-box mt-4">
+      <i class="bi bi-info-circle-fill"></i>
+      <p class="mb-0">
+        <strong>Important:</strong> same clients, same projects, same location — you are employed by our
+        Albania entity, which operates in a technology park with reduced social contributions.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="tax-section tax-section-alt" id="about">
+  <div class="container">
+    <div class="text-center mb-4">
+      <h2 class="sow-block-title mb-2">About the program</h2>
+      <p class="text-muted-2 mb-0">Why Albania works, and whether you qualify</p>
+    </div>
+    <ul class="nav nav-pills justify-content-center mb-4" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-why" data-bs-toggle="pill" data-bs-target="#pane-why" type="button" role="tab" aria-controls="pane-why" aria-selected="true">Why Albania?</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-eligible" data-bs-toggle="pill" data-bs-target="#pane-eligible" type="button" role="tab" aria-controls="pane-eligible" aria-selected="false">Are you eligible?</button>
+      </li>
+    </ul>
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="pane-why" role="tabpanel" aria-labelledby="tab-why" tabindex="0">
+        <div class="row g-3">
+          <% program.whyAlbania.forEach(function (card) { %>
+            <div class="col-md-4">
+              <div class="sow-white-card h-100">
+                <span class="icon-tile icon-navyblue mb-3"><i class="bi <%= card.icon %>"></i></span>
+                <h3 class="h6"><%= card.title %></h3>
+                <p class="small text-muted-2 mb-0"><%= card.text %></p>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="pane-eligible" role="tabpanel" aria-labelledby="tab-eligible" tabindex="0">
+        <div class="sow-white-card tax-eligible mx-auto">
+          <ul class="list-unstyled mb-3">
+            <% program.eligibility.forEach(function (line) { %>
+              <li><i class="bi bi-check-circle-fill"></i><span><%= line %></span></li>
+            <% }); %>
+          </ul>
+          <a href="<%= contactHref %>">Not sure? Ask about your setup <i class="bi bi-arrow-right"></i></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<% if (stories.length) { %>
+<section class="glass-section tax-section" id="stories">
+  <div class="container">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+      <div>
+        <h2 class="sow-block-title mb-1">Real success stories</h2>
+        <p class="text-muted-2 mb-0">Published with each consultant's consent, in their own figures.</p>
+      </div>
+      <div class="tax-slider-nav" aria-hidden="true">
+        <button type="button" class="btn btn-outline-primary btn-sm" data-slide="-1" aria-label="Previous story"><i class="bi bi-arrow-left"></i></button>
+        <button type="button" class="btn btn-outline-primary btn-sm" data-slide="1" aria-label="Next story"><i class="bi bi-arrow-right"></i></button>
+      </div>
+    </div>
+    <div class="tax-story-track" id="tax-stories" tabindex="0" aria-label="Success stories">
+      <% stories.forEach(function (s) { %>
+        <article class="tax-story-card">
+          <header class="d-flex align-items-center gap-3 mb-3">
+            <span class="tax-avatar" aria-hidden="true"><%= s.initials %></span>
+            <div>
+              <strong class="d-block"><%= s.name %></strong>
+              <span class="small text-muted-2"><%= s.role %> · <%= s.country %></span>
+            </div>
+          </header>
+          <dl class="tax-story-figures">
+            <div><dt>Before</dt><dd><%= money(s.before.grossMinor, s.currency) %> <i class="bi bi-arrow-right"></i> <%= money(s.before.netMinor, s.currency) %></dd></div>
+            <div><dt>After</dt><dd class="is-after"><%= money(s.after.grossMinor, s.currency) %> <i class="bi bi-arrow-right"></i> <%= money(s.after.netMinor, s.currency) %></dd></div>
+          </dl>
+          <% if (s.monthlyMinor > 0) { %>
+            <span class="tax-pill">+<%= money(s.monthlyMinor, s.currency) %>/month | +<%= money(s.yearlyMinor, s.currency) %>/year</span>
+          <% } %>
+          <blockquote class="tax-quote mb-0">“<%= s.quote %>”</blockquote>
+        </article>
+      <% }); %>
+    </div>
+  </div>
+</section>
+<% } %>
+
+<section class="tax-section <%= stories.length ? 'tax-section-alt' : 'glass-section' %>" id="faq">
+  <div class="container">
+    <div class="text-center mb-4">
+      <h2 class="sow-block-title mb-2">Frequently asked questions</h2>
+    </div>
+    <div class="row justify-content-center">
+      <div class="col-lg-9">
+        <div class="accordion tax-faq" id="tax-faq">
+          <% program.faq.forEach(function (item, i) { %>
+            <div class="accordion-item">
+              <h3 class="accordion-header" id="faq-h-<%= i %>">
+                <button class="accordion-button <%= i === 0 ? '' : 'collapsed' %>" type="button" data-bs-toggle="collapse" data-bs-target="#faq-<%= i %>" aria-expanded="<%= i === 0 ? 'true' : 'false' %>" aria-controls="faq-<%= i %>"><%= item.q %></button>
+              </h3>
+              <div id="faq-<%= i %>" class="accordion-collapse collapse <%= i === 0 ? 'show' : '' %>" aria-labelledby="faq-h-<%= i %>" data-bs-parent="#tax-faq">
+                <div class="accordion-body">
+                  <% item.a.forEach(function (para, j) { %><p class="<%= j === item.a.length - 1 ? 'mb-0' : '' %>"><%= para %></p><% }); %>
+                </div>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+
+        <div class="sow-white-card mt-4">
+          <div class="row g-4">
+            <div class="col-md-6">
+              <h3 class="h6 text-uppercase text-muted-2 mb-3">What we do</h3>
+              <ul class="list-unstyled mb-0">
+                <% program.promise.does.forEach(function (line) { %>
+                  <li class="d-flex gap-2 mb-2"><i class="bi bi-check-circle-fill text-success flex-shrink-0 mt-1"></i><span><%= line %></span></li>
+                <% }); %>
+              </ul>
+            </div>
+            <div class="col-md-6">
+              <h3 class="h6 text-uppercase text-muted-2 mb-3">What we do not do</h3>
+              <ul class="list-unstyled mb-0">
+                <% program.promise.doesNot.forEach(function (line) { %>
+                  <li class="d-flex gap-2 mb-2"><i class="bi bi-x-circle-fill text-danger flex-shrink-0 mt-1"></i><span><%= line %></span></li>
+                <% }); %>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="tax-section <%= stories.length ? 'glass-section' : 'tax-section-alt' %>" id="trust">
+  <div class="container">
+    <div class="text-center mb-4">
+      <h2 class="sow-block-title mb-2">Trust &amp; compliance</h2>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="sow-white-card h-100 text-center">
+          <span class="icon-tile icon-navyblue mb-3"><i class="bi bi-building-check"></i></span>
+          <h3 class="h6">Registered entity</h3>
+          <p class="small text-muted-2 mb-0"><%= program.entityName || 'Our Albania entity' %>, registered in an Albanian technology park<%= program.techPark ? ' (' + program.techPark + ')' : '' %>.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="sow-white-card h-100 text-center">
+          <span class="icon-tile icon-navyblue mb-3"><i class="bi bi-person-check"></i></span>
+          <h3 class="h6">Certified accountants</h3>
+          <p class="small text-muted-2 mb-0">Payroll and accounts are handled by certified accountants in Albania and the EU.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="sow-white-card h-100 text-center">
+          <span class="icon-tile icon-navyblue mb-3"><i class="bi bi-people"></i></span>
+          <h3 class="h6">Active consultants</h3>
+          <% if (activeConsultants !== null) { %>
+            <p class="tax-trust-figure mb-1"><%= activeConsultants.toLocaleString('en-GB') %></p>
+            <p class="small text-muted-2 mb-0">consultants are employed through the program today.</p>
+          <% } else { %>
+            <p class="small text-muted-2 mb-0">Consultants in the program are employed and paid through the entity's own payroll.</p>
+          <% } %>
+        </div>
+      </div>
+    </div>
+    <div class="tax-disclaimer mt-4">
+      <h3 class="h6"><i class="bi bi-exclamation-circle"></i> Tax disclaimer</h3>
+      <p class="small mb-0">
+        Salesforce Hub facilitates payments and employment under Albanian law. It is not a tax advisory
+        service. Your tax obligations follow your tax residence: double-taxation treaties prevent the same
+        income being taxed twice, but they do not remove your obligations at home. Consult a qualified
+        professional before joining.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="sow-cta">
+  <div class="container d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div>
+      <h2 class="h4 mb-1">Ready to get started?</h2>
+      <p class="mb-1">Apply now to increase your take-home pay.</p>
+      <p class="small mb-0 tax-cta-note">Six questions, none about your pay. We keep your application for <%= retentionDays %> days and then delete it.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-lg btn-light" href="<%= applyHref %>"><i class="bi bi-send"></i> Apply now</a>
+      <a class="btn btn-lg btn-outline-light" href="<%= contactHref %>"><i class="bi bi-envelope"></i> Contact us</a>
+    </div>
+  </div>
+</section>
+
+<% if (calcReady) { %>
+  <script src="/js/tax-calculator.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>" defer></script>
+<% } %>
+<script src="/js/tax-page.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>" defer></script>
 
 <%- include('../partials/layout-end') %>

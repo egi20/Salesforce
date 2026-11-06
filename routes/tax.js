@@ -10,22 +10,24 @@ const { ipLimiter } = require('../middleware/rateLimit');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { returnTo } = require('../utils/returnTo');
 const { PRIVACY_VERSION } = require('../config/legal-versions');
-const { ARRANGEMENTS, LIMITS, PROMISE, RETENTION_DAYS, TOPICS } = require('../config/taxAdvisory');
+const { ARRANGEMENTS, LIMITS, PROGRAM_TOPIC, RETENTION_DAYS, TOPICS, isTopic } = require('../config/taxAdvisory');
+const taxProgram = require('../config/taxProgram');
+const TaxProgram = require('../models/TaxProgram');
 
 const router = express.Router();
 
 /**
- * Tax advisory: an INTRODUCTION, not a calculation.
+ * Tax optimization: the Albania employment program, and the enquiry that applies to it.
  *
- * There is no `POST /calculate` in this file and there will not be one. The reference
- * implementation's version takes the gross and net a visitor types, subtracts a flat
- * admin-editable percentage of gross, and presents the difference as a monthly and annual
- * saving — for anyone, in any country, under any arrangement. `config/taxAdvisory.js`
- * sets out why that number is worse than no number, and `utils/contractorEconomics.js`
- * already carries the same refusal with a test behind it.
+ * There is no `POST /calculate` in this file and there will not be one. The page's
+ * take-home calculator runs in the browser (`public/js/tax-calculator.js`) on the program's
+ * own payroll parameters from `config/tax-program.json`; what somebody types into it is
+ * never sent here, so there is nothing to store and nothing to leak. With no parameters
+ * configured the page says the calculator is coming rather than showing a number. See
+ * `config/taxProgram.js` for why this is not the reference's flat-percentage "saving".
  *
- * What this replaces it with is the honest half of the same product: somebody says what
- * their situation is, and a specialist who works in their jurisdiction gets in touch.
+ * "Apply now" and "Contact us" are both the enquiry form below — the program topic
+ * preselected for the first. Six questions, none of them about pay.
  *
  * Everything is public. Most people asking how they should be set up have not signed up
  * to anything, and putting the question behind a registration wall would collect an
@@ -49,18 +51,52 @@ function pageLocals() {
     arrangements: ARRANGEMENTS,
     countries,
     limits: LIMITS,
-    promise: PROMISE,
+    programTopic: PROGRAM_TOPIC,
     retentionDays: RETENTION_DAYS
   };
 }
 
-/** GET /tax-advisory — what the service is, and in the same breath what it is not. */
-router.get('/', (req, res) => {
-  res.render('tax/index', {
-    title: 'Tax advisory for Salesforce contractors',
-    ...pageLocals()
-  });
-});
+/**
+ * A read for a public page that is allowed to fail: a missing section, logged, never a
+ * failed page. A story section that is down is simply not shown — showing "no stories"
+ * would be a different claim.
+ */
+async function optional(label, read, fallback) {
+  try {
+    return await read();
+  } catch (err) {
+    console.warn(`tax-advisory: ${label} unavailable: ${err.message}`);
+    return fallback;
+  }
+}
+
+/**
+ * GET /tax-advisory — the program, its calculator, and who it is for.
+ *
+ * Every figure on the page comes from `config/tax-program.json` or from the database, and a
+ * figure that is not there is not shown. Stories appear only with consent; the participant
+ * count only from `ACTIVE_COUNT_FLOOR` upwards, because "3 active consultants" is a number
+ * that argues against itself.
+ */
+router.get(
+  '/',
+  asyncHandler(async (req, res) => {
+    const program = taxProgram.pageModel();
+    const monthsPerYear = program.payroll ? program.payroll.monthsPerYear : 12;
+    const [stories, active] = await Promise.all([
+      optional('stories', () => TaxProgram.liveStories({ monthsPerYear }), []),
+      optional('participant count', () => TaxProgram.activeCount(), 0)
+    ]);
+    res.render('tax/index', {
+      title: 'Tax optimization',
+      program,
+      stories,
+      activeConsultants: active >= taxProgram.ACTIVE_COUNT_FLOOR ? active : null,
+      money: taxProgram.money,
+      ...pageLocals()
+    });
+  })
+);
 
 /**
  * GET /tax-advisory/enquire — the form.
@@ -72,14 +108,17 @@ router.get('/', (req, res) => {
  */
 router.get('/enquire', (req, res) => {
   const user = req.session.user;
+  // `?topic=program` is what "Apply now" links to. Anything that is not a declared topic is
+  // ignored rather than echoed into the form.
+  const topic = isTopic(req.query.topic) ? req.query.topic : '';
   res.render('tax/enquire', {
-    title: 'Ask about your setup',
+    title: topic === PROGRAM_TOPIC ? 'Apply to the program' : 'Ask about your setup',
     form: {
       fullName: user ? user.name || '' : '',
       email: user ? user.email || '' : '',
       phone: '',
       country: '',
-      topic: '',
+      topic,
       arrangement: '',
       question: ''
     },
@@ -137,7 +176,7 @@ router.post(
       // Re-render rather than redirect, so nobody retypes a long answer because they
       // forgot a checkbox. The submitted values come back escaped through the template.
       return res.status(400).render('tax/enquire', {
-        title: 'Ask about your setup',
+        title: req.body.topic === PROGRAM_TOPIC ? 'Apply to the program' : 'Ask about your setup',
         error: err.message,
         form: {
           fullName: req.body.full_name || '',

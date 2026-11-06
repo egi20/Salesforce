@@ -763,6 +763,39 @@ every query string would be a separate URL.
 
 ## Tax advisory
 
+**The page is now "Tax optimization", the Albania employment program, WITH a take-home
+calculator (2026-11-06).** That is a decision, not a drift, and the reasoning below about
+the reference's calculator still holds: what changed is that there is now a real program
+with a real payroll to apply. The guardrails that make the difference:
+
+- **Every figure comes from `config/tax-program.json`, owned by finance and legal**, changed
+  by a reviewed commit and never by a setting. The committed file is all `null`, and null
+  HIDES: no stat tile, no "by €X–€Y a year", no number in an FAQ answer, and the calculator
+  says "Calculator coming soon — ask us about your setup". `config/taxProgram.js` validates
+  the file and THROWS at boot on a malformed one; `TAX_PROGRAM_FILE` points elsewhere for a
+  staging site or a test fixture. Nothing on the page is copied from another site.
+- **The arithmetic is ONE file, `public/js/tax-calculator.js`**, UMD so the browser runs it
+  and the server validates parameters with the same code. It knows no rate — a test asserts
+  it holds no numeric literal beyond its unit constants. Contributions (each capped or not,
+  each reducing taxable income or not), marginal brackets, a fee; integers, each line
+  rounded once, net = gross minus the rounded lines, so the lines add up to the difference.
+- **What is typed is never sent.** The inputs have no `name`, the form no action or method,
+  `tax-page.js` holds no fetch (both asserted), and the form opts out of `main.js`'s submit
+  guard (`data-no-guard`) because it never submits. Every result says "Indicative only —
+  your home-country tax obligations still apply": the figure is the program's Albanian
+  payroll, not anybody's tax position.
+- **Stories are a separate table from `success_stories`** (migration 042), because those
+  deliberately carry no pay. A program story belongs to an account, stores no name (the page
+  derives "first name + initial" at read time), and is shown only with consent given and not
+  withdrawn, published, not hidden — `TaxProgram.LIVE_STORY` is that one clause. With none,
+  the section is not rendered at all. The participant count shows from
+  `ACTIVE_COUNT_FLOOR` (10) upwards. Both tables are in the erasure PURGE and the export.
+  There is no admin screen for either yet; rows are entered by hand.
+- "Apply now" is the same six-question enquiry with `topic=program` preselected, so it keeps
+  its consent, its rate limit and its retention. "Is this legal?" must keep three points —
+  home obligations still apply, foreign tax credit, consult an advisor — and a test holds
+  them. `/tax-optimization` 301s here.
+
 **This feature exists because the reference's version of it cannot be ported.** Its
 `POST /tax-optimization/calculate` takes the gross and net a visitor types, computes
 `newNet = gross - (gross * percentRate / 100 + fixedFee)` with `percentRate` defaulting to
@@ -775,8 +808,8 @@ calculator in `routes/tax.js` would have moved that refusal one directory to the
 a test scans this feature's source and its exported surface for anything
 saving- or tax-computation-shaped.
 
-What is real underneath it is the INTRODUCTION. So `/tax-advisory` explains the service,
-says in the same breath that the Hub calculates nothing, and offers a form. Nothing else.
+What is real underneath it is the INTRODUCTION — the enquiry below, which is still the
+only thing that stores anything, and still computes nothing.
 
 **Six fields, and none of them is money.** The reference's form collects forty from an
 anonymous visitor with no rate limit and no consent record: current employer, contract end

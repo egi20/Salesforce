@@ -8,9 +8,10 @@
 
       <div class="glass-card">
         <div class="card-body p-4">
-          <h1 class="h4 mb-2">Ask about your setup</h1>
+          <% const applying = form.topic === programTopic; %>
+          <h1 class="h4 mb-2"><%= applying ? 'Apply to the Albania employment program' : 'Ask about your setup' %></h1>
           <p class="text-muted-2">
-            Six questions, and none of them is about your pay. Whoever we introduce you to
+            <% if (applying) { %>This is your application. <% } %>Six questions, and none of them is about your pay. Whoever we introduce you to
             will ask what they need in the conversation, under their own terms — which is
             the only place a duty of confidentiality actually applies.
           </p>
@@ -98,15 +99,15 @@
             <div class="form-check mb-4">
               <input class="form-check-input" type="checkbox" id="consent" name="consent" value="on" required>
               <label class="form-check-label small" for="consent">
-                I agree that Salesforce Hub may pass what I have written here to a tax
-                specialist in order to answer it, and may keep it for
+                I agree that Salesforce Hub may read what I have written here, and pass it
+                to a tax specialist or the program team in order to answer it, and may keep it for
                 <%= retentionDays %> days. I understand Salesforce Hub is not giving me
                 advice and is not an accountant.
                 <a href="/legal/privacy" target="_blank" rel="noopener">Privacy notice</a>.
               </label>
             </div>
 
-            <button class="btn btn-primary" type="submit">Send my enquiry</button>
+            <button class="btn btn-primary" type="submit"><%= applying ? 'Send my application' : 'Send my enquiry' %></button>
             <a class="btn btn-link" href="/tax-advisory">Back</a>
           </form>
         </div>

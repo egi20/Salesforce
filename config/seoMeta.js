@@ -44,9 +44,9 @@ const PAGE_META = {
       'Agencies and headhunters placing Salesforce consultants, by cloud specialism and country.'
   },
   '/tax-advisory': {
-    title: 'Tax advisory for Salesforce contractors',
+    title: 'Tax optimization for Salesforce contractors',
     description:
-      'An introduction to a specialist who works in your country. Salesforce Hub does not calculate your tax, your take-home pay or a saving.'
+      'Keep your clients and your location, and be employed through our Albania entity. How the program works, who it is for, and what still applies at home.'
   },
   '/services/staff-augmentation': {
     title: 'Salesforce staff augmentation',

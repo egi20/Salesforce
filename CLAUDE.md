@@ -62,6 +62,20 @@ Client-side fetches send `X-CSRF-Token`, which `public/js/main.js` attaches auto
 from the meta tag. A route that legitimately has no browser session (a signed webhook)
 goes through the `exempt` predicate, not by removing the middleware.
 
+**A CSRF refusal from a scanner is answered and NOT logged** (2026-11-06, ported from SAP
+Hub, whose production log was nothing else). `isScannerCsrfRefusal` in the error handler: a
+refusal on a path no route answers is never recorded (`utils/routeExists.js` walks Express's
+own router and answers YES when unsure); nor one without the `sfhub.sid` cookie; nor one with
+the cookie from somebody not signed in whose browser sent no `Sec-Fetch-Site`. Headless-browser
+scanners send the cookie AND the header, which is why the route check comes first. A real form
+failing for a real person is still recorded.
+
+**Fixed errors are deleted by filter** (`POST /admin/errors/delete-matching`, superadmin). The
+error log has ONE filter builder, `ErrorLog.buildFilter`, used by the list, its count, the
+export and the delete, so the rows deleted are provably the rows listed. An unfiltered delete
+is refused (the age-window purge is for that), a count that no longer matches what the page
+showed deletes nothing, and the delete is bounded by the highest id counted.
+
 ## Never use `res.redirect('back')`
 
 It reads `Referer`, and this app sends `Referrer-Policy: no-referrer`, so on a real browser

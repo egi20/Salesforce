@@ -27,7 +27,7 @@ const { toPlainText } = require('../utils/sanitize');
 const legalVersions = require('../config/legal-versions');
 const SalesAgent = require('../models/SalesAgent');
 const { requireIdParam } = require('../utils/ids');
-const { looksLikeAPerson } = require('../middleware/visitGeo');
+const { LINK_PREVIEW, countOpenOnce } = require('../utils/salesAgentOpens');
 
 const router = express.Router();
 
@@ -722,13 +722,6 @@ router.get(
  *
  * `/s/` collides with nothing else here: no other route or static directory uses it.
  */
-// The FETCHERS that draw a link's preview card, by their own names — never the app a person
-// is using. SAP Hub's first version said `linkedin` and `twitter`, which also matched the
-// LinkedIn and X IN-APP BROWSERS ("[LinkedInApp]", "Twitter for iPhone"): a real person
-// tapping an agent's link inside LinkedIn, where agents share it, was credited at sign-up
-// and never counted as an open. LinkedIn's fetcher is LinkedInBot, X's is Twitterbot.
-const LINK_PREVIEW = /whatsapp\/|facebookexternalhit|facebookcatalog|slackbot|slack-imgproxy|telegrambot|discordbot|linkedinbot|twitterbot|skypeuripreview|viber|embedly|vkshare|redditbot|pinterestbot/i;
-
 router.get(
   '/s/:code',
   asyncHandler(async (req, res) => {
@@ -736,13 +729,9 @@ router.get(
     if (!agent) return res.redirect(302, '/auth/register');
     // First touch: a second agent's link later in the same session does not replace it.
     if (!req.session.salesAgentCode) req.session.salesAgentCode = agent.code;
-    const ua = req.get('user-agent') || '';
-    const counted = Array.isArray(req.session.salesAgentOpens) ? req.session.salesAgentOpens : [];
-    if (looksLikeAPerson(ua) && !LINK_PREVIEW.test(ua) && !counted.includes(agent.code)) {
-      // Capped, because a session is not somewhere to accumulate an unbounded list.
-      req.session.salesAgentOpens = [...counted, agent.code].slice(-10);
-      await SalesAgent.countOpen(agent.user_id);
-    }
+    // What counts as an open is decided in utils/salesAgentOpens.js, shared with the
+    // registration form the redirect lands on, so the two never count one visitor twice.
+    await countOpenOnce(req, agent);
     return res.redirect(302, `/auth/register?a=${encodeURIComponent(agent.code)}`);
   })
 );
@@ -752,4 +741,4 @@ router.get('/healthz', (req, res) => {
 });
 
 module.exports = router;
-module.exports.LINK_PREVIEW = LINK_PREVIEW;
+module.exports.LINK_PREVIEW = LINK_PREVIEW; // kept for the existing preview-filter test

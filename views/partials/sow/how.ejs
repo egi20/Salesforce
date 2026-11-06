@@ -1,0 +1,15 @@
+<%# "How it works" — from config/sowPack.js, shared by /quotes/new and the SOW pack page. %>
+<section aria-labelledby="how" class="sow-block">
+  <h2 class="sow-block-title" id="how">How it works</h2>
+  <ol class="row g-3 list-unstyled cv-steps mb-0">
+    <% howItWorks.forEach(function (s, i) { %>
+      <li class="col-sm-6 col-lg-3">
+        <div class="sow-white-card h-100 text-center">
+          <span class="cv-step-n"><%= i + 1 %></span>
+          <h3 class="h6"><%= s.title %></h3>
+          <p class="small text-muted-2 mb-0"><%= s.text %></p>
+        </div>
+      </li>
+    <% }); %>
+  </ol>
+</section>

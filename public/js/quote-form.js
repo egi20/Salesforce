@@ -432,4 +432,10 @@
   /* -------------------------------------------------------------------- start */
 
   show(Number(form.getAttribute('data-start-step')) || 1, { scroll: false });
+
+  // A refused save or a reused quote re-renders the whole page; the form is what changed.
+  if (form.hasAttribute('data-focus-wizard')) {
+    var wizard = document.getElementById('wizard');
+    if (wizard) wizard.scrollIntoView({ block: 'start' });
+  }
 })();

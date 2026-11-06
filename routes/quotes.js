@@ -20,6 +20,7 @@ const {
 const { CLOUD_FAMILIES } = require('../config/cloudFamilies');
 const { sanitizeRichText } = require('../utils/sanitize');
 const { inputsFrom, optionsFrom, hasScope, valuesFromQuote } = require('../utils/quoteFormInputs');
+const { sowPageLocals } = require('../config/sowPack');
 const { returnTo } = require('../utils/returnTo');
 const { isDocumentKind, PACKAGE_KIND, generateDocument, generatePackage } = require('../services/quotePackage');
 const CompanyProfile = require('../models/CompanyProfile');
@@ -163,6 +164,7 @@ async function renderNew(req, res, { values, errors, status = 200, reusedFrom = 
   return res.status(status).render('quotes/new', {
     title: 'SOW Quote Generator',
     ...catalogueLocals(),
+    ...sowPageLocals(),
     values,
     errors,
     errorStep,

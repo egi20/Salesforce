@@ -27,17 +27,55 @@
   const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 %>
 
-<%# A light page, not the glass gradient: a long form reads more easily on a quiet background. %>
-<section class="quote-page">
+<%
+  /*
+   * The page reads top to bottom as the SOW pack's own introduction — hero, how it works, the
+   * clouds, what the SOW contains — and the estimator itself under #wizard. The three middle
+   * sections are the same partials /services/document-generator uses (config/sowPack.js), so
+   * the two pages cannot describe the download differently.
+   */
+%>
+<section class="hub-hero sow-hero">
+  <div class="container">
+    <div class="row align-items-center g-4">
+      <div class="col-lg-7">
+        <h1>Get your <span class="hero-accent">SOW quote</span> in minutes</h1>
+        <p class="lead">Generate a Statement of Work for Salesforce implementations — man-days, phases, team, budget and timeline that reconcile line by line, plus the documents that go with it.</p>
+        <div class="d-flex flex-wrap gap-3 mt-4">
+          <a class="btn btn-lg btn-light" href="#wizard"><i class="bi bi-plus-lg"></i> Start new quote</a>
+          <a class="btn btn-lg btn-outline-light" href="/quotes"><i class="bi bi-clock-history"></i> View history<% if (quoteCount) { %> (<%= quoteCount %>)<% } %></a>
+        </div>
+        <ul class="cv-hero-tags list-unstyled mt-4">
+          <li><i class="bi bi-check-circle-fill"></i> Estimates that reconcile</li>
+          <li><i class="bi bi-check-circle-fill"></i> Built for Salesforce</li>
+          <li><i class="bi bi-check-circle-fill"></i> SOW, Gantt &amp; deck</li>
+        </ul>
+      </div>
+      <div class="col-lg-5 d-flex justify-content-center">
+        <div class="sow-glass-card">
+          <span class="sow-pack-icon" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
+          <p class="sow-pack-title mb-1">The SOW pack</p>
+          <p class="mb-0">Scope, deliverables, pricing, timeline and terms — .docx, .xlsx and .pptx</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="glass-section sow-intro">
+<div class="container">
+  <%- include('../partials/sow/how') %>
+  <%- include('../partials/sow/clouds') %>
+  <%- include('../partials/sow/included', { readyHref: '#wizard', readyLabel: 'Launch quote wizard' }) %>
+</div>
+</section>
+
+<%# A light background under the form itself: a long form reads more easily on a quiet one. %>
+<section class="quote-page" id="wizard" aria-labelledby="wizardTitle">
 <div class="container">
   <header class="quote-head text-center">
-    <h1>SOW Quote Generator</h1>
-    <p>Complete the steps to get an estimate and the SOW pack.</p>
-    <div class="quote-head-links">
-      <a href="/quotes"><i class="bi bi-clock-history"></i> Your quotes<% if (quoteCount) { %> (<%= quoteCount %>)<% } %></a>
-      <span aria-hidden="true">·</span>
-      <a href="/services/document-generator">What's in the SOW pack</a>
-    </div>
+    <h2 class="quote-head-title" id="wizardTitle">SOW Quote Generator</h2>
+    <p>Complete the steps to get your estimate and the SOW pack</p>
   </header>
 
   <%- include('../partials/flash') %>
@@ -65,7 +103,7 @@
     <div class="quote-reuse alert alert-info d-flex flex-wrap align-items-center gap-2">
       <i class="bi bi-arrow-repeat"></i>
       <span class="flex-grow-1">Filled from <strong><%= reusedFrom.reference %></strong> — <%= reusedFrom.client_company %>, <%= reusedFrom.project_name %>. Change anything before you save; the original is not touched.</span>
-      <a class="btn btn-sm btn-outline-primary" href="/quotes/new?blank=1">Start blank</a>
+      <a class="btn btn-sm btn-outline-primary" href="/quotes/new?blank=1#wizard">Start blank</a>
     </div>
   <% } else if (lastQuote) { %>
     <div class="quote-reuse glass-card mb-3" data-quote-reuse>
@@ -75,8 +113,8 @@
           <p class="fw-semibold mb-0">Reuse details from your last quote?</p>
           <p class="small text-muted-2 mb-0"><%= lastQuote.reference %> · <%= lastQuote.client_company %> · <%= lastQuote.project_name %> · <%= fmtDate(lastQuote.created_at) %></p>
         </div>
-        <a class="btn btn-primary btn-sm" href="/quotes/new?from=<%= encodeURIComponent(lastQuote.reference) %>">Use last quote</a>
-        <a class="btn btn-outline-primary btn-sm" href="/quotes/new?blank=1" data-dismiss-reuse>Start blank</a>
+        <a class="btn btn-primary btn-sm" href="/quotes/new?from=<%= encodeURIComponent(lastQuote.reference) %>#wizard">Use last quote</a>
+        <a class="btn btn-outline-primary btn-sm" href="/quotes/new?blank=1#wizard" data-dismiss-reuse>Start blank</a>
       </div>
     </div>
   <% } %>
@@ -87,7 +125,7 @@
     </div>
   <% } %>
 
-  <form method="post" action="/quotes" class="row g-4" data-quote-form data-start-step="<%= errorStep %>">
+  <form method="post" action="/quotes" class="row g-4" data-quote-form data-start-step="<%= errorStep %>"<% if (errors.length || reusedFrom) { %> data-focus-wizard<% } %>>
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
     <div class="col-lg-8 quote-main-col">

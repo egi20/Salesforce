@@ -10,7 +10,6 @@
    * on this page can promise more than a download delivers. The consultant's CV has its own
    * page: /cv-generator.
    */
-  const brandingHref = currentUser && currentUser.isCompany ? '/profile/company/template' : '/auth/register';
 %>
 <section class="hub-hero">
   <div class="container">
@@ -25,7 +24,7 @@
           <li><i class="bi bi-check-circle-fill"></i> SOW, Gantt &amp; deck</li>
         </ul>
         <div class="d-flex flex-wrap gap-3 mt-4">
-          <a class="btn btn-lg btn-light" href="/quotes/new"><i class="bi bi-plus-lg"></i> Start new quote</a>
+          <a class="btn btn-lg btn-light" href="/quotes/new#wizard"><i class="bi bi-plus-lg"></i> Start new quote</a>
           <%# /quotes needs an account; a visitor following it lands on sign-in and comes back. %>
           <a class="btn btn-lg btn-outline-light" href="<%= currentUser ? '/quotes' : '/auth/login?redirect=%2Fquotes' %>"><i class="bi bi-clock-history"></i> Your quotes</a>
         </div>
@@ -45,89 +44,9 @@
 <section class="glass-section pb-5">
 <div class="container">
 
-  <section aria-labelledby="how" class="mb-5">
-    <h2 class="h4 text-center mb-4" id="how">How it works</h2>
-    <ol class="row g-3 list-unstyled cv-steps">
-      <li class="col-sm-6 col-lg-3"><div class="glass-card h-100 text-center"><div class="card-body">
-        <span class="cv-step-n">1</span><h3 class="h6">Client info</h3>
-        <p class="small text-muted-2 mb-0">Who the work is for, the project, the industry and the size of the business.</p>
-      </div></div></li>
-      <li class="col-sm-6 col-lg-3"><div class="glass-card h-100 text-center"><div class="card-body">
-        <span class="cv-step-n">2</span><h3 class="h6">Scope</h3>
-        <p class="small text-muted-2 mb-0">Clouds and modules, AppExchange add-ons and integrations — with a running total as you choose.</p>
-      </div></div></li>
-      <li class="col-sm-6 col-lg-3"><div class="glass-card h-100 text-center"><div class="card-body">
-        <span class="cv-step-n">3</span><h3 class="h6">Review estimate</h3>
-        <p class="small text-muted-2 mb-0">Man-days, phases, team, budget and timeline, reconciled line by line before you see them.</p>
-      </div></div></li>
-      <li class="col-sm-6 col-lg-3"><div class="glass-card h-100 text-center"><div class="card-body">
-        <span class="cv-step-n">4</span><h3 class="h6">Download the pack</h3>
-        <p class="small text-muted-2 mb-0">SOW, work breakdown and deck, generated on the spot with <a href="<%= brandingHref %>">your branding</a>.</p>
-      </div></div></li>
-    </ol>
-  </section>
-
-  <section aria-labelledby="clouds" class="mb-5">
-    <h2 class="h4 text-center mb-1" id="clouds">Supported Salesforce clouds</h2>
-    <p class="text-center text-muted-2 mb-4">Every module carries its own effort in days — the same catalogue the estimate is built from.</p>
-    <div class="row g-3">
-      <% cloudGroups.forEach(function (g, i) { %>
-        <div class="col-md-4">
-          <div class="sow-cloud-card h-100">
-            <div class="sow-cloud-head tone-<%= i + 1 %>"><i class="bi <%= g.icon %>" aria-hidden="true"></i> <%= g.label %></div>
-            <ul class="list-unstyled mb-0">
-              <% g.families.forEach(function (f) { %>
-                <li><span><%= f.label %></span> <span class="text-muted-2 small"><%= f.modules.length %> module<%= f.modules.length === 1 ? '' : 's' %></span></li>
-              <% }); %>
-            </ul>
-          </div>
-        </div>
-      <% }); %>
-    </div>
-  </section>
-
-  <section aria-labelledby="included" class="mb-5">
-    <div class="row g-4 align-items-stretch">
-      <div class="col-lg-8">
-        <div class="glass-card h-100"><div class="card-body">
-          <h2 class="h4 mb-3" id="included">What's included</h2>
-          <div class="row g-4">
-            <div class="col-md-6">
-              <h3 class="h6 text-uppercase small fw-bold text-muted-2 mb-2">Statement of work (.docx)</h3>
-              <ul class="sow-contents list-unstyled mb-0">
-                <% model.included.sow.forEach(function (item) { %>
-                  <li class="<%= item.optional ? 'is-optional' : '' %>">
-                    <i class="bi <%= item.optional ? 'bi-plus-circle' : 'bi-check-circle-fill' %>" aria-hidden="true"></i>
-                    <span><%= item.label %><% if (item.note) { %> <span class="text-muted-2">— <%= item.note %></span><% } %></span>
-                  </li>
-                <% }); %>
-              </ul>
-            </div>
-            <div class="col-md-6">
-              <h3 class="h6 text-uppercase small fw-bold text-muted-2 mb-2">Also in the pack</h3>
-              <ul class="sow-contents list-unstyled mb-3">
-                <% model.included.pack.forEach(function (item) { %>
-                  <li>
-                    <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
-                    <span><%= item.label %> <span class="text-muted-2">— <%= item.note %></span></span>
-                  </li>
-                <% }); %>
-              </ul>
-              <p class="small text-muted-2 mb-0"><i class="bi bi-plus-circle"></i> marks a section that appears only when you add it.</p>
-            </div>
-          </div>
-        </div></div>
-      </div>
-      <div class="col-lg-4">
-        <div class="sow-ready h-100">
-          <span class="sow-pack-icon" aria-hidden="true"><i class="bi bi-rocket-takeoff"></i></span>
-          <h2 class="h5 mb-2">Ready to get started?</h2>
-          <p class="mb-4">An estimate takes a few minutes. The three documents are free with it.</p>
-          <a class="btn btn-light btn-lg w-100" href="/quotes/new"><i class="bi bi-plus-lg"></i> Start new quote</a>
-        </div>
-      </div>
-    </div>
-  </section>
+  <%- include('../partials/sow/how') %>
+  <%- include('../partials/sow/clouds') %>
+  <%- include('../partials/sow/included', { withPack: true, readyHref: '/quotes/new#wizard', readyLabel: 'Start new quote' }) %>
 
   <div class="glass-card mb-4"><div class="card-body">
     <div class="d-flex flex-wrap justify-content-between gap-2 mb-1">

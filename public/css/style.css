@@ -2845,3 +2845,40 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
 /* The offer and the notices line up with the form, which is centred on Client info and Review. */
 .quote-page .quote-reuse, .quote-page > .container > .alert { max-width: 920px; margin-left: auto; margin-right: auto; }
 .quote-page .quote-reuse { margin-bottom: var(--space-4, 1rem); }
+
+/* ---------- /quotes/new as the SOW Quote Generator landing ---------- */
+.sow-hero h1 { font-size: clamp(2rem, 4.2vw, 3.1rem); font-weight: 800; line-height: 1.1; }
+/* The accent sits on the dark hero, never behind white text. */
+.hero-accent { color: var(--primary-blue-bright); }
+.sow-glass-card {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-xl, 1rem);
+  padding: var(--space-6, 1.5rem);
+  max-width: 22rem;
+  width: 100%;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.92);
+}
+.sow-glass-card .sow-pack-icon { background: rgba(255, 255, 255, 0.15); color: #fff; }
+.sow-glass-card .sow-pack-title { color: #fff; }
+.sow-intro { padding-top: var(--space-12, 3rem); padding-bottom: var(--space-8, 2rem); }
+.sow-block { margin-bottom: var(--space-12, 3rem); }
+.sow-block:last-child { margin-bottom: 0; }
+.sow-block-title { text-align: center; font-size: 1.6rem; font-weight: 700; color: var(--primary-navy); margin-bottom: var(--space-6, 1.5rem); }
+.sow-white-card {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl, 1rem);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-6, 1.5rem);
+}
+.sow-tick { color: #1d6f4f; margin-right: 0.25rem; }
+.quote-head-title { font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800; color: var(--primary-navy); margin-bottom: 0.25rem; }
+#wizard { scroll-margin-top: 81px; }
+/* The active step is underlined, as well as filled — colour alone is not the only signal. */
+.quote-page .quote-step-tab.is-current .quote-step-label { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.35rem; text-decoration-color: var(--primary-blue); }
+.sow-included-title { font-size: 1.6rem; font-weight: 700; color: var(--primary-navy); margin-bottom: var(--space-4, 1rem); }
+/* Lines up with the form card, which sits inside the column's gutters. */
+.quote-page .quote-reuse { max-width: calc(920px - 1.5rem); }

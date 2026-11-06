@@ -129,7 +129,9 @@ the formula in `public/js/quote-form.js`, and a test asserts the file holds no m
 effort figure and no rate: a second implementation in the browser is the one place the figure
 on screen and the figure in the stored quote could disagree, and the first change to
 `config/estimation.js` would make them. The four steps are a reading aid over ONE form —
-without scripting every step shows and the button at the bottom submits all of it.
+without scripting every step shows and the button at the bottom submits all of it. The form
+sits under `#wizard`, below the page's own introduction; a refused save or a reused quote
+re-renders the whole page, so the script scrolls back to the form (`data-focus-wizard`).
 
 The form is read in `utils/quoteFormInputs.js`, both ways: `inputsFrom` (form → estimator
 input) and `valuesFromQuote` (stored quote → form), and a test round-trips a quote through
@@ -491,9 +493,12 @@ pack. They were one page whose only button was "Start a quote", which is where a
 following "CV Generator" landed. The Hub writes no cover letter — that is prose, and a
 generator that writes prose stops rendering the consultant's own claims.
 
-"What's included" on that page is `SOW_INCLUDED` in `routes/index.js`, and each SOW line
-names the heading in `sowDocx.js` that produces it; a test asserts every heading is really
-there. "Acceptance criteria" is listed because section 2.2 now WRITES it — the phase, its
+What both SOW pages say about the pack — How it works, Supported Salesforce clouds, What's
+included in the SOW — is ONE set of partials (`views/partials/sow/`) fed by `config/sowPack.js`,
+rendered on `/services/document-generator` and above the form on `/quotes/new`. Two pages
+describing one download are two places to disagree; a test asserts both include the partials
+and that `routes/index.js` restates nothing. Each line of `SOW_SECTIONS` names the heading in
+`sowDocx.js` that produces it; a test asserts every heading is really there. "Acceptance criteria" is listed because section 2.2 now WRITES it — the phase, its
 milestone from the stored timeline and `PHASE_ACCEPTANCE` from `config/estimation.js` (words,
 no figures, asserted for every phase at boot). It was added to the document before it was added
 to the page; the other order is a page promising a section the download does not have. 2.2 is
@@ -502,9 +507,9 @@ three cloud cards are `CLOUD_GROUPS` in `config/cloudFamilies.js`, and `cloudGro
 fails a test if a cloud is in no group or two.
 
 The SOW pack page names what is IN each file rather than counting it — a count with no list
-behind it ("seven slides") is a claim a reader cannot check, and it was. Every figure on it is
-a property of the generators — seven slides, four
-sheets, six numbered sections — and its sample timeline is computed at load by
+behind it ("seven slides") is a claim a reader cannot check, and it was. `PACK_FILES` names the
+sheets and slides, and a test reads `addWorksheet` and `addSlide` from the generators and fails if
+one stops being named. Its sample timeline is computed at load by
 `calculateEstimation` and held to `reconciliationProblems`, the same as a real quote. A
 product page that draws its own Gantt by hand is a promise the download does not have to
 keep. A CV section with nothing in it (no Trailhead, no rate) is shown unticked and disabled,

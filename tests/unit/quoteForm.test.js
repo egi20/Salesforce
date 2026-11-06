@@ -69,33 +69,38 @@ describe('the form works with scripting off', () => {
   });
 });
 
-describe('the SOW page lists only what the SOW contains', () => {
-  const index = read('routes/index.js');
+describe('the SOW pages list only what the SOW contains', () => {
+  const { SOW_SECTIONS } = require('../../config/sowPack');
   const sow = read('utils/documents/sowDocx.js');
-  const block = index.slice(index.indexOf('const SOW_INCLUDED'), index.indexOf('const SERVICE_PAGES'));
-  const headings = [...block.matchAll(/heading: ('[^']*'|"[^"]*")/g)].map((m) => m[1].slice(1, -1));
 
-  test('every SOW line names the heading that produces it', () => {
-    const sowBlock = block.slice(block.indexOf('sow: ['), block.indexOf('pack: ['));
-    const lines = sowBlock.match(/\{ label:/g) || [];
-    expect(lines.length).toBeGreaterThanOrEqual(8);
-    expect(headings.length).toBe(lines.length);
+  test('every line names the heading that produces it', () => {
+    expect(SOW_SECTIONS.length).toBeGreaterThanOrEqual(12);
+    for (const item of SOW_SECTIONS) expect(item.heading).toBeTruthy();
   });
 
-  test.each(headings.map((h) => [h]))('"%s" is a heading the generator writes', (heading) => {
+  test.each(SOW_SECTIONS.map((i) => [i.label, i.heading]))('"%s" is written by the generator (%s)', (label, heading) => {
     expect(sow).toContain(heading);
   });
 
   test('acceptance criteria are listed because section 2.2 writes them', () => {
-    expect(block).toContain("heading: '2.2 Acceptance criteria'");
+    expect(SOW_SECTIONS.map((i) => i.heading)).toContain('2.2 Acceptance criteria');
     expect(sow).toContain("heading('2.2 Acceptance criteria'");
   });
 
-  test('nothing is listed that the document does not have', () => {
-    expect(block).not.toMatch(/Work breakdown structure|Change control|Statement of compliance/i);
+  test('a section that appears only sometimes says when', () => {
+    for (const item of SOW_SECTIONS.filter((i) => i.optional)) expect(item.note).toBeTruthy();
   });
 
-  test('Your quotes is in the hero; a visitor is sent through sign-in to it', () => {
+  test('both pages render the same partials, so they cannot describe the pack differently', () => {
+    for (const view of ['views/quotes/new.ejs', 'views/services/document-generator.ejs']) {
+      const src = read(view);
+      for (const part of ['sow/how', 'sow/clouds', 'sow/included']) expect(src).toContain(`include('../partials/${part}'`);
+    }
+    // The list is not restated anywhere else.
+    expect(read('routes/index.js')).not.toMatch(/SOW_INCLUDED|label: 'Cover page'/);
+  });
+
+  test('Your quotes is in the SOW pack page hero; a visitor is sent through sign-in to it', () => {
     expect(read('views/services/document-generator.ejs')).toContain("currentUser ? '/quotes' : '/auth/login?redirect=%2Fquotes'");
   });
 
@@ -177,11 +182,8 @@ describe('Reuse details from your last quote', () => {
 });
 
 describe('the pack column names what is in each file, not just how many', () => {
-  const index = read('routes/index.js');
-  const note = (label) => {
-    const m = index.match(new RegExp(`label: '${label.replace(/[+]/g, '\\+')}', note: '([^']+)'`));
-    return m ? m[1].toLowerCase() : '';
-  };
+  const { PACK_FILES } = require('../../config/sowPack');
+  const note = (label) => (PACK_FILES.find((f) => f.label === label) || { note: '' }).note.toLowerCase();
 
   test('every sheet of the work breakdown is named', () => {
     const sheets = [...read('utils/documents/wbsXlsx.js').matchAll(/addWorksheet\('([^']+)'/g)].map((m) => m[1].toLowerCase());
@@ -197,7 +199,11 @@ describe('the pack column names what is in each file, not just how many', () => 
     for (const s of slides) expect(deck).toContain(s);
   });
 
-  test('no bare count is left on the page', () => {
-    expect(index + read('views/services/document-generator.ejs')).not.toMatch(/\b(four|seven|six) (sheets|slides|numbered sections)\b/i);
+  test('no bare count is left on either page', () => {
+    const all = read('config/sowPack.js') + read('views/services/document-generator.ejs') + read('views/quotes/new.ejs')
+      + ['how', 'clouds', 'included'].map((p) => read(`views/partials/sow/${p}.ejs`)).join('');
+    // Comments may quote the old wording to explain why it went; the page may not show it.
+    const shown = all.replace(/\/\*[\s\S]*?\*\//g, '').replace(/<%#[\s\S]*?%>/g, '');
+    expect(shown).not.toMatch(/\b(four|seven|six) (sheets|slides|numbered sections)\b/i);
   });
 });

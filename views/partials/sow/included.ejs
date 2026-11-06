@@ -1,0 +1,53 @@
+<%
+  /*
+   * "What's included in the SOW" — every line from config/sowPack.js, each tied to a heading
+   * the generator writes (a test checks it). `withPack` adds the other two files beside it.
+   *
+   *   readyHref / readyLabel   where the "Ready to get started?" button goes
+   */
+  const sections = sowSections;
+  const half = Math.ceil(sections.length / 2);
+  const columns = typeof withPack !== 'undefined' && withPack ? [sections] : [sections.slice(0, half), sections.slice(half)];
+%>
+<section aria-labelledby="included" class="sow-block">
+  <div class="row g-4 align-items-stretch">
+    <div class="col-lg-8">
+      <div class="sow-white-card h-100 text-start">
+        <h2 class="sow-included-title" id="included">What's included in the SOW</h2>
+        <div class="row g-4">
+          <% columns.forEach(function (col) { %>
+            <div class="col-md-6">
+              <ul class="sow-contents list-unstyled mb-0">
+                <% col.forEach(function (item) { %>
+                  <li class="<%= item.optional ? 'is-optional' : '' %>">
+                    <i class="bi <%= item.optional ? 'bi-plus-circle' : 'bi-check-circle-fill' %>" aria-hidden="true"></i>
+                    <span><%= item.label %><% if (item.note) { %> <span class="text-muted-2">(<%= item.note %>)</span><% } %></span>
+                  </li>
+                <% }); %>
+              </ul>
+            </div>
+          <% }); %>
+          <% if (typeof withPack !== 'undefined' && withPack) { %>
+            <div class="col-md-6">
+              <h3 class="h6 text-uppercase small fw-bold text-muted-2 mb-2">Also in the pack</h3>
+              <ul class="sow-contents list-unstyled mb-0">
+                <% packFiles.forEach(function (item) { %>
+                  <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                    <span><%= item.label %> <span class="text-muted-2">— <%= item.note %></span></span></li>
+                <% }); %>
+              </ul>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="sow-ready h-100">
+        <span class="sow-pack-icon" aria-hidden="true"><i class="bi bi-rocket-takeoff"></i></span>
+        <h2 class="h5 mb-2">Ready to get started?</h2>
+        <p class="mb-4">Create your first SOW in minutes. Free with every quote.</p>
+        <a class="btn btn-light btn-lg w-100" href="<%= readyHref %>"><%= readyLabel %></a>
+      </div>
+    </div>
+  </div>
+</section>

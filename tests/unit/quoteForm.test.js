@@ -221,3 +221,19 @@ describe('the pack cards name what is in each file, not just how many', () => {
     expect(shown).not.toMatch(/\b(four|seven|six) (sheets|slides|numbered sections)\b/i);
   });
 });
+
+describe('Your quotes (/quotes)', () => {
+  const view = read('views/quotes/index.ejs');
+
+  test('statuses read as words: Draft, Sent, Accepted, Declined, Expired', () => {
+    expect(view).toContain('<%= statusLabel(s) %></a>');
+    expect(view).toContain('<%= statusLabel(q.status) %></span>');
+    expect(view).not.toMatch(/href="\/quotes\?status=<%= s %>"><%= s %><\/a>/);
+  });
+
+  test('with no quote at all the page says what it is for and offers the first one', () => {
+    expect(view).toContain('You have not saved a quote yet');
+    expect(view).toContain('href="/quotes/new#wizard"');
+    expect(view).not.toContain('Produce your first one');
+  });
+});

@@ -2884,3 +2884,5 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
 .quote-page .quote-reuse { max-width: calc(920px - 1.5rem); }
 /* Step 1's Previous is there to keep the buttons where they are, not to be pressed. */
 .quote-step-nav .btn:disabled { opacity: 0.4; }
+/* Shares the row with the icon and the buttons instead of claiming a full line and stacking them. */
+.quotes-empty-text { flex: 1 1 18rem; min-width: 0; }

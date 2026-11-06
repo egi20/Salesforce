@@ -175,3 +175,29 @@ describe('Reuse details from your last quote', () => {
     expect(read('public/js/main.js')).toContain('window.history.replaceState(null, \'\', window.location.pathname)');
   });
 });
+
+describe('the pack column names what is in each file, not just how many', () => {
+  const index = read('routes/index.js');
+  const note = (label) => {
+    const m = index.match(new RegExp(`label: '${label.replace(/[+]/g, '\\+')}', note: '([^']+)'`));
+    return m ? m[1].toLowerCase() : '';
+  };
+
+  test('every sheet of the work breakdown is named', () => {
+    const sheets = [...read('utils/documents/wbsXlsx.js').matchAll(/addWorksheet\('([^']+)'/g)].map((m) => m[1].toLowerCase());
+    expect(sheets.length).toBeGreaterThan(0);
+    const xlsx = note('Work breakdown + Gantt').replace(/&/g, 'and');
+    for (const s of sheets) expect(xlsx).toContain(s.replace(/&/g, 'and'));
+  });
+
+  test('every titled slide of the deck is named', () => {
+    const slides = [...read('utils/documents/summaryPptx.js').matchAll(/addSlide\(pptx, '([^']+)'/g)].map((m) => m[1].toLowerCase());
+    expect(slides.length).toBeGreaterThan(0);
+    const deck = note('Summary deck');
+    for (const s of slides) expect(deck).toContain(s);
+  });
+
+  test('no bare count is left on the page', () => {
+    expect(index + read('views/services/document-generator.ejs')).not.toMatch(/\b(four|seven|six) (sheets|slides|numbered sections)\b/i);
+  });
+});

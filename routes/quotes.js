@@ -109,7 +109,7 @@ router.get(
     ]);
 
     res.render('quotes/index', {
-      title: 'Quotes',
+      title: 'Your quotes',
       quotes: rows,
       stats,
       status,
@@ -161,7 +161,7 @@ async function renderNew(req, res, { values, errors, status = 200, reusedFrom = 
   const stats = await Quote.statsForOwner(req.session.user.id);
   const errorStep = errors.length ? (errors.some((e) => CLIENT_FIELDS.includes(e.path)) ? 1 : 2) : 1;
   return res.status(status).render('quotes/new', {
-    title: 'New estimate',
+    title: 'SOW Quote Generator',
     ...catalogueLocals(),
     values,
     errors,

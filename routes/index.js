@@ -161,8 +161,8 @@ const SOW_INCLUDED = Object.freeze({
     { label: 'Terms and validity', note: 'your own terms when set under Document branding', heading: '. Validity' }
   ],
   pack: [
-    { label: 'Work breakdown + Gantt', note: '.xlsx, four sheets' },
-    { label: 'Summary deck', note: '.pptx, seven slides' },
+    { label: 'Work breakdown + Gantt', note: '.xlsx: summary, WBS with a weekly Gantt, scope, team and cost' },
+    { label: 'Summary deck', note: '.pptx: title, at a glance, scope, approach, timeline, team and commercials, assumptions and next steps' },
     { label: 'Your branding', note: 'colours, letterhead and standard clauses' },
     { label: 'Figures that reconcile', note: 'all three read the same stored estimate' }
   ]

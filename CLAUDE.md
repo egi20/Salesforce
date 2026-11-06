@@ -501,7 +501,9 @@ a sub-section so nothing after it is renumbered. Optional sections say when they
 three cloud cards are `CLOUD_GROUPS` in `config/cloudFamilies.js`, and `cloudGroupProblems()`
 fails a test if a cloud is in no group or two.
 
-Every figure on the SOW pack page is a property of the generators — seven slides, four
+The SOW pack page names what is IN each file rather than counting it — a count with no list
+behind it ("seven slides") is a claim a reader cannot check, and it was. Every figure on it is
+a property of the generators — seven slides, four
 sheets, six numbered sections — and its sample timeline is computed at load by
 `calculateEstimation` and held to `reconciliationProblems`, the same as a real quote. A
 product page that draws its own Gantt by hand is a promise the download does not have to

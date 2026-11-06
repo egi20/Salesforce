@@ -1,6 +1,6 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { icon: 'bi-calculator', heading: 'Quotes', sub: 'Scope estimates you have produced.' }) %>
+<%- include('../partials/page-header', { icon: 'bi-clock-history', heading: 'Your quotes', sub: 'Every estimate you have saved, each with its SOW pack.' }) %>
 
 <section class="glass-section pb-5">
 <div class="container">
@@ -26,7 +26,7 @@
         <li class="nav-item"><a class="nav-link <%= status === s ? 'active' : '' %>" href="/quotes?status=<%= s %>"><%= s %></a></li>
       <% }); %>
     </ul>
-    <a class="btn btn-primary" href="/quotes/new"><i class="bi bi-plus-lg"></i> New estimate</a>
+    <a class="btn btn-primary" href="/quotes/new"><i class="bi bi-plus-lg"></i> Start new quote</a>
   </div>
 
   <% if (quotes.length === 0) { %>

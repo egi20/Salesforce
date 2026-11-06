@@ -20,7 +20,7 @@
             <div class="alert alert-danger"><%= error %></div>
           <% } %>
 
-          <form method="post" action="/tax-advisory/enquire">
+          <form method="post" action="/tax-optimization/enquire">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
             <div class="row g-3 mb-3">
@@ -46,8 +46,19 @@
                 <label class="form-label" for="country">Where you are tax-resident</label>
                 <select class="form-select" id="country" name="country" required>
                   <option value="">Choose</option>
-                  <% countries.forEach(function (c) { %>
-                    <option value="<%= c.code %>" <%= form.country === c.code ? 'selected' : '' %>><%= c.name %></option>
+                  <%
+                    const groups = [
+                      ['Where most consultants on the Hub live', countryGroups.top],
+                      ['Europe and other common countries', countryGroups.relevant],
+                      ['All other countries', countryGroups.rest]
+                    ].filter(function (g) { return g[1].length; });
+                  %>
+                  <% groups.forEach(function (g) { %>
+                    <optgroup label="<%= g[0] %>">
+                      <% g[1].forEach(function (c) { %>
+                        <option value="<%= c.code %>" <%= form.country === c.code ? 'selected' : '' %>><%= c.name %></option>
+                      <% }); %>
+                    </optgroup>
                   <% }); %>
                 </select>
                 <div class="form-text">It decides who can help you, and it is the only location we ask for.</div>
@@ -108,7 +119,7 @@
             </div>
 
             <button class="btn btn-primary" type="submit"><%= applying ? 'Send my application' : 'Send my enquiry' %></button>
-            <a class="btn btn-link" href="/tax-advisory">Back</a>
+            <a class="btn btn-link" href="/tax-optimization">Back</a>
           </form>
         </div>
       </div>

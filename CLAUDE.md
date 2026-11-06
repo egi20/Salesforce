@@ -794,7 +794,18 @@ with a real payroll to apply. The guardrails that make the difference:
 - "Apply now" is the same six-question enquiry with `topic=program` preselected, so it keeps
   its consent, its rate limit and its retention. "Is this legal?" must keep three points —
   home obligations still apply, foreign tax credit, consult an advisor — and a test holds
-  them. `/tax-optimization` 301s here.
+  them.
+- **The page lives at `/tax-optimization`**, its name. `/tax-advisory` and everything under it
+  redirect there (`legacyRedirect` in `routes/tax.js`): 301 for a read, 308 for a POST, because
+  a 301 lets a browser turn an enquiry posted from a cached form into a GET that drops it. The
+  admin queue stays at `/admin/tax-advisory` — it is the enquiries, not the page.
+- **With no payroll the calculator shows no inputs at all**, only "Calculator coming soon"
+  and Ask about your setup: fields that cannot do anything look broken, and a sample figure
+  would be a number nobody stands behind.
+- **Country selects come in groups** (`countryGroups` in `config/regions.js`): where most
+  consultants on the Hub live, MEASURED from `consultant_profiles` rather than chosen; then a
+  short list of the ~55 countries contractors here work from; then, on the enquiry form only
+  (it needs a real code), every other inhabited country. The calculator's ends in "Other".
 
 **This feature exists because the reference's version of it cannot be ported.** Its
 `POST /tax-optimization/calculate` takes the gross and net a visitor types, computes

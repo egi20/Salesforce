@@ -1,5 +1,5 @@
 /*
- * The take-home calculator on /tax-advisory — the ONE implementation of its arithmetic.
+ * The take-home calculator on /tax-optimization — the ONE implementation of its arithmetic.
  *
  * It runs in the browser (the figures somebody types never leave the page: there is no
  * endpoint to post them to and the inputs carry no `name`), and the same file is required by

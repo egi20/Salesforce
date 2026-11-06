@@ -13,6 +13,7 @@ const { PRIVACY_VERSION } = require('../config/legal-versions');
 const { ARRANGEMENTS, LIMITS, PROGRAM_TOPIC, RETENTION_DAYS, TOPICS, isTopic } = require('../config/taxAdvisory');
 const taxProgram = require('../config/taxProgram');
 const TaxProgram = require('../models/TaxProgram');
+const { countryGroups } = require('../config/regions');
 
 const router = express.Router();
 
@@ -45,11 +46,11 @@ const enquiryLimiter = ipLimiter({
   message: 'You have sent several enquiries already. Please give us a chance to reply first.'
 });
 
-function pageLocals() {
+function pageLocals(topCountries = []) {
   return {
     topics: TOPICS,
     arrangements: ARRANGEMENTS,
-    countries,
+    countryGroups: countryGroups(countries, topCountries),
     limits: LIMITS,
     programTopic: PROGRAM_TOPIC,
     retentionDays: RETENTION_DAYS
@@ -70,8 +71,12 @@ async function optional(label, read, fallback) {
   }
 }
 
+function topCountries() {
+  return optional('top countries', () => TaxProgram.topConsultantCountries(), []);
+}
+
 /**
- * GET /tax-advisory — the program, its calculator, and who it is for.
+ * GET /tax-optimization — the program, its calculator, and who it is for.
  *
  * Every figure on the page comes from `config/tax-program.json` or from the database, and a
  * figure that is not there is not shown. Stories appear only with consent; the participant
@@ -83,9 +88,10 @@ router.get(
   asyncHandler(async (req, res) => {
     const program = taxProgram.pageModel();
     const monthsPerYear = program.payroll ? program.payroll.monthsPerYear : 12;
-    const [stories, active] = await Promise.all([
+    const [stories, active, top] = await Promise.all([
       optional('stories', () => TaxProgram.liveStories({ monthsPerYear }), []),
-      optional('participant count', () => TaxProgram.activeCount(), 0)
+      optional('participant count', () => TaxProgram.activeCount(), 0),
+      topCountries()
     ]);
     res.render('tax/index', {
       title: 'Tax optimization',
@@ -93,41 +99,44 @@ router.get(
       stories,
       activeConsultants: active >= taxProgram.ACTIVE_COUNT_FLOOR ? active : null,
       money: taxProgram.money,
-      ...pageLocals()
+      ...pageLocals(top)
     });
   })
 );
 
 /**
- * GET /tax-advisory/enquire — the form.
+ * GET /tax-optimization/enquire — the form.
  *
  * Prefilled from the session when there is one, because asking a signed-in person to
  * retype their own name is friction with nothing behind it. Prefilled ONLY with name and
  * email: the reference also reaches into the consultant profile, which is a different
  * source of truth appearing in a field the person then has to notice and correct.
  */
-router.get('/enquire', (req, res) => {
-  const user = req.session.user;
-  // `?topic=program` is what "Apply now" links to. Anything that is not a declared topic is
-  // ignored rather than echoed into the form.
-  const topic = isTopic(req.query.topic) ? req.query.topic : '';
-  res.render('tax/enquire', {
-    title: topic === PROGRAM_TOPIC ? 'Apply to the program' : 'Ask about your setup',
-    form: {
-      fullName: user ? user.name || '' : '',
-      email: user ? user.email || '' : '',
-      phone: '',
-      country: '',
-      topic,
-      arrangement: '',
-      question: ''
-    },
-    ...pageLocals()
-  });
-});
+router.get(
+  '/enquire',
+  asyncHandler(async (req, res) => {
+    const user = req.session.user;
+    // `?topic=program` is what "Apply now" links to. Anything that is not a declared topic is
+    // ignored rather than echoed into the form.
+    const topic = isTopic(req.query.topic) ? req.query.topic : '';
+    res.render('tax/enquire', {
+      title: topic === PROGRAM_TOPIC ? 'Apply to the program' : 'Ask about your setup',
+      form: {
+        fullName: user ? user.name || '' : '',
+        email: user ? user.email || '' : '',
+        phone: '',
+        country: '',
+        topic,
+        arrangement: '',
+        question: ''
+      },
+      ...pageLocals(await topCountries())
+    });
+  })
+);
 
 /**
- * POST /tax-advisory/enquire.
+ * POST /tax-optimization/enquire.
  *
  * An ordinary browser POST from a page on this origin, so it goes through CSRF like every
  * other form. Validation lives in `TaxEnquiry.normaliseSubmission`, which is pure and
@@ -187,7 +196,7 @@ router.post(
           arrangement: req.body.arrangement || '',
           question: req.body.question || ''
         },
-        ...pageLocals()
+        ...pageLocals(await topCountries())
       });
     }
 
@@ -227,8 +236,23 @@ router.post(
         ? 'Thank you — your enquiry is with us. We will introduce you to somebody who works in your country.'
         : 'Thank you — we have updated the enquiry you already had open with us.'
     );
-    return res.redirect(returnTo(req, '/tax-advisory'));
+    return res.redirect(returnTo(req, '/tax-optimization'));
   })
 );
+
+/**
+ * The page's old address, /tax-advisory, and every path under it, mounted in server.js.
+ *
+ * Permanent, so search engines and bookmarks move once. 308 rather than 301 for anything but
+ * a read: a 301 lets a browser turn a POST into a GET, so an enquiry form cached before the
+ * move would arrive as an empty page view and lose what somebody typed. The query string
+ * survives; the path can only ever land under /tax-optimization, never on another host.
+ */
+function legacyRedirect(req, res) {
+  const rest = req.url.replace(/^\/(?=\?|$)/, '');
+  res.redirect(req.method === 'GET' || req.method === 'HEAD' ? 301 : 308, `/tax-optimization${rest}`);
+}
+
+router.legacyRedirect = legacyRedirect;
 
 module.exports = router;

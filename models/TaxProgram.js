@@ -4,7 +4,7 @@ const { promisePool } = require('../config/database');
 const { countryName } = require('../utils/geo');
 
 /**
- * The program's participants and their stories (migration 042), read for /tax-advisory.
+ * The program's participants and their stories (migration 042), read for /tax-optimization.
  *
  * Both reads are for a public page and both are allowed to fail: the page renders without a
  * story section or a participant count rather than not at all, the same way search shows a
@@ -73,6 +73,24 @@ class TaxProgram {
       [limit]
     );
     return rows.map((r) => present(r, monthsPerYear));
+  }
+
+  /**
+   * The countries most consultants on the Hub live in, most first — the top of the country
+   * select. Measured rather than chosen, so the list follows the people who are here.
+   */
+  static async topConsultantCountries(limit = 6) {
+    const [rows] = await promisePool.query(
+      `SELECT cp.country, COUNT(*) AS n
+         FROM consultant_profiles cp
+         JOIN users u ON u.id = cp.user_id
+        WHERE cp.country IS NOT NULL AND u.anonymised_at IS NULL
+        GROUP BY cp.country
+        ORDER BY n DESC, cp.country
+        LIMIT ?`,
+      [limit]
+    );
+    return rows.map((r) => r.country);
   }
 
   /** People in the program today: started, not ended. Distinct accounts, not rows. */

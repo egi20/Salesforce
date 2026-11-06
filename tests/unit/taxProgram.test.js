@@ -176,3 +176,24 @@ describe('models/TaxProgram', () => {
     expect(OWNED).toMatchObject({ tax_program_participants: 'user_id', tax_program_stories: 'user_id' });
   });
 });
+
+describe('config/regions countryGroups', () => {
+  const { countryGroups, RESIDENCE_COUNTRY_CODES } = require('../../config/regions');
+  const all = require('../../config/all-countries.json');
+
+  test('puts the measured top first, then a short list, and drops uninhabited territories', () => {
+    const g = countryGroups(all, ['IT', 'DE', 'ZZ']);
+    expect(g.top.map((c) => c.code)).toEqual(['IT', 'DE']);
+    expect(g.relevant.length).toBe(RESIDENCE_COUNTRY_CODES.length - 2);
+    expect(g.relevant.map((c) => c.code)).not.toContain('IT');
+    const everywhere = [...g.top, ...g.relevant, ...g.rest].map((c) => c.code);
+    expect(new Set(everywhere).size).toBe(everywhere.length);
+    for (const code of ['AQ', 'BV', 'HM']) expect(everywhere).not.toContain(code);
+  });
+
+  test('every code in the short list is a real country in the list', () => {
+    const codes = new Set(all.map((c) => c.code));
+    for (const code of RESIDENCE_COUNTRY_CODES) expect(codes).toContain(code);
+    expect(new Set(RESIDENCE_COUNTRY_CODES).size).toBe(RESIDENCE_COUNTRY_CODES.length);
+  });
+});

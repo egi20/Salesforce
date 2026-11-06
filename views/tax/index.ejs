@@ -13,14 +13,15 @@
    * have no `name` and its form no action, so what somebody types cannot be posted anywhere.
    */
   const calcReady = Boolean(program.payroll);
-  const applyHref = '/tax-advisory/enquire?topic=' + encodeURIComponent(programTopic);
-  const contactHref = '/tax-advisory/enquire';
+  const applyHref = '/tax-optimization/enquire?topic=' + encodeURIComponent(programTopic);
+  const contactHref = '/tax-optimization/enquire';
 %>
 
 <section class="hub-hero tax-hero">
   <div class="container">
-    <div class="row align-items-center g-5">
-      <div class="col-lg-6">
+    <%# Top-aligned, not centred: the text starts level with the calculator card beside it. %>
+    <div class="row align-items-start g-5">
+      <div class="col-lg-6 tax-hero-text">
         <span class="hub-hero-badge mb-3"><i class="bi bi-graph-up-arrow"></i> TAX OPTIMIZATION</span>
         <h1>Maximize your take-home pay <span class="tax-hero-accent">without changing your work</span></h1>
         <p class="lead">
@@ -43,57 +44,71 @@
       <div class="col-lg-6">
         <div class="tax-calc-card" id="calculator">
           <h2 class="h5 mb-1"><i class="bi bi-calculator text-primary"></i> Calculate your savings</h2>
+          <% if (calcReady) { %>
           <p class="small text-muted-2 mb-3">Runs in your browser. Nothing you type here is sent to us or stored.</p>
 
-          <form id="tax-calc" class="tax-calc-form" novalidate data-no-guard="true" <% if (!calcReady) { %>data-disabled="true"<% } %>>
+          <form id="tax-calc" class="tax-calc-form" novalidate data-no-guard="true">
             <div class="mb-3">
               <label class="form-label" for="tax-gross">Gross monthly (<%= program.currency %>)</label>
-              <input class="form-control" id="tax-gross" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 6,000" <%= calcReady ? '' : 'disabled' %>>
+              <input class="form-control" id="tax-gross" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 6,000">
               <div class="form-text">Before taxes</div>
             </div>
             <div class="mb-3">
               <label class="form-label" for="tax-net">Net monthly take-home (<%= program.currency %>)</label>
-              <input class="form-control" id="tax-net" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 3,600" <%= calcReady ? '' : 'disabled' %>>
+              <input class="form-control" id="tax-net" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 3,600">
               <div class="form-text">What you actually receive</div>
             </div>
             <div class="mb-3">
               <label class="form-label" for="tax-country">Country/region <span class="text-muted-2">(optional)</span></label>
-              <select class="form-select" id="tax-country" <%= calcReady ? '' : 'disabled' %>>
+              <select class="form-select" id="tax-country">
                 <option value="">Where you live</option>
-                <% countries.forEach(function (c) { %><option value="<%= c.name %>"><%= c.name %></option><% }); %>
+                <% if (countryGroups.top.length) { %>
+                  <optgroup label="Where most consultants on the Hub live">
+                    <% countryGroups.top.forEach(function (c) { %><option value="<%= c.name %>"><%= c.name %></option><% }); %>
+                  </optgroup>
+                <% } %>
+                <optgroup label="<%= countryGroups.top.length ? 'More countries' : 'Countries' %>">
+                  <% countryGroups.relevant.forEach(function (c) { %><option value="<%= c.name %>"><%= c.name %></option><% }); %>
+                </optgroup>
+                <option value="">Other</option>
               </select>
             </div>
             <p class="tax-calc-error small text-danger mb-2" id="tax-calc-error" role="alert" hidden></p>
-            <button class="btn btn-primary w-100" type="submit" <%= calcReady ? '' : 'disabled' %>>Calculate my savings</button>
+            <button class="btn btn-primary w-100" type="submit">Calculate my savings</button>
           </form>
 
-          <% if (calcReady) { %>
-            <script type="application/json" id="tax-payroll"><%- jsonForScript({ payroll: program.payroll, currency: program.currency }) %></script>
-            <noscript><p class="small mt-3 mb-0">The calculator needs JavaScript. <a href="<%= contactHref %>">Ask about your setup</a> instead.</p></noscript>
-            <div class="tax-result" id="tax-result" aria-live="polite" hidden>
-              <div class="tax-result-main">
-                <span class="tax-result-label">New net per month</span>
-                <strong class="tax-result-net" data-out="net"></strong>
-              </div>
-              <div class="row g-2 tax-result-diff">
-                <div class="col-6"><span>Per month</span><strong data-out="month"></strong></div>
-                <div class="col-6"><span>Per year</span><strong data-out="year"></strong></div>
-              </div>
-              <details class="tax-result-lines small">
-                <summary>What payroll withholds</summary>
-                <ul class="list-unstyled mb-0" data-out="lines"></ul>
-              </details>
-              <p class="tax-result-note small mb-0">
-                <i class="bi bi-info-circle"></i>
-                Indicative only — your home-country tax obligations still apply<span data-out="country"></span>.
-              </p>
+          <script type="application/json" id="tax-payroll"><%- jsonForScript({ payroll: program.payroll, currency: program.currency }) %></script>
+          <noscript><p class="small mt-3 mb-0">The calculator needs JavaScript. <a href="<%= contactHref %>">Ask about your setup</a> instead.</p></noscript>
+          <div class="tax-result" id="tax-result" aria-live="polite" hidden>
+            <div class="tax-result-main">
+              <span class="tax-result-label">New net per month</span>
+              <strong class="tax-result-net" data-out="net"></strong>
             </div>
+            <div class="row g-2 tax-result-diff">
+              <div class="col-6"><span>Per month</span><strong data-out="month"></strong></div>
+              <div class="col-6"><span>Per year</span><strong data-out="year"></strong></div>
+            </div>
+            <details class="tax-result-lines small">
+              <summary>What payroll withholds</summary>
+              <ul class="list-unstyled mb-0" data-out="lines"></ul>
+            </details>
+            <p class="tax-result-note small mb-0">
+              <i class="bi bi-info-circle"></i>
+              Indicative only — your home-country tax obligations still apply<span data-out="country"></span>.
+            </p>
+          </div>
           <% } else { %>
+            <%#
+              No parameters, no form. Inputs that cannot do anything look broken, and a sample
+              figure would be a number nobody stands behind — so the card says what is coming
+              and offers the conversation instead.
+            %>
             <div class="tax-soon mt-3" role="status">
               <i class="bi bi-hourglass-split"></i>
               <div>
                 <strong>Calculator coming soon</strong>
-                <p class="small mb-0">We will show figures here once the program's payroll rates are published. Until then, <a href="<%= contactHref %>">ask about your setup</a> and we will work it through with you.</p>
+                <p class="small mb-3">Once the program's payroll rates are published you will be able to enter your gross and net pay here and see your new take-home, per month and per year. Until then we will work it through with you.</p>
+                <a class="btn btn-primary" href="<%= contactHref %>"><i class="bi bi-chat-dots"></i> Ask about your setup</a>
               </div>
             </div>
           <% } %>

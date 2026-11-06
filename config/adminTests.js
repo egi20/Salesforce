@@ -31,7 +31,7 @@ const TEST_SUITE = [
       { name: 'FAQ Loads', method: 'GET', endpoint: '/faq', expectedStatus: 200 },
       { name: 'Contact Loads', method: 'GET', endpoint: '/contact', expectedStatus: 200 },
       { name: 'Report an Issue Loads', method: 'GET', endpoint: '/report-issue', expectedStatus: 200 },
-      { name: 'Tax Advisory Loads', method: 'GET', endpoint: '/tax-advisory', expectedStatus: 200 }
+      { name: 'Tax Advisory Loads', method: 'GET', endpoint: '/tax-optimization', expectedStatus: 200 }
     ]
   },
   {

@@ -43,7 +43,7 @@ const PAGE_META = {
     description:
       'Agencies and headhunters placing Salesforce consultants, by cloud specialism and country.'
   },
-  '/tax-advisory': {
+  '/tax-optimization': {
     title: 'Tax optimization for Salesforce contractors',
     description:
       'Keep your clients and your location, and be employed through our Albania entity. How the program works, who it is for, and what still applies at home.'
@@ -98,12 +98,12 @@ const PAGE_META = {
 };
 
 /** Paths that may appear in the sitemap and carry a canonical URL. */
-// `/tax-advisory` is indexable; `/tax-advisory/enquire` deliberately is not. A form page
+// `/tax-optimization` is indexable; `/tax-optimization/enquire` deliberately is not. A form page
 // carries no content a search result can usefully show, and the page above it already
 // links to it.
 const PUBLIC_PATHS = ['/', '/about', '/blog', '/consultant-hub', '/companies-hub',
   '/services/staff-augmentation', '/services/project-based', '/services/managed-services',
-  '/services/document-generator', '/cv-generator', '/jobs', '/consultants', '/companies', '/rates', '/recruiters', '/success-stories', '/tax-advisory', '/faq', '/contact', '/legal/privacy', '/legal/terms'];
+  '/services/document-generator', '/cv-generator', '/jobs', '/consultants', '/companies', '/rates', '/recruiters', '/success-stories', '/tax-optimization', '/faq', '/contact', '/legal/privacy', '/legal/terms'];
 
 function canonicalUrl(path) {
   const clean = String(path || '/').split('?')[0];

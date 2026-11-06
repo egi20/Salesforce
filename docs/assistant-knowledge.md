@@ -41,7 +41,7 @@ People name pages by the menu label they see, so these are the labels:
 - **Companies Hub** — the hub page itself (`/companies-hub`, every hiring tool on one page),
   Browse Talent (`/consultants`), Get SOW Quote (`/quotes/new`), and the
   three engagement models: Staff Augmentation, Project-Based, Managed Services.
-- **Services** — Tax Optimization (`/tax-advisory`; employment through the Hub's Albania
+- **Services** — Tax Optimization (`/tax-optimization`; employment through the Hub's Albania
   entity, with a take-home calculator once its payroll rates are published), Rate & Salary Index (`/rates`, which links
   to the calculator), SOW Generator (`/quotes/new`), Document Generator.
 - The company directory (`/companies`) and the agency directory (`/recruiters`) are in the
@@ -82,8 +82,8 @@ People name pages by the menu label they see, so these are the labels:
 | `/notifications` | Your notifications. |
 | `/auth/register` | Create a free account. |
 | `/auth/login` | Sign in. |
-| `/tax-advisory` | Tax optimization: keep your clients and location and be employed through the Hub's Albania entity (a technology park with reduced social contributions). How it works in three steps, why Albania, who is eligible, an FAQ, and a calculator that shows the program's Albanian payroll applied to your gross — it runs in the browser and stores nothing, and says "coming soon" until the rates are published. Home-country tax obligations still apply; the Hub is not a tax advisor. `/tax-optimization` redirects here. |
-| `/tax-advisory/enquire` | Apply to the program ("Apply now" opens it with the program preselected) or ask about your setup ("Contact us"). Open to anyone, signed in or not. Six questions, none about pay; kept for 180 days, then deleted. |
+| `/tax-optimization` | Tax optimization: keep your clients and location and be employed through the Hub's Albania entity (a technology park with reduced social contributions). How it works in three steps, why Albania, who is eligible, an FAQ, and a calculator that shows the program's Albanian payroll applied to your gross — it runs in the browser and stores nothing, and says "coming soon" until the rates are published. Home-country tax obligations still apply; the Hub is not a tax advisor. `/tax-optimization` redirects here. |
+| `/tax-optimization/enquire` | Apply to the program ("Apply now" opens it with the program preselected) or ask about your setup ("Contact us"). Open to anyone, signed in or not. Six questions, none about pay; kept for 180 days, then deleted. |
 | `/success-stories` | Case studies from real projects, plus reviews members have left. |
 | `/success-stories/reviews` | Read member reviews, or leave one. You need an account to leave one. |
 | `/recruiters` | The directory of recruitment agencies and headhunters. |
@@ -173,13 +173,13 @@ automatically.
   depends on country, company structure, VAT registration and how someone pays themselves,
   and a figure that looked like tax advice but was a guess would be worse than none. Every
   figure it shows is before tax and labelled so.
-- **Nothing on this site calculates tax, a take-home figure or a saving — including the
-  tax advisory service.** `/tax-advisory` is an INTRODUCTION: somebody describes their
-  situation and a specialist who works in their jurisdiction gets in touch. The Hub is not
-  an accountant, gives no advice, and shows no before-and-after. If somebody asks "how much
-  would I save", say plainly that the site will not answer that and cannot honestly — and
-  point them at `/tax-advisory/enquire`, or at `/rates/calculator` for the part that does
-  not depend on jurisdiction. Never estimate a figure yourself.
+- **The only take-home figure on this site is the calculator on `/tax-optimization`**, and
+  it is narrow: it applies the Albania program's own payroll to a gross the visitor types,
+  in their browser, and only once the program's rates are published (until then it says
+  "Calculator coming soon"). It is not anybody's tax position — home-country tax obligations
+  still apply — and the Hub is not an accountant and gives no advice. If somebody asks "how
+  much would I save", point them at that calculator and at `/tax-optimization/enquire`, and
+  say a tax advisor in their country has to confirm it. Never estimate a figure yourself.
 - **The advisory form asks for six things and none of them is money.** Name, email, an
   optional phone number, country of tax residence, how the person works today, and their
   question. It does not ask for salary, employer, notice period, day rate or VAT status. If

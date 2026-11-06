@@ -42,7 +42,7 @@
          */
         const isConsultantArea = startsWith('/consultant-hub') || startsWith('/cv-generator') || (!isCompanyJobPath && startsWith('/jobs'))
           || (currentUser && (startsWith('/profile/consultant') || startsWith('/profile/settings')));
-        const isServicesArea = startsWith('/quotes') || startsWith('/rates') || startsWith('/tax-advisory')
+        const isServicesArea = startsWith('/quotes') || startsWith('/rates') || startsWith('/tax-optimization')
           || startsWith('/services/document-generator');
         const isCompanyArea = !isServicesArea && (isCompanyJobPath || startsWith('/companies-hub')
           || startsWith('/consultants') || startsWith('/companies') || startsWith('/recruiters')
@@ -121,7 +121,7 @@
           <ul class="dropdown-menu shadow-sm">
             <%# Named to match the sister platforms. The label is all that matches: the page %>
             <%# introduces a specialist and calculates nothing, and it must stay that way. %>
-            <li><a class="dropdown-item" href="/tax-advisory"><i class="bi bi-signpost-split"></i> Tax Optimization</a></li>
+            <li><a class="dropdown-item" href="/tax-optimization"><i class="bi bi-signpost-split"></i> Tax Optimization</a></li>
             <%# The calculator is linked from the top of /rates, so one entry reaches both. %>
             <li><a class="dropdown-item" href="/rates"><i class="bi bi-graph-up"></i> Rate &amp; Salary Index</a></li>
             <li><a class="dropdown-item" href="/quotes/new"><i class="bi bi-file-earmark-ruled"></i> SOW Generator</a></li>

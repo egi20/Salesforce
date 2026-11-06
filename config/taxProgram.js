@@ -6,7 +6,7 @@ const path = require('path');
 const { payrollProblems } = require('../public/js/tax-calculator');
 
 /**
- * The Albania employment program behind /tax-advisory ("Tax optimization").
+ * The Albania employment program behind /tax-optimization ("Tax optimization").
  *
  * WHAT CHANGED, AND WHY THIS IS NOT THE CALCULATOR THIS CODEBASE REFUSED. The reference's
  * `/tax-optimization/calculate` subtracted an admin-editable flat percentage of gross from

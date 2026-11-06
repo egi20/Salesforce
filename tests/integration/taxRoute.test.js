@@ -9,6 +9,7 @@ const { attachViewHelpers } = require('../../utils/viewHelpers');
 const { notFound, errorHandler } = require('../../middleware/errorHandler');
 const TaxEnquiry = require('../../models/TaxEnquiry');
 const TaxProgram = require('../../models/TaxProgram');
+const taxProgram = require('../../config/taxProgram');
 const email = require('../../utils/email');
 const { RETENTION_DAYS } = require('../../config/taxAdvisory');
 
@@ -51,12 +52,14 @@ function buildApp({ user = null } = {}) {
     // helper meant adding one broke this file with "x is not defined" from a partial.
     attachViewHelpers(res);
     res.locals.seo = {
-      title: 't', description: 'd', canonical: 'http://x/tax-advisory', ogImage: 'http://x/o.png', indexable: true
+      title: 't', description: 'd', canonical: 'http://x/tax-optimization', ogImage: 'http://x/o.png', indexable: true
     };
     next();
   });
 
-  app.use('/tax-advisory', require('../../routes/tax'));
+  const tax = require('../../routes/tax');
+  app.use('/tax-optimization', tax);
+  app.use('/tax-advisory', tax.legacyRedirect);
   app.use(notFound);
   app.use(errorHandler);
   return app;
@@ -79,7 +82,7 @@ function nextIp() {
 }
 
 function submit(app, body, ip = nextIp()) {
-  return request(app).post('/tax-advisory/enquire').set('X-Forwarded-For', ip).type('form').send(body);
+  return request(app).post('/tax-optimization/enquire').set('X-Forwarded-For', ip).type('form').send(body);
 }
 
 const GOOD = {
@@ -102,11 +105,24 @@ describe('the tax advisory pages', () => {
   function stubProgram({ stories = [], active = 0 } = {}) {
     jest.spyOn(TaxProgram, 'liveStories').mockResolvedValue(stories);
     jest.spyOn(TaxProgram, 'activeCount').mockResolvedValue(active);
+    jest.spyOn(TaxProgram, 'topConsultantCountries').mockResolvedValue(['IT', 'DE']);
+  }
+
+  // Every page here asks which countries to list first; the answer is fixed for the tests.
+  beforeEach(() => {
+    jest.spyOn(TaxProgram, 'topConsultantCountries').mockResolvedValue(['IT', 'DE']);
+  });
+
+  /** The page as it renders once finance and legal have filled in config/tax-program.json. */
+  function configured() {
+    const fixture = taxProgram.loadProgram(path.join(__dirname, '..', 'fixtures', 'tax-program.json'));
+    const real = taxProgram.pageModel;
+    jest.spyOn(taxProgram, 'pageModel').mockImplementation(() => real(fixture));
   }
 
   it('renders the program page and states what it will not do', async () => {
     stubProgram();
-    const res = await request(buildApp()).get('/tax-advisory');
+    const res = await request(buildApp()).get('/tax-optimization');
 
     expect(res.status).toBe(200);
     expect(res.text).toMatch(/Maximize your take-home pay/);
@@ -116,17 +132,22 @@ describe('the tax advisory pages', () => {
     expect(res.text).toMatch(/enquire\?topic=program/);
   });
 
-  it('shows "coming soon" instead of a figure while the payroll is not configured', async () => {
+  it('shows "coming soon" and no inputs while the payroll is not configured', async () => {
     stubProgram();
-    const res = await request(buildApp()).get('/tax-advisory');
+    const res = await request(buildApp()).get('/tax-optimization');
     expect(res.text).toMatch(/Calculator coming soon/);
-    expect(res.text).not.toMatch(/id="tax-payroll"/);
+    expect(res.text).toMatch(/href="\/tax-optimization\/enquire"[^>]*>[^<]*<i[^>]*><\/i> Ask about your setup/);
+    // Fields that cannot do anything look broken: there are none until there are rates.
+    expect(res.text).not.toMatch(/id="tax-calc"|id="tax-gross"|id="tax-payroll"/);
     expect(res.text).not.toMatch(/tax-calculator\.js/);
   });
 
   it('gives the calculator nothing that could be submitted', async () => {
     stubProgram();
-    const res = await request(buildApp()).get('/tax-advisory');
+    configured();
+    const res = await request(buildApp()).get('/tax-optimization');
+    expect(res.text).toMatch(/tax-calculator\.js/);
+    expect(res.text).not.toMatch(/Calculator coming soon/);
     const form = res.text.match(/<form id="tax-calc"[\s\S]*?<\/form>/)[0];
     // No action, no method, and no named input: a browser submitting this form sends nothing.
     expect(form).not.toMatch(/\saction=|\smethod=|\sname=/);
@@ -134,7 +155,7 @@ describe('the tax advisory pages', () => {
 
   it('hides the stories section entirely when no story has consent', async () => {
     stubProgram({ stories: [] });
-    const res = await request(buildApp()).get('/tax-advisory');
+    const res = await request(buildApp()).get('/tax-optimization');
     expect(res.text).not.toMatch(/Real success stories/);
   });
 
@@ -146,7 +167,7 @@ describe('the tax advisory pages', () => {
         quote: 'Same clients, more at the end of the month.'
       })]
     });
-    const res = await request(buildApp()).get('/tax-advisory');
+    const res = await request(buildApp()).get('/tax-optimization');
     expect(res.text).toMatch(/Real success stories/);
     expect(res.text).toMatch(/Arta K\./);
     expect(res.text).not.toMatch(/Krasniqi/);
@@ -155,12 +176,12 @@ describe('the tax advisory pages', () => {
 
   it('shows the participant count only from ten upwards', async () => {
     stubProgram({ active: 9 });
-    let res = await request(buildApp()).get('/tax-advisory');
+    let res = await request(buildApp()).get('/tax-optimization');
     expect(res.text).not.toMatch(/tax-trust-figure/);
 
     jest.restoreAllMocks();
     stubProgram({ active: 12 });
-    res = await request(buildApp()).get('/tax-advisory');
+    res = await request(buildApp()).get('/tax-optimization');
     expect(res.text).toMatch(/<p class="tax-trust-figure mb-1">12<\/p>/);
   });
 
@@ -168,25 +189,48 @@ describe('the tax advisory pages', () => {
     jest.spyOn(TaxProgram, 'liveStories').mockRejectedValue(new Error('ECONNREFUSED'));
     jest.spyOn(TaxProgram, 'activeCount').mockRejectedValue(new Error('ECONNREFUSED'));
     jest.spyOn(console, 'warn').mockImplementation(() => {});
-    const res = await request(buildApp()).get('/tax-advisory');
+    const res = await request(buildApp()).get('/tax-optimization');
     expect(res.status).toBe(200);
     expect(res.text).not.toMatch(/Real success stories/);
   });
 
   it('opens the application form with the program preselected', async () => {
-    const res = await request(buildApp()).get('/tax-advisory/enquire?topic=program');
+    const res = await request(buildApp()).get('/tax-optimization/enquire?topic=program');
     expect(res.text).toMatch(/Apply to the Albania employment program/);
     expect(res.text).toMatch(/<option value="program" selected>/);
   });
 
+  it('lists the countries most consultants live in first, and no uninhabited territory', async () => {
+    const res = await request(buildApp()).get('/tax-optimization/enquire');
+    const top = res.text.match(/<optgroup label="Where most consultants on the Hub live">([\s\S]*?)<\/optgroup>/)[1];
+    expect([...top.matchAll(/value="([A-Z]{2})"/g)].map((m) => m[1])).toEqual(['IT', 'DE']);
+    expect(res.text).not.toMatch(/Antarctica|Bouvet Island/);
+  });
+
+  it('moves the old address, and every path under it, to /tax-optimization', async () => {
+    const app = buildApp();
+    let res = await request(app).get('/tax-advisory');
+    expect(res.status).toBe(301);
+    expect(res.headers.location).toBe('/tax-optimization');
+
+    res = await request(app).get('/tax-advisory/enquire?topic=program');
+    expect(res.status).toBe(301);
+    expect(res.headers.location).toBe('/tax-optimization/enquire?topic=program');
+
+    // A POST keeps its method and body: 308, never 301.
+    res = await request(app).post('/tax-advisory/enquire').type('form').send(GOOD);
+    expect(res.status).toBe(308);
+    expect(res.headers.location).toBe('/tax-optimization/enquire');
+  });
+
   it('ignores a topic that is not declared', async () => {
-    const res = await request(buildApp()).get('/tax-advisory/enquire?topic=%22%3E%3Cscript%3E');
+    const res = await request(buildApp()).get('/tax-optimization/enquire?topic=%22%3E%3Cscript%3E');
     expect(res.text).toMatch(/Ask about your setup/);
     expect(res.text).not.toMatch(/"><script>/);
   });
 
   it('shows no field asking what anyone earns', async () => {
-    const res = await request(buildApp()).get('/tax-advisory/enquire');
+    const res = await request(buildApp()).get('/tax-optimization/enquire');
 
     expect(res.status).toBe(200);
     // The reference's form has all of these. Each one is a financial or employment detail
@@ -200,7 +244,7 @@ describe('the tax advisory pages', () => {
   });
 
   it('has no calculate endpoint', async () => {
-    const res = await request(buildApp()).post('/tax-advisory/calculate').send({ grossSalary: 6000, netSalary: 3400 });
+    const res = await request(buildApp()).post('/tax-optimization/calculate').send({ grossSalary: 6000, netSalary: 3400 });
     expect(res.status).toBe(404);
   });
 
@@ -214,7 +258,7 @@ describe('the tax advisory pages', () => {
     const res = await submit(app, GOOD);
 
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe('/tax-advisory');
+    expect(res.headers.location).toBe('/tax-optimization');
     expect(create).toHaveBeenCalledTimes(1);
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ to: GOOD.email }));
     expect(app.locals.flashed.success[0]).toMatch(/introduce you/i);
@@ -271,7 +315,7 @@ describe('the tax advisory pages', () => {
 
   it('prefills a signed-in visitor, and only with their name and address', async () => {
     const res = await request(buildApp({ user: { id: 3, name: 'Arta Krasniqi', email: 'arta@example.com' } }))
-      .get('/tax-advisory/enquire');
+      .get('/tax-optimization/enquire');
 
     expect(res.status).toBe(200);
     expect(res.text).toMatch(/value="Arta Krasniqi"/);
@@ -346,7 +390,7 @@ describe('the tax advisory pages', () => {
     // Asserted on the DESTINATION, not the status. A refused navigation is also a 302 —
     // `ipLimiter` flashes and redirects rather than answering a bare 429, because that is
     // what every other failed guard in this app does for a top-level navigation.
-    expect(destinations.filter((d) => d === '/tax-advisory')).toHaveLength(5);
+    expect(destinations.filter((d) => d === '/tax-optimization')).toHaveLength(5);
     expect(destinations.slice(5)).toEqual(['/', '/']);
     expect(app.locals.flashed.error.some((m) => /several enquiries/i.test(m))).toBe(true);
   });

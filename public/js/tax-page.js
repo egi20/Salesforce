@@ -1,5 +1,5 @@
 /*
- * /tax-advisory: the calculator's wiring and the stories slider.
+ * /tax-optimization: the calculator's wiring and the stories slider.
  *
  * The arithmetic is in tax-calculator.js and nowhere else; this file reads the inputs, asks
  * it, and writes the answer with textContent. Nothing is sent anywhere — there is no fetch

@@ -1,5 +1,5 @@
 {
-  "_owner": "Finance and legal. Every figure on /tax-advisory comes from this file, and null hides it. Amounts are MINOR UNITS (cents); rates are BASIS POINTS (950 = 9.50%). See config/taxProgram.js for what each key means.",
+  "_owner": "Finance and legal. Every figure on /tax-optimization comes from this file, and null hides it. Amounts are MINOR UNITS (cents); rates are BASIS POINTS (950 = 9.50%). See config/taxProgram.js for what each key means.",
   "currency": "EUR",
   "entityName": null,
   "techPark": null,

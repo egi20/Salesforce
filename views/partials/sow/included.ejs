@@ -1,13 +1,13 @@
 <%
   /*
    * "What's included in the SOW" — every line from config/sowPack.js, each tied to a heading
-   * the generator writes (a test checks it). `withPack` adds the other two files beside it.
+   * the generator writes (a test checks it), in two columns.
    *
    *   readyHref / readyLabel   where the "Ready to get started?" button goes
    */
   const sections = sowSections;
   const half = Math.ceil(sections.length / 2);
-  const columns = typeof withPack !== 'undefined' && withPack ? [sections] : [sections.slice(0, half), sections.slice(half)];
+  const columns = [sections.slice(0, half), sections.slice(half)];
 %>
 <section aria-labelledby="included" class="sow-block">
   <div class="row g-4 align-items-stretch">
@@ -27,17 +27,6 @@
               </ul>
             </div>
           <% }); %>
-          <% if (typeof withPack !== 'undefined' && withPack) { %>
-            <div class="col-md-6">
-              <h3 class="h6 text-uppercase small fw-bold text-muted-2 mb-2">Also in the pack</h3>
-              <ul class="sow-contents list-unstyled mb-0">
-                <% packFiles.forEach(function (item) { %>
-                  <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i>
-                    <span><%= item.label %> <span class="text-muted-2">— <%= item.note %></span></span></li>
-                <% }); %>
-              </ul>
-            </div>
-          <% } %>
         </div>
       </div>
     </div>

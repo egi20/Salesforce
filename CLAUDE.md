@@ -493,11 +493,12 @@ pack. They were one page whose only button was "Start a quote", which is where a
 following "CV Generator" landed. The Hub writes no cover letter — that is prose, and a
 generator that writes prose stops rendering the consultant's own claims.
 
-What both SOW pages say about the pack — How it works, Supported Salesforce clouds, What's
-included in the SOW — is ONE set of partials (`views/partials/sow/`) fed by `config/sowPack.js`,
-rendered on `/services/document-generator` and above the form on `/quotes/new`. Two pages
-describing one download are two places to disagree; a test asserts both include the partials
-and that `routes/index.js` restates nothing. Each line of `SOW_SECTIONS` names the heading in
+The SOW pack is introduced in ONE place: `/quotes/new`, above the form — How it works,
+Supported Salesforce clouds and What's included in the SOW, as partials (`views/partials/sow/`)
+fed by `config/sowPack.js`. `/services/document-generator` keeps only what is its own: the three
+file cards, why they agree, and a sample timeline. Both pages once carried the same three
+sections, which was two places to disagree; a test asserts the pack page restates none of
+them. "Get SOW Quote" links to `/quotes/new#wizard` (the form); "SOW Generator" to the top. Each line of `SOW_SECTIONS` names the heading in
 `sowDocx.js` that produces it; a test asserts every heading is really there. "Acceptance criteria" is listed because section 2.2 now WRITES it — the phase, its
 milestone from the stored timeline and `PHASE_ACCEPTANCE` from `config/estimation.js` (words,
 no figures, asserted for every phase at boot). It was added to the document before it was added
@@ -507,9 +508,9 @@ three cloud cards are `CLOUD_GROUPS` in `config/cloudFamilies.js`, and `cloudGro
 fails a test if a cloud is in no group or two.
 
 The SOW pack page names what is IN each file rather than counting it — a count with no list
-behind it ("seven slides") is a claim a reader cannot check, and it was. `PACK_FILES` names the
-sheets and slides, and a test reads `addWorksheet` and `addSlide` from the generators and fails if
-one stops being named. Its sample timeline is computed at load by
+behind it ("seven slides") is a claim a reader cannot check, and it was. `PACK_CARDS` lists each
+file's contents, and a test reads the SOW's numbered headings, `addWorksheet` and `addSlide`
+from the generators and fails if a card stops naming one. Its sample timeline is computed at load by
 `calculateEstimation` and held to `reconciliationProblems`, the same as a real quote. A
 product page that draws its own Gantt by hand is a promise the download does not have to
 keep. A CV section with nothing in it (no Trailhead, no rate) is shown unticked and disabled,

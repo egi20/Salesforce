@@ -91,13 +91,23 @@ describe('the SOW pages list only what the SOW contains', () => {
     for (const item of SOW_SECTIONS.filter((i) => i.optional)) expect(item.note).toBeTruthy();
   });
 
-  test('both pages render the same partials, so they cannot describe the pack differently', () => {
-    for (const view of ['views/quotes/new.ejs', 'views/services/document-generator.ejs']) {
-      const src = read(view);
-      for (const part of ['sow/how', 'sow/clouds', 'sow/included']) expect(src).toContain(`include('../partials/${part}'`);
+  test('the introduction lives on /quotes/new only; the pack page restates none of it', () => {
+    const form = read('views/quotes/new.ejs');
+    for (const part of ['sow/how', 'sow/clouds', 'sow/included']) expect(form).toContain(`include('../partials/${part}'`);
+    const pack = read('views/services/document-generator.ejs');
+    expect(pack).not.toMatch(/partials\/sow\//);
+    expect(pack).not.toMatch(/How it works<\/h2>|Supported Salesforce clouds|What's included/);
+    expect(read('routes/index.js')).not.toMatch(/SOW_INCLUDED|label: 'Cover page'|sowPageLocals/);
+  });
+
+  test('"Get SOW Quote" goes straight to the form; "SOW Generator" goes to the top of the page', () => {
+    const nav = read('views/partials/navigation.ejs') + read('views/partials/footer.ejs') + read('routes/index.js');
+    for (const line of nav.split('\n').filter((l) => /Get SOW Quote/.test(l) && /quotes\/new/.test(l))) {
+      expect(line).toContain('/quotes/new#wizard');
     }
-    // The list is not restated anywhere else.
-    expect(read('routes/index.js')).not.toMatch(/SOW_INCLUDED|label: 'Cover page'/);
+    for (const line of nav.split('\n').filter((l) => /SOW Generator/.test(l) && /quotes\/new/.test(l))) {
+      expect(line).not.toContain('#wizard');
+    }
   });
 
   test('Your quotes is in the SOW pack page hero; a visitor is sent through sign-in to it', () => {
@@ -181,22 +191,26 @@ describe('Reuse details from your last quote', () => {
   });
 });
 
-describe('the pack column names what is in each file, not just how many', () => {
-  const { PACK_FILES } = require('../../config/sowPack');
-  const note = (label) => (PACK_FILES.find((f) => f.label === label) || { note: '' }).note.toLowerCase();
+describe('the pack cards name what is in each file, not just how many', () => {
+  const { PACK_CARDS } = require('../../config/sowPack');
+  const card = (ext) => PACK_CARDS.find((c) => c.ext === ext).items.join(' | ').toLowerCase().replace(/&/g, 'and');
 
-  test('every sheet of the work breakdown is named', () => {
-    const sheets = [...read('utils/documents/wbsXlsx.js').matchAll(/addWorksheet\('([^']+)'/g)].map((m) => m[1].toLowerCase());
-    expect(sheets.length).toBeGreaterThan(0);
-    const xlsx = note('Work breakdown + Gantt').replace(/&/g, 'and');
-    for (const s of sheets) expect(xlsx).toContain(s.replace(/&/g, 'and'));
+  test('the SOW card names every numbered section the document writes', () => {
+    const sections = [...read('utils/documents/sowDocx.js').matchAll(/heading\((?:[^']*?)'\d\. ([A-Za-z ]+)'/g)].map((m) => m[1].toLowerCase());
+    expect(sections.length).toBeGreaterThan(0);
+    for (const s of sections) expect(card('.docx')).toContain(s);
   });
 
-  test('every titled slide of the deck is named', () => {
+  test('the workbook card names every sheet', () => {
+    const sheets = [...read('utils/documents/wbsXlsx.js').matchAll(/addWorksheet\('([^']+)'/g)].map((m) => m[1].toLowerCase().replace(/&/g, 'and'));
+    expect(sheets.length).toBeGreaterThan(0);
+    for (const s of sheets) expect(card('.xlsx')).toContain(s);
+  });
+
+  test('the deck card names every titled slide', () => {
     const slides = [...read('utils/documents/summaryPptx.js').matchAll(/addSlide\(pptx, '([^']+)'/g)].map((m) => m[1].toLowerCase());
     expect(slides.length).toBeGreaterThan(0);
-    const deck = note('Summary deck');
-    for (const s of slides) expect(deck).toContain(s);
+    for (const s of slides) expect(card('.pptx')).toContain(s);
   });
 
   test('no bare count is left on either page', () => {

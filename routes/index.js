@@ -20,7 +20,7 @@ const ConsultantHiddenCompany = require('../models/ConsultantHiddenCompany');
 const CompanyProfile = require('../models/CompanyProfile');
 const RateSubmission = require('../models/RateSubmission');
 const { CLOUD_FAMILIES } = require('../config/cloudFamilies');
-const { sowPageLocals } = require('../config/sowPack');
+const { PACK_CARDS } = require('../config/sowPack');
 const { calculateEstimation, reconciliationProblems } = require('../utils/sowEstimation');
 const { POST_KINDS, isPostKind, postKind } = require('../config/community');
 const { toPlainText } = require('../utils/sanitize');
@@ -229,7 +229,7 @@ router.get('/services/:page', (req, res, next) => {
   const model = SERVICE_PAGES[req.params.page];
   // The SOW pack is a product page with its own layout; the other three are short explainers.
   if (req.params.page === 'document-generator') {
-    return res.render('services/document-generator', { title: model.heading, model, sample: SOW_SAMPLE, ...sowPageLocals() });
+    return res.render('services/document-generator', { title: model.heading, model, sample: SOW_SAMPLE, packCards: PACK_CARDS });
   }
   return res.render('services/engagement-model', { title: model.heading, model });
 });
@@ -435,7 +435,7 @@ router.get(
         freeNote: 'Browsing talent and posting roles are free. Featured placement is optional.',
         actions: [
           { label: 'Browse Talent', href: '/consultants', icon: 'bi-people' },
-          { label: 'Get SOW Quote', href: '/quotes/new', icon: 'bi-calculator' }
+          { label: 'Get SOW Quote', href: '/quotes/new#wizard', icon: 'bi-calculator' }
         ],
         stats: headlineStats([
           { value: jobs.total, min: HEADLINE_MIN.roles, label: 'open roles', href: '/jobs' },
@@ -450,7 +450,7 @@ router.get(
             heading: 'Engagement models',
             text: 'Three ways to engage, each ending at a page that can do it.',
             tools: engagement,
-            action: { label: 'Get SOW Quote', href: '/quotes/new', icon: 'bi-calculator', note: 'Pick clouds and modules — phases, team, budget and timeline that add up line by line.' }
+            action: { label: 'Get SOW Quote', href: '/quotes/new#wizard', icon: 'bi-calculator', note: 'Pick clouds and modules — phases, team, budget and timeline that add up line by line.' }
           }
         ],
         proof: {
@@ -470,7 +470,7 @@ router.get(
           ctas: [
             user ? { label: 'Browse talent', href: '/consultants' } : { label: 'Create your free company account', href: '/auth/register' },
             { label: 'Post a role', href: postRoleHref },
-            { label: 'Get SOW Quote', href: '/quotes/new' }
+            { label: 'Get SOW Quote', href: '/quotes/new#wizard' }
           ]
         }
       }

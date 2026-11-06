@@ -2,26 +2,28 @@
 
 <%
   /*
-   * Document Generator — the SOW pack, for a company buying work.
+   * Document Generator — the SOW pack itself, for a company buying work.
    *
-   * Every claim here is a property of the code: the SOW lines come from SOW_INCLUDED, each tied
-   * to a heading the generator writes (a test checks it); the cloud cards come from
-   * config/cloudFamilies.js; the sample timeline is computed by the estimator at boot. Nothing
-   * on this page can promise more than a download delivers. The consultant's CV has its own
-   * page: /cv-generator.
+   * Only what is particular to the pack lives here: the three files, why they agree, and a
+   * sample timeline. How it works, the supported clouds and what the SOW contains are on
+   * /quotes/new, above the form — two pages carrying the same three sections were two places
+   * to disagree. Every card lists what is IN its file (config/sowPack.js PACK_CARDS, held to
+   * the generators by a test) and the timeline is computed by the estimator at boot, so nothing
+   * here can promise more than a download delivers. The consultant's CV has its own page.
    */
+  const brandingHref = currentUser && currentUser.isCompany ? '/profile/company/template' : '/auth/register';
 %>
 <section class="hub-hero">
   <div class="container">
     <div class="row align-items-center g-4">
       <div class="col-lg-7">
-        <span class="hub-hero-badge mb-3"><i class="bi bi-file-earmark-text"></i> SOW QUOTE GENERATOR</span>
-        <h1>Get your SOW quote in minutes</h1>
+        <span class="hub-hero-badge mb-3"><i class="bi bi-file-earmark-text"></i> DOCUMENT GENERATOR</span>
+        <h1>The SOW pack: three documents from one estimate</h1>
         <p class="lead"><%= model.intro %></p>
         <ul class="cv-hero-tags list-unstyled">
-          <li><i class="bi bi-check-circle-fill"></i> Estimates that reconcile</li>
-          <li><i class="bi bi-check-circle-fill"></i> Built for Salesforce</li>
-          <li><i class="bi bi-check-circle-fill"></i> SOW, Gantt &amp; deck</li>
+          <li><i class="bi bi-check-circle-fill"></i> Free with every quote</li>
+          <li><i class="bi bi-check-circle-fill"></i> Your branding</li>
+          <li><i class="bi bi-check-circle-fill"></i> Always consistent</li>
         </ul>
         <div class="d-flex flex-wrap gap-3 mt-4">
           <a class="btn btn-lg btn-light" href="/quotes/new#wizard"><i class="bi bi-plus-lg"></i> Start new quote</a>
@@ -29,12 +31,11 @@
           <a class="btn btn-lg btn-outline-light" href="<%= currentUser ? '/quotes' : '/auth/login?redirect=%2Fquotes' %>"><i class="bi bi-clock-history"></i> Your quotes</a>
         </div>
       </div>
-      <div class="col-lg-5 d-flex justify-content-center">
-        <div class="sow-pack-card">
-          <span class="sow-pack-icon" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
-          <p class="sow-pack-title mb-1">SOW pack</p>
-          <p class="sow-pack-files mb-0">.docx · .xlsx · .pptx</p>
-          <p class="sow-pack-note mb-0">Statement of work, work breakdown with Gantt and a summary deck — from one estimate.</p>
+      <div class="col-lg-5 d-none d-lg-flex justify-content-center" aria-hidden="true">
+        <div class="sow-hero-files">
+          <span class="sow-file f-docx"><i class="bi bi-file-earmark-word"></i><b>.docx</b></span>
+          <span class="sow-file f-xlsx"><i class="bi bi-file-earmark-spreadsheet"></i><b>.xlsx</b></span>
+          <span class="sow-file f-pptx"><i class="bi bi-file-earmark-slides"></i><b>.pptx</b></span>
         </div>
       </div>
     </div>
@@ -43,32 +44,61 @@
 
 <section class="glass-section pb-5">
 <div class="container">
-
-  <%- include('../partials/sow/how') %>
-  <%- include('../partials/sow/clouds') %>
-  <%- include('../partials/sow/included', { withPack: true, readyHref: '/quotes/new#wizard', readyLabel: 'Start new quote' }) %>
-
-  <div class="glass-card mb-4"><div class="card-body">
-    <div class="d-flex flex-wrap justify-content-between gap-2 mb-1">
-      <h2 class="h6 mb-0">What the Gantt looks like</h2>
-      <span class="small text-muted-2"><%= sample.weeks %> weeks</span>
-    </div>
-    <p class="small text-muted-2"><%= sample.scope %> — computed by the same estimator every quote uses.</p>
-    <div class="sow-gantt" role="img" aria-label="Sample Gantt chart: <%= sample.timeline.map(function (t) { return t.phase + ', weeks ' + t.startWeek + ' to ' + t.endWeek; }).join('; ') %>">
-      <% sample.timeline.forEach(function (t) {
-           const left = ((t.startWeek - 1) / sample.weeks) * 100;
-           const width = ((t.endWeek - t.startWeek + 1) / sample.weeks) * 100; %>
-        <div class="sow-gantt-row">
-          <span class="sow-gantt-label"><%= t.phase %></span>
-          <span class="sow-gantt-track"><span class="sow-gantt-bar" style="left:<%= left.toFixed(2) %>%;width:<%= width.toFixed(2) %>%" title="<%= t.milestone %>"></span></span>
+  <h2 class="sow-block-title" id="pack">What is in the pack</h2>
+  <div class="row g-3 mb-5">
+    <% packCards.forEach(function (card) { %>
+      <div class="col-md-4">
+        <div class="sow-white-card h-100">
+          <span class="icon-tile icon-navyblue mb-3"><i class="bi <%= card.icon %>"></i></span>
+          <h3 class="h6 mb-1"><%= card.title %> <span class="text-muted-2 small"><%= card.ext %></span></h3>
+          <p class="small text-muted-2 mb-2"><%= card.intro %></p>
+          <ul class="small mb-0">
+            <% card.items.forEach(function (item) { %><li><%= item %></li><% }); %>
+          </ul>
         </div>
-      <% }); %>
-      <div class="sow-gantt-row sow-gantt-axis">
-        <span class="sow-gantt-label"></span>
-        <span class="sow-gantt-track"><span>Week 1</span><span>Week <%= sample.weeks %></span></span>
+      </div>
+    <% }); %>
+  </div>
+
+  <div class="row g-4 align-items-start mb-5">
+    <div class="col-lg-5">
+      <h2 class="h5 mb-3">Why the three agree</h2>
+      <ul class="list-unstyled">
+        <% model.points.forEach(function (point) { %>
+          <li class="d-flex gap-2 mb-3">
+            <i class="bi bi-check-circle-fill text-primary mt-1"></i>
+            <span><%= point %><% if (/Document branding/.test(point)) { %> <a href="<%= brandingHref %>">Set up document branding</a><% } %></span>
+          </li>
+        <% }); %>
+      </ul>
+      <p class="mb-0">
+        <a href="/quotes/new"><i class="bi bi-signpost-split"></i> How it works, the supported clouds and what the SOW contains</a>
+      </p>
+    </div>
+    <div class="col-lg-7">
+      <div class="sow-white-card">
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-1">
+          <h2 class="h6 mb-0">Sample timeline</h2>
+          <span class="small text-muted-2"><%= sample.weeks %> weeks</span>
+        </div>
+        <p class="small text-muted-2"><%= sample.scope %> — computed by the same estimator every quote uses.</p>
+        <div class="sow-gantt" role="img" aria-label="Sample Gantt chart: <%= sample.timeline.map(function (t) { return t.phase + ', weeks ' + t.startWeek + ' to ' + t.endWeek; }).join('; ') %>">
+          <% sample.timeline.forEach(function (t) {
+               const left = ((t.startWeek - 1) / sample.weeks) * 100;
+               const width = ((t.endWeek - t.startWeek + 1) / sample.weeks) * 100; %>
+            <div class="sow-gantt-row">
+              <span class="sow-gantt-label"><%= t.phase %></span>
+              <span class="sow-gantt-track"><span class="sow-gantt-bar" style="left:<%= left.toFixed(2) %>%;width:<%= width.toFixed(2) %>%" title="<%= t.milestone %>"></span></span>
+            </div>
+          <% }); %>
+          <div class="sow-gantt-row sow-gantt-axis">
+            <span class="sow-gantt-label"></span>
+            <span class="sow-gantt-track"><span>Week 1</span><span>Week <%= sample.weeks %></span></span>
+          </div>
+        </div>
       </div>
     </div>
-  </div></div>
+  </div>
 
   <% if (model.aside) { %>
     <div class="glass-card"><div class="card-body d-flex flex-wrap align-items-center gap-3">
@@ -78,6 +108,16 @@
     </div></div>
   <% } %>
 </div>
+</section>
+
+<section class="sow-cta">
+  <div class="container d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div>
+      <h2 class="h4 mb-1">Scope it, then send the pack</h2>
+      <p class="mb-0">An estimate takes a few minutes. The three documents are free with it.</p>
+    </div>
+    <a class="btn btn-lg btn-light" href="/quotes/new#wizard"><i class="bi bi-plus-lg"></i> Start new quote</a>
+  </div>
 </section>
 
 <%- include('../partials/layout-end') %>

@@ -2882,3 +2882,5 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
 .sow-included-title { font-size: 1.6rem; font-weight: 700; color: var(--primary-navy); margin-bottom: var(--space-4, 1rem); }
 /* Lines up with the form card, which sits inside the column's gutters. */
 .quote-page .quote-reuse { max-width: calc(920px - 1.5rem); }
+/* Step 1's Previous is there to keep the buttons where they are, not to be pressed. */
+.quote-step-nav .btn:disabled { opacity: 0.4; }

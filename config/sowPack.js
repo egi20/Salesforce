@@ -3,9 +3,10 @@
 const { cloudGroups } = require('./cloudFamilies');
 
 /**
- * What the SOW pack pages say about the pack — in ONE place, read by both /quotes/new and
- * /services/document-generator, so the two pages cannot describe the same download
- * differently.
+ * What the SOW pack pages say about the pack, in ONE place. /quotes/new is the page that
+ * introduces it (how it works, the clouds, what the SOW contains) and the form; the
+ * document-generator page shows only what is its own — the three files, why they agree, a
+ * sample timeline. Two pages carrying the same three sections was two places to disagree.
  *
  * Every line under SOW_SECTIONS names the heading in utils/documents/sowDocx.js that produces
  * it, and a test asserts each heading is really there. "Acceptance criteria" is listed because
@@ -32,15 +33,38 @@ const SOW_SECTIONS = Object.freeze([
 ]);
 
 /*
- * The other two files, named by what is IN them rather than by a count: a count with no list
- * behind it ("seven slides") is a claim a reader cannot check. A test reads the sheet names and
- * slide titles from the generators and fails if one stops being named here.
+ * The three files, one card each on /services/document-generator. Every card lists what is IN
+ * its file rather than counting it — a count with no list behind it ("seven slides") is a claim
+ * a reader cannot check. A test reads the SOW's numbered headings, the workbook's sheet names
+ * and the deck's slide titles from the generators and fails if a card stops naming one.
  */
-const PACK_FILES = Object.freeze([
-  { label: 'Work breakdown + Gantt', note: '.xlsx: summary, WBS with a weekly Gantt, scope, team and cost' },
-  { label: 'Summary deck', note: '.pptx: title, at a glance, scope, approach, timeline, team and commercials, assumptions and next steps' },
-  { label: 'Your branding', note: 'colours, letterhead and standard clauses' },
-  { label: 'Figures that reconcile', note: 'all three read the same stored estimate' }
+const PACK_CARDS = Object.freeze([
+  {
+    title: 'Statement of work',
+    ext: '.docx',
+    icon: 'bi-file-earmark-word',
+    intro: 'Numbered sections, ready to edit in Word:',
+    items: [
+      'Scope, add-ons and integrations',
+      'Approach, timeline and acceptance criteria',
+      'Team and commercials, and how the effort was derived',
+      'Assumptions, exclusions, your terms and validity'
+    ]
+  },
+  {
+    title: 'Work breakdown + Gantt',
+    ext: '.xlsx',
+    icon: 'bi-file-earmark-spreadsheet',
+    intro: 'One sheet each:',
+    items: ['Summary of effort, duration and budget', 'WBS with a week-by-week Gantt', 'Scope by cloud and module', 'Team & cost, line by line']
+  },
+  {
+    title: 'Summary deck',
+    ext: '.pptx',
+    icon: 'bi-file-earmark-slides',
+    intro: 'One slide each:',
+    items: ['Title', 'At a glance', 'Scope', 'Approach', 'Timeline', 'Team and commercials', 'Assumptions and next steps']
+  }
 ]);
 
 /** "How it works" — the four steps of the estimate form, in its own order. */
@@ -51,9 +75,9 @@ const HOW_IT_WORKS = Object.freeze([
   { title: 'Download the pack', text: 'SOW (.docx), work breakdown + Gantt (.xlsx) and deck (.pptx)' }
 ]);
 
-/** Everything the shared SOW partials read (views/partials/sow/). */
+/** Everything the SOW partials on /quotes/new read (views/partials/sow/). */
 function sowPageLocals() {
-  return { howItWorks: HOW_IT_WORKS, sowSections: SOW_SECTIONS, packFiles: PACK_FILES, cloudGroups: cloudGroups() };
+  return { howItWorks: HOW_IT_WORKS, sowSections: SOW_SECTIONS, cloudGroups: cloudGroups() };
 }
 
-module.exports = { SOW_SECTIONS, PACK_FILES, HOW_IT_WORKS, sowPageLocals };
+module.exports = { SOW_SECTIONS, PACK_CARDS, HOW_IT_WORKS, sowPageLocals };

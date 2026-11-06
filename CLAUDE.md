@@ -1446,3 +1446,24 @@ visible. Never let an animation be the reason a page cannot be read.
 - `<%= %>` escapes, `<%- %>` does not. Only ever pass `sanitizeRichText()` output to `<%- %>`.
 - Server-side validation is authoritative. Client-side JavaScript is a convenience and the
   page must work without it.
+
+## Node version and dependencies
+
+**Node 24, in four places that must agree**: `Dockerfile` (`node:24-bookworm-slim`), the CI
+workflow's `node-version`, `engines` in `package.json`, and `.nvmrc`. Node 20 reached end of life
+in April 2026, and the deploy log showed what staying on it costs: `geoip-lite` 2.0.3 and
+`sanitize-html` 2.17.7 already declared newer engines. `sanitize-html` 2.18 then moved to an
+ESM-only `htmlparser2`; the app `require()`s it fine on any Node that has require(esm), but Jest
+can only do that from Node 24.9, so on an older local Node fifteen suites fail to load while CI
+is green. Use Node 24 locally.
+
+**`overrides` in `package.json` exist for advisories a dependency pins out of reach**, each
+named for its parent: `brace-expansion` 1.x under `exceljs`'s old `minimatch`;
+`express-mysql-session`'s own `mysql2` (the store is handed our pool, but the stale copy still
+shipped in the image); `exceljs`'s `uuid`. After changing one, delete the nested lockfile entry
+it replaces — npm keeps a locked version over an override until the entry is gone.
+
+Left on purpose, because the vulnerable code is never reached: `image-size` under `pptxgenjs`
+(it measures images; the deck adds none) and `glob`/`minimatch` under `archiver` 7 (they serve
+`archive.glob()`/`directory()`; every archive here is `append()` of buffers). `archiver` 8 is
+ESM-only — revisit both when moving to it.

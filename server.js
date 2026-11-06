@@ -7,7 +7,7 @@ const MySQLStore = require('express-mysql-session')(session);
 const bodyParser = require('body-parser');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const flash = require('connect-flash');
+const flash = require('./middleware/flash');
 
 const config = require('./config/config');
 const { pool } = require('./config/database');

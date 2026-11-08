@@ -3144,3 +3144,44 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
 .saved-toast-undo:hover, .saved-toast-undo:focus-visible { color: #fff; }
 /* An icon named inside the empty-state sentence is text-sized, not the state's big icon. */
 .empty-state p .bi { display: inline; font-size: 1em; margin: 0; opacity: 1; color: var(--primary-blue); }
+
+/*
+ * Daily challenges (/challenges). Topic colours are the sanctioned .icon-* gradients, used
+ * as a band across the top of each card. The floating terms are decoration: aria-hidden,
+ * and still when the visitor asks for reduced motion.
+ */
+.challenges-hero { padding: 3.25rem 0 3rem; }
+.challenges-hero h1 { font-size: clamp(2rem, 1.5rem + 1.6vw, 2.75rem); }
+.challenges-hero-sm { padding: 2.25rem 0 2.5rem; }
+.challenges-hero-sm h1 { font-size: clamp(1.75rem, 1.3rem + 1.4vw, 2.3rem); margin-bottom: 0.5rem; }
+.challenges-terms { position: relative; height: 210px; }
+.challenges-term {
+  position: absolute;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: challenges-float 7s ease-in-out infinite;
+}
+.challenges-term.t0 { top: 4%; left: 6%; }
+.challenges-term.t1 { top: 0; left: 46%; animation-delay: -1s; }
+.challenges-term.t2 { top: 22%; left: 74%; animation-delay: -2s; }
+.challenges-term.t3 { top: 30%; left: 24%; animation-delay: -3s; }
+.challenges-term.t4 { top: 46%; left: 52%; animation-delay: -4s; }
+.challenges-term.t5 { top: 56%; left: 2%; animation-delay: -5s; }
+.challenges-term.t6 { top: 66%; left: 70%; animation-delay: -1.5s; }
+.challenges-term.t7 { top: 80%; left: 30%; animation-delay: -2.5s; }
+.challenges-term.t8 { top: 88%; left: 60%; animation-delay: -3.5s; }
+.challenges-term.t9 { top: 40%; left: 80%; animation-delay: -4.5s; opacity: 0.7; }
+@keyframes challenges-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@media (prefers-reduced-motion: reduce) { .challenges-term { animation: none; } }
+.challenge-card { position: relative; overflow: hidden; }
+.challenge-band { height: 6px; box-shadow: none; }
+.challenge-featured { border: 1px solid rgba(1, 118, 211, 0.25); }
+.challenge-resources li { margin-bottom: 0.45rem; }
+.challenge-resources li:last-child { margin-bottom: 0; }
+.challenge-resources .bi { margin-right: 0.35rem; color: var(--primary-blue); }

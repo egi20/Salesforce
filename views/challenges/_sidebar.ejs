@@ -1,0 +1,61 @@
+<%
+  /*
+   * Shared by the hub and every challenge page: streak, record and today's board. Every
+   * number is read from attempts the grader wrote — none of it is a counter a button moves.
+   * `showResources` adds the Resources card on the hub.
+   */
+  const withResources = typeof showResources !== 'undefined' && showResources;
+%>
+<div class="glass-card mb-3"><div class="card-body">
+  <h2 class="h6 mb-3"><i class="bi bi-fire text-warning"></i> Your streak</h2>
+  <div class="d-flex align-items-baseline gap-2 mb-2">
+    <span class="display-6 fw-semibold"><%= streak.days %></span>
+    <span class="text-muted-2">day<%= streak.days === 1 ? '' : 's' %></span>
+  </div>
+  <p class="small text-muted-2 mb-0">
+    Counted from the challenges you play, not from a button you press. Any challenge counts
+    for its day; miss today and yesterday and it goes back to zero.
+  </p>
+</div></div>
+
+<div class="glass-card mb-3"><div class="card-body">
+  <h2 class="h6 mb-3"><i class="bi bi-journal-check text-primary"></i> Your record</h2>
+  <ul class="list-unstyled small mb-0">
+    <li class="d-flex justify-content-between"><span class="text-muted-2">Days played</span><span><%= stats.days_played %></span></li>
+    <li class="d-flex justify-content-between"><span class="text-muted-2">Challenges played</span><span><%= stats.played %></span></li>
+    <li class="d-flex justify-content-between"><span class="text-muted-2">Correct</span><span><%= stats.correct %> of <%= stats.asked %></span></li>
+    <li class="d-flex justify-content-between"><span class="text-muted-2">Best set</span><span><%= stats.best %> / <%= questionsPerDay %></span></li>
+  </ul>
+</div></div>
+
+<div class="glass-card mb-3"><div class="card-body">
+  <div class="d-flex justify-content-between align-items-center mb-1">
+    <h2 class="h6 mb-0"><i class="bi bi-trophy text-primary"></i> Today's rankings</h2>
+    <a class="small" href="/challenges/leaderboard">Full board</a>
+  </div>
+  <p class="small text-muted-2 mb-2">Correct answers across every challenge played today.</p>
+  <% if (!daily.length) { %>
+    <p class="small text-muted-2 mb-0">Nobody has played yet today.</p>
+  <% } else { %>
+    <ol class="list-unstyled small mb-0">
+      <% daily.forEach(function (row, i) { %>
+        <li class="d-flex justify-content-between">
+          <span class="text-truncate me-2"><%= i + 1 %>. <%= row.name %></span>
+          <span class="text-nowrap"><%= row.score %>/<%= row.total %></span>
+        </li>
+      <% }); %>
+    </ol>
+  <% } %>
+</div></div>
+
+<% if (withResources) { %>
+  <div class="glass-card"><div class="card-body">
+    <h2 class="h6 mb-3"><i class="bi bi-book text-primary"></i> Resources</h2>
+    <ul class="list-unstyled small mb-0 challenge-resources">
+      <li><a href="/profile/settings"><i class="bi bi-person-badge"></i> Build your profile</a></li>
+      <li><a href="/community?kind=article"><i class="bi bi-journal-text"></i> Articles</a></li>
+      <li><a href="/community/new?kind=question"><i class="bi bi-question-circle"></i> Ask a question</a></li>
+      <li><a href="/challenges/leaderboard"><i class="bi bi-bar-chart"></i> Leaderboard</a></li>
+    </ul>
+  </div></div>
+<% } %>

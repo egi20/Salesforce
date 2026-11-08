@@ -89,8 +89,9 @@ People name pages by the menu label they see, so these are the labels:
 | `/success-stories/reviews` | Read member reviews, or leave one. You need an account to leave one. |
 | `/recruiters` | The directory of recruitment agencies and headhunters. |
 | `/recruiters/dashboard` | An agency's own home. Recruiter accounts only. |
-| `/challenges` | The daily challenge: five Salesforce questions, one attempt a day. Signed in. |
-| `/challenges/leaderboard` | Who scored what today and over the last thirty days. |
+| `/challenges` | Daily challenges, signed in: "Today's mix" (five questions, one from each of five topics) and six topic challenges — Admin & Security, Apex & LWC, Flow & Automation, Data Cloud & Integration, Agentforce & AI, and Sales, Service & Experience — five questions a day each. One attempt per challenge per day, the same questions for everybody, a new set at midnight UTC. The page shows which ones you have done today and your score, your streak, your record and today's rankings. |
+| `/challenges/daily`, `/challenges/<topic>` | Play one challenge; after submitting you see the correct answers and an explanation for each. |
+| `/challenges/leaderboard` | Who scored what today (all of today's challenges added together) and over the last thirty days. |
 | `/search` | One box across jobs, consultants, companies, agencies and the community. |
 | `/services/staff-augmentation`, `/services/project-based`, `/services/managed-services` | The three shapes an engagement can take, and which one fits. Each ends at the consultant directory or the scope estimator. |
 | `/services/document-generator` | Document Generator, for companies: a quote becomes an SOW, work breakdown and deck. Nothing is stored. "The SOW pack: three documents from one estimate", with Start new quote and Your quotes. One card per file says what is in it: the SOW (scope, add-ons and integrations; approach, timeline and acceptance criteria; team and commercials; assumptions, exclusions, your terms and validity), the work breakdown (summary, WBS with a weekly Gantt, scope, team and cost) and the deck (title, at a glance, scope, approach, timeline, team and commercials, assumptions and next steps). It also explains why the three agree and shows a sample timeline. How it works, the supported clouds and the full list of SOW sections are on /quotes/new. It points consultants to the CV Generator. |
@@ -198,10 +199,11 @@ automatically.
   available to the site, so nothing could check them. If someone asks what the badge means,
   say this plainly. LinkedIn is not a way to sign in here; it only links to an account
   someone is already signed in to, and no access token is kept.
-- **The daily challenge is graded on the server.** Everybody gets the same five questions,
-  chosen by the date, and the page you are answering on does not know which option is
-  correct — it posts what you chose and the server marks it. One attempt a day, and the
-  streak is counted from your attempts rather than from a button. A correct answer is worth
+- **The challenges are graded on the server.** Every challenge — the mix and each topic —
+  gives everybody the same five questions, chosen by the date, and the page you are
+  answering on does not know which option is correct — it posts what you chose and the
+  server marks it. One attempt per challenge per day, and the streak is counted from the
+  days you played any challenge rather than from a button. A correct answer is worth
   the smallest award on the site on purpose: a quiz should nudge a standing, not build one.
 - **Anyone can leave a review, but only with an account**, and a moderator approves it
   before it appears. Editing a review sends it back for approval. The role shown beside a

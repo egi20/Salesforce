@@ -29,7 +29,8 @@ const crypto = require('crypto');
  * `gradeAnswers()` — a pure function — decides the score. The date comes from the server
  * clock. One attempt per person per day is enforced by a unique key in the schema.
  *
- * ONE game, done properly, rather than the reference's nine. The other eight (match,
+ * ONE game, done properly, rather than the reference's nine — now played over six topic
+ * banks and a daily mix, all through the same grader. The other eight (match,
  * flashcard, typing, word search, bug hunter, scenario, code quiz, streak check-in) are
  * the same client-authoritative shape wearing different UI; porting them would be porting
  * the bug eight more times. The streak is kept, but DERIVED from attempt dates rather than
@@ -37,238 +38,57 @@ const crypto = require('crypto');
  */
 
 /**
- * The question bank.
- *
- * `answer` is an index into `options` and is NEVER serialised to a client — `publicFormOf`
- * is the only thing a route may render, and a test asserts the route module cannot reach
- * the raw bank. `explain` is shown AFTER grading, which is the part that makes this worth
- * playing rather than a slot machine.
- *
- * `module` ties a question to `config/cloudFamilies.js`, so a result can say which cloud
- * somebody is weak on instead of only a number out of five.
+ * The question bank lives in `config/challengeBank.js`, by topic, and this module is the
+ * only one that reads it. `answer` is NEVER serialised to a client — `publicFormOf` is the
+ * only thing a route may render, and a test asserts the route module cannot reach the raw
+ * bank. `explain` is shown AFTER grading, which is the part that makes this worth playing
+ * rather than a slot machine.
  */
-const QUESTIONS = Object.freeze([
-  {
-    id: 'gov-soql-101',
-    module: 'apex',
-    prompt: 'What is the synchronous Apex governor limit on SOQL queries per transaction?',
-    options: ['50', '100', '150', '200'],
-    answer: 0,
-    explain: 'Synchronous Apex allows 100 SOQL queries; asynchronous allows 200. The figure people most often quote wrong is 50, which is the DML statement limit.'
-  },
-  {
-    id: 'gov-dml-101',
-    module: 'apex',
-    prompt: 'How many DML statements may a single Apex transaction issue?',
-    options: ['100', '150', '200', '50'],
-    answer: 1,
-    explain: '150 DML statements per transaction. This is why bulkification matters: one statement over a collection, never one per record in a loop.'
-  },
-  {
-    id: 'deploy-coverage',
-    module: 'apex',
-    prompt: 'What Apex code coverage does a production deployment require?',
-    options: ['60%', '70%', '75%', '80%'],
-    answer: 2,
-    explain: '75% org-wide, and every trigger must have some coverage. Coverage is a deployment gate, not a measure of test quality.'
-  },
-  {
-    id: 'order-of-execution',
-    module: 'apex',
-    prompt: 'In the order of execution, when do validation rules run relative to before-save triggers?',
-    options: [
-      'Before the before-save trigger',
-      'After the before-save trigger',
-      'After the after-save trigger',
-      'Validation rules do not run on trigger-modified records'
-    ],
-    answer: 1,
-    explain: 'Before-save triggers and before-save flows run first; system and custom validation rules run after them. A before trigger can therefore make a record fail validation.'
-  },
-  {
-    id: 'sharing-owd',
-    module: 'security',
-    prompt: 'Which setting determines the baseline access a user has to records they do not own?',
-    options: ['Profile', 'Permission set', 'Organisation-wide defaults', 'Role hierarchy'],
-    answer: 2,
-    explain: 'Organisation-wide defaults set the floor. Role hierarchy, sharing rules and manual sharing only ever open access up from there — they never restrict it.'
-  },
-  {
-    id: 'with-sharing',
-    module: 'security',
-    prompt: 'An Apex class declared "without sharing" does what?',
-    options: [
-      'Ignores the running user’s sharing rules',
-      'Ignores field-level security as well',
-      'Runs as the Automated Process user',
-      'Refuses to compile outside a managed package'
-    ],
-    answer: 0,
-    explain: 'It ignores sharing rules, but NOT field-level security or object permissions — those need explicit checks such as Security.stripInaccessible or WITH SECURITY_ENFORCED.'
-  },
-  {
-    id: 'flow-vs-trigger',
-    module: 'automation',
-    prompt: 'Which automation runs FIRST when a record is saved?',
-    options: ['Record-triggered flow (after save)', 'Before-save flow', 'Apex before trigger', 'Workflow rule'],
-    answer: 1,
-    explain: 'Before-save flows run before Apex before triggers. They are also the cheapest way to set a field on the record being saved, because no extra DML is issued.'
-  },
-  {
-    id: 'data-cloud-dmo',
-    module: 'data-cloud',
-    prompt: 'In Data Cloud, what is a Data Model Object?',
-    options: [
-      'A raw copy of an ingested source table',
-      'The canonical, harmonised shape that sources are mapped into',
-      'A calculated metric published to Tableau',
-      'A permission construct for row-level access'
-    ],
-    answer: 1,
-    explain: 'Sources land as Data Lake Objects and are mapped into Data Model Objects, which is where harmonisation and identity resolution happen.'
-  },
-  {
-    id: 'agentforce-grounding',
-    module: 'agentforce',
-    prompt: 'What does "grounding" mean for an Agentforce agent?',
-    options: [
-      'Restricting it to a single Salesforce org',
-      'Supplying it with retrieved org data so its answers refer to real records',
-      'Disabling its ability to take actions',
-      'Running it on Hyperforce rather than a pod'
-    ],
-    answer: 1,
-    explain: 'Grounding supplies retrieved context — records, knowledge articles, Data Cloud segments — so the answer is about the customer in front of you rather than a plausible invention.'
-  },
-  {
-    id: 'cpq-price-rule',
-    module: 'cpq',
-    prompt: 'In Revenue Cloud / CPQ, what does a price rule act on?',
-    options: [
-      'The opportunity record only',
-      'Quote and quote line fields, at a defined calculation event',
-      'The order after activation',
-      'The renewal contract exclusively'
-    ],
-    answer: 1,
-    explain: 'Price rules fire at a chosen calculator event (On Initialization, Before/On/After Calculate) and inject values into quote and quote line fields.'
-  },
-  {
-    id: 'mulesoft-api-led',
-    module: 'mulesoft',
-    prompt: 'In MuleSoft’s API-led connectivity, which layer talks directly to the source system?',
-    options: ['Experience API', 'Process API', 'System API', 'Gateway policy'],
-    answer: 2,
-    explain: 'System APIs front the source systems. Process APIs orchestrate across them; Experience APIs shape the result for one consumer.'
-  },
-  {
-    id: 'lwc-wire',
-    module: 'lightning',
-    prompt: 'What does the @wire decorator in a Lightning Web Component do?',
-    options: [
-      'Registers an event listener on the DOM',
-      'Reads Salesforce data reactively through the Lightning Data Service or an Apex method',
-      'Declares a public property settable from the parent',
-      'Imports a static resource'
-    ],
-    answer: 1,
-    explain: '@wire is the reactive read. @api declares a public property; @track is now only needed for mutating the internals of objects and arrays.'
-  },
-  {
-    id: 'bulk-api-2',
-    module: 'integration',
-    prompt: 'What is the main practical difference between Bulk API 2.0 and Bulk API 1.0?',
-    options: [
-      'Bulk API 2.0 supports SOAP as well as REST',
-      'Bulk API 2.0 manages batching for you — you upload the whole file',
-      'Bulk API 2.0 has no record limit',
-      'Bulk API 2.0 is synchronous'
-    ],
-    answer: 1,
-    explain: 'In 2.0 you create a job, upload the data and Salesforce splits it into batches. In 1.0 you create and manage each batch yourself.'
-  },
-  {
-    id: 'platform-event',
-    module: 'integration',
-    prompt: 'A platform event published with the "Publish Immediately" behaviour is delivered when?',
-    options: [
-      'Only after the transaction commits',
-      'Immediately, whether or not the transaction later rolls back',
-      'On the next scheduled batch run',
-      'Only to subscribers inside the same org'
-    ],
-    answer: 1,
-    explain: 'Publish Immediately delivers even if the transaction rolls back — which is the point when you need an audit signal, and a trap when you assumed the record was saved.'
-  },
-  {
-    id: 'sandbox-refresh',
-    module: 'devops',
-    prompt: 'Which sandbox type can be refreshed most frequently?',
-    options: ['Full Copy', 'Partial Copy', 'Developer Pro', 'Developer'],
-    answer: 3,
-    explain: 'Developer sandboxes refresh once a day. Developer Pro is also daily but larger; Partial Copy is every 5 days; Full Copy every 29.'
-  },
-  {
-    id: 'experience-cloud-audience',
-    module: 'experience-cloud',
-    prompt: 'What does an Experience Cloud "audience" control?',
-    options: [
-      'Which licence a member consumes',
-      'Which page variation or component a visitor sees',
-      'The site’s SEO indexability',
-      'Guest user object permissions'
-    ],
-    answer: 1,
-    explain: 'Audiences drive personalisation — page variations, branding sets, component visibility. They are not a security control; guest access is still governed by the guest user profile and sharing.'
-  },
-  {
-    id: 'field-history',
-    module: 'platform',
-    prompt: 'How many fields per object can be tracked with standard field history tracking?',
-    options: ['10', '20', '25', '40'],
-    answer: 1,
-    explain: '20 fields per object, retained 18–24 months unless Field Audit Trail is licensed. It is the limit most data-migration plans discover late.'
-  },
-  {
-    id: 'external-id-upsert',
-    module: 'integration',
-    prompt: 'Why does an integration commonly upsert on an External Id field?',
-    options: [
-      'It is faster than insert',
-      'It lets the source system key records without knowing Salesforce Ids',
-      'It bypasses validation rules',
-      'It is required for Bulk API'
-    ],
-    answer: 1,
-    explain: 'The external system keeps its own key. Upserting on an indexed External Id makes the load idempotent — re-running it updates rather than duplicating.'
-  },
-  {
-    id: 'omni-routing',
-    module: 'service-cloud',
-    prompt: 'In Omni-Channel, what does a routing configuration primarily define?',
-    options: [
-      'Which agents exist in the queue',
-      'How work items are prioritised and how much capacity each consumes',
-      'The case page layout',
-      'Business hours'
-    ],
-    answer: 1,
-    explain: 'Routing configurations set priority, routing model and the capacity weight of each work item. Presence configurations decide what an agent can accept.'
-  },
-  {
-    id: 'skinny-table',
-    module: 'platform',
-    prompt: 'Large data volumes: what is a skinny table?',
-    options: [
-      'A custom object with fewer than ten fields',
-      'A Salesforce-created table joining frequently queried fields to avoid a join at read time',
-      'An archived copy of deleted records',
-      'A Data Cloud data lake object'
-    ],
-    answer: 1,
-    explain: 'Salesforce Support creates skinny tables; they contain a subset of fields from the base and custom-field tables so reads avoid the join. They are not self-service.'
-  }
+const { TOPIC_QUESTIONS } = require('./challengeBank');
+
+/**
+ * The topic challenges, in the order the hub shows them. Each draws its five a day from its
+ * own bank; the daily MIX ("Today's mix") draws one question from each of five topics. Every
+ * one is the same engine with the same rules: marked on the server, one attempt per person
+ * per day, the same set for everybody, one point per correct answer.
+ *
+ * `tone` is one of the sanctioned `.icon-*` gradient classes in style.css — never a colour here.
+ */
+const TOPICS = Object.freeze([
+  { slug: 'admin-security', title: 'Admin & Security', icon: 'bi-shield-lock', tone: 'icon-navy', blurb: 'Sharing, profiles, permission sets and sandboxes.' },
+  { slug: 'apex-lwc', title: 'Apex & LWC', icon: 'bi-code-slash', tone: 'icon-blue', blurb: 'Governor limits, triggers, tests and Lightning Web Components.' },
+  { slug: 'flow-automation', title: 'Flow & Automation', icon: 'bi-diagram-3', tone: 'icon-success', blurb: 'Record-triggered flows, the order of execution and approvals.' },
+  { slug: 'data-integration', title: 'Data Cloud & Integration', icon: 'bi-hdd-network', tone: 'icon-info', blurb: 'Data streams, identity resolution, APIs and events.' },
+  { slug: 'agentforce-ai', title: 'Agentforce & AI', icon: 'bi-robot', tone: 'icon-violet', blurb: 'Agents, grounding, the Trust Layer and prompt design.' },
+  { slug: 'sales-service', title: 'Sales, Service & Experience', icon: 'bi-headset', tone: 'icon-amber', blurb: 'Leads, CPQ, Omni-Channel, cases and sites.' }
 ]);
+
+/** The mixed set keeps the slug the single daily challenge always had. */
+const DAILY = 'daily';
+const DAILY_CHALLENGE = Object.freeze({ slug: DAILY, title: "Today's mix", icon: 'bi-lightning-charge', tone: 'icon-navyblue', blurb: 'One question from five different topics.' });
+
+const CHALLENGES = Object.freeze([DAILY_CHALLENGE, ...TOPICS]);
+const CHALLENGE_BY_SLUG = Object.freeze(Object.fromEntries(CHALLENGES.map((c) => [c.slug, c])));
+
+/** A topic bank needs at least this many, so a topic is not the same five every few days. */
+const MIN_PER_TOPIC = 20;
+
+/** Every question, flat, with its topic — for the integrity check and the bank size. */
+const QUESTIONS = Object.freeze(
+  TOPICS.flatMap((t) => (TOPIC_QUESTIONS[t.slug] || []).map((q) => Object.freeze({ ...q, topic: t.slug })))
+);
+
+/**
+ * `hasOwnProperty`, never a truthiness check: `CHALLENGE_BY_SLUG['__proto__']` is
+ * `Object.prototype`, which is truthy — the same trap `config/settings.js` documents.
+ */
+function isChallenge(slug) {
+  return typeof slug === 'string' && Object.prototype.hasOwnProperty.call(CHALLENGE_BY_SLUG, slug);
+}
+
+function challengeFor(slug) {
+  return isChallenge(slug) ? CHALLENGE_BY_SLUG[slug] : null;
+}
 
 /** How many questions a daily challenge holds. */
 const QUESTIONS_PER_DAY = 5;
@@ -320,13 +140,30 @@ function shuffled(list, random) {
   return out;
 }
 
+/** One topic's bank in the day's order. The first five are that topic's set. */
+function topicOrderFor(dateIso, topic) {
+  return shuffled(TOPIC_QUESTIONS[topic].slice(), rngFrom(seedFor(dateIso, `pick:${topic}`)));
+}
+
 /**
- * The five questions for a date, with their options shuffled.
+ * The questions of one challenge on a date, with their options shuffled.
+ *
+ * A topic set is the first five of that topic's order for the day. The MIX takes five
+ * topics (chosen by the date) and the SIXTH question of each one's order — so it never
+ * repeats a question from the same day's topic sets, and playing a topic first gives no
+ * head start on the mix.
  *
  * Returns the FULL question, answer included. Only `publicFormOf` may reach a template.
  */
-function dailySetFor(dateIso, { size = QUESTIONS_PER_DAY } = {}) {
-  const picked = shuffled(QUESTIONS.slice(), rngFrom(seedFor(dateIso, 'pick'))).slice(0, size);
+function setFor(dateIso, slug = DAILY, { size = QUESTIONS_PER_DAY } = {}) {
+  if (!isChallenge(slug)) throw new Error(`unknown challenge: ${slug}`);
+  let picked;
+  if (slug === DAILY) {
+    const topics = shuffled(TOPICS.map((t) => t.slug), rngFrom(seedFor(dateIso, 'mix-topics'))).slice(0, size);
+    picked = topics.map((topic) => ({ ...topicOrderFor(dateIso, topic)[QUESTIONS_PER_DAY], topic }));
+  } else {
+    picked = topicOrderFor(dateIso, slug).slice(0, size).map((q) => ({ ...q, topic: slug }));
+  }
 
   return picked.map((question) => {
     const order = shuffled(
@@ -336,6 +173,7 @@ function dailySetFor(dateIso, { size = QUESTIONS_PER_DAY } = {}) {
     return {
       id: question.id,
       module: question.module,
+      topic: question.topic,
       prompt: question.prompt,
       explain: question.explain,
       options: order.map((o) => o.label),
@@ -343,6 +181,11 @@ function dailySetFor(dateIso, { size = QUESTIONS_PER_DAY } = {}) {
       answer: order.findIndex((o) => o.index === question.answer)
     };
   });
+}
+
+/** The mixed daily set — the name the single daily challenge always had. */
+function dailySetFor(dateIso, options) {
+  return setFor(dateIso, DAILY, options);
 }
 
 /**
@@ -433,8 +276,23 @@ function assertChallengeIntegrity() {
       throw new Error(`question ${question.id} has an answer outside its options`);
     }
   }
-  if (QUESTIONS.length < QUESTIONS_PER_DAY) {
-    throw new Error(`the bank holds ${QUESTIONS.length} questions but a day needs ${QUESTIONS_PER_DAY}`);
+  for (const topic of TOPICS) {
+    const bank = TOPIC_QUESTIONS[topic.slug];
+    if (!Array.isArray(bank)) throw new Error(`topic ${topic.slug} has no question bank`);
+    if (bank.length < MIN_PER_TOPIC) {
+      throw new Error(`topic ${topic.slug} holds ${bank.length} questions; a topic needs ${MIN_PER_TOPIC}`);
+    }
+  }
+  for (const slug of Object.keys(TOPIC_QUESTIONS)) {
+    if (!TOPICS.some((t) => t.slug === slug)) throw new Error(`question bank names an unknown topic: ${slug}`);
+  }
+  // The mix takes one question from each of five topics.
+  if (TOPICS.length < QUESTIONS_PER_DAY) throw new Error(`the mix needs ${QUESTIONS_PER_DAY} topics`);
+  // Slugs are URL segments under /challenges, beside the fixed routes.
+  for (const c of CHALLENGES) {
+    if (!/^[a-z][a-z0-9-]{1,39}$/.test(c.slug) || ['leaderboard', 'new'].includes(c.slug)) {
+      throw new Error(`challenge slug ${c.slug} cannot be a route segment`);
+    }
   }
   if (!Number.isInteger(POINTS_PER_CORRECT) || POINTS_PER_CORRECT < 0) {
     throw new Error('points per correct answer must be a non-negative integer');
@@ -443,10 +301,17 @@ function assertChallengeIntegrity() {
 }
 
 module.exports = {
+  TOPICS,
+  CHALLENGES,
+  DAILY,
+  MIN_PER_TOPIC,
+  isChallenge,
+  challengeFor,
+  setFor,
   QUESTIONS_PER_DAY,
   POINTS_PER_CORRECT,
   STREAK_GRACE_DAYS,
-  bankSize: () => QUESTIONS.length,
+  bankSize: (slug) => (slug && slug !== DAILY && isChallenge(slug) ? TOPIC_QUESTIONS[slug].length : QUESTIONS.length),
   dailySetFor,
   publicFormOf,
   gradeAnswers,

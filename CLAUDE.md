@@ -933,7 +933,34 @@ clock. `UNIQUE (user_id, challenge_date)` gives one attempt a day and is checked
 ATTEMPTING THE INSERT, because a select-then-insert has a window where two submissions both
 see nothing and both write.
 
-ONE game, not the reference's nine. The other eight are the same shape wearing different UI.
+**Topic challenges (2026-11-08, migration 045).** `/challenges` is now a hub: "Today's mix"
+at `/challenges/daily` and six topics at `/challenges/<topic>`, each five questions a day from
+its own bank in `config/challengeBank.js` (≥ `MIN_PER_TOPIC` = 20 each, asserted at boot; only
+`config/challenges.js` may read the file, and a test pins that). Every one is the same engine:
+`setFor(date, slug)`, `publicFormOf`, `gradeAnswers`. The unique key is now
+`(user_id, challenge_date, challenge)` — one attempt per challenge per day — and the column has
+no default, so an insert that forgets which challenge it graded fails rather than counting as
+the mix. The MIX takes five topics and the SIXTH question of each topic's order for the day, so
+it never repeats a question from that day's topic sets: playing a topic first is no head start.
+Points keys: the mix keeps `challenge:<date>:<user>:<i>` so no earlier award can be paid twice
+under a new key; a topic adds its slug. The streak counts DAYS with any attempt; the day's board
+sums every challenge played that day. Slugs are checked with `hasOwnProperty`
+(`isChallenge('__proto__')` is false) and an unknown one is a 404. `POST /challenges` answers
+308 to `/challenges/daily`, so a form cached before the move still posts its answers.
+
+**Two questions in the original bank were wrong**, and nobody could have appealed, because the
+bank is exactly what a player cannot see. `gov-soql-101` marked "50" as the synchronous SOQL
+limit (it is 100; the explanation said so), so every player who knew it was scored wrong; and
+"which sandbox refreshes most frequently" had two right answers. A question needs ONE answer
+right in every reading — write it that way, and change it in the same commit when Salesforce
+changes a limit. The attempt now records the chosen option's LABEL beside its index, because a
+growing bank changes what a past date's set reconstructs to.
+
+**The insert no longer uses `CAST(? AS JSON)`.** MariaDB stores JSON as LONGTEXT and rejects the
+cast, so on MariaDB every submission was a 500 (the seed skipped challenges there for the same
+reason). A plain JSON string is stored as is by MySQL 8's JSON column and by MariaDB.
+
+ONE engine, not the reference's nine games. The other eight are the same shape wearing different UI.
 The streak is kept but DERIVED from attempt dates, never posted by a `/streak/checkin` the
 browser can call at will; `streakFromDates` is pure so month, year and leap-day boundaries
 are testable.

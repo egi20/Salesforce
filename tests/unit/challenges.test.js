@@ -94,7 +94,7 @@ describe('an answer key never reaches a browser', () => {
   });
 
   test('the template renders only the published form', () => {
-    const view = fs.readFileSync(require.resolve('../../views/challenges/index.ejs'), 'utf8');
+    const view = fs.readFileSync(require.resolve('../../views/challenges/play.ejs'), 'utf8');
     // `q` is the loop variable over the unanswered question list. It may never be asked
     // for an answer or an explanation; `r`, the graded result, may.
     expect(view).not.toMatch(/\bq\.answer\b/);
@@ -105,7 +105,7 @@ describe('an answer key never reaches a browser', () => {
     const code = codeOf('../../routes/challenges');
     // Every path that renders questions maps through publicFormOf. If this stops being
     // true the assertion above on the template is the only thing left.
-    expect(code).toMatch(/dailySetFor\([^)]*\)\.map\(publicFormOf\)/);
+    expect(code).toMatch(/setFor\([^)]*\)\.map\(publicFormOf\)/);
     const rawRenders = code.match(/questions:\s*[^,\n]+/g) || [];
     for (const render of rawRenders) {
       expect(render).toMatch(/publicFormOf|\[\]/);
@@ -257,5 +257,91 @@ describe('the leaderboard queries', () => {
   test('rank on the stored score, never on the client-reported duration', () => {
     const code = codeOf('../../models/Challenge');
     expect(code).not.toMatch(/ORDER BY[^`]*duration_ms/i);
+  });
+});
+
+describe('topic challenges', () => {
+  const date = '2026-11-08';
+
+  test('every topic has a bank of at least twenty', () => {
+    expect(challenges.TOPICS.length).toBeGreaterThanOrEqual(challenges.QUESTIONS_PER_DAY);
+    for (const t of challenges.TOPICS) expect(challenges.bankSize(t.slug)).toBeGreaterThanOrEqual(challenges.MIN_PER_TOPIC);
+  });
+
+  test('a topic set holds only that topic, five distinct questions, the same on every call', () => {
+    for (const t of challenges.TOPICS) {
+      const set = challenges.setFor(date, t.slug);
+      expect(set).toHaveLength(challenges.QUESTIONS_PER_DAY);
+      expect(set.every((q) => q.topic === t.slug)).toBe(true);
+      expect(new Set(set.map((q) => q.id)).size).toBe(set.length);
+      expect(challenges.setFor(date, t.slug)).toEqual(set);
+    }
+  });
+
+  test('the mix takes five different topics and never repeats a question from that day\'s topic sets', () => {
+    for (const day of ['2026-01-01', '2026-06-15', '2026-11-08', '2028-02-29']) {
+      const mix = challenges.setFor(day, challenges.DAILY);
+      expect(new Set(mix.map((q) => q.topic)).size).toBe(challenges.QUESTIONS_PER_DAY);
+      const inTopics = new Set(challenges.TOPICS.flatMap((t) => challenges.setFor(day, t.slug).map((q) => q.id)));
+      expect(mix.filter((q) => inTopics.has(q.id))).toEqual([]);
+    }
+  });
+
+  test('dailySetFor is the mix, under the name the single challenge always had', () => {
+    expect(challenges.dailySetFor(date)).toEqual(challenges.setFor(date, 'daily'));
+  });
+
+  test('only a declared slug is a challenge, and __proto__ is not one', () => {
+    expect(challenges.isChallenge('apex-lwc')).toBe(true);
+    expect(challenges.isChallenge('daily')).toBe(true);
+    for (const bad of ['__proto__', 'constructor', 'toString', 'leaderboard', '', null, 7]) {
+      expect(challenges.isChallenge(bad)).toBe(false);
+    }
+    expect(() => challenges.setFor(date, '__proto__')).toThrow(/unknown challenge/);
+  });
+
+  test('the publicised form of a topic question still carries no answer', () => {
+    const q = challenges.setFor(date, 'agentforce-ai')[0];
+    expect(Object.keys(challenges.publicFormOf(q)).sort()).toEqual(['id', 'module', 'options', 'prompt']);
+  });
+
+  test('only config/challenges.js reads the bank', () => {
+    const path = require('path');
+    const root = path.join(__dirname, '..', '..');
+    const readers = [];
+    for (const dir of ['config', 'routes', 'models', 'services', 'utils', 'views']) {
+      const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).forEach((e) => {
+        const full = path.join(d, e.name);
+        if (e.isDirectory()) return walk(full);
+        if (/\.(js|ejs)$/.test(e.name) && /challengeBank/.test(fs.readFileSync(full, 'utf8'))) readers.push(path.relative(root, full));
+        return undefined;
+      });
+      walk(path.join(root, dir));
+    }
+    expect(readers.sort()).toEqual(['config/challenges.js']);
+  });
+});
+
+describe('corrected questions', () => {
+  const { TOPIC_QUESTIONS } = require('../../config/challengeBank');
+  const all = Object.values(TOPIC_QUESTIONS).flat();
+  const byId = (id) => all.find((q) => q.id === id);
+
+  test('the synchronous SOQL limit is marked as 100', () => {
+    // It was marked "50", so everyone who knew the limit was scored wrong.
+    const q = byId('gov-soql-101');
+    expect(q.options[q.answer]).toBe('100');
+  });
+
+  test('the ambiguous "most frequent refresh" sandbox question is gone', () => {
+    // Developer and Developer Pro both refresh daily: two right answers.
+    expect(byId('sandbox-refresh')).toBeUndefined();
+    const q = byId('sandbox-full-refresh');
+    expect(q.options[q.answer]).toBe('Every 29 days');
+  });
+
+  test('ids are unique across every topic, because a points key and a dispute both name them', () => {
+    const ids = all.map((q) => q.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

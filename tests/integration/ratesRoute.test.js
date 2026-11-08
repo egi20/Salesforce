@@ -66,6 +66,7 @@ function stubData({ hero = PUBLISHED, asked = [] } = {}) {
   ]);
   jest.spyOn(Application, 'askedDayRates').mockResolvedValue(asked);
   jest.spyOn(Job, 'rateRows').mockResolvedValue([]);
+  jest.spyOn(Job, 'facetByRole').mockResolvedValue([{ role: 'tableau-consultant', count: 9 }]);
   jest.spyOn(TaxProgram, 'topConsultantCountries').mockResolvedValue(['DE', 'NL']);
 }
 
@@ -107,6 +108,39 @@ describe('GET /rates', () => {
     expect(res.text).toMatch(/2026-10: 2 contributors — not enough to publish/);
   });
 
+  it('says the trend has not started rather than drawing one dot, from the first period with data', async () => {
+    stubData();
+    RateSubmission.trendWindow.mockResolvedValue([
+      { period: '2026-01', value: null, contributors: 0, suppressed: true },
+      { period: '2026-10', value: null, contributors: 0, suppressed: true },
+      { period: '2026-11', value: 753, contributors: 24, suppressed: false }
+    ]);
+    const res = await request(buildApp()).get('/rates');
+    expect(res.text).toMatch(/Trend appears after two months of data/);
+    expect(res.text).toMatch(/Nov 26: median €753 from 24 contributors/);
+    expect(res.text).not.toMatch(/Jan 26/);
+    expect(res.text).not.toMatch(/class="rates-chart"/);
+  });
+
+  it('shows ten role chips, the busiest first, and keeps the rest behind All roles', async () => {
+    stubData();
+    const res = await request(buildApp()).get('/rates');
+    const section = res.text.slice(res.text.indexOf('id="roles"'), res.text.indexOf('id="methodology"'));
+    const [top, rest] = section.split('All roles →');
+    expect((top.match(/class="rates-chip[ "]/g) || []).length).toBe(10);
+    // Tableau has the jobs and CPQ the contributors, so both lead.
+    expect(top.indexOf('Tableau')).toBeLessThan(top.indexOf('CPQ'));
+    expect((rest.match(/class="rates-chip[ "]/g) || []).length).toBeGreaterThan(20);
+  });
+
+  it('tells the two community forms apart and applies the filters without a Go button', async () => {
+    stubData();
+    const res = await request(buildApp()).get('/rates');
+    expect(res.text).toMatch(/Share your rate<\/h3>/);
+    expect(res.text).toMatch(/<form class="rates-card mb-3 rates-autosubmit"[^>]*>\s*<h3[^>]*>[\s\S]*?Filter the index/);
+    expect(res.text).not.toMatch(/>Go<\/button>/);
+  });
+
   it('benchmarks a scenario from the query string and says when there is no community comparison', async () => {
     stubData();
     const res = await request(buildApp()).get('/rates?b_role=cpq-consultant&b_exp=senior&b_region=western-europe&b_certs=3&b_skills=2&b_mode=hybrid&b_industry=financial-services');
@@ -114,6 +148,7 @@ describe('GET /rates', () => {
     expect(res.text).toMatch(/Low confidence/);
     expect(res.text).toMatch(/Not enough community data/);
     expect(res.text).toMatch(/\/rates\/calculator\?dayRate=955/);
+    expect(res.text).toMatch(/before employer contributions/);
   });
 
   it('carries other forms\' state, and only validated values', async () => {

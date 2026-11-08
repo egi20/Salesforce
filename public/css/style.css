@@ -3068,3 +3068,13 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
   body.rates-printing #benchmark { width: 100%; }
   body.rates-printing .rates-card { box-shadow: none; border: 0; }
 }
+.rates-trend-empty { display: flex; gap: 0.75rem; align-items: flex-start; padding: 1.25rem; border-radius: var(--radius-lg); background: var(--sky-wash); border: 1px dashed var(--border-color); color: var(--text-medium); }
+.rates-trend-empty > .bi { font-size: 1.5rem; color: var(--primary-blue); }
+.rates-trend-empty strong { color: var(--primary-navy); }
+.rates-mini small { font-size: 0.7rem; color: var(--text-light); }
+.rates-share-card { background: var(--sky-wash); border-color: rgba(1, 118, 211, 0.25); }
+.rates-all-roles summary { cursor: pointer; color: var(--primary-blue); font-weight: 600; display: inline-block; }
+@media (min-width: 992px) {
+  /* The charts stay beside the benchmark while its result is read. */
+  .rates-side { position: sticky; top: 96px; }
+}

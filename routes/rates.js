@@ -121,7 +121,7 @@ async function renderIndex(req, res, { status = 200, shareErrors = [], shareForm
 
   const [
     contributors, heroSummary, summary, byRole, bySeniority, byRegion, trend, contractByRole,
-    benchMarket, askedRows, contractJobRows, permanentJobRows, topCountries
+    benchMarket, askedRows, contractJobRows, permanentJobRows, topCountries, jobsByRole
   ] = await Promise.all([
     RateSubmission.totalContributors(),
     RateSubmission.summary({ engagementType: 'contract' }),
@@ -137,8 +137,33 @@ async function renderIndex(req, res, { status = 200, shareErrors = [], shareForm
     Application.askedDayRates(),
     Job.rateRows({ engagement_type: 'contract', role: state.j_role || undefined, posted_within_days: jDays }),
     Job.rateRows({ engagement_type: 'permanent' }),
-    TaxProgram.topConsultantCountries().catch(() => [])
+    TaxProgram.topConsultantCountries().catch(() => []),
+    Job.facetByRole({})
   ]);
+
+  /*
+   * The trend's axis starts at the first period anybody shared a figure in: eleven empty
+   * months before one dot reads as a broken chart. Leading periods with NO contributors are
+   * not gaps — nothing was there to suppress — so trimming them hides nothing. Below two
+   * published points the page says the trend has not started rather than drawing one dot.
+   */
+  const firstWithData = trend.findIndex((t) => t.contributors > 0);
+  const trendShown = firstWithData === -1 ? [] : trend.slice(firstWithData);
+  const trendPublished = trendShown.filter((t) => t.value != null).length;
+
+  /*
+   * "Rate benchmarks by role": ten chips, not forty-three. Ranked by what there is to look at —
+   * open jobs plus community contributors for the role — so the chips lead somewhere with data;
+   * the full list sits behind "All roles".
+   */
+  const weight = new Map();
+  for (const r of jobsByRole) weight.set(r.role, (weight.get(r.role) || 0) + Number(r.count));
+  for (const r of contractByRole) weight.set(r.role, (weight.get(r.role) || 0) + r.contributors);
+  const allRoles = ROLE_CATEGORIES.flatMap((c) => c.roles);
+  const order = new Map(allRoles.map((r, i) => [r.value, i]));
+  const ranked = [...allRoles].sort((a, b) => (weight.get(b.value) || 0) - (weight.get(a.value) || 0) || order.get(a.value) - order.get(b.value));
+  const topRoles = ranked.slice(0, 10);
+  const otherRoles = ranked.slice(10).sort((a, b) => order.get(a.value) - order.get(b.value));
 
   const toEur = RateSubmission.toEur;
   const asked = meanOfPeople(askedRows.map((r) => ({ user_id: r.user_id, amount_eur: toEur(Number(r.day_rate), r.currency || 'EUR') })));
@@ -156,7 +181,11 @@ async function renderIndex(req, res, { status = 200, shareErrors = [], shareForm
     byRegion,
     regionLabels: new Map([...rateModel.REGIONS.map((r) => [r.value, r.label]), ['other', 'Other countries']]),
     trend,
-    trendChart: trendGeometry(trend, { formatLabel: bucketLabel }),
+    trendChart: trendGeometry(trendShown, { formatLabel: bucketLabel }),
+    trendPublished,
+    trendSoFar: trendShown.map((t) => ({ ...t, label: bucketLabel(t.period) })),
+    topRoles,
+    otherRoles,
     trendWindows: TREND_WINDOWS,
     tWindow,
     ratesByRole: contractByRole.filter((r) => !r.suppressed),

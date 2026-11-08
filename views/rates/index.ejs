@@ -148,7 +148,7 @@
             <div class="row g-2 text-center mb-2">
               <div class="col-4"><div class="rates-mini"><span>Monthly</span><strong><%= eur(bench.year.monthly) %></strong></div></div>
               <div class="col-4"><div class="rates-mini"><span>Annual</span><strong><%= eur(bench.year.annual) %></strong></div></div>
-              <div class="col-4"><div class="rates-mini"><span>Equiv. salary</span><strong><%= eur(bench.year.equivalentSalary) %></strong></div></div>
+              <div class="col-4"><div class="rates-mini"><span>Equiv. salary</span><strong><%= eur(bench.year.equivalentSalary) %></strong><small>before employer contributions</small></div></div>
             </div>
             <p class="small text-muted-2"><%= bench.year.billableDays %> billable days a year after <%= bench.year.nonBillableDays %> days of holiday, illness, bench, admin and training. <a href="/rates/calculator?dayRate=<%= bench.recommended %>&role=<%= encodeURIComponent(bench.inputs.role) %>&seniority=<%= bench.inputs.experience %>">Change the assumptions → Contract rate calculator</a></p>
 
@@ -166,7 +166,7 @@
             </div>
             <div class="rates-note">
               <i class="bi bi-info-circle"></i>
-              <p class="mb-0"><strong>Equiv. salary</strong> is the annual revenue at the recommended rate less the running costs a contractor pays and an employee does not (insurance, accounting, software, certification: <%= eur(bench.year.costs) %> a year by default) — the gross salary that would leave you with the same money before tax. Pension and benefits are not included.</p>
+              <p class="mb-0"><strong>Equiv. salary</strong> is the annual revenue at the recommended rate less the running costs a contractor pays and an employee does not (insurance, accounting, software, certification: <%= eur(bench.year.costs) %> a year by default). It is a gross salary <strong>before employer contributions</strong>: an employer paying it would also pay its country's social contributions on top, which vary by country and are not deducted here. Paid holiday, sick pay and an employer pension are not in it either — so compare it with a salary offer's gross, not with what that offer costs the employer.</p>
             </div>
 
             <details class="rates-working small">
@@ -192,23 +192,12 @@
         <% } %>
       </div>
 
-      <div class="rates-card rates-keep mt-4">
-        <span class="icon-tile icon-navyblue"><i class="bi bi-piggy-bank"></i></span>
-        <div>
-          <h3 class="h6 mb-1">Now keep more of it</h3>
-          <p class="small text-muted-2 mb-2">Keep your clients and your location, and be employed through our Albania entity.
-            <% if (programFee) { %>The program fee is <strong><%= programFee %></strong>.<% } %>
-            Your home-country tax obligations still apply.</p>
-          <div class="d-flex flex-wrap gap-2">
-            <a class="btn btn-sm btn-primary" href="/tax-optimization">Tax optimization</a>
-            <a class="btn btn-sm btn-outline-primary" href="/tax-optimization/enquire">Talk to us</a>
-          </div>
-        </div>
-      </div>
     </div>
 
     <%# ---------------- RIGHT: community charts ---------------- %>
+    <%# Sticky on wide screens: the benchmark column grows with its result, and the charts stay in view beside it. %>
     <div class="col-lg-6">
+      <div class="rates-side">
       <div class="rates-card mb-4" id="trend">
         <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
           <h2 class="h5 mb-0">Market rate trend</h2>
@@ -235,7 +224,28 @@
           </div>
           <noscript><div class="col-12"><button class="btn btn-sm btn-outline-primary" type="submit">Show</button></div></noscript>
         </form>
-        <% const g = trendChart; %>
+        <% const g = trendChart; const unitWord = tWindow === '12m' ? 'months' : (tWindow === '12w' ? 'weeks' : 'days'); %>
+        <% if (trendPublished < 2) { %>
+          <%#
+            One point is not a trend, and a chart of eleven empty months and one dot reads as
+            broken. The periods so far are listed instead, counts included.
+          %>
+          <div class="rates-trend-empty">
+            <i class="bi bi-graph-up"></i>
+            <div>
+              <strong>Trend appears after two <%= unitWord %> of data</strong>
+              <% if (trendSoFar.length) { %>
+                <ul class="list-unstyled small mb-0 mt-1">
+                  <% trendSoFar.forEach(function (t) { %>
+                    <li><%= t.label %>: <% if (t.value != null) { %>median <%= eur(t.value) %> from <%= t.contributors %> contributors<% } else { %><%= t.contributors %> contributor<%= t.contributors === 1 ? '' : 's' %> — not enough to publish<% } %></li>
+                  <% }); %>
+                </ul>
+              <% } else { %>
+                <p class="small mb-0 mt-1">Nobody has shared a figure<%= state.t_role ? ' for ' + roleLabel(state.t_role) : '' %> in this period yet.</p>
+              <% } %>
+            </div>
+          </div>
+        <% } else { %>
         <svg class="rates-chart" viewBox="0 0 <%= g.width %> <%= g.height %>" role="img" aria-label="Median contract day rate per <%= tWindow === '12m' ? 'month' : (tWindow === '12w' ? 'week' : 'day') %>, with contributor counts; periods with fewer than <%= minSample %> contributors are gaps">
           <% g.yTicks.forEach(function (t) { %>
             <line class="grid" x1="<%= g.plot.x %>" x2="<%= g.plot.x + g.plot.width %>" y1="<%= t.y %>" y2="<%= t.y %>"></line>
@@ -262,6 +272,7 @@
           <span><i class="lg-line"></i> Median day rate (€)</span>
           <span><i class="lg-bar"></i> Contributors (right axis)</span>
         </div>
+        <% } %>
         <p class="small text-muted-2 mt-2 mb-0">A period with fewer than <%= minSample %> contributors is a gap, not a zero: drawing a line through missing data would invent it. Its contributor count is still shown.</p>
       </div>
 
@@ -293,6 +304,20 @@
           <div class="empty-state"><i class="bi bi-bar-chart"></i> No role has <%= minSample %> contributors yet.</div>
         <% } %>
       </div>
+      <div class="rates-card rates-keep mt-4">
+        <span class="icon-tile icon-navyblue"><i class="bi bi-piggy-bank"></i></span>
+        <div>
+          <h3 class="h6 mb-1">Now keep more of it</h3>
+          <p class="small text-muted-2 mb-2">Keep your clients and your location, and be employed through our Albania entity.
+            <% if (programFee) { %>The program fee is <strong><%= programFee %></strong>.<% } %>
+            Your home-country tax obligations still apply.</p>
+          <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-sm btn-primary" href="/tax-optimization">Tax optimization</a>
+            <a class="btn btn-sm btn-outline-primary" href="/tax-optimization/enquire">Talk to us</a>
+          </div>
+        </div>
+      </div>
+      </div>
     </div>
   </div>
 </div>
@@ -303,13 +328,15 @@
 <div class="container">
   <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
     <div>
-      <h2 class="sow-block-title mb-1">Community rate index</h2>
+      <h2 class="sow-block-title text-start mb-1">Community rate index</h2>
       <p class="text-muted-2 mb-0">Share your rate — anonymous by design: only groups of <%= minSample %>+ are ever shown.</p>
     </div>
     <span class="rates-tag">Community data</span>
   </div>
 
-  <div class="rates-card mb-4" id="share">
+  <div class="rates-card rates-share-card mb-4" id="share">
+    <h3 class="h5 mb-1"><i class="bi bi-share text-primary"></i> Share your rate</h3>
+    <p class="small text-muted-2 mb-3">Add your own figure to the index. It is never shown on its own.</p>
     <% if (shareErrors.length) { %>
       <div class="alert alert-danger" role="alert"><ul class="mb-0 ps-3"><% shareErrors.forEach(function (e) { %><li><%= e %></li><% }); %></ul></div>
     <% } %>
@@ -362,7 +389,8 @@
     <p class="small text-muted-2 mt-2 mb-0">Your figure counts towards this month and is never shown on its own. Sharing again this month replaces it.<% if (!canShare) { %> Shared by consultants with a verified email.<% } %></p>
   </div>
 
-  <form class="rates-card mb-3" method="get" action="/rates#community">
+  <form class="rates-card mb-3 rates-autosubmit" method="get" action="/rates#community">
+    <h3 class="h6 mb-3"><i class="bi bi-funnel text-primary"></i> Filter the index</h3>
     <% hidden(['role', 'seniority', 'engagement_type', 'country']).forEach(function (kv) { %><input type="hidden" name="<%= kv[0] %>" value="<%= kv[1] %>"><% }); %>
     <div class="row g-2 align-items-end">
       <div class="col-md-4">
@@ -390,14 +418,14 @@
           <option value="permanent" <%= filters.engagementType === 'permanent' ? 'selected' : '' %>>Permanent</option>
         </select>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label small mb-1" for="r-country">Country</label>
         <select class="form-select" id="r-country" name="country">
           <option value="">All countries</option>
           <%- include('_country_options', { groups: countryGroups, selected: filters.country, withRest: true }) %>
         </select>
       </div>
-      <div class="col-md-1"><button class="btn btn-primary w-100" type="submit">Go</button></div>
+      <noscript><div class="col-12"><button class="btn btn-primary" type="submit">Apply filters</button></div></noscript>
     </div>
   </form>
 
@@ -447,7 +475,7 @@
 <div class="container">
   <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
     <div>
-      <h2 class="sow-block-title mb-1">Day rate budgets (contract jobs)</h2>
+      <h2 class="sow-block-title text-start mb-1">Day rate budgets (contract jobs)</h2>
       <p class="text-muted-2 mb-0">What companies publish on open contract adverts, in EUR per day. A hidden rate is never counted.</p>
     </div>
     <span class="rates-tag rates-tag-jobs">Job postings</span>
@@ -476,9 +504,10 @@
     </form>
     <% if (budgets.length) { %>
       <% const top = Math.max.apply(null, budgets.map(function (b) { return b.medianMax; })); %>
+      <p class="small text-muted-2">Each row is built from individual job adverts, not from the community index: with one posting the range is that advert's own; with more, it runs from the median of their minimums to the median of their maximums.</p>
       <div class="table-responsive">
         <table class="table table-sm align-middle mb-0 rates-table">
-          <thead><tr><th>Role</th><th class="w-50">Budget range (median of each end)</th><th class="text-end">Min</th><th class="text-end">Max</th><th class="text-end">Postings</th></tr></thead>
+          <thead><tr><th>Role</th><th class="w-50">Budget range in postings</th><th class="text-end">Min</th><th class="text-end">Max</th><th class="text-end">Postings</th></tr></thead>
           <tbody>
             <% budgets.forEach(function (b) { %>
               <tr>
@@ -486,7 +515,7 @@
                 <td><div class="rates-range"><span style="left:<%= (b.medianMin / top * 100).toFixed(1) %>%;width:<%= Math.max(1, (b.medianMax - b.medianMin) / top * 100).toFixed(1) %>%"></span></div></td>
                 <td class="text-end"><%= eur(b.medianMin) %></td>
                 <td class="text-end"><%= eur(b.medianMax) %></td>
-                <td class="text-end"><%= b.postings %></td>
+                <td class="text-end"><%= b.postings %> posting<%= b.postings === 1 ? '' : 's' %></td>
               </tr>
             <% }); %>
           </tbody>
@@ -504,7 +533,7 @@
 <div class="container">
   <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
     <div>
-      <h2 class="sow-block-title mb-1">Annual salaries (permanent positions)</h2>
+      <h2 class="sow-block-title text-start mb-1">Annual salaries (permanent positions)</h2>
       <p class="text-muted-2 mb-0">From the salary ranges companies publish on open permanent adverts.</p>
     </div>
     <span class="rates-tag rates-tag-jobs">Job postings</span>
@@ -538,14 +567,18 @@
 <section class="tax-section glass-section" id="roles">
 <div class="container">
   <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
-    <h2 class="sow-block-title mb-0">Rate benchmarks by role</h2>
-    <a href="/rates#community">All roles →</a>
+    <h2 class="sow-block-title text-start mb-0">Rate benchmarks by role</h2>
   </div>
+  <p class="text-muted-2 small">The roles with the most open jobs and contributors right now.</p>
   <div class="rates-chips">
-    <% roleCategories.forEach(function (cat) { %>
-      <% cat.roles.forEach(function (r) { %><a class="rates-chip<%= filters.role === r.value ? ' is-active' : '' %>" href="/rates?role=<%= r.value %>#community"><%= r.label %></a><% }); %>
-    <% }); %>
+    <% topRoles.forEach(function (r) { %><a class="rates-chip<%= filters.role === r.value ? ' is-active' : '' %>" href="/rates?role=<%= r.value %>#community"><%= r.label %></a><% }); %>
   </div>
+  <details class="rates-all-roles mt-3">
+    <summary>All roles →</summary>
+    <div class="rates-chips mt-3">
+      <% otherRoles.forEach(function (r) { %><a class="rates-chip<%= filters.role === r.value ? ' is-active' : '' %>" href="/rates?role=<%= r.value %>#community"><%= r.label %></a><% }); %>
+    </div>
+  </details>
 </div>
 </section>
 

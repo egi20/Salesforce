@@ -132,6 +132,17 @@ benchmark, COMMUNITY data and JOB POSTINGS. They are never blended.
   percentile for everybody.
 - Every GET form on the page carries the others' state through `keepExcept`, built only from
   validated values, so changing one filter never resets another and nothing raw is echoed.
+- **The trend's axis starts at the first period with any contributor**, and below two
+  published points the card says "Trend appears after two months of data" and lists the
+  periods so far. Leading periods with NO contributors are not gaps (there was nothing to
+  suppress), so trimming them hides nothing; a period with contributors below the floor is
+  still a gap. The count axis has headroom so a full bar never sits on the € axis label.
+- **Equiv. salary is labelled "before employer contributions"** wherever it appears. It is
+  revenue less a contractor's running costs; an employer would add its country's social
+  contributions on top, and those vary by country, so they are named, not guessed.
+- "Rate benchmarks by role" shows ten chips ranked by open jobs + contributors, the rest
+  behind "All roles". Day-rate budgets say per row how many postings they come from: with
+  one posting the range is that advert's own, which is public but is not an aggregate.
 
 ## The estimator
 

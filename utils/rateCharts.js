@@ -29,7 +29,8 @@ function trendGeometry(series, { width = 640, height = 260, pad = { top: 16, rig
   const plotH = height - pad.top - pad.bottom;
   const values = points.filter((p) => p.value != null).map((p) => p.value);
   const yMax = niceCeil(values.length ? Math.max(...values) * 1.1 : 0);
-  const cMax = Math.max(3, ...points.map((p) => p.contributors || 0));
+  // Headroom on the count axis: a bar reaching the top line sits on the €-axis top label.
+  const cMax = niceCeil(Math.max(3, ...points.map((p) => p.contributors || 0)) * 1.25);
   const x = (i) => pad.left + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW);
   const y = (v) => pad.top + plotH - (v / yMax) * plotH;
   const cy = (c) => pad.top + plotH - (c / cMax) * plotH;

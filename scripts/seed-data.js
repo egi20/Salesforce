@@ -658,24 +658,6 @@ async function ensureAccount(email, name, roles) {
   return user;
 }
 
-/**
- * Run a model call that uses MySQL 8 syntax, or say plainly why it was skipped.
- *
- * The application targets MySQL 8 (README, render.yaml, deploy/docker-compose.yml), and two
- * models write JSON with `CAST(? AS JSON)`, which MariaDB does not parse. On a MariaDB dev
- * box those sections are skipped with a message rather than crashing the whole seed — the
- * same rows appear unchanged on the database the application is built for.
- */
-async function mysql8Only(label, fn) {
-  try {
-    return await fn();
-  } catch (err) {
-    if (err.code !== 'ER_PARSE_ERROR') throw err;
-    console.log(`  ${label}: SKIPPED — this database rejected MySQL 8 syntax (${err.sqlMessage}). Use MySQL 8, as the README requires.`);
-    return null;
-  }
-}
-
 /** The flags `SiteReview.roleLabelFor` reads, built from the row rather than typed. */
 function sessionShapeOf(user) {
   return { isConsultant: Boolean(user.is_consultant), isCompany: Boolean(user.is_company), isRecruiter: Boolean(user.is_recruiter) };
@@ -772,7 +754,7 @@ async function seedDemo() {
   // --- recruiter profile ----------------------------------------------------------
   // Saved through the same normaliser the profile form uses; specialisms are cloud FAMILY
   // slugs from config/cloudFamilies.js. `save` is an upsert, so this is safe to repeat.
-  const recruiterSaved = await mysql8Only('recruiter profile', () => RecruiterProfile.save(recruiter.id, {
+  await RecruiterProfile.save(recruiter.id, {
     agency_name: 'Cloudbridge Talent',
     contact_name: recruiter.name,
     tagline: 'Contract and permanent Salesforce hiring across the Benelux and the Balkans',
@@ -785,11 +767,9 @@ async function seedDemo() {
     country: 'NL',
     city: 'Utrecht',
     specialisms: ['sales-cloud', 'service-cloud', 'revenue-cloud', 'experience-cloud']
-  }));
-  if (recruiterSaved) {
-    await RecruiterProfile.setPublic(recruiter.id, true);
-    console.log('  recruiter profile (public)');
-  }
+  });
+  await RecruiterProfile.setPublic(recruiter.id, true);
+  console.log('  recruiter profile (public)');
 
   // --- sales agent ----------------------------------------------------------------
   // Added the way /admin adds one. Two accounts are credited to the link through the
@@ -1093,11 +1073,9 @@ async function seedDemo() {
     [7, [0, 1]]
   ];
   let attempts = 0;
-  let challengeSupported = true;
   for (const [index, days] of PLAYERS) {
     const player = consultants[index];
     for (const daysAgo of days) {
-      if (!challengeSupported) break;
       // Today's attempts are a few minutes old; earlier ones mid-morning on their day. The
       // date is then derived from that instant exactly as the model derives it.
       const when =
@@ -1111,13 +1089,7 @@ async function seedDemo() {
       questions.forEach((q, i) => {
         answers[q.id] = i < rightCount ? q.answer : (q.answer + 1) % q.options.length;
       });
-      const result = await mysql8Only('daily challenge', () =>
-        Challenge.submit(player.id, answers, { now: when, durationMs: 40_000 + index * 3_000 })
-      );
-      if (!result) {
-        challengeSupported = false;
-        break;
-      }
+      const result = await Challenge.submit(player.id, answers, { now: when, durationMs: 40_000 + index * 3_000 });
       if (result.recorded) {
         // When it was played, not when the seed ran: the daily board breaks ties on it.
         await promisePool.query('UPDATE challenge_attempts SET created_at = ? WHERE user_id = ? AND challenge_date = ?', [

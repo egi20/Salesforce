@@ -45,10 +45,13 @@ class Challenge {
     return withTransaction(async (conn) => {
       const record = graded.results.map((r) => ({ id: r.id, chosen: r.chosen, correct: r.correct }));
 
+      // A plain JSON string, not CAST(? AS JSON): MySQL 8 stores it in the JSON column as is,
+      // and MariaDB (where JSON is LONGTEXT with a json_valid check) rejects the CAST
+      // outright — every attempt there failed with a 500.
       const [result] = await conn.query(
         `INSERT IGNORE INTO challenge_attempts
            (user_id, challenge_date, score, total, answers, duration_ms)
-         VALUES (?, ?, ?, ?, CAST(? AS JSON), ?)`,
+         VALUES (?, ?, ?, ?, ?, ?)`,
         [
           userId,
           date,

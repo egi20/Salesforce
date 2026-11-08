@@ -50,7 +50,7 @@ Render's managed database is **PostgreSQL**. This schema and these queries are M
 - 84 foreign-key constraints
 - 24 `INSERT IGNORE`, 10 `ON DUPLICATE KEY UPDATE` — the idempotency this codebase puts in
   the schema rather than in code paths
-- `CAST(? AS JSON)`, `JSON_CONTAINS`, `JSON_QUOTE`, `MEDIUMBLOB`, `TINYINT(1)`,
+- `JSON_CONTAINS`, `JSON_QUOTE`, `MEDIUMBLOB`, `TINYINT(1)`,
   `DATE_FORMAT`, `INTERVAL ? DAY`
 - `express-mysql-session` for the session store
 

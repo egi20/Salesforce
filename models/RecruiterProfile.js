@@ -220,12 +220,15 @@ class RecruiterProfile {
         ? existing.slug
         : await uniqueSlug(fields.agency_name, (candidate) => RecruiterProfile.slugTaken(candidate, userId));
 
+    // Specialisms go in as a plain JSON string, not CAST(? AS JSON): MySQL 8 stores it in the
+    // JSON column as is, and MariaDB (where JSON is LONGTEXT with a json_valid check) rejects
+    // the CAST outright — saving a recruiter profile there was a 500.
     if (!existing) {
       await promisePool.query(
         `INSERT INTO recruiter_profiles
            (user_id, agency_name, slug, contact_name, tagline, about, phone, website,
             linkedin_url, country, city, specialisms)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON))`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userId, fields.agency_name, slug, fields.contact_name, fields.tagline, fields.about,
           fields.phone, fields.website, fields.linkedin_url, fields.country, fields.city,
@@ -238,7 +241,7 @@ class RecruiterProfile {
     await promisePool.query(
       `UPDATE recruiter_profiles
           SET agency_name = ?, slug = ?, contact_name = ?, tagline = ?, about = ?, phone = ?,
-              website = ?, linkedin_url = ?, country = ?, city = ?, specialisms = CAST(? AS JSON)
+              website = ?, linkedin_url = ?, country = ?, city = ?, specialisms = ?
         WHERE user_id = ?`,
       [
         fields.agency_name, slug, fields.contact_name, fields.tagline, fields.about, fields.phone,

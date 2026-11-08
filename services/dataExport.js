@@ -59,6 +59,7 @@ const OWNED = Object.freeze({
   company_shortlists: 'user_id',
   tax_program_participants: 'user_id',
   tax_program_stories: 'user_id',
+  generated_documents: 'user_id',
   rate_submissions: 'user_id',
   posts: 'author_user_id',
   post_replies: 'author_user_id',

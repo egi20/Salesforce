@@ -9,7 +9,7 @@
   const isConsultantView = mode === 'consultant';
   const primaryHref = isConsultantView ? '#generate' : mode === 'visitor' ? '/auth/register' : '/profile/settings#consultant-setup';
   const primaryLabel = isConsultantView ? 'Generate my CV' : mode === 'visitor' ? 'Create a free account' : 'Add the consultant role';
-  const secondaryHref = isConsultantView ? '#my-documents' : mode === 'visitor' ? '/auth/login?redirect=%2Fcv-generator' : '/consultant-hub';
+  const secondaryHref = isConsultantView ? '/profile/documents' : mode === 'visitor' ? '/auth/login?redirect=%2Fcv-generator' : '/consultant-hub';
   const secondaryLabel = isConsultantView ? 'My documents' : mode === 'visitor' ? 'Sign in' : 'Consultant Hub';
 %>
 <section class="hub-hero">
@@ -65,6 +65,11 @@
   </div>
 
   <%- include('../partials/flash') %>
+  <% if (typeof application !== 'undefined' && application) { %>
+    <div class="alert alert-info d-flex gap-2 align-items-start"><i class="bi bi-briefcase mt-1"></i>
+      <span>Making a CV for your application to <strong><%= application.company_name || 'a confidential company' %></strong> — <%= application.job_title %>. It will show under that application in <a href="/profile/documents">My documents</a>.</span>
+    </div>
+  <% } %>
 
   <% if (mode === 'no-role') { %>
     <div class="glass-card mb-4"><div class="card-body d-flex flex-wrap align-items-center gap-3">
@@ -172,31 +177,8 @@
   </section>
 
   <% if (isConsultantView) { %>
-    <section class="mt-5" id="my-documents" aria-labelledby="my-docs-h">
-      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-        <h2 class="h5 mb-0" id="my-docs-h">My documents</h2>
-        <a class="btn btn-sm btn-outline-primary" href="/profile/settings#documents"><i class="bi bi-upload"></i> Upload a CV or cover letter</a>
-      </div>
-      <%# Generated files are not listed here: they are made fresh on download (step 3 above) %>
-      <%# and never stored, so a second set of download buttons would only repeat that one. %>
-      <p class="small text-muted-2">Your own CVs and cover letters. Generated CVs are made fresh each time from step 3 above and never stored, so a copy can never be older than your profile.</p>
-      <div class="glass-card"><div class="card-body">
-          <% if (!uploads.length) { %>
-            <p class="small text-muted-2 mb-0">Nothing uploaded yet. Your own CVs and cover letters (PDF or .docx) live here once you add them.</p>
-          <% } else { %>
-            <ul class="list-unstyled mb-0">
-              <% uploads.forEach(function (u) { %>
-                <li class="d-flex align-items-center gap-2 py-1">
-                  <i class="bi <%= u.content_type === 'application/pdf' ? 'bi-file-earmark-pdf' : 'bi-file-earmark-word' %> text-primary"></i>
-                  <span class="flex-grow-1 small"><strong><%= u.title || u.filename %></strong>
-                    <span class="text-muted-2">· <%= u.kind === 'cv' ? 'CV' : 'Cover letter' %><%= u.is_default ? ' · default' : '' %></span></span>
-                  <a class="btn btn-sm btn-link" href="/profile/consultant/documents/<%= u.id %>/download">Download</a>
-                </li>
-              <% }); %>
-            </ul>
-          <% } %>
-      </div></div>
-    </section>
+    <%# Uploaded CVs and cover letters live on ONE page; this is the way there, not a second list. %>
+    <p class="mt-5 mb-0 text-center"><i class="bi bi-folder2-open text-primary"></i> Your uploaded CVs and cover letters → <a href="/profile/documents">My documents</a></p>
   <% } %>
 </div>
 </section>

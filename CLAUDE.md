@@ -1312,6 +1312,23 @@ availability, as the spec's minimum says. "Anywhere (remote)" is its own column,
 `nextSortOrder` wraps the MAX in `Number()`: MariaDB returns `COALESCE(MAX(..))` as a string,
 and `"5" + 1` gave an imported project sort order 51.
 
+## My documents
+
+`/profile/documents` is the ONE page for a person's files: uploaded CVs and cover letters, the
+CV Generator's log, and — for a company — its SOW quotes with their downloads. The menu, the CV
+Generator, the profile's Documents section and the applications list all link here; the
+profile section is a summary, not a second upload form.
+
+**Uploads are limited per kind** (`ConsultantDocument.LIMITS`: 5 CVs, 10 cover letters),
+counted `FOR UPDATE` inside the insert's transaction so two tabs cannot both take the last slot.
+
+**"Recently generated" is a LOG, not a store** (`generated_documents`, migration 044): the kind,
+the sections chosen and the application it was for. The file itself is never kept — a profile
+changes, and the stale copy is the one somebody sends — so "Generate again" rebuilds it from the
+profile as it is now. `GeneratedDocument.log` never throws: a bookkeeping failure must not cost
+somebody their download. The application is accepted only if it is the consultant's own.
+Both tables are in the erasure PURGE and the export.
+
 ## The consultant's applications
 
 `/dashboard/applications` lists through `Application.buildFilter` with the CONSULTANT scope,

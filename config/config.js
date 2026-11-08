@@ -96,7 +96,7 @@ const config = {
     // assumed to be wiped on every deploy.
     tmpDir: process.env.UPLOAD_TMP_DIR || 'uploads',
     maxPhotoBytes: 5 * 1024 * 1024,
-    maxDocumentBytes: 10 * 1024 * 1024
+    maxDocumentBytes: 5 * 1024 * 1024
   },
   stripe: {
     // Unset keys disable payments entirely rather than half-enabling them: routes offer

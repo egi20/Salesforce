@@ -1,0 +1,230 @@
+<%- include('../partials/layout-start') %>
+
+<%
+  /*
+   * My documents — ONE place for a person's documents, by role.
+   *
+   * Consultant: what they generated (a LOG — generated files are made fresh on every download
+   * and never stored) and what they uploaded (CVs and cover letters, in the database, never on
+   * disk). Company: their SOW quotes and the pack each one downloads as. Every action posts to
+   * an existing document route and comes back here through `redirectTo`.
+   */
+  const isConsultant = currentUser.isConsultant;
+  const isCompany = currentUser.isCompany;
+  const kb = function (n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; };
+  const day = function (d) { return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); };
+  const fileIcon = function (d) { return d.content_type === 'application/pdf' ? 'bi-file-earmark-pdf' : 'bi-file-earmark-word'; };
+  const statusLabel = function (s) { return String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1); };
+  const again = function (g) {
+    if (g.kind === 'rate_card') return '/profile/consultant/download/rate-card';
+    const params = new URLSearchParams({ doc: g.kind === 'cv_rate_card' ? 'package' : 'cv', opts: '1' });
+    g.sections.forEach(function (s) { params.append('include', s); });
+    if (g.application_id) params.set('application', String(g.application_id));
+    return '/cv-generator?' + params.toString();
+  };
+%>
+
+<section class="glass-section pb-5">
+<div class="container py-4">
+  <a class="small text-decoration-none" href="/profile/settings"><i class="bi bi-arrow-left"></i> Back to profile</a>
+  <div class="d-flex align-items-center gap-3 mt-2 mb-4">
+    <span class="icon-tile icon-navyblue"><i class="bi bi-folder2-open"></i></span>
+    <div>
+      <h1 class="h3 mb-0">My documents</h1>
+      <p class="text-muted-2 mb-0">Your CVs, cover letters and project documents</p>
+    </div>
+  </div>
+
+  <%- include('../partials/flash') %>
+
+  <% if (isConsultant) { %>
+    <%# ------------------------------------------------ Generate from your profile %>
+    <div class="docs-card mb-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+          <h2 class="h5 mb-1"><i class="bi bi-magic text-primary"></i> Generate from your profile</h2>
+          <p class="small text-muted-2 mb-2">A CV and rate card built from your profile — your words, never rewritten.</p>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="docs-chip">CV</span>
+            <span class="docs-chip">CV + rate card</span>
+            <%# The Hub writes no cover letter — that is prose. The chip says where yours goes. %>
+            <a class="docs-chip docs-chip-muted" href="?upload=cover_letter#upload" title="The Hub does not write cover letters: upload your own">Cover letter — upload your own</a>
+          </div>
+        </div>
+        <a class="btn btn-primary" href="/cv-generator"><i class="bi bi-file-earmark-person"></i> Open CV Generator</a>
+      </div>
+
+      <h3 class="docs-subhead">Recently generated</h3>
+      <% if (!generated.length) { %>
+        <p class="small text-muted-2 mb-0">Nothing generated yet. Each CV is made fresh from your profile when you download it, and listed here.</p>
+      <% } else { %>
+        <ul class="list-unstyled mb-2 docs-rows">
+          <% generated.forEach(function (g) { %>
+            <li>
+              <span class="docs-badge"><%= g.label %></span>
+              <span class="flex-grow-1">
+                <strong><%= g.label %> from your profile</strong>
+                <span class="small text-muted-2"> · <%= day(g.created_at) %><% if (g.application_id && g.job_title) { %> · for <%= g.company_name || 'a confidential company' %> (<%= g.job_title %>)<% } %></span>
+              </span>
+              <a class="btn btn-sm btn-outline-primary" href="<%= again(g) %>"><i class="bi bi-arrow-repeat"></i> Generate again</a>
+            </li>
+          <% }); %>
+        </ul>
+        <p class="small text-muted-2 mb-0"><i class="bi bi-info-circle"></i> A log only: the files are not stored, so "Generate again" makes a new one from today's profile with the same sections.</p>
+      <% } %>
+    </div>
+
+    <%# ------------------------------------------------ Upload your own %>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3" id="upload">
+      <h2 class="h5 mb-0">Upload your own</h2>
+      <a class="btn btn-primary" href="?upload=cv#upload"><i class="bi bi-upload"></i> Upload document</a>
+    </div>
+
+    <details class="docs-card docs-upload mb-4" <%= uploadKind ? 'open' : '' %>>
+      <summary class="visually-hidden">Upload form</summary>
+      <form method="post" action="/profile/consultant/documents" enctype="multipart/form-data" class="row g-3 align-items-end">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="redirectTo" value="/profile/documents">
+        <div class="col-md-4">
+          <label class="form-label" for="up-file">File</label>
+          <input class="form-control" id="up-file" name="document" type="file" accept=".pdf,.docx" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="up-kind">Type</label>
+          <select class="form-select" id="up-kind" name="kind">
+            <option value="cv" <%= uploadKind !== 'cover_letter' ? 'selected' : '' %>>CV / resume</option>
+            <option value="cover_letter" <%= uploadKind === 'cover_letter' ? 'selected' : '' %>>Cover letter</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="up-title">Name <span class="text-muted-2">(optional)</span></label>
+          <input class="form-control" id="up-title" name="title" maxlength="120" placeholder="e.g. CPQ-focused CV">
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-primary w-100" type="submit">Upload</button>
+        </div>
+        <div class="col-12 d-flex flex-wrap justify-content-between gap-2">
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" id="up-default" name="is_default">
+            <label class="form-check-label small" for="up-default">Make it my default</label>
+          </div>
+          <span class="small text-muted-2">PDF or .docx, up to <%= documentMaxMb %> MB. Old .doc files and documents with macros are refused.</span>
+        </div>
+      </form>
+    </details>
+
+    <div class="row g-4 mb-4">
+      <% [
+        { kind: 'cv', title: 'CVs / resumes', list: cvs, limit: limits.cv, empty: 'No CVs uploaded yet', cta: 'Upload a CV' },
+        { kind: 'cover_letter', title: 'Cover letters', list: coverLetters, limit: limits.cover_letter, empty: 'No cover letters uploaded yet', cta: 'Upload cover letter' }
+      ].forEach(function (group) { %>
+        <div class="col-lg-6">
+          <div class="docs-card h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h3 class="h6 mb-0"><%= group.title %></h3>
+              <span class="docs-count<%= group.list.length >= group.limit ? ' is-full' : '' %>"><%= group.list.length %> / <%= group.limit %></span>
+            </div>
+            <% if (!group.list.length) { %>
+              <div class="docs-empty">
+                <i class="bi bi-file-earmark-plus"></i>
+                <p class="mb-1"><%= group.empty %></p>
+                <a href="?upload=<%= group.kind %>#upload"><%= group.cta %></a>
+              </div>
+            <% } else { %>
+              <ul class="list-unstyled mb-0 docs-files">
+                <% group.list.forEach(function (d) { %>
+                  <li>
+                    <div class="docs-file">
+                      <i class="bi <%= fileIcon(d) %> docs-file-icon"></i>
+                      <div class="flex-grow-1 min-w-0">
+                        <strong class="d-block text-truncate"><%= d.title || d.filename %></strong>
+                        <span class="small text-muted-2"><%= kb(d.byte_size) %> · <%= day(d.created_at) %></span>
+                        <% if (d.is_default) { %><span class="badge-hub ok ms-1">Default</span><% } %>
+                      </div>
+                      <div class="docs-actions">
+                        <a class="btn btn-sm btn-light" href="/profile/consultant/documents/<%= d.id %>/download" title="Download" aria-label="Download <%= d.title || d.filename %>"><i class="bi bi-download"></i></a>
+                        <% if (!d.is_default) { %>
+                          <form method="post" action="/profile/consultant/documents/<%= d.id %>/default" class="d-inline">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="redirectTo" value="/profile/documents">
+                            <button class="btn btn-sm btn-light" type="submit" title="Set as default" aria-label="Set <%= d.title || d.filename %> as default"><i class="bi bi-star"></i></button>
+                          </form>
+                        <% } else { %>
+                          <span class="btn btn-sm btn-light disabled" title="Your default"><i class="bi bi-star-fill text-warning"></i></span>
+                        <% } %>
+                        <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#rename-<%= d.id %>" aria-expanded="false" aria-controls="rename-<%= d.id %>" title="Rename" aria-label="Rename <%= d.title || d.filename %>"><i class="bi bi-pencil"></i></button>
+                        <form method="post" action="/profile/consultant/documents/<%= d.id %>/delete" class="d-inline" data-confirm="Delete <%= d.title || d.filename %>? This cannot be undone.">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="redirectTo" value="/profile/documents">
+                          <button class="btn btn-sm btn-light text-danger" type="submit" title="Delete" aria-label="Delete <%= d.title || d.filename %>"><i class="bi bi-trash"></i></button>
+                        </form>
+                      </div>
+                    </div>
+                    <form method="post" action="/profile/consultant/documents/<%= d.id %>/rename" class="collapse docs-rename" id="rename-<%= d.id %>">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="redirectTo" value="/profile/documents">
+                      <div class="input-group input-group-sm">
+                        <input class="form-control" name="title" maxlength="120" value="<%= d.title || '' %>" placeholder="<%= d.filename %>" aria-label="New name">
+                        <button class="btn btn-primary" type="submit">Save name</button>
+                      </div>
+                    </form>
+                  </li>
+                <% }); %>
+              </ul>
+            <% } %>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  <% } %>
+
+  <% if (isCompany) { %>
+    <%# ------------------------------------------------ SOW quotes (company role only) %>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <h2 class="h5 mb-0">SOW quotes &amp; project documents</h2>
+      <a class="btn btn-primary" href="/quotes/new#wizard"><i class="bi bi-plus-lg"></i> New SOW quote</a>
+    </div>
+    <div class="docs-card mb-4">
+      <% if (!quotes.length) { %>
+        <div class="docs-empty"><i class="bi bi-file-earmark-text"></i><p class="mb-1">No SOW quotes yet</p><a href="/quotes/new#wizard">Start your first quote</a></div>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Project</th><th>Company</th><th>Status</th><th>Date</th><th class="text-end">Documents</th></tr></thead>
+            <tbody>
+              <% quotes.forEach(function (q) { %>
+                <tr>
+                  <td><a href="/quotes/<%= q.reference %>"><%= q.project_name || q.reference %></a></td>
+                  <td><%= q.client_company %></td>
+                  <td><span class="badge-hub <%= q.status === 'accepted' ? 'ok' : (q.status === 'declined' ? 'danger' : '') %>"><%= statusLabel(q.status) %></span></td>
+                  <td class="small"><%= day(q.created_at) %></td>
+                  <td class="text-end text-nowrap">
+                    <% quoteKinds.forEach(function (k) { %>
+                      <a class="docs-ext docs-ext-<%= k.extension %>" href="/quotes/<%= q.reference %>/download/<%= k.kind %>" title="<%= k.label %> (.<%= k.extension %>)">.<%= k.extension %></a>
+                    <% }); %>
+                    <a class="docs-ext docs-ext-zip" href="/quotes/<%= q.reference %>/download/<%= quotePackageKind %>" title="All three, zipped">.zip</a>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  <% } %>
+
+  <% if (!isConsultant && !isCompany) { %>
+    <div class="docs-card mb-4"><div class="docs-empty">
+      <i class="bi bi-folder2"></i>
+      <p class="mb-1">Documents belong to a consultant or a company profile.</p>
+      <a href="/profile/settings">Add a role to your account</a>
+    </div></div>
+  <% } %>
+
+  <%# ------------------------------------------------ Tips %>
+  <ul class="docs-tips list-unstyled">
+    <li><i class="bi bi-filetype-pdf"></i> PDF or .docx works best</li>
+    <% if (isConsultant) { %><li><i class="bi bi-star"></i> Your default CV is pre-selected when you apply</li><% } %>
+    <li><i class="bi bi-arrow-repeat"></i> Generated CVs are made fresh each time, so they're never out of date</li>
+  </ul>
+</div>
+</section>
+
+<%- include('../partials/layout-end') %>

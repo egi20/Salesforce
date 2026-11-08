@@ -14,7 +14,13 @@ const { promisePool, withTransaction } = require('../config/database');
  * is never a moment with two.
  */
 const KINDS = Object.freeze(['cv', 'cover_letter']);
-const MAX_PER_USER = 10;
+/*
+ * Per kind, not in total: somebody with ten cover letters tailored to ten clients should not
+ * be told they cannot keep a second CV. Five CVs is plenty to tailor by cloud or by role.
+ */
+const LIMITS = Object.freeze({ cv: 5, cover_letter: 10 });
+const MAX_PER_USER = LIMITS.cv + LIMITS.cover_letter;
+const KIND_LABELS = Object.freeze({ cv: 'CVs', cover_letter: 'cover letters' });
 const LIST_COLUMNS = 'id, kind, title, filename, content_type, byte_size, is_default, created_at';
 
 class ConsultantDocument {
@@ -31,14 +37,14 @@ class ConsultantDocument {
   static async add(userId, { kind, title, filename, contentType, bytes, isDefault }) {
     if (!KINDS.includes(kind)) return { ok: false, reason: 'Choose CV or cover letter.' };
     return withTransaction(async (conn) => {
-      const [[{ n }]] = await conn.query('SELECT COUNT(*) AS n FROM consultant_documents WHERE user_id = ? FOR UPDATE', [userId]);
-      if (n >= MAX_PER_USER) return { ok: false, reason: `You can keep up to ${MAX_PER_USER} documents. Delete one first.` };
-
-      // The first document of a kind is its default whatever the box said.
       const [[{ sameKind }]] = await conn.query(
-        'SELECT COUNT(*) AS sameKind FROM consultant_documents WHERE user_id = ? AND kind = ?',
+        'SELECT COUNT(*) AS sameKind FROM consultant_documents WHERE user_id = ? AND kind = ? FOR UPDATE',
         [userId, kind]
       );
+      if (sameKind >= LIMITS[kind]) {
+        return { ok: false, reason: `You can keep up to ${LIMITS[kind]} ${KIND_LABELS[kind]}. Delete one first.` };
+      }
+      // The first document of a kind is its default whatever the box said.
       const makeDefault = Boolean(isDefault) || sameKind === 0;
       if (makeDefault) {
         await conn.query('UPDATE consultant_documents SET is_default = 0 WHERE user_id = ? AND kind = ?', [userId, kind]);
@@ -60,6 +66,16 @@ class ConsultantDocument {
       await conn.query('UPDATE consultant_documents SET is_default = 1 WHERE id = ? AND user_id = ?', [id, userId]);
       return true;
     });
+  }
+
+  /** The name shown in lists and used for the download. Blank clears it back to the filename. */
+  static async rename(userId, id, title) {
+    const clean = String(title || '').replace(/\s+/g, ' ').trim().slice(0, 120) || null;
+    const [result] = await promisePool.query(
+      'UPDATE consultant_documents SET title = ? WHERE id = ? AND user_id = ?',
+      [clean, id, userId]
+    );
+    return result.affectedRows > 0;
   }
 
   /** Removing the default promotes the newest remaining document of that kind. */
@@ -91,5 +107,6 @@ class ConsultantDocument {
 
 ConsultantDocument.KINDS = KINDS;
 ConsultantDocument.MAX_PER_USER = MAX_PER_USER;
+ConsultantDocument.LIMITS = LIMITS;
 
 module.exports = ConsultantDocument;

@@ -138,7 +138,7 @@
                   <% if (a.day_rate) { %><span><i class="bi bi-tag"></i> You proposed <%= proposedRate(a) %></span><% } %>
                   <span><i class="bi bi-paperclip"></i>
                     <% if (a.cv_title || a.cv_filename) { %><a href="/applications/<%= a.id %>/cv"><%= a.cv_title || a.cv_filename %></a>
-                    <% } else { %>No CV attached · profile sent<% } %></span>
+                    <% } else { %>No CV attached · profile sent · <a href="/profile/documents">My documents</a> · <a href="/cv-generator?application=<%= a.id %>">Make a CV for this role</a><% } %></span>
                 </div>
 
                 <%# The timeline: status changes from the event log, "Viewed" from viewed_at. %>

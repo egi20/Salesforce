@@ -4,6 +4,8 @@ const express = require('express');
 
 const ConsultantProfile = require('../models/ConsultantProfile');
 const ConsultantDocument = require('../models/ConsultantDocument');
+const GeneratedDocument = require('../models/GeneratedDocument');
+const Application = require('../models/Application');
 const { isConsultant } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { build: buildDossier } = require('../services/consultantDossier');
@@ -43,11 +45,26 @@ function documentFrom(query) {
 }
 
 /** The selection as a query string, so links (download, preview) carry exactly what is shown. */
-function queryFor(doc, options) {
+function queryFor(doc, options, application = null) {
   const params = new URLSearchParams({ doc, opts: '1' });
   for (const section of OPTIONAL_SECTIONS) if (options[section.key]) params.append('include', section.key);
+  if (application) params.set('application', String(application.id));
   return params.toString();
 }
+
+/**
+ * `?application=ID` — a CV made for one application, so "My documents" can say who it was for.
+ * Honoured only for the consultant's OWN application: anybody else's id is treated as absent,
+ * never as an error that confirms the id exists.
+ */
+async function ownApplication(userId, raw) {
+  const id = Number(raw);
+  if (!Number.isInteger(id) || id <= 0 || String(id) !== String(raw)) return null;
+  const app = await Application.findById(id);
+  return app && app.consultant_user_id === userId ? app : null;
+}
+
+const includedSections = (options) => OPTIONAL_SECTIONS.filter((s) => options[s.key]).map((s) => s.key);
 
 router.get(
   '/',
@@ -62,10 +79,11 @@ router.get(
     if (base.mode !== 'consultant') return res.render('cv/index', base);
 
     const userId = user.id;
-    const [dossier, profile, uploads] = await Promise.all([
+    const [dossier, profile, uploads, application] = await Promise.all([
       buildDossier(userId),
       ConsultantProfile.findByUserId(userId),
-      ConsultantDocument.listFor(userId)
+      ConsultantDocument.listFor(userId),
+      req.query.application ? ownApplication(userId, req.query.application) : null
     ]);
     const doc = documentFrom(req.query);
     const options = optionsFrom(req.query, dossier || {});
@@ -76,7 +94,8 @@ router.get(
       completeEnough: COMPLETE_ENOUGH,
       doc,
       options,
-      query: queryFor(doc, options),
+      query: queryFor(doc, options, application),
+      application,
       blocks: dossier ? cvBlocks(dossier, options) : [],
       // Sections the profile has nothing for: shown greyed out and unticked, never ticked-but-empty.
       emptySections: OPTIONAL_SECTIONS.map((s) => s.key).filter((key) => !sectionHasData(dossier || {}, key)),
@@ -115,6 +134,7 @@ router.get(
     }
     const doc = documentFrom(req.query);
     const options = optionsFrom(req.query, dossier);
+    const application = req.query.application ? await ownApplication(req.session.user.id, req.query.application) : null;
 
     let result;
     try {
@@ -126,6 +146,13 @@ router.get(
       }
       throw err;
     }
+
+    // The log behind "Recently generated" — what and when, never the file.
+    await GeneratedDocument.log(req.session.user.id, {
+      kind: doc === PACKAGE_KIND ? 'cv_rate_card' : 'cv',
+      sections: includedSections(options),
+      applicationId: application ? application.id : null
+    });
 
     res.set('Content-Type', result.contentType);
     // The filename is built from a slugified name, so it cannot inject a header.

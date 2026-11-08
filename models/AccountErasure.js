@@ -68,6 +68,8 @@ const PURGE = Object.freeze([
   // story is published on consent, and an erased account has withdrawn every consent there is.
   'tax_program_participants',
   'tax_program_stories',
+  // A log of the CVs somebody generated (migration 044): what and when, never the files.
+  'generated_documents',
   'post_votes',
   'idea_votes',
   'challenge_attempts'

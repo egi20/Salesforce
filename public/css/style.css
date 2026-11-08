@@ -3078,3 +3078,29 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
   /* The charts stay beside the benchmark while its result is read. */
   .rates-side { position: sticky; top: 96px; }
 }
+
+/* My documents (/profile/documents). */
+.docs-card { background: #fff; border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.5rem; box-shadow: var(--shadow-sm); }
+.docs-chip { display: inline-block; padding: 0.3rem 0.8rem; border-radius: 999px; background: rgba(1, 118, 211, 0.1); color: var(--primary-blue-dark); font-size: 0.8rem; font-weight: 600; text-decoration: none; }
+.docs-chip-muted { background: var(--bg-light); color: var(--text-medium); font-weight: 500; }
+.docs-subhead { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-light); margin: 1.5rem 0 0.75rem; padding-top: 1rem; border-top: 1px solid var(--border-color); }
+.docs-rows li { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px dashed var(--border-color); }
+.docs-badge { flex-shrink: 0; font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 999px; background: rgba(3, 45, 96, 0.08); color: var(--primary-navy); }
+.docs-count { font-size: 0.8rem; font-weight: 700; padding: 0.15rem 0.6rem; border-radius: 999px; background: var(--bg-light); color: var(--text-medium); }
+.docs-count.is-full { background: #fff4e5; color: #8a4b00; }
+.docs-empty { text-align: center; padding: 1.5rem 1rem; color: var(--text-medium); }
+.docs-empty > .bi { display: block; font-size: 2rem; color: var(--primary-blue); margin-bottom: 0.5rem; }
+.docs-files li + li { border-top: 1px solid var(--border-color); }
+.docs-file { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 0; }
+.docs-file-icon { font-size: 1.6rem; color: var(--primary-blue); flex-shrink: 0; }
+.docs-file .min-w-0 { min-width: 0; }
+.docs-actions { display: flex; gap: 0.25rem; flex-shrink: 0; }
+.docs-rename { padding-bottom: 0.7rem; }
+.docs-upload > summary { display: none; }
+.docs-upload:not([open]) { display: none; }
+.docs-ext { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 4px; margin-left: 0.2rem; text-decoration: none; color: #fff; background: var(--primary-navy); }
+.docs-ext-docx { background: var(--primary-blue-dark); }
+.docs-ext-xlsx { background: #1d6f4f; }
+.docs-ext-pptx { background: #8a4b00; }
+.docs-tips { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; padding: 1rem 1.25rem; border-radius: var(--radius-lg); background: var(--sky-wash); color: var(--text-medium); font-size: 0.875rem; margin: 0; }
+.docs-tips .bi { color: var(--primary-blue); margin-right: 0.35rem; }

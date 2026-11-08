@@ -11,20 +11,27 @@
 
   function setupCalculator() {
     var form = document.getElementById('tax-calc');
-    var data = document.getElementById('tax-payroll');
     var result = document.getElementById('tax-result');
-    if (!form || !data || !result || !window.TaxCalculator) return;
-
-    var config;
-    try {
-      config = JSON.parse(data.textContent);
-    } catch (e) {
-      return;
-    }
+    var unavailable = document.getElementById('tax-unavailable');
     var calc = window.TaxCalculator;
-    var error = document.getElementById('tax-calc-error');
-    var format = new Intl.NumberFormat('en-GB', { style: 'currency', currency: config.currency, maximumFractionDigits: 0 });
-    var exact = new Intl.NumberFormat('en-GB', { style: 'currency', currency: config.currency });
+    if (!form || !result || !unavailable || !calc) return;
+
+    // No #tax-payroll means the program's rates are not published: the form still validates,
+    // and a valid submit says so rather than showing a number.
+    var config = null;
+    var data = document.getElementById('tax-payroll');
+    if (data) {
+      try {
+        config = JSON.parse(data.textContent);
+      } catch (e) {
+        config = null;
+      }
+    }
+    var currency = config ? config.currency : 'EUR';
+    var format = new Intl.NumberFormat('en-GB', { style: 'currency', currency: currency, maximumFractionDigits: 0 });
+    var exact = new Intl.NumberFormat('en-GB', { style: 'currency', currency: currency });
+    var grossInput = document.getElementById('tax-gross');
+    var netInput = document.getElementById('tax-net');
 
     function out(key) {
       return result.querySelector('[data-out="' + key + '"]');
@@ -35,23 +42,56 @@
       return (minor > 0 ? '+' : minor < 0 ? '−' : '') + text;
     }
 
-    function fail(message) {
-      error.textContent = message;
-      error.hidden = false;
-      result.hidden = true;
+    function setError(input, message) {
+      var feedback = document.getElementById(input.id + '-error');
+      feedback.textContent = message || '';
+      input.classList.toggle('is-invalid', Boolean(message));
+      if (message) input.setAttribute('aria-invalid', 'true');
+      else input.removeAttribute('aria-invalid');
     }
+
+    function fill(list, lines) {
+      while (list.firstChild) list.removeChild(list.firstChild);
+      // A €0.00 line (a 0 % band, an unused contribution) is noise in the breakdown; it is
+      // still part of the calculation, it just withholds nothing.
+      lines.filter(function (line) { return line.amountMinor !== 0; }).forEach(function (line) {
+        var li = document.createElement('li');
+        var label = document.createElement('span');
+        var amount = document.createElement('span');
+        label.textContent = line.label;
+        amount.textContent = exact.format(line.amountMinor / 100);
+        li.appendChild(label);
+        li.appendChild(amount);
+        list.appendChild(li);
+      });
+    }
+
+    [grossInput, netInput].forEach(function (input) {
+      input.addEventListener('input', function () { setError(input, ''); });
+    });
 
     form.addEventListener('submit', function (event) {
       event.preventDefault();
-      var gross = calc.parseAmount(document.getElementById('tax-gross').value);
-      var net = calc.parseAmount(document.getElementById('tax-net').value);
-      if (!(gross > 0)) return fail('Enter your gross monthly pay, for example 6,000.');
-      if (!(net >= 0)) return fail('Enter what you take home each month, for example 3,600.');
-      if (net > gross) return fail('Your take-home cannot be more than your gross.');
+      result.hidden = true;
+      unavailable.hidden = true;
 
-      var r = calc.calculate(config.payroll, { grossMinor: gross, currentNetMinor: net });
-      if (!r) return fail('We could not calculate that. Please check the two amounts.');
-      error.hidden = true;
+      var gross = calc.parseAmount(grossInput.value);
+      var net = calc.parseAmount(netInput.value);
+      var grossError = !(gross > 0) ? 'Enter your gross monthly salary, for example 8000.' : '';
+      var netError = !(net > 0) ? 'Enter what you take home each month, for example 5200.' : '';
+      if (!grossError && !netError && net >= gross) netError = 'Your take-home must be lower than your gross salary.';
+      setError(grossInput, grossError);
+      setError(netInput, netError);
+      if (grossError || netError) {
+        (grossError ? grossInput : netInput).focus();
+        return;
+      }
+
+      var r = config ? calc.calculate(config.payroll, { grossMinor: gross, currentNetMinor: net }) : null;
+      if (!r) {
+        unavailable.hidden = false;
+        return;
+      }
 
       out('net').textContent = format.format(r.newNetMinor / 100);
       var month = out('month');
@@ -63,18 +103,9 @@
         el.classList.toggle('is-loss', r.differenceMonthlyMinor < 0);
       });
 
-      var list = out('lines');
-      while (list.firstChild) list.removeChild(list.firstChild);
-      r.lines.forEach(function (line) {
-        var li = document.createElement('li');
-        var label = document.createElement('span');
-        var amount = document.createElement('span');
-        label.textContent = line.label;
-        amount.textContent = exact.format(line.amountMinor / 100);
-        li.appendChild(label);
-        li.appendChild(amount);
-        list.appendChild(li);
-      });
+      fill(out('lines'), r.lines);
+      fill(out('ontop'), r.onTop);
+      out('ontop-intro').hidden = !r.onTop.some(function (line) { return line.amountMinor !== 0; });
 
       var country = document.getElementById('tax-country').value;
       out('country').textContent = country ? ' in ' + country : '';

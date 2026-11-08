@@ -17,7 +17,7 @@ const { payrollProblems } = require('../public/js/tax-calculator');
  *
  *  - The parameters live in config/tax-program.json, owned by finance and legal and changed
  *    by a reviewed commit, never by a settings checkbox. Every value starts null, and null
- *    HIDES: no parameters, no figure ("Calculator coming soon — ask us about your setup").
+ *    HIDES: no parameters, no figure ("Figures aren't available yet — ask about your setup").
  *  - The arithmetic is one file, `public/js/tax-calculator.js`, which runs in the browser.
  *    Nothing typed into it is posted or stored; there is no endpoint to post it to.
  *  - Every result carries the sentence that keeps it honest: home-country tax obligations
@@ -60,68 +60,101 @@ function optionalText(value, name, problems, max = 160) {
  * Read and validate the facts. Throws on a malformed file: these figures are published, and
  * a typo in a rate must stop the deploy rather than reach a page — the same standing
  * `config/estimation.js` takes on percentages that do not sum to 100.
+ *
+ * THE FILE (config/tax-program.json, snake_case, amounts in minor units, rates in basis
+ * points; every key may be null and null hides what depends on it):
+ *
+ *   program_fee            { label, rate_bps, fixed_monthly_minor } — publishable on its own
+ *   income_tax_bands       [{ from_monthly_minor, rate_bps }], marginal, first band from 0
+ *   employee_contributions [{ label, rate_bps, cap_monthly_minor|null, reduces_taxable_income }]
+ *   employer_contributions [{ label, rate_bps, cap_monthly_minor|null, paid_from_gross }]
+ *   months_per_year        whole number of salary payments a year
+ *
+ * The calculator is ON when the four payroll keys and the fee are all set — an empty list is
+ * "none", and has to be written as [] by somebody who knows. Half of them set is refused:
+ * a calculator that silently leaves out the contributions nobody filled in would print a
+ * take-home far above the real one.
+ *
+ * The Dynamics Hub calculator (same Albania entity) is the special case
+ *   new net = gross − (gross × percentRate / 100 + fixedFee)
+ * whose percentRate and fixedFee are admin settings in DH's database (Admin > Settings >
+ * Tax Calculator). Its exact equivalent here is: program_fee { rate_bps: percentRate × 100,
+ * fixed_monthly_minor: fixedFee × 100 }, income_tax_bands [{ from_monthly_minor: 0,
+ * rate_bps: 0 }], both contribution lists [], months_per_year 12. Copy the values from that
+ * screen; the 5 % in DH's code is a fallback, not the rate the program charges.
  */
 function loadProgram(file = process.env.TAX_PROGRAM_FILE || DEFAULT_FILE) {
   const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
   const problems = [];
+  const has = (key) => raw[key] !== undefined && raw[key] !== null;
 
   const currency = typeof raw.currency === 'string' && /^[A-Z]{3}$/.test(raw.currency) ? raw.currency : null;
   if (!currency) problems.push('currency must be a three-letter ISO code');
 
-  const typical = raw.typicalSavingAnnualMinor || {};
+  const typical = raw.typical_saving_annual_minor || {};
   const program = {
     currency,
-    entityName: optionalText(raw.entityName, 'entityName', problems),
-    techPark: optionalText(raw.techPark, 'techPark', problems),
+    entityName: optionalText(raw.entity_name, 'entity_name', problems),
+    techPark: optionalText(raw.tech_park, 'tech_park', problems),
     typicalSavingAnnualMinor: {
-      min: optionalCount(typical.min, 'typicalSavingAnnualMinor.min', problems),
-      max: optionalCount(typical.max, 'typicalSavingAnnualMinor.max', problems)
+      min: optionalCount(typical.min, 'typical_saving_annual_minor.min', problems),
+      max: optionalCount(typical.max, 'typical_saving_annual_minor.max', problems)
     },
-    averageSavingAnnualMinor: optionalCount(raw.averageSavingAnnualMinor, 'averageSavingAnnualMinor', problems),
-    taxTreaties: optionalCount(raw.taxTreaties, 'taxTreaties', problems),
-    onboardingWeeks: optionalCount(raw.onboardingWeeks, 'onboardingWeeks', problems),
-    reviewHours: optionalCount(raw.reviewHours, 'reviewHours', problems),
-    minimumGrossMonthlyMinor: optionalCount(raw.minimumGrossMonthlyMinor, 'minimumGrossMonthlyMinor', problems),
+    averageSavingAnnualMinor: optionalCount(raw.average_saving_annual_minor, 'average_saving_annual_minor', problems),
+    taxTreaties: optionalCount(raw.tax_treaties, 'tax_treaties', problems),
+    onboardingWeeks: optionalCount(raw.onboarding_weeks, 'onboarding_weeks', problems),
+    reviewHours: optionalCount(raw.review_hours, 'review_hours', problems),
+    minimumGrossMonthlyMinor: optionalCount(raw.minimum_gross_monthly_minor, 'minimum_gross_monthly_minor', problems),
     fee: null,
     payroll: null
   };
 
   /*
-   * The fee is its own key, not a part of `payroll`, so it can be PUBLISHED before the
-   * contribution rates are: "what does it cost" is the first question somebody asks, and the
-   * answer is a commercial decision that does not wait on payroll. It is still ONE value —
-   * the calculator receives it inside the payroll it is handed — so the fee the FAQ states
-   * and the fee the calculator deducts can never be two different numbers.
+   * The fee is its own key so it can be PUBLISHED before the payroll rates: "what does it
+   * cost" is the first question somebody asks. It is still ONE value — the calculator receives
+   * this object inside the payroll — so the fee the FAQ states and the fee the calculator
+   * deducts can never be two different numbers.
    */
-  const rawFee = raw.fee === undefined ? null : raw.fee;
-  if (rawFee !== null) {
-    const ok =
-      rawFee && typeof rawFee === 'object' &&
-      typeof rawFee.label === 'string' && rawFee.label.trim() &&
-      Number.isInteger(rawFee.rateBps) && rawFee.rateBps >= 0 && rawFee.rateBps <= 10000 &&
-      isCount(rawFee.fixedMonthlyMinor);
-    if (ok) program.fee = Object.freeze({ label: rawFee.label.trim(), rateBps: rawFee.rateBps, fixedMonthlyMinor: rawFee.fixedMonthlyMinor });
-    else problems.push('fee needs a label, a rateBps of 0-10000 and a fixedMonthlyMinor (0 when there is none), or null');
+  if (has('program_fee')) {
+    const f = raw.program_fee;
+    const ok = f && typeof f === 'object' && typeof f.label === 'string' && f.label.trim() &&
+      Number.isInteger(f.rate_bps) && f.rate_bps >= 0 && f.rate_bps <= 10000 && isCount(f.fixed_monthly_minor);
+    if (ok) program.fee = Object.freeze({ label: f.label.trim(), rateBps: f.rate_bps, fixedMonthlyMinor: f.fixed_monthly_minor });
+    else problems.push('program_fee needs a label, a rate_bps of 0-10000 and a fixed_monthly_minor (0 when there is none), or null');
   }
 
-  const rawPayroll = raw.payroll === undefined ? null : raw.payroll;
-  if (rawPayroll !== null) {
-    if (rawPayroll && typeof rawPayroll === 'object' && 'fee' in rawPayroll) {
-      problems.push('payroll must not carry its own fee: set the top-level "fee" instead, so there is one');
-    } else if (!program.fee) {
-      problems.push('payroll needs the top-level "fee" set: the calculator would otherwise leave the fee out');
-    } else {
-      program.payroll = { ...rawPayroll, fee: program.fee };
+  const PAYROLL_KEYS = ['income_tax_bands', 'employee_contributions', 'employer_contributions', 'months_per_year'];
+  const set = PAYROLL_KEYS.filter(has);
+  if (set.length && set.length < PAYROLL_KEYS.length) {
+    problems.push(`set all of ${PAYROLL_KEYS.join(', ')} or none (missing: ${PAYROLL_KEYS.filter((k) => !has(k)).join(', ')}); use [] for "there are none"`);
+  } else if (set.length) {
+    if (!program.fee) problems.push('the payroll needs program_fee: the calculator would otherwise leave the fee out');
+    const list = (key) => (Array.isArray(raw[key]) ? raw[key] : null);
+    const payroll = {
+      monthsPerYear: raw.months_per_year,
+      contributions: list('employee_contributions') && list('employee_contributions').map((c) => ({
+        label: c && c.label, rateBps: c && c.rate_bps, capMonthlyMinor: c ? c.cap_monthly_minor : undefined,
+        reducesTaxableIncome: c && c.reduces_taxable_income
+      })),
+      employerContributions: list('employer_contributions') && list('employer_contributions').map((c) => ({
+        label: c && c.label, rateBps: c && c.rate_bps, capMonthlyMinor: c ? c.cap_monthly_minor : undefined,
+        paidFromGross: c && c.paid_from_gross
+      })),
+      incomeTax: {
+        label: 'Income tax',
+        brackets: list('income_tax_bands') && list('income_tax_bands').map((b) => ({ fromMonthlyMinor: b && b.from_monthly_minor, rateBps: b && b.rate_bps }))
+      },
+      fee: program.fee
+    };
+    if (program.fee) {
+      for (const p of payrollProblems(payroll)) problems.push(`payroll: ${p}`);
+      program.payroll = payroll;
     }
   }
 
   const { min, max } = program.typicalSavingAnnualMinor;
-  if ((min === null) !== (max === null)) problems.push('typicalSavingAnnualMinor needs both min and max, or neither');
-  if (min !== null && max !== null && min > max) problems.push('typicalSavingAnnualMinor.min is above max');
-
-  if (program.payroll !== null) {
-    for (const p of payrollProblems(program.payroll)) problems.push(`payroll: ${p}`);
-  }
+  if ((min === null) !== (max === null)) problems.push('typical_saving_annual_minor needs both min and max, or neither');
+  if (min !== null && max !== null && min > max) problems.push('typical_saving_annual_minor.min is above max');
 
   if (problems.length) {
     throw new Error(`${path.basename(file)} is not usable:\n  - ${problems.join('\n  - ')}`);
@@ -138,6 +171,12 @@ function money(minor, currency = PROGRAM.currency) {
     currency,
     maximumFractionDigits: 0
   }).format(Math.round(minor / 100));
+}
+
+/** "€" for EUR — the label beside an amount field. */
+function currencySymbol(currency = PROGRAM.currency) {
+  const part = new Intl.NumberFormat('en-GB', { style: 'currency', currency }).formatToParts(0).find((p) => p.type === 'currency');
+  return part ? part.value : currency;
 }
 
 function percent(bps) {
@@ -321,5 +360,6 @@ module.exports = {
   loadProgram,
   pageModel,
   feeText,
-  money
+  money,
+  currencySymbol
 };

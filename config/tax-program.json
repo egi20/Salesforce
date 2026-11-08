@@ -1,17 +1,20 @@
 {
-  "_owner": "Finance and legal. Every figure on /tax-optimization comes from this file, and null hides it. Amounts are MINOR UNITS (cents); rates are BASIS POINTS (950 = 9.50%). \"fee\" can be published on its own, before the payroll rates. See config/taxProgram.js for what each key means.",
+  "_owner": "Finance and legal. Every figure on /tax-optimization comes from this file, and null hides it. Amounts are MINOR UNITS (cents); rates are BASIS POINTS (950 = 9.50%). program_fee can be published on its own; the calculator switches on when program_fee, income_tax_bands, employee_contributions, employer_contributions and months_per_year are all set ([] means 'none'). config/taxProgram.js documents each key and how Dynamics Hub's calculator maps onto them.",
   "currency": "EUR",
-  "entityName": null,
-  "techPark": null,
-  "typicalSavingAnnualMinor": {
+  "entity_name": null,
+  "tech_park": null,
+  "typical_saving_annual_minor": {
     "min": null,
     "max": null
   },
-  "averageSavingAnnualMinor": null,
-  "taxTreaties": null,
-  "onboardingWeeks": null,
-  "reviewHours": null,
-  "minimumGrossMonthlyMinor": null,
-  "fee": null,
-  "payroll": null
+  "average_saving_annual_minor": null,
+  "tax_treaties": null,
+  "onboarding_weeks": null,
+  "review_hours": null,
+  "minimum_gross_monthly_minor": null,
+  "program_fee": null,
+  "income_tax_bands": null,
+  "employee_contributions": null,
+  "employer_contributions": null,
+  "months_per_year": null
 }

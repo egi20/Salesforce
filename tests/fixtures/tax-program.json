@@ -1,60 +1,56 @@
 {
   "_note": "TEST FIXTURE. Invented figures for tests only; not the program's rates.",
   "currency": "EUR",
-  "entityName": "Fixture Entity",
-  "techPark": "Fixture Park",
-  "typicalSavingAnnualMinor": {
+  "entity_name": "Fixture Entity",
+  "tech_park": "Fixture Park",
+  "typical_saving_annual_minor": {
     "min": 600000,
     "max": 1800000
   },
-  "averageSavingAnnualMinor": 1100000,
-  "taxTreaties": 40,
-  "onboardingWeeks": 2,
-  "reviewHours": 48,
-  "minimumGrossMonthlyMinor": 400000,
-  "fee": {
+  "average_saving_annual_minor": 1100000,
+  "tax_treaties": 40,
+  "onboarding_weeks": 2,
+  "review_hours": 48,
+  "minimum_gross_monthly_minor": 400000,
+  "program_fee": {
     "label": "Program fee",
-    "rateBps": 300,
-    "fixedMonthlyMinor": 5000
+    "rate_bps": 300,
+    "fixed_monthly_minor": 5000
   },
-  "payroll": {
-    "monthsPerYear": 12,
-    "contributions": [
-      {
-        "label": "Social insurance",
-        "rateBps": 950,
-        "capMonthlyMinor": 500000,
-        "reducesTaxableIncome": true
-      },
-      {
-        "label": "Health insurance",
-        "rateBps": 170,
-        "capMonthlyMinor": null,
-        "reducesTaxableIncome": true
-      },
-      {
-        "label": "Not deductible",
-        "rateBps": 100,
-        "capMonthlyMinor": null,
-        "reducesTaxableIncome": false
-      }
-    ],
-    "incomeTax": {
-      "label": "Income tax",
-      "brackets": [
-        {
-          "fromMonthlyMinor": 0,
-          "rateBps": 0
-        },
-        {
-          "fromMonthlyMinor": 300000,
-          "rateBps": 1300
-        },
-        {
-          "fromMonthlyMinor": 600000,
-          "rateBps": 2300
-        }
-      ]
+  "income_tax_bands": [
+    {
+      "from_monthly_minor": 0,
+      "rate_bps": 0
+    },
+    {
+      "from_monthly_minor": 300000,
+      "rate_bps": 1300
+    },
+    {
+      "from_monthly_minor": 600000,
+      "rate_bps": 2300
     }
-  }
+  ],
+  "employee_contributions": [
+    {
+      "label": "Social insurance",
+      "rate_bps": 950,
+      "cap_monthly_minor": 500000,
+      "reduces_taxable_income": true
+    },
+    {
+      "label": "Health insurance",
+      "rate_bps": 170,
+      "cap_monthly_minor": null,
+      "reduces_taxable_income": true
+    },
+    {
+      "label": "Not deductible",
+      "rate_bps": 100,
+      "cap_monthly_minor": null,
+      "reduces_taxable_income": false
+    }
+  ],
+  "employer_contributions": [],
+  "months_per_year": 12
 }

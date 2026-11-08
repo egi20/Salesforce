@@ -770,8 +770,17 @@ with a real payroll to apply. The guardrails that make the difference:
 
 - **Every figure comes from `config/tax-program.json`, owned by finance and legal**, changed
   by a reviewed commit and never by a setting. The committed file is all `null`, and null
-  HIDES: no stat tile, no "by €X–€Y a year", no number in an FAQ answer, and the calculator
-  says "Calculator coming soon — ask us about your setup". `config/taxProgram.js` validates
+  HIDES: no stat tile, no "by €X–€Y a year", no number in an FAQ answer, and a valid
+  calculator submit says "Figures aren't available yet — ask about your setup". Keys are
+  snake_case: `program_fee`, `income_tax_bands`, `employee_contributions`,
+  `employer_contributions` (each says whether it is `paid_from_gross`), `months_per_year`.
+  All four payroll keys or none — `[]` means "there are none" and must be written by somebody
+  who knows, because a half-filled payroll prints a take-home far above the real one.
+  **Dynamics Hub's calculator is the special case** (`routes/tax.js` there): new net = gross −
+  (gross × percentRate / 100 + fixedFee), both admin settings in DH's database. Its exact
+  equivalent is a fee of that rate and fixed amount, one 0 % band and two empty lists; the 5 %
+  in DH's code is a fallback, not a rate anybody confirmed, so it is not copied here.
+  `config/taxProgram.js` validates
   the file and THROWS at boot on a malformed one; `TAX_PROGRAM_FILE` points elsewhere for a
   staging site or a test fixture. Nothing on the page is copied from another site.
 - **The arithmetic is ONE file, `public/js/tax-calculator.js`**, UMD so the browser runs it
@@ -799,10 +808,10 @@ with a real payroll to apply. The guardrails that make the difference:
   redirect there (`legacyRedirect` in `routes/tax.js`): 301 for a read, 308 for a POST, because
   a 301 lets a browser turn an enquiry posted from a cached form into a GET that drops it. The
   admin queue stays at `/admin/tax-advisory` — it is the enquiries, not the page.
-- **With no payroll the calculator shows no inputs at all**, only "Calculator coming soon"
-  and Ask about your setup: fields that cannot do anything look broken, and a sample figure
-  would be a number nobody stands behind.
-- **The fee is a top-level key, not part of `payroll`**, so it can be published (step 2 of
+- **The calculator form is always shown** (DH's layout: gross, net, country, one button),
+  and it validates inline either way — both amounts, net below gross. Only a VALID submit
+  meets the missing rates, and it answers with the enquiry link, never a sample figure.
+- **`program_fee` is its own key, not part of the payroll**, so it can be published (step 2 of
   How it works, and the hidden-costs answer) before the contribution rates are. It is still
   one value: the loader hands it to the calculator inside the payroll, refuses a payroll that
   carries its own, and refuses a payroll with no fee at all. The pages say "a few questions":

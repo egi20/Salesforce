@@ -132,14 +132,18 @@ describe('the tax advisory pages', () => {
     expect(res.text).toMatch(/enquire\?topic=program/);
   });
 
-  it('shows "coming soon" and no inputs while the payroll is not configured', async () => {
+  it('keeps the calculator form while the payroll is not configured, and ships no rates', async () => {
     stubProgram();
     const res = await request(buildApp()).get('/tax-optimization');
-    expect(res.text).toMatch(/Calculator coming soon/);
-    expect(res.text).toMatch(/href="\/tax-optimization\/enquire"[^>]*>[^<]*<i[^>]*><\/i> Ask about your setup/);
-    // Fields that cannot do anything look broken: there are none until there are rates.
-    expect(res.text).not.toMatch(/id="tax-calc"|id="tax-gross"|id="tax-payroll"/);
-    expect(res.text).not.toMatch(/tax-calculator\.js/);
+    expect(res.text).toMatch(/Calculate your savings/);
+    expect(res.text).toMatch(/Current gross monthly salary \(€\)/);
+    expect(res.text).toMatch(/placeholder="e\.g\. 8000"/);
+    expect(res.text).toMatch(/Select your country/);
+    expect(res.text).toMatch(/Runs in your browser\. Nothing you type is sent or stored\./);
+    // What a valid submit says instead of a number, linking the enquiry.
+    expect(res.text).toMatch(/Figures aren't available yet — <a href="\/tax-optimization\/enquire">ask about your setup<\/a>/);
+    expect(res.text).not.toMatch(/id="tax-payroll"/);
+    expect(res.text).not.toMatch(/Calculator coming soon/);
   });
 
   it('gives the calculator nothing that could be submitted', async () => {
@@ -147,7 +151,7 @@ describe('the tax advisory pages', () => {
     configured();
     const res = await request(buildApp()).get('/tax-optimization');
     expect(res.text).toMatch(/tax-calculator\.js/);
-    expect(res.text).not.toMatch(/Calculator coming soon/);
+    expect(res.text).toMatch(/id="tax-payroll"/);
     const form = res.text.match(/<form id="tax-calc"[\s\S]*?<\/form>/)[0];
     // No action, no method, and no named input: a browser submitting this form sends nothing.
     expect(form).not.toMatch(/\saction=|\smethod=|\sname=/);

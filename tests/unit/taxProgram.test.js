@@ -133,8 +133,11 @@ describe('config/taxProgram', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'taxprog-'));
     const raw = JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
 
+    const PAYROLL_KEYS = ['income_tax_bands', 'employee_contributions', 'employer_contributions', 'months_per_year'];
+    const without = (keys) => Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, keys.includes(k) ? null : v]));
+
     const feeOnly = path.join(dir, 'fee.json');
-    fs.writeFileSync(feeOnly, JSON.stringify({ ...raw, payroll: null }));
+    fs.writeFileSync(feeOnly, JSON.stringify(without(PAYROLL_KEYS)));
     const early = taxProgram.loadProgram(feeOnly);
     expect(early.payroll).toBeNull();
     expect(taxProgram.pageModel(early).fee).toMatch(/3% of your gross salary/);
@@ -147,19 +150,63 @@ describe('config/taxProgram', () => {
 
     expect(fixture.payroll.fee).toBe(fixture.fee);
 
-    const twoFees = path.join(dir, 'two.json');
-    fs.writeFileSync(twoFees, JSON.stringify({ ...raw, payroll: { ...raw.payroll, fee: raw.fee } }));
-    expect(() => taxProgram.loadProgram(twoFees)).toThrow(/must not carry its own fee/);
+    // Half a payroll would print a take-home far above the real one: refused, naming the gap.
+    const half = path.join(dir, 'half.json');
+    fs.writeFileSync(half, JSON.stringify(without(['employer_contributions'])));
+    expect(() => taxProgram.loadProgram(half)).toThrow(/or none \(missing: employer_contributions\)/);
 
     const noFee = path.join(dir, 'nofee.json');
-    fs.writeFileSync(noFee, JSON.stringify({ ...raw, fee: null }));
-    expect(() => taxProgram.loadProgram(noFee)).toThrow(/needs the top-level "fee"/);
+    fs.writeFileSync(noFee, JSON.stringify(without(['program_fee'])));
+    expect(() => taxProgram.loadProgram(noFee)).toThrow(/needs program_fee/);
+  });
+
+  test("Dynamics Hub's formula is the special case: new net = gross − (gross × rate + fixed fee)", () => {
+    // DH: totalCosts = gross * percentRate/100 + fixedFee. These two numbers are TEST values;
+    // the real ones are admin settings in DH's database and are not in this repository.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'taxprog-'));
+    const file = path.join(dir, 'dh.json');
+    const raw = JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
+    fs.writeFileSync(file, JSON.stringify({
+      ...raw,
+      program_fee: { label: 'Statutory & service costs', rate_bps: 700, fixed_monthly_minor: 12000 },
+      income_tax_bands: [{ from_monthly_minor: 0, rate_bps: 0 }],
+      employee_contributions: [],
+      employer_contributions: [],
+      months_per_year: 12
+    }));
+    const dh = taxProgram.loadProgram(file);
+    const r = calc.calculate(dh.payroll, { grossMinor: 800000, currentNetMinor: 520000 });
+    // 8000 - (8000 * 7% + 120) = 7320
+    expect(r.newNetMinor).toBe(732000);
+    expect(r.differenceMonthlyMinor).toBe(212000);
+    expect(r.differenceYearlyMinor).toBe(2544000);
+  });
+
+  test('employer contributions come out of the gross only when the config says they do', () => {
+    const base = { ...fixture.payroll, contributions: [], incomeTax: { brackets: [{ fromMonthlyMinor: 0, rateBps: 1000 }] } };
+    const fromGross = calc.calculate(
+      { ...base, employerContributions: [{ label: 'Employer social', rateBps: 1500, capMonthlyMinor: null, paidFromGross: true }] },
+      { grossMinor: 100000, currentNetMinor: 1 }
+    );
+    // 1000 gross: employer 150 out of it, salary 850, tax 10% = 85, fee 3% of gross + 50 = 80.
+    expect(fromGross.lines.map((l) => l.amountMinor)).toEqual([15000, 8500, 8000]);
+    expect(fromGross.newNetMinor).toBe(100000 - 15000 - 8500 - 8000);
+    const onTop = calc.calculate(
+      { ...base, employerContributions: [{ label: 'Employer social', rateBps: 1500, capMonthlyMinor: null, paidFromGross: false }] },
+      { grossMinor: 100000, currentNetMinor: 1 }
+    );
+    expect(onTop.onTop).toEqual([{ label: 'Employer social', amountMinor: 15000 }]);
+    expect(onTop.newNetMinor).toBe(100000 - 10000 - 8000);
   });
 
   test('refuses a malformed file instead of publishing it', () => {
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'taxprog-')), 'p.json');
-    fs.writeFileSync(file, JSON.stringify({ currency: 'euro', taxTreaties: -1, typicalSavingAnnualMinor: { min: 5 }, fee: { label: 'Fee', rateBps: 100, fixedMonthlyMinor: 0 }, payroll: { monthsPerYear: 12 } }));
-    expect(() => taxProgram.loadProgram(file)).toThrow(/currency[\s\S]*taxTreaties[\s\S]*both min and max[\s\S]*payroll:/);
+    fs.writeFileSync(file, JSON.stringify({
+      currency: 'euro', tax_treaties: -1, typical_saving_annual_minor: { min: 5 },
+      program_fee: { label: 'Fee', rate_bps: 100, fixed_monthly_minor: 0 },
+      income_tax_bands: [], employee_contributions: [], employer_contributions: [], months_per_year: 12
+    }));
+    expect(() => taxProgram.loadProgram(file)).toThrow(/currency[\s\S]*tax_treaties[\s\S]*payroll:[\s\S]*both min and max/);
   });
 
   test('no FAQ answer is a one-liner', () => {

@@ -42,82 +42,91 @@
       </div>
 
       <div class="col-lg-6">
+        <%
+          /*
+           * ALWAYS a form, configured or not: the card is how the page explains itself, and a
+           * visitor typing their figures is the conversation starting. With no payroll in
+           * config/tax-program.json there is no #tax-payroll data, and a valid submit shows
+           * "Figures aren't available yet" with the enquiry link — never a made-up number.
+           * Inputs carry no `name` and the form no action: nothing typed can be posted.
+           */
+        %>
         <div class="tax-calc-card" id="calculator">
-          <h2 class="h5 mb-1"><i class="bi bi-calculator text-primary"></i> Calculate your savings</h2>
-          <% if (calcReady) { %>
-          <p class="small text-muted-2 mb-3">Runs in your browser. Nothing you type here is sent to us or stored.</p>
+          <h2 class="tax-calc-title">Calculate your savings</h2>
 
           <form id="tax-calc" class="tax-calc-form" novalidate data-no-guard="true">
             <div class="mb-3">
-              <label class="form-label" for="tax-gross">Gross monthly (<%= program.currency %>)</label>
-              <input class="form-control" id="tax-gross" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 6,000">
-              <div class="form-text">Before taxes</div>
+              <label class="form-label" for="tax-gross">Current gross monthly salary (<%= currencySymbol %>)</label>
+              <input class="form-control form-control-lg" id="tax-gross" type="number" min="0" step="any" inputmode="decimal" autocomplete="off" placeholder="e.g. 8000" aria-describedby="tax-gross-hint tax-gross-error">
+              <div class="form-text" id="tax-gross-hint">Your current monthly salary before taxes</div>
+              <div class="invalid-feedback" id="tax-gross-error"></div>
             </div>
             <div class="mb-3">
-              <label class="form-label" for="tax-net">Net monthly take-home (<%= program.currency %>)</label>
-              <input class="form-control" id="tax-net" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 3,600">
-              <div class="form-text">What you actually receive</div>
+              <label class="form-label" for="tax-net">Current net monthly take-home (<%= currencySymbol %>)</label>
+              <input class="form-control form-control-lg" id="tax-net" type="number" min="0" step="any" inputmode="decimal" autocomplete="off" placeholder="e.g. 5200" aria-describedby="tax-net-hint tax-net-error">
+              <div class="form-text" id="tax-net-hint">What you actually receive after taxes</div>
+              <div class="invalid-feedback" id="tax-net-error"></div>
             </div>
             <div class="mb-3">
               <label class="form-label" for="tax-country">Country/region <span class="text-muted-2">(optional)</span></label>
-              <select class="form-select" id="tax-country">
-                <option value="">Where you live</option>
-                <% if (countryGroups.top.length) { %>
-                  <optgroup label="Where most consultants on the Hub live">
-                    <% countryGroups.top.forEach(function (c) { %><option value="<%= c.name %>"><%= c.name %></option><% }); %>
+              <select class="form-select form-select-lg" id="tax-country">
+                <option value="">Select your country</option>
+                <%
+                  const calcGroups = [
+                    ['Where most consultants on the Hub live', countryGroups.top],
+                    ['Europe and other common countries', countryGroups.relevant],
+                    ['All other countries', countryGroups.rest]
+                  ].filter(function (g) { return g[1].length; });
+                %>
+                <% calcGroups.forEach(function (g) { %>
+                  <optgroup label="<%= g[0] %>">
+                    <% g[1].forEach(function (c) { %><option value="<%= c.name %>"><%= c.name %></option><% }); %>
                   </optgroup>
-                <% } %>
-                <optgroup label="<%= countryGroups.top.length ? 'More countries' : 'Countries' %>">
-                  <% countryGroups.relevant.forEach(function (c) { %><option value="<%= c.name %>"><%= c.name %></option><% }); %>
-                </optgroup>
-                <option value="">Other</option>
+                <% }); %>
               </select>
             </div>
-            <p class="tax-calc-error small text-danger mb-2" id="tax-calc-error" role="alert" hidden></p>
-            <button class="btn btn-primary w-100" type="submit">Calculate my savings</button>
+            <button class="btn btn-primary btn-lg w-100" type="submit"><i class="bi bi-calculator"></i> Calculate my savings</button>
+            <p class="tax-calc-privacy">Runs in your browser. Nothing you type is sent or stored.</p>
           </form>
 
-          <script type="application/json" id="tax-payroll"><%- jsonForScript({ payroll: program.payroll, currency: program.currency }) %></script>
-          <noscript><p class="small mt-3 mb-0">The calculator needs JavaScript. <a href="<%= contactHref %>">Ask about your setup</a> instead.</p></noscript>
+          <% if (calcReady) { %>
+            <script type="application/json" id="tax-payroll"><%- jsonForScript({ payroll: program.payroll, currency: program.currency }) %></script>
+          <% } %>
+          <noscript><p class="small mb-0 text-center">The calculator needs JavaScript. <a href="<%= contactHref %>">Ask about your setup</a> instead.</p></noscript>
+
           <div class="tax-result" id="tax-result" aria-live="polite" hidden>
             <div class="tax-result-main">
-              <span class="tax-result-label">New net per month</span>
+              <span class="tax-result-label">New net monthly</span>
               <strong class="tax-result-net" data-out="net"></strong>
             </div>
-            <div class="row g-2 tax-result-diff">
-              <div class="col-6"><span>Per month</span><strong data-out="month"></strong></div>
-              <div class="col-6"><span>Per year</span><strong data-out="year"></strong></div>
+            <div class="tax-result-gains">
+              <strong data-out="month"></strong> <span>/ month</span>
+              <span class="tax-result-sep" aria-hidden="true">·</span>
+              <strong data-out="year"></strong> <span>/ year</span>
             </div>
             <details class="tax-result-lines small">
               <summary>What payroll withholds</summary>
               <ul class="list-unstyled mb-0" data-out="lines"></ul>
+              <p class="small text-muted-2 mt-2 mb-0" data-out="ontop-intro" hidden>Paid by the entity on top of your gross, not from it:</p>
+              <ul class="list-unstyled mb-0" data-out="ontop"></ul>
             </details>
-            <p class="tax-result-note small mb-0">
+            <p class="tax-result-note small">
               <i class="bi bi-info-circle"></i>
               Indicative only — your home-country tax obligations still apply<span data-out="country"></span>.
             </p>
+            <a class="btn btn-outline-primary w-100" href="<%= applyHref %>"><i class="bi bi-send"></i> Apply now</a>
           </div>
-          <% } else { %>
-            <%#
-              No parameters, no form. Inputs that cannot do anything look broken, and a sample
-              figure would be a number nobody stands behind — so the card says what is coming
-              and offers the conversation instead.
-            %>
-            <div class="tax-soon mt-3" role="status">
-              <i class="bi bi-hourglass-split"></i>
-              <div>
-                <strong>Calculator coming soon</strong>
-                <p class="small mb-3">Once the program's payroll rates are published you will be able to enter your gross and net pay here and see your new take-home, per month and per year. Until then we will work it through with you.</p>
-                <a class="btn btn-primary" href="<%= contactHref %>"><i class="bi bi-chat-dots"></i> Ask about your setup</a>
-              </div>
-            </div>
-          <% } %>
 
-          <%# The rate calculator answers a different question, and both are worth having. %>
-          <div class="tax-more small mt-3">
-            <i class="bi bi-bar-chart-line"></i>
-            <span>Want the full picture? <a href="/rates/calculator">Open the rate calculator</a> — billable days, costs and what a day rate comes to over a year.</span>
+          <div class="tax-unavailable" id="tax-unavailable" role="status" hidden>
+            <i class="bi bi-hourglass-split"></i>
+            <span>Figures aren't available yet — <a href="<%= contactHref %>">ask about your setup</a>.</span>
           </div>
+        </div>
+
+        <%# The rate calculator answers a different question, and both are worth having. %>
+        <div class="tax-more small">
+          <i class="bi bi-bar-chart-line"></i>
+          <span>Want the full picture? <a href="/rates/calculator">Open the rate calculator</a> — billable days, costs and what a day rate comes to over a year.</span>
         </div>
       </div>
     </div>
@@ -356,9 +365,7 @@
   </div>
 </section>
 
-<% if (calcReady) { %>
-  <script src="/js/tax-calculator.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>" defer></script>
-<% } %>
+<script src="/js/tax-calculator.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>" defer></script>
 <script src="/js/tax-page.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>" defer></script>
 
 <%- include('../partials/layout-end') %>

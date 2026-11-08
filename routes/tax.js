@@ -99,6 +99,7 @@ router.get(
       stories,
       activeConsultants: active >= taxProgram.ACTIVE_COUNT_FLOOR ? active : null,
       money: taxProgram.money,
+      currencySymbol: taxProgram.currencySymbol(),
       ...pageLocals(top)
     });
   })

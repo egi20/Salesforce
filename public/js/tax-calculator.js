@@ -70,6 +70,20 @@
         }
       });
     }
+    if (!Array.isArray(payroll.employerContributions)) {
+      problems.push('employerContributions must be a list (it may be empty)');
+    } else {
+      payroll.employerContributions.forEach(function (c, i) {
+        if (!c || !isLabel(c.label)) problems.push('employer contribution ' + i + ' needs a label');
+        if (!c || !(isCount(c.rateBps) && c.rateBps <= BPS)) problems.push('employer contribution ' + i + ' rateBps must be 0-10000');
+        if (c && c.capMonthlyMinor !== null && c.capMonthlyMinor !== undefined && !isCount(c.capMonthlyMinor)) {
+          problems.push('employer contribution ' + i + ' capMonthlyMinor must be a whole number of minor units or null');
+        }
+        if (c && typeof c.paidFromGross !== 'boolean') {
+          problems.push('employer contribution ' + i + ' must say whether it is paidFromGross');
+        }
+      });
+    }
     var tax = payroll.incomeTax;
     if (!tax || !Array.isArray(tax.brackets) || tax.brackets.length === 0) {
       problems.push('incomeTax.brackets must list at least one bracket');
@@ -102,11 +116,22 @@
     return Math.round(scaled / BPS);
   }
 
+  function capped(amountMinor, c) {
+    return c.capMonthlyMinor === null || c.capMonthlyMinor === undefined ? amountMinor : Math.min(amountMinor, c.capMonthlyMinor);
+  }
+
   /**
    * The program's payroll applied to `grossMinor`, compared with `currentNetMinor`.
    *
+   * In order: employer contributions the program pays OUT OF the gross come off first, and
+   * what is left is the salary; employee contributions are charged on the salary; income tax
+   * on the salary less the contributions that reduce taxable income; the program fee on the
+   * gross. Employer contributions paid ON TOP of the gross are listed in `onTop` and change
+   * nothing. With no contributions, one band and a fee, this is exactly the Dynamics Hub
+   * calculator: new net = gross − (gross × rate + fixed fee).
+   *
    * Returns null when the parameters are unusable or the inputs are not whole, non-negative
-   * minor units — the caller shows "coming soon" or a field error, never a guessed figure.
+   * minor units — the caller shows "not available" or a field error, never a guessed figure.
    */
   function calculate(payroll, input) {
     if (payrollProblems(payroll).length) return null;
@@ -115,15 +140,27 @@
     if (!isCount(gross) || gross === 0 || !isCount(currentNet)) return null;
 
     var lines = [];
+    var onTop = [];
+    var fromGross = 0;
+    payroll.employerContributions.forEach(function (c) {
+      var amount = share(capped(gross, c), c.rateBps);
+      if (c.paidFromGross) {
+        fromGross += amount;
+        lines.push({ label: c.label, amountMinor: amount });
+      } else {
+        onTop.push({ label: c.label, amountMinor: amount });
+      }
+    });
+
+    var salary = Math.max(0, gross - fromGross);
     var deductible = 0;
     payroll.contributions.forEach(function (c) {
-      var base = c.capMonthlyMinor === null || c.capMonthlyMinor === undefined ? gross : Math.min(gross, c.capMonthlyMinor);
-      var amount = share(base, c.rateBps);
+      var amount = share(capped(salary, c), c.rateBps);
       if (c.reducesTaxableIncome) deductible += amount;
       lines.push({ label: c.label, amountMinor: amount });
     });
 
-    var taxable = Math.max(0, gross - deductible);
+    var taxable = Math.max(0, salary - deductible);
     lines.push({ label: payroll.incomeTax.label || 'Income tax', amountMinor: incomeTaxOn(taxable, payroll.incomeTax.brackets) });
     lines.push({ label: payroll.fee.label, amountMinor: share(gross, payroll.fee.rateBps) + payroll.fee.fixedMonthlyMinor });
 
@@ -133,6 +170,7 @@
     return {
       grossMinor: gross,
       lines: lines,
+      onTop: onTop,
       newNetMinor: newNet,
       differenceMonthlyMinor: monthly,
       differenceYearlyMinor: monthly * payroll.monthsPerYear,

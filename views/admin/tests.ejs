@@ -3,9 +3,19 @@
 <%- include('../partials/page-header', {
       icon: 'bi-check2-circle',
       heading: 'Automated testing',
-      sub: 'Run live checks against this app’s own routes.',
+      sub: 'Run live checks against this app’s own routes, as a visitor and signed in as each role.',
       label: 'ADMIN'
     }) %>
+
+<%
+  const isSuper = Boolean(currentUser && currentUser.isSuperadmin);
+  const outcomeIcon = {
+    passed: ['bi-check-circle-fill text-success', 'Passed last run'],
+    failed: ['bi-x-circle-fill text-danger', 'Failed last run'],
+    skipped: ['bi-slash-circle text-muted-2', 'Skipped last run']
+  };
+  const statusText = function (list) { return list.join(' or '); };
+%>
 
 <section class="glass-section pb-5">
 <div class="container">
@@ -13,129 +23,274 @@
   <%- include('../partials/flash') %>
 
   <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
-    <p class="text-muted-2 mb-0" style="max-width: 40rem;">
-      Every test below makes a real HTTP request to this server and checks the status code it
-      answers with. Test cases are defined in <code>config/adminTests.js</code> — reviewed and
-      deployed like any other code, not editable from this screen. What this page writes is the
-      run history, in <code>admin_test_runs</code>.
+    <p class="text-muted-2 mb-0" style="max-width: 42rem;">
+      Every case makes a real HTTP request to this server on its own address and checks the
+      status, the redirect and the words on the page. The built-in cases come from
+      <code>config/adminTests.js</code>; <strong>Rebuild suite</strong> rewrites those and
+      leaves any custom case as it is. Nothing here can send a write that the site would accept:
+      a POST is only ever one the CSRF check refuses.
     </p>
-    <form method="post" action="/admin/tests/run">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <button class="btn btn-primary" type="submit"><i class="bi bi-play-fill"></i> Run All Tests</button>
-    </form>
+    <div class="d-flex flex-wrap gap-2">
+      <form method="post" action="/admin/tests/rebuild" class="m-0" id="testsRebuild"
+            data-confirm="Rewrite the <%= builtinCount %> built-in cases from the code and switch them all on? Custom cases and past runs are kept.">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn btn-outline-secondary" type="submit">
+          <i class="bi bi-arrow-clockwise"></i> <%= stats.total ? 'Rebuild suite' : 'Create test suite' %>
+        </button>
+      </form>
+      <form method="post" action="/admin/tests/run" class="m-0">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn btn-primary" type="submit" <%= stats.enabled ? '' : 'disabled' %>><i class="bi bi-play-fill"></i> Run all tests</button>
+      </form>
+    </div>
   </div>
+
+  <% if (qaReason) { %>
+    <div class="alert alert-warning d-flex gap-2 mb-4" role="status">
+      <i class="bi bi-person-lock" aria-hidden="true"></i>
+      <div>
+        <strong><%= stats.signed_in %> signed-in <%= stats.signed_in === 1 ? 'case' : 'cases' %> will be skipped.</strong>
+        <%= qaReason %> Set it in the environment to run them as the QA accounts
+        (<code>qa-&lt;role&gt;@salesforcehub.test</code>). A skipped case is shown as skipped, never as passed.
+      </div>
+    </div>
+  <% } else { %>
+    <div class="alert alert-info d-flex gap-2 mb-4" role="status">
+      <i class="bi bi-person-check" aria-hidden="true"></i>
+      <div>
+        Signed-in cases run as <% qaRoles.forEach(function (r, i) { %><code>qa-<%= r %>@salesforcehub.test</code><%= i < qaRoles.length - 1 ? ', ' : '' %><% }) %>.
+        They are created or repaired on each run, verified, never listed in public, and the admin
+        is a plain admin — never a superadmin.
+      </div>
+    </div>
+  <% } %>
 
   <div class="row g-3 mb-4">
     <div class="col-6 col-lg-3">
-      <div class="stat-tile"><div class="value"><%= totalTests %></div><div class="label">Total Tests</div></div>
+      <div class="stat-tile"><div class="value"><%= stats.total %></div><div class="label">Total tests</div></div>
     </div>
-    <%
-      /*
-       * This tile said "Enabled" and printed `totalTests` — the same figure as the one
-       * beside it, under a different word. There is no such thing as a disabled test here:
-       * the suite is an array in config, and every entry runs. Two identical numbers under
-       * two labels look like information and are not.
-       *
-       * What is worth a tile is how the last run went.
-       */
-    %>
+    <%# Enabled differs from Total as soon as one case is switched off, which is why it is a tile. %>
     <div class="col-6 col-lg-3">
-      <div class="stat-tile">
-        <div class="value"><%= lastRun ? `${lastRun.passed}/${lastRun.total}` : '—' %></div>
-        <div class="label">Passed last run</div>
-      </div>
+      <div class="stat-tile"><div class="value <%= stats.enabled < stats.total ? 'text-danger' : '' %>"><%= stats.enabled %></div><div class="label">Enabled</div></div>
     </div>
     <div class="col-6 col-lg-3">
-      <div class="stat-tile"><div class="value"><%= categoryCount %></div><div class="label">Categories</div></div>
+      <div class="stat-tile"><div class="value"><%= stats.categories %></div><div class="label">Categories</div></div>
     </div>
     <div class="col-6 col-lg-3">
-      <div class="stat-tile"><div class="value"><%= totalRuns %></div><div class="label">Total Runs</div></div>
+      <div class="stat-tile"><div class="value"><%= stats.runs %></div><div class="label">Total runs</div></div>
     </div>
   </div>
 
   <% if (lastRun) { %>
-    <div class="alert <%= lastRun.passed === lastRun.total ? 'alert-success' : 'alert-warning' %> d-flex align-items-center gap-2 mb-4">
-      <i class="bi <%= lastRun.passed === lastRun.total ? 'bi-check-circle' : 'bi-exclamation-triangle' %>"></i>
+    <div class="alert <%= lastRun.failed ? 'alert-warning' : 'alert-success' %> d-flex align-items-center gap-2 mb-4">
+      <i class="bi <%= lastRun.failed ? 'bi-exclamation-triangle' : 'bi-check-circle' %>" aria-hidden="true"></i>
       <span>
-        <strong>Last run:</strong> <%= lastRun.passed %>/<%= lastRun.total %> tests passed
-        (<%= lastRun.ranAt.toLocaleString() %>)
+        <strong>Last run:</strong> <%= lastRun.passed %>/<%= lastRun.total %> passed<%= lastRun.failed ? ', ' + lastRun.failed + ' failed' : '' %><%= lastRun.skipped ? ', ' + lastRun.skipped + ' skipped' : '' %>
+        (<%= new Date(lastRun.ranAt).toISOString().slice(0, 16).replace('T', ' ') %> UTC) —
+        <a href="/admin/tests/runs/<%= lastRun.runId %>">see the run</a>
       </span>
     </div>
-  <% } else { %>
-    <div class="alert alert-info mb-4">No runs yet — click "Run All Tests" to start.</div>
+  <% } else if (stats.total) { %>
+    <div class="alert alert-info mb-4">No runs yet — press “Run all tests” to start.</div>
   <% } %>
 
-  <% if (recentRuns && recentRuns.length) { %>
-    <h2 class="h5 mb-3"><i class="bi bi-clock-history"></i> Recent runs</h2>
-    <div class="glass-card mb-4">
-      <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
-          <thead><tr><th scope="col">When (UTC)</th><th scope="col">Scope</th><th scope="col" class="text-end">Passed</th><th scope="col">By</th></tr></thead>
-          <tbody>
-            <% recentRuns.forEach(function (r) { %>
-              <tr>
-                <td><a href="/admin/tests/runs/<%= r.run_batch %>"><%= new Date(r.ran_at).toISOString().slice(0, 16).replace('T', ' ') %></a></td>
-                <td class="small text-muted-2"><%= r.categories === categoryCount ? 'All categories' : r.categories + (r.categories === 1 ? ' category' : ' categories') %></td>
-                <td class="text-end"><span class="badge-hub <%= r.passed === r.total ? 'ok' : 'danger' %>"><%= r.passed %>/<%= r.total %></span></td>
-                <td class="small text-muted-2"><%= r.run_by_name || '—' %></td>
-              </tr>
-            <% }); %>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  <% } %>
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <h2 class="h5 mb-3"><i class="bi bi-list-check" aria-hidden="true"></i> Test cases</h2>
 
-  <h2 class="h5 mb-3"><i class="bi bi-list-check"></i> Test Cases</h2>
-
-  <% suite.forEach(function (group) { %>
-    <div class="glass-card mb-3">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <h3 class="h6 mb-0"><i class="bi bi-folder"></i> <%= group.category %>
-            <span class="badge-hub muted"><%= group.tests.length %></span>
-          </h3>
-          <form method="post" action="/admin/tests/run-category">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <input type="hidden" name="category" value="<%= group.category %>">
-            <button class="btn btn-outline-primary btn-sm" type="submit"><i class="bi bi-play-fill"></i> Run</button>
-          </form>
+      <% if (!groups.length) { %>
+        <div class="empty-state glass-card">
+          <i class="bi bi-inbox" aria-hidden="true"></i>
+          No test cases yet. “Create test suite” writes the <%= builtinCount %> built-in cases from the code.
         </div>
+      <% } %>
 
-        <div class="list-group list-group-flush">
-          <% group.tests.forEach(function (t) {
-               const key = group.category + '::' + t.name;
-               const result = lastResults[key];
-          %>
-            <div class="list-group-item d-flex align-items-start gap-3 px-0">
-              <span class="fs-5">
-                <% if (!result) { %>
-                  <i class="bi bi-dash-circle text-muted-2" title="Not run yet"></i>
-                <% } else if (result.passed) { %>
-                  <i class="bi bi-check-circle-fill text-success" title="Passed"></i>
-                <% } else { %>
-                  <i class="bi bi-x-circle-fill text-danger" title="Failed"></i>
-                <% } %>
-              </span>
-              <div class="flex-grow-1">
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                  <span class="fw-semibold"><%= t.name %></span>
-                  <span class="badge-hub <%= t.method === 'GET' ? 'ok' : 'warn' %>"><%= t.method %></span>
-                  <% if (t.api) { %><span class="badge-hub muted">API</span><% } %>
-                </div>
-                <div class="small text-muted-2"><%= t.endpoint %>
-                  <% if (result && !result.passed) { %>
-                    — expected <%= t.expectedStatus %>, got <%= result.actualStatus || (result.error ? 'error: ' + result.error : '—') %>
+      <% groups.forEach(function (group) {
+           const enabledHere = group.cases.filter(function (c) { return c.enabled; }).length;
+      %>
+        <div class="glass-card mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+              <h3 class="h6 mb-0"><i class="bi bi-folder" aria-hidden="true"></i> <%= group.category %>
+                <span class="badge-hub muted"><%= enabledHere %><%= enabledHere < group.cases.length ? ' of ' + group.cases.length : '' %></span>
+              </h3>
+              <form method="post" action="/admin/tests/run-category" class="m-0">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="category" value="<%= group.category %>">
+                <button class="btn btn-outline-primary btn-sm" type="submit" <%= enabledHere ? '' : 'disabled' %>><i class="bi bi-play-fill"></i> Run</button>
+              </form>
+            </div>
+
+            <div class="list-group list-group-flush">
+              <% group.cases.forEach(function (t) {
+                   const last = lastOutcomes[t.id];
+                   const icon = last ? outcomeIcon[last.outcome] : ['bi-dash-circle text-muted-2', 'Not in the last run'];
+              %>
+                <div class="list-group-item d-flex align-items-start gap-3 px-0 <%= t.enabled ? '' : 'opacity-50' %>">
+                  <span class="fs-5"><i class="bi <%= icon[0] %>" title="<%= icon[1] %>" aria-label="<%= icon[1] %>"></i></span>
+                  <div class="flex-grow-1 min-w-0">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                      <span class="fw-semibold"><%= t.name %></span>
+                      <span class="badge-hub <%= t.method === 'GET' ? 'ok' : 'warn' %>"><%= t.method %></span>
+                      <% if (t.authRole) { %><span class="badge-hub cloud">as <%= t.authRole %></span><% } %>
+                      <% if (t.testType === 'api') { %><span class="badge-hub muted">fetch</span><% } %>
+                      <% if (!t.isBuiltin) { %><span class="badge-hub muted">custom</span><% } %>
+                      <% if (!t.enabled) { %><span class="badge-hub danger">off</span><% } %>
+                    </div>
+                    <div class="small text-muted-2 text-break">
+                      <code><%= t.endpoint %></code> → <%= statusText(t.expectedStatus) %><%= t.expectedRedirect ? ' to ' + t.expectedRedirect : '' %>
+                      <% if (last && last.outcome !== 'passed' && last.error) { %>
+                        <div class="<%= last.outcome === 'failed' ? 'text-danger' : '' %>"><%= last.error %></div>
+                      <% } %>
+                    </div>
+                  </div>
+                  <% if (isSuper) { %>
+                    <div class="d-flex gap-1 flex-shrink-0">
+                      <form method="post" action="/admin/tests/<%= t.id %>/toggle" class="m-0">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <input type="hidden" name="redirectTo" value="/admin/tests">
+                        <button class="btn btn-sm btn-outline-secondary" type="submit" title="<%= t.enabled ? 'Switch off' : 'Switch on' %>" aria-label="<%= t.enabled ? 'Switch off' : 'Switch on' %> <%= t.name %>">
+                          <i class="bi <%= t.enabled ? 'bi-toggle-on' : 'bi-toggle-off' %>" aria-hidden="true"></i>
+                        </button>
+                      </form>
+                      <% if (!t.isBuiltin) { %>
+                        <form method="post" action="/admin/tests/<%= t.id %>/delete" class="m-0 js-confirm" data-confirm="Delete the custom case “<%= t.name %>”? Past runs keep their copy of it.">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                          <input type="hidden" name="redirectTo" value="/admin/tests">
+                          <button class="btn btn-sm btn-outline-danger" type="submit" aria-label="Delete <%= t.name %>"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                        </form>
+                      <% } %>
+                    </div>
                   <% } %>
                 </div>
-              </div>
+              <% }); %>
             </div>
-          <% }); %>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="glass-card mb-4" id="add-test">
+        <div class="card-body">
+          <h2 class="h6 mb-3"><i class="bi bi-plus-circle" aria-hidden="true"></i> Add a test case</h2>
+          <% if (!isSuper) { %>
+            <p class="small text-muted-2 mb-0">
+              Adding, switching off and deleting cases is for a superadmin: they decide what this
+              panel requests on the live site and what it stops checking.
+            </p>
+          <% } else { %>
+            <form method="post" action="/admin/tests/add">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <div class="mb-2">
+                <label class="form-label" for="tc-name">Name</label>
+                <input class="form-control" id="tc-name" name="name" maxlength="190" required placeholder="e.g. Pricing page loads">
+              </div>
+              <div class="mb-2">
+                <label class="form-label" for="tc-category">Category</label>
+                <input class="form-control" id="tc-category" name="category" maxlength="120" required list="tc-categories" placeholder="e.g. Public pages">
+                <datalist id="tc-categories">
+                  <% groups.forEach(function (g) { %><option value="<%= g.category %>"><% }) %>
+                </datalist>
+              </div>
+              <div class="mb-2">
+                <label class="form-label" for="tc-endpoint">Path on this site</label>
+                <input class="form-control" id="tc-endpoint" name="endpoint" maxlength="300" required pattern="/.*" placeholder="/payments">
+              </div>
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <label class="form-label" for="tc-method">Method</label>
+                  <select class="form-select" id="tc-method" name="method">
+                    <% methods.forEach(function (m) { %><option value="<%= m %>"><%= m %></option><% }) %>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label" for="tc-status">Expected status</label>
+                  <input class="form-control" id="tc-status" name="expected_status" value="200" required placeholder="200 or 200,404">
+                </div>
+              </div>
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <label class="form-label" for="tc-role">Signed in as</label>
+                  <select class="form-select" id="tc-role" name="auth_role">
+                    <option value="">Visitor</option>
+                    <% qaRoles.forEach(function (r) { %><option value="<%= r %>"><%= r %></option><% }) %>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label" for="tc-type">Type</label>
+                  <select class="form-select" id="tc-type" name="test_type">
+                    <% testTypes.forEach(function (t) { %><option value="<%= t %>" <%= t === 'page' ? 'selected' : '' %>><%= t %></option><% }) %>
+                  </select>
+                </div>
+              </div>
+              <div class="mb-2">
+                <label class="form-label" for="tc-contains">Page must contain <small class="text-muted-2">(one per line)</small></label>
+                <textarea class="form-control" id="tc-contains" name="expected_contains" rows="2"></textarea>
+              </div>
+              <div class="mb-2">
+                <label class="form-label" for="tc-not-contains">Page must not contain <small class="text-muted-2">(one per line)</small></label>
+                <textarea class="form-control" id="tc-not-contains" name="expected_not_contains" rows="2"></textarea>
+              </div>
+              <div class="mb-2">
+                <label class="form-label" for="tc-redirect">Expected redirect <small class="text-muted-2">(optional)</small></label>
+                <input class="form-control" id="tc-redirect" name="expected_redirect" maxlength="300" placeholder="/auth/login">
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="tc-fetch" name="as_fetch" value="1">
+                <label class="form-check-label" for="tc-fetch">Ask the way a browser <code>fetch()</code> does (JSON, 401 instead of a redirect)</label>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="tc-description">Description <small class="text-muted-2">(optional)</small></label>
+                <textarea class="form-control" id="tc-description" name="description" rows="2" maxlength="500"></textarea>
+              </div>
+              <p class="form-text">
+                A POST is accepted only as a visitor, with no body, expecting the CSRF refusal
+                (302 or 403) — this panel never sends a write the site would act on.
+              </p>
+              <button class="btn btn-primary w-100" type="submit"><i class="bi bi-plus" aria-hidden="true"></i> Add test</button>
+            </form>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="glass-card">
+        <div class="card-body">
+          <h2 class="h6 mb-3"><i class="bi bi-clock-history" aria-hidden="true"></i> Recent runs</h2>
+          <% if (!recentRuns.length) { %>
+            <p class="small text-muted-2 mb-0">None yet.</p>
+          <% } else { %>
+            <ul class="list-unstyled mb-0">
+              <% recentRuns.forEach(function (r) { %>
+                <li class="py-2 border-bottom">
+                  <div class="d-flex justify-content-between align-items-center gap-2">
+                    <a href="/admin/tests/runs/<%= r.runId %>" class="small"><%= new Date(r.ranAt).toISOString().slice(0, 16).replace('T', ' ') %> UTC</a>
+                    <span class="badge-hub <%= r.failed ? 'danger' : 'ok' %>"><%= r.passed %>/<%= r.total %></span>
+                  </div>
+                  <div class="small text-muted-2">
+                    <%= r.categories === stats.categories ? 'All categories' : r.categories + (r.categories === 1 ? ' category' : ' categories') %><%= r.skipped ? ' · ' + r.skipped + ' skipped' : '' %><%= r.runByName ? ' · ' + r.runByName : '' %>
+                  </div>
+                </li>
+              <% }); %>
+            </ul>
+          <% } %>
         </div>
       </div>
     </div>
-  <% }); %>
+  </div>
 </div>
 </section>
+
+<%# Listeners, not inline onsubmit: helmet's default script-src-attr refuses those. -%>
+<script>
+  (function () {
+    var forms = document.querySelectorAll('#testsRebuild, form.js-confirm');
+    Array.prototype.forEach.call(forms, function (f) {
+      f.addEventListener('submit', function (e) {
+        if (!window.confirm(f.getAttribute('data-confirm'))) e.preventDefault();
+      });
+    });
+  })();
+</script>
 
 <%- include('../partials/layout-end') %>

@@ -4,6 +4,7 @@ const path = require('path');
 const ejs = require('ejs');
 const { Resend } = require('resend');
 const config = require('../config/config');
+const { isReservedTestAddress } = require('./qaAccounts');
 
 /**
  * Transactional email over HTTPS.
@@ -50,6 +51,16 @@ async function sendOnce({ to, subject, html }) {
  * is a side effect of a user action that must succeed regardless.
  */
 async function send({ to, subject, template, locals = {} }, retries = 2) {
+  /*
+   * Never to `.test`. RFC 6761 reserves it, the admin panel's QA accounts live on it, and an
+   * application email to one is a bounce at best — and, from a provider that scores senders
+   * on bounces, a reason to stop delivering this site's mail to real people. Refused here,
+   * once, rather than remembered at every call site that might one day address a QA user.
+   */
+  if (isReservedTestAddress(to)) {
+    console.log(`[email:skipped] to=${to} subject="${subject}" (reserved .test address)`);
+    return { delivered: false, reason: 'reserved-test-address' };
+  }
   let lastError = null;
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {

@@ -83,6 +83,8 @@
           <% m.reasons.forEach(function (r) { %><span class="badge-hub ok"><i class="bi bi-check2"></i> <%= r %></span><% }); %>
         </div>
       <% } %>
+      <%# On the saved page the actions share the pills' row, on the right, and wrap below them only when the row is full. %>
+      <div class="<%= savedView ? 'job-card-bottom d-flex flex-wrap align-items-center gap-2' : '' %>">
       <div class="d-flex flex-wrap gap-1">
         <%
           /*
@@ -103,7 +105,7 @@
         <% if (job.duration_months) { %><span class="badge-hub"><%= job.duration_months %> months</span><% } %>
       </div>
       <% if (savedView) { %>
-        <div class="job-card-foot d-flex flex-wrap justify-content-end align-items-center gap-2 mt-3">
+        <div class="job-card-foot d-flex flex-wrap justify-content-end align-items-center gap-2 ms-auto">
           <% if (closed) { %>
             <form method="post" action="/jobs/<%= job.slug %>/save" class="job-save" data-save-job data-remove-only>
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -122,6 +124,7 @@
           <% } %>
         </div>
       <% } %>
+      </div>
     </div>
   </div>
 </article>

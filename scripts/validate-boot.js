@@ -30,6 +30,7 @@ check('config loads', () => require('../config/config'));
 check('role taxonomy is consistent', () => require('../config/roleTaxonomy').assertTaxonomyIntegrity());
 check('cloud families load', () => require('../config/cloudFamilies'));
 check('tax advisory options are consistent', () => require('../config/taxAdvisory').assertAdvisoryIntegrity());
+check('editorial rate model is consistent', () => require('../config/rateModel').assertRateModel());
 check('challenge question bank is consistent', () => require('../config/challenges').assertChallengeIntegrity());
 check('CRM pipeline is consistent', () => require('../config/crm').assertCrmIntegrity());
 check('invoice lifecycle and line arithmetic are consistent', () => require('../config/finance').assertFinanceIntegrity());

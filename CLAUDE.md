@@ -106,6 +106,33 @@ Do not push aggregation into SQL: a `GROUP BY` will quietly bypass the floor.
 `RATE_MIN_SAMPLE` is configurable, but lowering it below 3 to make a sparse index look
 fuller defeats the point of having it.
 
+**`/rates` shows three kinds of figure and labels every one** (2026-11-08): the EDITORIAL
+benchmark, COMMUNITY data and JOB POSTINGS. They are never blended.
+
+- **The editorial model is `config/rateModel.js` + `utils/rateBenchmark.js`**, ours, under
+  version control and printed in full under Methodology: `BASE_DAY_RATES` × the seniority
+  multiplier (the experience brackets ARE the seniority bands) × a region multiplier ×
+  (1 + basis-point adjustments), to €5, ∓ `SPREAD_BPS`. `benchmarkProblems` re-checks the
+  working shown against the figure shown and the route throws a 500 on failure, as quotes do.
+  None of Dynamics Hub's figures are reused; a test pins the ones that must differ. Monthly,
+  annual and equivalent salary come from `contractorEconomics.project` — never `rate × 220`.
+- **Trend windows** (`TREND_WINDOWS`): 12 months reads the stored `period`; 12 weeks and 30
+  days bucket by `updated_at`. Every bucket still goes through `trendSeries`, so a short
+  window has more gaps, never zeros. The chart is server-drawn SVG (`utils/rateCharts.js`)
+  and a gap BREAKS the line. "Asked on applications" is `meanOfPeople`: one figure per
+  consultant, same floor.
+- **Job figures go through `Job.buildFilter`** with `rate_published`, so a closed, expired,
+  taken-down or rate-hidden advert is never counted. They are public already, so no floor —
+  but every figure has its posting count beside it.
+- **Sharing is inline** (`POST /rates/submit`, `GET /rates/submit` → `/rates#share`): five
+  answers; the seniority is DERIVED from the years with `seniorityForYears`; country is
+  optional and work mode no longer asked (migration 043 made both nullable rather than let
+  a default record "remote" for everybody). A contract figure above €5,000/day or a permanent
+  one below €5,000/year is refused by name — the wrong-unit figure is the one that moves a
+  percentile for everybody.
+- Every GET form on the page carries the others' state through `keepExcept`, built only from
+  validated values, so changing one filter never resets another and nothing raw is echoed.
+
 ## The estimator
 
 `utils/sowEstimation.js` is pure — no database, no clock beyond one timestamp — so its

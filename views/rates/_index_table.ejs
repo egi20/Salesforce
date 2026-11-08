@@ -1,0 +1,27 @@
+<%#
+  One community-index table: median, P25–P75 and contributors per group. A group below the
+  threshold keeps its count and shows "Not enough data" — never an empty row, never a zero.
+%>
+<% if (!t.rows.length) { %>
+  <div class="empty-state"><i class="bi bi-bar-chart"></i> No contributions for this selection yet.</div>
+<% } else { %>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0 rates-table">
+      <thead><tr><th><%= first %></th><th class="text-end">Median</th><th class="text-end">P25–P75</th><th class="text-end">Contributors</th></tr></thead>
+      <tbody>
+        <% t.rows.forEach(function (row) { %>
+          <tr>
+            <td><% if (t.hrefOf) { %><a href="<%= t.hrefOf(row) %>"><%= t.labelOf(row) %></a><% } else { %><%= t.labelOf(row) %><% } %></td>
+            <% if (row.suppressed) { %>
+              <td colspan="2" class="text-end suppressed">Not enough data</td>
+            <% } else { %>
+              <td class="text-end"><strong><%= eur(row.median) %></strong><small class="text-muted-2"><%= unit %></small></td>
+              <td class="text-end"><%= eur(row.p25) %>–<%= eur(row.p75) %></td>
+            <% } %>
+            <td class="text-end"><%= row.contributors %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+<% } %>

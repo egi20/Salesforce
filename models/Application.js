@@ -552,6 +552,24 @@ class Application {
    * time: idempotent and writes no new row, so it is safe on the GET that triggers it — the
    * one exception to "no GET writes", because "opened" can only be observed on a read.
    */
+  /**
+   * The day rates consultants put on contract applications in the last `months`, one row per
+   * application, for "Asked on applications" on /rates. Rows, not an AVG: the mean is taken
+   * over PEOPLE in `rateAggregation.meanOfPeople`, with the same floor as the index.
+   */
+  static async askedDayRates({ months = 12 } = {}) {
+    const [rows] = await promisePool.query(
+      `SELECT a.consultant_user_id AS user_id, a.day_rate, a.currency
+         FROM applications a
+         JOIN jobs j ON j.id = a.job_id
+        WHERE j.engagement_type = 'contract'
+          AND a.day_rate IS NOT NULL AND a.day_rate > 0
+          AND a.created_at >= DATE_SUB(NOW(), INTERVAL ? MONTH)`,
+      [months]
+    );
+    return rows;
+  }
+
   static async markViewed(applicationId) {
     await promisePool.query('UPDATE applications SET viewed_at = NOW() WHERE id = ? AND viewed_at IS NULL', [applicationId]);
   }

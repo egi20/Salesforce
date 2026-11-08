@@ -56,7 +56,7 @@ describe('number inputs do not refuse ordinary values', () => {
       ['views/profile/consultant.ejs', 'day_rate'],
       ['views/jobs/form.ejs', 'rate_min'],
       ['views/jobs/form.ejs', 'rate_max'],
-      ['views/rates/submit.ejs', 'amount']
+      ['views/rates/index.ejs', 'amount']
     ];
     for (const [file, name] of checks) {
       const source = fs.readFileSync(path.join(ROOT, file), 'utf8');

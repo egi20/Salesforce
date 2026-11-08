@@ -13,6 +13,7 @@ const config = require('./config/config');
 const { pool } = require('./config/database');
 const { assertTaxonomyIntegrity } = require('./config/roleTaxonomy');
 const { assertAdvisoryIntegrity } = require('./config/taxAdvisory');
+const { assertRateModel } = require('./config/rateModel');
 const { assertChallengeIntegrity } = require('./config/challenges');
 const { assertCrmIntegrity } = require('./config/crm');
 const { EMBED_HOSTS } = require('./utils/videoEmbed');
@@ -46,6 +47,7 @@ const { attachViewHelpers } = require('./utils/viewHelpers');
 // or no label produces a UI that half-works and rate buckets that quietly flatten.
 assertTaxonomyIntegrity();
 assertAdvisoryIntegrity();
+assertRateModel();
 // And for the challenge bank: a question whose answer index is outside its options is a
 // question nobody can get right, and it would only show up as a puzzled member.
 assertChallengeIntegrity();

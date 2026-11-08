@@ -2979,3 +2979,92 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
 .tax-next .cv-step-n { flex-shrink: 0; margin-bottom: 0; }
 .tax-fee { color: var(--text-medium); padding-top: 0.5rem; border-top: 1px dashed var(--border-color); }
 .tax-fee .bi { color: var(--primary-blue); }
+
+/*
+ * Rate & Salary Index (/rates). Community figures, editorial figures and job figures carry
+ * different tags so a reader always knows which kind of number they are looking at.
+ */
+.rates-hero { padding: 3.5rem 0 3rem; }
+.rates-hero h1 { font-size: clamp(2rem, 1.5rem + 1.6vw, 2.75rem); }
+.rates-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; margin: 1.5rem 0 1rem; padding: 0; }
+.rates-pills li { padding: 0.5rem 1rem; border-radius: 999px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.22); color: #fff; }
+.rates-pills .bi { color: var(--primary-blue-bright); }
+.rates-hero-note { font-size: 0.85rem; color: rgba(255, 255, 255, 0.8); margin: 0; }
+.rates-hero-note a { color: var(--primary-blue-bright); }
+.rates-card { background: #fff; border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.5rem; box-shadow: var(--shadow-sm); }
+.rates-tag { display: inline-block; white-space: nowrap; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.25rem 0.6rem; border-radius: 999px; background: rgba(29, 111, 79, 0.12); color: #1d6f4f; }
+.rates-tag-editorial { background: rgba(1, 118, 211, 0.1); color: var(--primary-blue-dark); }
+.rates-tag-jobs { background: rgba(3, 45, 96, 0.08); color: var(--primary-navy); }
+.rates-segmented .btn { flex: 1 1 0; }
+.rates-result { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
+.rates-empty-result { display: flex; gap: 0.6rem; margin-top: 1.25rem; padding: 0.9rem 1rem; border-radius: var(--radius-lg); background: var(--sky-wash); color: var(--text-medium); font-size: 0.9rem; }
+.rates-empty-result .bi { color: var(--primary-blue); }
+.rates-confidence { font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 999px; }
+.rates-confidence-high { background: rgba(29, 111, 79, 0.12); color: #1d6f4f; }
+.rates-confidence-medium { background: rgba(1, 118, 211, 0.1); color: var(--primary-blue-dark); }
+.rates-confidence-low { background: #fff4e5; color: #8a4b00; }
+.rates-tile { border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 0.75rem 0.5rem; display: flex; flex-direction: column; }
+.rates-tile span { font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em; }
+.rates-tile strong { font-size: 1.35rem; color: var(--primary-navy); }
+.rates-tile small { color: var(--text-light); }
+.rates-tile.is-main { background: var(--accent-gradient); border-color: transparent; }
+.rates-tile.is-main span, .rates-tile.is-main strong, .rates-tile.is-main small { color: #fff; }
+.rates-subhead { font-size: 0.85rem; font-weight: 700; color: var(--primary-navy); display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+.rates-position { position: relative; height: 0.9rem; border-radius: 999px; background: rgba(1, 118, 211, 0.08); margin: 1.4rem 0 0.4rem; }
+.rates-position-band { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: rgba(1, 118, 211, 0.35); }
+.rates-position-median { position: absolute; top: -3px; bottom: -3px; width: 3px; margin-left: -1px; background: var(--primary-navy); border-radius: 2px; }
+.rates-position-you { position: absolute; top: -1.35rem; transform: translateX(-50%); color: var(--primary-blue); }
+.rates-mini { background: var(--sky-wash); border-radius: var(--radius-lg); padding: 0.6rem 0.4rem; display: flex; flex-direction: column; }
+.rates-mini span { font-size: 0.75rem; color: var(--text-light); }
+.rates-mini strong { color: var(--primary-navy); }
+.rates-note { display: flex; gap: 0.6rem; padding: 0.8rem 1rem; border-radius: var(--radius-lg); background: var(--sky-wash); font-size: 0.85rem; color: var(--text-medium); margin-bottom: 0.75rem; }
+.rates-note .bi { color: var(--primary-blue); }
+.rates-note-tip { background: #fff8e6; }
+.rates-note-tip .bi { color: #8a4b00; }
+.rates-working summary { cursor: pointer; color: var(--primary-blue); }
+.rates-working li, .rates-method-list li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.2rem 0; border-bottom: 1px dashed var(--border-color); }
+.rates-method-list { list-style: none; padding: 0; margin: 0 0 1rem; }
+.rates-keep { display: flex; gap: 1rem; align-items: flex-start; }
+.rates-chart { width: 100%; height: auto; display: block; }
+.rates-chart .grid { stroke: var(--border-color); stroke-width: 1; }
+.rates-chart .axis { fill: var(--text-light); font-size: 11px; }
+.rates-chart .axis-count { fill: #1d6f4f; }
+.rates-chart .count-bar { fill: rgba(29, 111, 79, 0.25); }
+.rates-chart .count-bar.is-gap { fill: rgba(138, 75, 0, 0.18); }
+.rates-chart .median-line { fill: none; stroke: var(--primary-blue); stroke-width: 2.5; stroke-linejoin: round; }
+.rates-chart .median-dot { fill: #fff; stroke: var(--primary-blue); stroke-width: 2; }
+.rates-legend { display: flex; flex-wrap: wrap; gap: 1rem; color: var(--text-medium); }
+.rates-legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 0.3rem; vertical-align: middle; }
+.lg-line { background: var(--primary-blue); height: 3px !important; }
+.lg-bar { background: rgba(29, 111, 79, 0.35); }
+.lg-p25, .rates-bar-group .b-p25 { background: rgba(1, 118, 211, 0.25); }
+.lg-median, .rates-bar-group .b-median { background: var(--primary-blue); }
+.lg-p75, .rates-bar-group .b-p75 { background: var(--primary-navy); }
+.rates-bars { display: grid; gap: 0.6rem; }
+.rates-bar-row { display: grid; grid-template-columns: 9.5rem 1fr 6rem; gap: 0.75rem; align-items: center; font-size: 0.85rem; }
+.rates-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rates-bar-group { display: grid; gap: 2px; }
+.rates-bar-group span { display: block; height: 6px; border-radius: 3px; }
+.rates-bar-figure { text-align: right; color: var(--primary-navy); font-weight: 600; }
+.rates-bar-figure small { color: var(--text-light); font-weight: 400; }
+.rates-table .suppressed { color: var(--text-light); font-style: italic; }
+.rates-asked { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); color: var(--text-medium); }
+.rates-asked .bi { color: var(--primary-blue); }
+.rates-range { position: relative; height: 0.6rem; border-radius: 999px; background: rgba(3, 45, 96, 0.06); }
+.rates-range span { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: var(--primary-blue); }
+.rates-stat-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light); }
+.rates-stat { display: block; font-size: 1.5rem; color: var(--primary-navy); }
+.rates-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.rates-chip { padding: 0.35rem 0.85rem; border-radius: 999px; border: 1px solid var(--border-color); background: #fff; color: var(--primary-navy); text-decoration: none; font-size: 0.85rem; }
+.rates-chip:hover, .rates-chip.is-active { border-color: var(--primary-blue); color: var(--primary-blue); }
+@media (max-width: 575.98px) {
+  .rates-bar-row { grid-template-columns: 7rem 1fr 4.5rem; }
+  .rates-card { padding: 1.1rem; }
+}
+/* "Export PDF": only the benchmark card is printed. */
+@media print {
+  body.rates-printing header, body.rates-printing footer, body.rates-printing nav, body.rates-printing section:not(.glass-section),
+  body.rates-printing .col-lg-6:not(#benchmark), body.rates-printing .rates-keep, body.rates-printing .rates-bench-form .d-flex { display: none !important; }
+  body.rates-printing #benchmark { width: 100%; }
+  body.rates-printing .rates-card { box-shadow: none; border: 0; }
+}

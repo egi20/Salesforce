@@ -312,7 +312,7 @@ router.get(
     if (isConsultant) {
       tools.push(
         { href: '/dashboard/applications', icon: 'bi-send', tone: 'icon-info', title: 'Your applications', text: 'Every role you applied to and where each one stands.' },
-        { href: '/rates/submit', icon: 'bi-plus-circle', tone: 'icon-success', title: 'Contribute your rate', text: 'Add your figure to the index. It is never shown on its own.' }
+        { href: '/rates#share', icon: 'bi-plus-circle', tone: 'icon-success', title: 'Contribute your rate', text: 'Add your figure to the index. It is never shown on its own.' }
       );
     }
 

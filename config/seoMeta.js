@@ -29,9 +29,9 @@ const PAGE_META = {
     description: 'Partners, ISVs and end customers hiring Salesforce talent.'
   },
   '/rates': {
-    title: 'Salesforce day rate index',
+    title: 'Rate & Salary Index for Salesforce consultants',
     description:
-      'Aggregated day rates for Salesforce roles, contributed anonymously by the community. Aggregates below three contributors are suppressed.'
+      'Benchmark your Salesforce day rate with an editorial model, and see median rates contributed anonymously by consultants and offered in job postings. Groups below three people are never shown.'
   },
   '/success-stories': {
     title: 'Salesforce delivery success stories',

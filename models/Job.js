@@ -120,6 +120,13 @@ function buildFilter(filters = {}) {
       params.push(min);
     }
   }
+  if (filters.rate_published) {
+    /*
+     * Only adverts whose company chose to show the figure. A rate an employer hid on the job
+     * page must not reappear, aggregated, on the rate index.
+     */
+    where.push('j.rate_visible = 1 AND (j.rate_min IS NOT NULL OR j.rate_max IS NOT NULL)');
+  }
   if (filters.posted_within_days) {
     /*
      * "Posted in the last N days", bounded by the caller against a declared list so this
@@ -324,6 +331,23 @@ class Job {
 
     const [[{ total }]] = await promisePool.query(`SELECT COUNT(*) AS total FROM jobs j WHERE ${clause}`, params);
     return { rows, total };
+  }
+
+  /**
+   * The published figures of the adverts a filter selects, for the rate index's "Day rate
+   * budgets" and "Annual salaries". Through `buildFilter` like every list, so a job that is
+   * closed, expired or taken down is not counted, and with `rate_published` so a hidden
+   * rate stays hidden.
+   */
+  static async rateRows(filters = {}) {
+    const { clause, params } = buildFilter({ ...filters, rate_published: true });
+    const [rows] = await promisePool.query(
+      `SELECT j.role, j.seniority, j.engagement_type, j.rate_min, j.rate_max, j.currency, j.published_at
+         FROM jobs j
+        WHERE ${clause}`,
+      params
+    );
+    return rows;
   }
 
   /*

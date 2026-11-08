@@ -2956,3 +2956,12 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
 }
 .tax-hero h1 { font-size: clamp(2rem, 1.5rem + 1.6vw, 2.6rem); }
 @media (min-width: 768px) and (max-width: 991.98px) { .tax-story-track { grid-auto-columns: calc((100% - 1rem) / 2); } }
+/* /tax-optimization/enquire: the same band and cards as the page it comes from. */
+.tax-enquire-hero { padding: 2.5rem 0 3rem; }
+.tax-enquire-hero h1 { font-size: clamp(1.75rem, 1.3rem + 1.4vw, 2.4rem); }
+.tax-back-link { display: block; width: fit-content; margin-bottom: 1rem; color: rgba(255, 255, 255, 0.85); text-decoration: none; font-size: 0.875rem; }
+.tax-back-link:hover { color: #fff; text-decoration: underline; }
+.tax-enquire-card { box-shadow: var(--shadow-lg); border: 1px solid var(--border-color); }
+.tax-next li { display: flex; gap: 0.75rem; margin-bottom: 0.9rem; }
+.tax-next li:last-child { margin-bottom: 0; }
+.tax-next .cv-step-n { flex-shrink: 0; margin-bottom: 0; }

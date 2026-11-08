@@ -133,6 +133,15 @@ describe('config/taxProgram', () => {
     expect(() => taxProgram.loadProgram(file)).toThrow(/currency[\s\S]*taxTreaties[\s\S]*both min and max[\s\S]*payroll:/);
   });
 
+  test('no FAQ answer is a one-liner', () => {
+    for (const program of [fixture, taxProgram.loadProgram(path.join(__dirname, '..', '..', 'config', 'tax-program.json'))]) {
+      for (const item of taxProgram.pageModel(program).faq) {
+        expect(item.a.length).toBeGreaterThanOrEqual(2);
+        for (const para of item.a) expect(para.length).toBeGreaterThan(40);
+      }
+    }
+  });
+
   test('"Is this legal?" keeps the three points legal asked for', () => {
     const legal = taxProgram.pageModel(fixture).faq.find((f) => f.q === 'Is this legal?');
     const text = legal.a.join(' ');

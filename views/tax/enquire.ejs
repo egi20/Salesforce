@@ -1,20 +1,36 @@
 <%- include('../partials/layout-start') %>
 
-<section class="glass-section pb-5">
-<div class="container py-4">
-  <div class="row justify-content-center">
+<%
+  /*
+   * The application and the enquiry are ONE form ("Apply now" preselects the program topic),
+   * styled as part of /tax-optimization: the same dark band, the same white cards, and beside
+   * the form what happens next and what is deliberately not asked.
+   */
+  const applying = form.topic === programTopic;
+%>
+<section class="hub-hero tax-enquire-hero">
+  <div class="container">
+    <a class="tax-back-link" href="/tax-optimization"><i class="bi bi-arrow-left"></i> Tax optimization</a>
+    <span class="hub-hero-badge mb-3 d-inline-flex"><i class="bi bi-graph-up-arrow"></i> TAX OPTIMIZATION</span>
+    <h1><%= applying ? 'Apply to the Albania employment program' : 'Ask about your setup' %></h1>
+    <p class="lead mb-0">
+      <% if (applying) { %>Six questions, none of them about your pay. We read every application and come back to you.<% } else { %>Six questions, none of them about your pay. Tell us your situation and we will come back to you.<% } %>
+    </p>
+  </div>
+</section>
+
+<section class="glass-section tax-section">
+<div class="container">
+  <div class="row g-4 align-items-start">
     <div class="col-lg-7">
       <%- include('../partials/flash') %>
 
-      <div class="glass-card">
-        <div class="card-body p-4">
-          <% const applying = form.topic === programTopic; %>
-          <h1 class="h4 mb-2"><%= applying ? 'Apply to the Albania employment program' : 'Ask about your setup' %></h1>
-          <p class="text-muted-2">
-            <% if (applying) { %>This is your application. <% } %>Six questions, and none of them is about your pay. Whoever we introduce you to
-            will ask what they need in the conversation, under their own terms — which is
-            the only place a duty of confidentiality actually applies.
-          </p>
+      <div class="tax-calc-card tax-enquire-card">
+        <h2 class="h5 mb-1"><i class="bi bi-<%= applying ? 'send' : 'chat-dots' %> text-primary"></i> <%= applying ? 'Your application' : 'Your question' %></h2>
+        <p class="small text-muted-2 mb-4">
+          Whoever answers will ask what they need in the conversation, under their own terms —
+          which is the only place a duty of confidentiality actually applies.
+        </p>
 
           <% if (typeof error !== 'undefined' && error) { %>
             <div class="alert alert-danger"><%= error %></div>
@@ -118,12 +134,32 @@
               </label>
             </div>
 
-            <button class="btn btn-primary" type="submit"><%= applying ? 'Send my application' : 'Send my enquiry' %></button>
-            <a class="btn btn-link" href="/tax-optimization">Back</a>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <button class="btn btn-primary btn-lg" type="submit"><i class="bi bi-send"></i> <%= applying ? 'Send my application' : 'Send my enquiry' %></button>
+              <a class="btn btn-link" href="/tax-optimization">Back</a>
+            </div>
           </form>
-        </div>
       </div>
     </div>
+
+    <aside class="col-lg-5">
+      <div class="sow-white-card mb-3">
+        <h2 class="h6 mb-3">What happens next</h2>
+        <ol class="tax-next list-unstyled mb-0">
+          <li><span class="cv-step-n">1</span><div><strong>We read it</strong><p class="small text-muted-2 mb-0"><%= applying ? 'We check your application against who the program is for.' : 'We work out who should answer it.' %></p></div></li>
+          <li><span class="cv-step-n">2</span><div><strong>We reply by email</strong><p class="small text-muted-2 mb-0"><%= applying ? 'If it fits, we explain the contract and what payroll withholds before you sign anything.' : 'We tell you who we think can help, and nothing happens without your yes.' %></p></div></li>
+          <li><span class="cv-step-n">3</span><div><strong>You decide</strong><p class="small text-muted-2 mb-0">Check your home-country position with a tax advisor before you join anything.</p></div></li>
+        </ol>
+      </div>
+      <div class="sow-white-card">
+        <h2 class="h6 mb-3">What we do not ask</h2>
+        <ul class="list-unstyled small mb-3">
+          <li class="d-flex gap-2 mb-2"><i class="bi bi-x-circle-fill text-danger flex-shrink-0 mt-1"></i><span>Your salary, employer, notice period or day rate.</span></li>
+          <li class="d-flex gap-2 mb-0"><i class="bi bi-x-circle-fill text-danger flex-shrink-0 mt-1"></i><span>Bank details, tax numbers or identity documents.</span></li>
+        </ul>
+        <p class="small text-muted-2 mb-0"><i class="bi bi-clock-history"></i> We keep what you send for <%= retentionDays %> days and then delete it.</p>
+      </div>
+    </aside>
   </div>
 </div>
 </section>

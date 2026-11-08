@@ -185,15 +185,24 @@ function faq(program = PROGRAM) {
     },
     {
       q: 'Do I need to move to Albania?',
-      a: ['No. You keep working from where you live now. Where you live is exactly why your home-country rules still apply to you.']
+      a: [
+        'No. You keep working from where you live now, for the same clients, with nothing about your day-to-day work changing.',
+        'Where you live is exactly why your home-country rules still apply to you, which is why the application asks where you are tax-resident before anything else.'
+      ]
     },
     {
       q: 'What about my existing clients?',
-      a: ['You keep them: same clients, same projects. The Albania entity becomes your employer and contracts with your clients for your work.']
+      a: [
+        'You keep them: same clients, same projects, same people. The Albania entity becomes your employer and contracts with your clients for your work.',
+        'What changes is who invoices them, not what you do for them. We agree how and when that switch happens with you before the contract starts.'
+      ]
     },
     {
       q: 'How does payment work?',
-      a: ['Your clients pay the Albania entity, and the entity pays you a monthly salary through Albanian payroll. The calculator above shows what is withheld from the gross.']
+      a: [
+        'Your clients pay the Albania entity, and the entity pays you a monthly salary through Albanian payroll, with contributions and income tax withheld.',
+        'Before you sign, you see in writing what payroll withholds from your gross, line by line. Once the rates are published, the calculator above shows the same lines.'
+      ]
     },
     {
       q: 'Health insurance and pension?',
@@ -204,14 +213,18 @@ function faq(program = PROGRAM) {
     },
     {
       q: 'Can I switch back to my own company?',
-      a: ['Yes. You end the employment with the notice period in your contract and go back to invoicing through your own company. How that change is taxed is decided by your home-country rules.']
+      a: [
+        'Yes. You end the employment with the notice period in your contract and go back to invoicing through your own company.',
+        'Plan the change with your tax advisor: how it is taxed, and from which date, is decided by your home-country rules, not by the program.'
+      ]
     },
     {
       q: 'Are there any hidden costs or fees?',
       a: [
         fee
           ? `No. The program fee is ${fee}, the calculator includes it, and the Hub charges nothing else.`
-          : 'No. The program fee is set out in your contract before you sign anything, and nothing is charged before then.'
+          : 'No. The program fee is set out in your contract before you sign anything, and nothing is charged before then.',
+        'What the program cannot include is your own home-country side: a tax return there, or a tax advisor\'s fee, stays with you.'
       ]
     },
     {
@@ -219,7 +232,8 @@ function faq(program = PROGRAM) {
       a: [
         program.onboardingWeeks !== null
           ? `Usually about ${program.onboardingWeeks} weeks from approval to your first payroll.`
-          : 'We give you a timeline when we approve your application.'
+          : 'We give you a timeline when we approve your application.',
+        'It is three steps: we review your application, you sign the employment contract, and you join the next monthly payroll.'
       ]
     }
   ];

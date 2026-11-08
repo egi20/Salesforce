@@ -12,6 +12,7 @@ const { loginLimiter, registerLimiter, passwordLimiter } = require('../middlewar
 const { registrationOpen } = require('../middleware/settingsGates');
 const Referral = require('../models/Referral');
 const SalesAgent = require('../models/SalesAgent');
+const { countOpenOnce } = require('../utils/salesAgentOpens');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { safePath } = require('../utils/safeRedirect');
 const { countryFromIp, clientIp, packIp } = require('../utils/geo');
@@ -53,7 +54,7 @@ const registerValidators = [
     })
 ];
 
-router.get('/register', isGuest, registrationOpen, (req, res) => {
+router.get('/register', isGuest, registrationOpen, asyncHandler(async (req, res) => {
   // `?ref=` is honoured as well as the session, so a link pasted straight to the form
   // still attributes. It is only ever a code — everything about the referrer is re-read
   // from the database.
@@ -62,6 +63,20 @@ router.get('/register', isGuest, registrationOpen, (req, res) => {
   // in-app browser passes on). Shape-checked before it is kept or echoed; first touch wins.
   const agentCode = SalesAgent.normaliseCode(req.query.a);
   if (agentCode && !req.session.salesAgentCode) req.session.salesAgentCode = agentCode;
+  /*
+   * Arriving here with `?a=` is an OPEN too, unless `/s/` already counted it for this
+   * session (the helper remembers). This is the address left in the bar after `/s/`
+   * redirects, so it is the one that gets copied and forwarded; counting only at `/s/` made
+   * the opens column read low while sign-ups through the same agent kept growing.
+   * Best-effort: a counting failure must never keep somebody from the sign-up form.
+   */
+  if (agentCode) {
+    try {
+      await countOpenOnce(req, await SalesAgent.findActiveByCode(agentCode));
+    } catch (err) {
+      console.error(`Sales agent open not counted: ${err.message}`);
+    }
+  }
   /*
    * `?as=company` pre-ticks one role card — "create a company account" from Browse Talent
    * should not land on a form with Consultant ticked. Only a PUBLIC role can be pre-ticked,
@@ -74,7 +89,7 @@ router.get('/register', isGuest, registrationOpen, (req, res) => {
     errors: [],
     redirect: safePath(req.query.redirect, '')
   });
-});
+}));
 
 router.post(
   '/register',

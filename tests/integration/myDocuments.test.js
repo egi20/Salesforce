@@ -75,6 +75,9 @@ describe('GET /profile/documents', () => {
     // Every action comes back here.
     expect((res.text.match(/name="redirectTo" value="\/profile\/documents"/g) || []).length).toBeGreaterThanOrEqual(3);
     expect(res.text).toMatch(/data-confirm="Delete CPQ CV\?/);
+    // One primary action on the page: the generator. Uploading is the secondary one.
+    expect(res.text).toMatch(/class="btn btn-primary" href="\/cv-generator"/);
+    expect(res.text).toMatch(/class="btn btn-outline-primary" href="\?upload=cv#upload"/);
   });
 
   it('puts a cover letter in its own card, named by its file when it has no title', async () => {

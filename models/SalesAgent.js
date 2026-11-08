@@ -2,6 +2,7 @@
 
 const { promisePool } = require('../config/database');
 const Referral = require('./Referral');
+const { QA_EMAIL_LIKE } = require('../utils/qaAccounts');
 
 /**
  * Sales agents (migration 031): colleagues with a personal sign-up link that is measured
@@ -147,7 +148,7 @@ class SalesAgent {
    */
   static async unattributed() {
     const [[row]] = await promisePool.query(
-      `SELECT (SELECT COUNT(*) FROM users) AS all_accounts,
+      `SELECT (SELECT COUNT(*) FROM users WHERE email NOT LIKE ?) AS all_accounts,
               COUNT(*) AS signups,
               COALESCE(SUM(u.is_consultant = 1), 0) AS consultants,
               COALESCE(SUM(u.is_company = 1), 0) AS companies,
@@ -156,8 +157,10 @@ class SalesAgent {
               COALESCE(SUM(u.created_at >= NOW() - INTERVAL 24 HOUR), 0) AS signups_24h
          FROM users u
          LEFT JOIN referral_attributions ra ON ra.referred_user_id = u.id
-        WHERE u.sales_agent_id IS NULL`,
-      []
+        WHERE u.sales_agent_id IS NULL AND u.email NOT LIKE ?`,
+      // The admin panel's QA accounts signed up through nobody: they are not organic
+      // sign-ups either, and counting them here would make the agents' share look smaller.
+      [QA_EMAIL_LIKE, QA_EMAIL_LIKE]
     );
     return Object.fromEntries(Object.entries(row).map(([k, v]) => [k, Number(v)]));
   }

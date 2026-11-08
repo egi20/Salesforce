@@ -10,7 +10,7 @@
   <div class="glass-card mb-3">
     <div class="card-body">
       <form class="row g-2 align-items-end" method="get" action="/admin/errors">
-        <div class="col-md-4">
+        <div class="col-md-2">
           <label class="form-label" for="q">Search the message or the path</label>
           <input class="form-control" type="search" id="q" name="q" maxlength="200" value="<%= filters.q %>">
         </div>
@@ -21,6 +21,14 @@
             <% statusCodes.forEach(function (c) { %>
               <option value="<%= c %>" <%= String(filters.statusCode) === String(c) ? 'selected' : '' %>><%= c %></option>
             <% }) %>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="source">Source</label>
+          <select class="form-select" id="source" name="source">
+            <option value="">Any</option>
+            <option value="server" <%= filters.source === 'server' ? 'selected' : '' %>>Server</option>
+            <option value="self_test" <%= filters.source === 'self_test' ? 'selected' : '' %>>Admin self-test</option>
           </select>
         </div>
         <div class="col-md-2">
@@ -44,7 +52,7 @@
     </div>
   </div>
 
-  <% const anyErrorFilter = Boolean(filters.q || filters.statusCode || filters.from || filters.to); %>
+  <% const anyErrorFilter = Boolean(filters.q || filters.statusCode || filters.from || filters.to || filters.source); %>
   <% if (currentUser && currentUser.isSuperadmin && anyErrorFilter && pagination.total > 0) { %>
     <%#
       Deletes exactly what the filter above lists, and nothing without a filter. The count goes
@@ -60,6 +68,7 @@
           <input type="hidden" name="status_code" value="<%= filters.statusCode %>">
           <input type="hidden" name="from" value="<%= filters.from %>">
           <input type="hidden" name="to" value="<%= filters.to %>">
+          <input type="hidden" name="source" value="<%= filters.source %>">
           <input type="hidden" name="expected_count" value="<%= pagination.total %>">
           <button class="btn btn-outline-danger" type="submit"><i class="bi bi-trash"></i> Delete these <%= pagination.total %></button>
         </form>
@@ -90,6 +99,7 @@
             <h2 class="accordion-header">
               <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#err<%= i %>">
                 <span class="badge-hub danger me-2"><%= e.status_code %></span>
+                <% if (e.source === 'self_test') { %><span class="badge-hub warn me-2">self-test</span><% } %>
                 <span class="text-truncate"><%= e.message %></span>
                 <span class="ms-auto small text-muted-2"><%= new Date(e.created_at).toISOString().slice(0, 16).replace('T', ' ') %></span>
               </button>

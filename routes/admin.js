@@ -40,9 +40,10 @@ const { requireIdParam, parseId } = require('../utils/ids');
 const { toCsv } = require('../utils/csv');
 const AccountErasure = require('../models/AccountErasure');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
-const { TEST_SUITE, totalTestCount } = require('../config/adminTests');
-const AdminTestRun = require('../models/AdminTestRun');
+const { TEST_SUITE, METHODS: TEST_METHODS, TEST_TYPES } = require('../config/adminTests');
+const AdminTestCase = require('../models/AdminTestCase');
 const { runSuite } = require('../utils/adminTestRunner');
+const { QA_ROLES, QA_EMAIL_LIKE, qaUnavailableReason } = require('../utils/qaAccounts');
 const SiteStats = require('../models/SiteStats');
 const SalesAgent = require('../models/SalesAgent');
 const config = require('../config/config');
@@ -61,13 +62,16 @@ router.use(isAuthenticated, isAdmin);
 router.get(
   '/',
   asyncHandler(async (req, res) => {
+    // The account counts leave out the test panel's QA accounts (utils/qaAccounts.js): they
+    // are fixtures, and an overview that grows by four when somebody runs the tests is
+    // measuring the tests.
     const [[counts]] = await promisePool.query(
       `SELECT
-         (SELECT COUNT(*) FROM users)                              AS users,
-         (SELECT COUNT(*) FROM users WHERE is_active = 1)          AS active_users,
-         (SELECT COUNT(*) FROM users WHERE email_verified = 1)     AS verified_users,
+         (SELECT COUNT(*) FROM users WHERE email NOT LIKE ?)                         AS users,
+         (SELECT COUNT(*) FROM users WHERE is_active = 1 AND email NOT LIKE ?)       AS active_users,
+         (SELECT COUNT(*) FROM users WHERE email_verified = 1 AND email NOT LIKE ?)  AS verified_users,
          (SELECT COUNT(*) FROM consultant_profiles WHERE is_public = 1) AS public_consultants,
-         (SELECT COUNT(*) FROM company_profiles)                   AS companies,
+         (SELECT COUNT(*) FROM company_profiles cp JOIN users u ON u.id = cp.user_id WHERE u.email NOT LIKE ?) AS companies,
          (SELECT COUNT(*) FROM jobs)                               AS jobs,
          (SELECT COUNT(*) FROM jobs WHERE status = 'open')         AS open_jobs,
          (SELECT COUNT(*) FROM applications)                       AS applications,
@@ -75,7 +79,8 @@ router.get(
          (SELECT COUNT(*) FROM posts WHERE hidden_at IS NULL)      AS posts,
          (SELECT COUNT(*) FROM payments WHERE needs_refund = 1)    AS refunds_due,
          (SELECT COUNT(*) FROM issue_reports WHERE status <> 'closed') AS open_issues,
-         (SELECT COUNT(*) FROM error_logs WHERE created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)) AS recent_errors`
+         (SELECT COUNT(*) FROM error_logs WHERE created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)) AS recent_errors`,
+      [QA_EMAIL_LIKE, QA_EMAIL_LIKE, QA_EMAIL_LIKE, QA_EMAIL_LIKE]
     );
 
     const [geo] = await promisePool.query(
@@ -439,7 +444,9 @@ function errorFiltersFrom(source) {
     q: typeof s.q === 'string' ? s.q.trim().slice(0, 200) : '',
     statusCode: typeof s.status_code === 'string' ? s.status_code : '',
     from: typeof s.from === 'string' ? s.from : '',
-    to: typeof s.to === 'string' ? s.to : ''
+    to: typeof s.to === 'string' ? s.to : '',
+    // Checked against ErrorLog.SOURCES inside the builder, so anything else filters nothing.
+    source: typeof s.source === 'string' ? s.source : ''
   };
 }
 
@@ -602,7 +609,7 @@ router.post(
   asyncHandler(async (req, res) => {
     const filters = errorFiltersFrom(req.body);
     const back = `/admin/errors?${new URLSearchParams({
-      q: filters.q, status_code: filters.statusCode, from: filters.from, to: filters.to
+      q: filters.q, status_code: filters.statusCode, from: filters.from, to: filters.to, source: filters.source
     }).toString()}`;
     const expected = Number.parseInt(req.body.expected_count, 10);
     if (!Number.isInteger(expected) || expected < 1) {
@@ -1774,42 +1781,68 @@ router.post(
  * It answers one question nothing else here answers: "is the running site, as deployed,
  * still serving what it should?" The Jest suite proves the code is right on the machine
  * that ran it; this proves the thing behind the domain is up, behind the right guards, and
- * answering the status codes CLAUDE.md's Auth section documents. Those are different
- * questions, and the second one is the one a deployment breaks.
+ * answering the status codes CLAUDE.md's Auth section documents — as a visitor, and signed
+ * in as each role through the real login form.
  *
- * Three things keep it from being a liability:
+ * Ported from the reference's Admin > Tests. What keeps it from being a liability:
  *
- * 1. The cases are CODE, in `config/adminTests.js`, never a table an admin edits through a
- *    form. A list of endpoints to request is exactly the shape of thing somebody would
- *    point at an internal address, and a change with no diff and no review is the whole
- *    objection. Same rule the settings surface already holds: catalogue values live in
- *    config under version control.
- * 2. It only ever GETs its own declared endpoints on its own base URL. Nothing here takes
- *    a URL from the request.
- * 3. The run is the only thing it writes, and it writes results — never the cases.
+ * 1. Every case — built-in or added here — passes `caseSafetyProblems()` (config/
+ *    adminTests.js) when it is saved and again when it runs: a path on this site, a GET or
+ *    a tokenless POST the CSRF layer refuses, and no header that could carry a session.
+ * 2. Running and rebuilding are for any admin. Rebuild only rewrites the built-in rows from
+ *    the code, which is reviewed. ADDING, switching off and deleting a case are SUPERADMIN:
+ *    they decide what the panel requests on the live site and what it stops checking, and a
+ *    plain admin who could disable "a plain admin is refused /admin/settings" could hide
+ *    the regression that let them in.
+ * 3. Signed-in cases need QA_TEST_PASSWORD (utils/qaAccounts.js). Without it they are
+ *    SKIPPED, counted on the screen with the reason, and never shown as passed.
  *
- * `/admin` is behind `isAuthenticated, isAdmin` at the router level, so all three inherit
+ * `/admin` is behind `isAuthenticated, isAdmin` at the router level, so all of it inherits
  * that.
  */
+const RUN_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function runSummaryFlash(req, summary, scope) {
+  const parts = [`${summary.passed}/${summary.total} passed`];
+  if (summary.failed) parts.push(`${summary.failed} failed`);
+  if (summary.skipped) parts.push(`${summary.skipped} skipped — ${summary.skipReason || 'see the run'}`);
+  req.flash(summary.failed ? 'error' : 'success', `${scope ? `${scope}: ` : ''}${parts.join(', ')}.`);
+}
+
 router.get(
   '/tests',
   asyncHandler(async (req, res) => {
-    const [lastRun, totalRuns, recentRuns] = await Promise.all([
-      AdminTestRun.lastRun(),
-      AdminTestRun.totalRuns(),
-      AdminTestRun.recent(20)
+    const [cases, stats, recentRuns] = await Promise.all([
+      AdminTestCase.list(),
+      AdminTestCase.statistics(),
+      AdminTestCase.recentRuns(15)
     ]);
-    const lastResults = lastRun ? await AdminTestRun.resultsFor(lastRun.runBatch) : {};
+    const lastRun = recentRuns[0] || null;
+    const lastOutcomes = await AdminTestCase.lastOutcomes(lastRun && lastRun.runId);
+
+    // Grouped in the order the list query returned, which is the suite's own order.
+    const groups = [];
+    cases.forEach((c) => {
+      let group = groups.find((g) => g.category === c.category);
+      if (!group) {
+        group = { category: c.category, cases: [] };
+        groups.push(group);
+      }
+      group.cases.push(c);
+    });
 
     res.render('admin/tests', {
       title: 'Automated testing',
-      suite: TEST_SUITE,
-      totalTests: totalTestCount(),
-      categoryCount: TEST_SUITE.length,
+      groups,
+      stats,
       lastRun,
-      totalRuns,
+      lastOutcomes,
       recentRuns,
-      lastResults
+      builtinCount: TEST_SUITE.length,
+      qaReason: qaUnavailableReason(),
+      qaRoles: QA_ROLES,
+      methods: TEST_METHODS,
+      testTypes: TEST_TYPES
     });
   })
 );
@@ -1819,9 +1852,13 @@ router.post(
   writeLimiter,
   asyncHandler(async (req, res) => {
     const summary = await runSuite({ runBy: req.session.user.id });
-    req.flash('success', `${summary.passed}/${summary.total} tests passed.`);
-    // Straight to the run's own page, as SAP Hub does: the failures are what was asked for.
-    return res.redirect(summary.total ? `/admin/tests/runs/${summary.runBatch}` : '/admin/tests');
+    if (!summary.total) {
+      req.flash('error', 'There are no enabled test cases. Rebuild the suite first.');
+      return res.redirect('/admin/tests');
+    }
+    runSummaryFlash(req, summary);
+    // Straight to the run's own page: the failures are what was asked for.
+    return res.redirect(`/admin/tests/runs/${summary.runId}`);
   })
 );
 
@@ -1829,37 +1866,131 @@ router.post(
   '/tests/run-category',
   writeLimiter,
   asyncHandler(async (req, res) => {
-    // The category is matched against the declared suite, not used as a filter value: an
-    // unrecognised one is refused rather than quietly running nothing and reporting 0/0.
-    const category = TEST_SUITE.find((g) => g.category === req.body.category);
+    // Matched against the categories that exist, not used as a filter value: an unknown one
+    // is refused rather than quietly running nothing and reporting 0/0.
+    const categories = await AdminTestCase.categories();
+    const category = categories.find((c) => c === req.body.category);
     if (!category) {
       req.flash('error', 'Unknown test category.');
       return res.redirect('/admin/tests');
     }
-    const summary = await runSuite({ category: category.category, runBy: req.session.user.id });
-    req.flash('success', `${category.category}: ${summary.passed}/${summary.total} tests passed.`);
-    return res.redirect(summary.total ? `/admin/tests/runs/${summary.runBatch}` : '/admin/tests');
+    const summary = await runSuite({ category, runBy: req.session.user.id });
+    if (!summary.total) {
+      req.flash('error', `${category}: every case in it is switched off.`);
+      return res.redirect('/admin/tests');
+    }
+    runSummaryFlash(req, summary, category);
+    return res.redirect(`/admin/tests/runs/${summary.runId}`);
   })
 );
 
 /**
- * GET /admin/tests/runs/:batch — one past run, every result in the order it ran.
+ * POST /admin/tests/rebuild — write the built-in suite from config/adminTests.js.
  *
- * The parameter is the batch's UUID (`crypto.randomUUID()` in utils/adminTestRunner.js),
- * not a numeric id, so it is checked against that exact shape rather than `requireIdParam`
- * — and anything else is a 404 before it reaches SQL, for the same reason.
- *
- * There is deliberately no `/tests/switch` here, although SAP Hub has one. This suite has
- * no disabled tests: the cases are an array in config/adminTests.js and every entry runs, so
- * turning one off is a change with an author, a diff and a review — not a button that makes
- * a failing check stop failing.
+ * The reference's "Rebuild Suite" drops both tables. This replaces only the rows with a
+ * `builtin_key`: custom cases and every past result are kept (AdminTestCase.rebuildBuiltins).
  */
-const RUN_BATCH_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-
-router.get(
-  '/tests/runs/:batch',
+router.post(
+  '/tests/rebuild',
+  writeLimiter,
   asyncHandler(async (req, res) => {
-    const run = RUN_BATCH_RE.test(req.params.batch) ? await AdminTestRun.batch(req.params.batch) : null;
+    const { builtins, removed, customKept } = await AdminTestCase.rebuildBuiltins(TEST_SUITE);
+    req.flash(
+      'success',
+      `Suite rebuilt: ${builtins} built-in cases written and switched on` +
+        `${removed ? `, ${removed} no longer in the code removed` : ''}; ${customKept} custom ${customKept === 1 ? 'case' : 'cases'} kept as they were.`
+    );
+    return res.redirect('/admin/tests');
+  })
+);
+
+router.post(
+  '/tests/add',
+  isSuperadmin,
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    // Named fields only, never the body spread: a field the form does not have cannot
+    // reach the row, whatever was posted.
+    const b = req.body;
+    const input = {
+      name: b.name,
+      description: b.description,
+      category: b.category,
+      testType: b.test_type,
+      method: b.method,
+      endpoint: b.endpoint,
+      expectedStatus: b.expected_status,
+      expectedContains: b.expected_contains,
+      expectedNotContains: b.expected_not_contains,
+      expectedRedirect: b.expected_redirect,
+      timeoutMs: b.timeout_ms ? Number(b.timeout_ms) : undefined,
+      authRole: b.auth_role || null,
+      // The one header choice the form offers: ask the way a browser fetch() does.
+      api: b.as_fetch === '1'
+    };
+    try {
+      await AdminTestCase.createCustom(input, req.session.user.id);
+      req.flash('success', `Test case "${String(b.name || '').trim()}" added.`);
+    } catch (err) {
+      if (err.code !== 'TEST_CASE_UNSAFE') throw err;
+      req.flash('error', err.message);
+    }
+    return res.redirect('/admin/tests#add-test');
+  })
+);
+
+router.post(
+  '/tests/:id/toggle',
+  isSuperadmin,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const testCase = await AdminTestCase.findById(req.params.id);
+    if (!testCase) {
+      req.flash('error', 'That test case no longer exists.');
+    } else {
+      await AdminTestCase.setEnabled(testCase.id, !testCase.enabled);
+      req.flash('success', `"${testCase.name}" ${testCase.enabled ? 'switched off' : 'switched on'}.`);
+    }
+    return res.redirect(returnTo(req, '/admin/tests'));
+  })
+);
+
+/**
+ * Deletes a CUSTOM case. A built-in is refused: it would come back on the next rebuild, so
+ * deleting one only looks like a decision — switching it off is the honest control, and the
+ * code is where it is really removed. Results already recorded keep their copy of the case.
+ */
+router.post(
+  '/tests/:id/delete',
+  isSuperadmin,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const testCase = await AdminTestCase.findById(req.params.id);
+    if (!testCase) {
+      req.flash('error', 'That test case no longer exists.');
+    } else if (testCase.isBuiltin) {
+      req.flash('error', 'A built-in case is removed from config/adminTests.js, not here. Switch it off instead.');
+    } else {
+      await AdminTestCase.remove(testCase.id);
+      req.flash('success', `Test case "${testCase.name}" deleted.`);
+    }
+    return res.redirect(returnTo(req, '/admin/tests'));
+  })
+);
+
+/**
+ * GET /admin/tests/runs/:runId — one run, failures first, then skipped, then passes.
+ *
+ * The parameter is the run's UUID (`crypto.randomUUID()` in utils/adminTestRunner.js), not
+ * a numeric id, so it is checked against that exact shape rather than `requireIdParam` —
+ * and anything else is a 404 before it reaches SQL, for the same reason.
+ */
+router.get(
+  '/tests/runs/:runId',
+  asyncHandler(async (req, res) => {
+    const run = RUN_ID_RE.test(req.params.runId) ? await AdminTestCase.run(req.params.runId) : null;
     if (!run) return res.status(404).render('errors/404', { title: 'Not found' });
     return res.render('admin/test-run', { title: 'Test run', run });
   })

@@ -1380,6 +1380,58 @@ reaches `closed` in ONE step, asserted at boot — the same rule `config/crm.js`
 An answer written by an administrator is shown to the reporter on `/my-issues`. A queue that
 never replies teaches people not to send the next report.
 
+## The admin test panel
+
+`/admin/tests` requests the RUNNING site over HTTP, on `APP_BASE_URL`, one case at a time,
+redirects not followed — the question Jest cannot answer is whether the thing behind the
+domain is up and behind the right guards. Ported from Dynamics Hub, with its cases in
+`admin_test_cases` (migration 042) and these rules:
+
+- **The built-in suite is code.** `config/adminTests.js` holds it; "Rebuild suite" upserts
+  those rows by `builtin_key`, switches them back on, deletes built-ins the code dropped,
+  and does NOT touch a custom case or a past result. The reference drops both tables.
+  Results copy the case's name and path and SET NULL on delete, so a run still says what it
+  checked after the case is gone. `admin_test_runs` (028) is kept and no longer written.
+- **One safety rule, `caseSafetyProblems`, at boot, on save and again just before a case
+  runs.** A path on this site, never a URL (the runner re-checks the origin). A GET, or a
+  POST sent as a visitor with no cookie, no token and no body, to a route not CSRF-exempt and
+  not named for deleting, paying or sending, expecting the CSRF refusal (302 or 403) — the
+  only write a case may attempt is one that cannot happen. No `body` column at all, and only
+  the headers in `ALLOWED_HEADERS`, so a case cannot carry a session.
+- **Running and rebuilding are admin; adding, switching off and deleting are superadmin** —
+  those decide what the panel requests on the live site and what it stops checking. A
+  built-in is switched off, never deleted from the screen: it would come back on rebuild.
+- **Signed-in cases are OPT-IN via `QA_TEST_PASSWORD`** (12+ characters, or it counts as
+  unset). Without it they are recorded as SKIPPED — never passed — the screen says how many
+  and why, and any QA accounts are switched off. With it, `QaAccount.ensure` creates or
+  repairs `qa-<role>@salesforcehub.test` for consultant, company, recruiter and admin:
+  verified, active, exact flags, every profile hidden. **The QA admin is a plain admin and
+  `is_superadmin` is forced to 0 on every run** — superadmin is shell-only, for named people,
+  and a QA superadmin would also make every "a plain admin is refused" case pass for the
+  wrong reason. Sign-in goes through the real form (GET for the cookie and `_csrf`, then
+  POST); sessions are cached per role because the login limiter allows ten a window.
+- **No `X-Forwarded-Proto`.** The reference forges it to get a secure cookie over loopback.
+  Here the base URL is the public https address behind the platform's proxy, and an http one
+  in production should fail at sign-in, which it does, with a message saying so.
+- **QA accounts are never counted.** `utils/qaAccounts.js` is the one definition:
+  `isOwnTraffic` skips them and the runner's user agent, which also says `monitor` so a
+  sales-agent link it opens is no open; "new this week", the admin overview, sign-ups by
+  country and the sales agents' unattributed row bind `QA_EMAIL_LIKE`; `utils/email.js`
+  refuses every `.test` address. They are created by the model, never through
+  `/auth/register`, so no referral or sales-agent attribution can reach them. The company's
+  profile is created HIDDEN before any page opens, because `GET /jobs/new` and `GET
+  /profile/company` create one on first use and `company_profiles` defaults to public — the
+  suite's own directory case caught "QA Company" in the public list.
+- **Failures go to the error log as `source = 'self_test'`**, written directly rather than
+  through the error handler, so the CSRF-scanner rule never sees them, and filterable and
+  deletable by filter like any other row. No response text is copied there.
+- **Coverage is a test.** `tests/unit/adminTests.test.js` walks every router `server.js`
+  mounts and fails for any GET route without a path parameter that no built-in case
+  requests, and for any `isSuperadmin` route without a case proving the plain QA admin is
+  refused it. `COVERAGE_EXEMPT` is the named list for a route that genuinely cannot be
+  checked this way; it is empty, because even a download or an OAuth callback can be guarded.
+  Add the case in the same commit as the page.
+
 ## Notifications
 
 `Notification.emit` never throws and never awaits anything the caller depends on. Every

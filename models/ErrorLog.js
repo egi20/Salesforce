@@ -2,6 +2,10 @@
 
 const { promisePool } = require('../config/database');
 const { containsPattern } = require('../utils/likePattern');
+const { SELF_TEST_USER_AGENT } = require('../utils/qaAccounts');
+
+// Where a row came from: an exception the server raised, or a failed admin self-test.
+const SOURCES = Object.freeze(['server', 'self_test']);
 
 /**
  * Persisted application errors, for the admin panel.
@@ -31,14 +35,48 @@ class ErrorLog {
   }
 
   /**
+   * A failed case from the admin test panel, under `source = 'self_test'`.
+   *
+   * Written here directly, never thrown through the error handler: the handler's
+   * CSRF-scanner rule drops refusals from requests without a session, which is exactly what
+   * a visitor-role test case is, and a test failure the log silently discarded would be the
+   * one thing this copy exists to prevent. No response excerpt is copied: the log is exported
+   * as CSV, and the text of an admin page is somebody's data.
+   */
+  static async recordTestFailure({ runId, runBy = null, name, category, method, endpoint, statusCode = null, error, authRole = null }) {
+    try {
+      const who = authRole ? ` as the QA ${authRole}` : '';
+      await promisePool.query(
+        `INSERT INTO error_logs (source, message, stack, method, path, status_code, user_id, user_agent)
+         VALUES ('self_test', ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          `Self-test failed: "${name}"${who} — ${error || 'assertion failed'}`.slice(0, 500),
+          `Admin test run ${runId}, category "${category}".`,
+          method,
+          String(endpoint).slice(0, 255),
+          statusCode,
+          runBy,
+          SELF_TEST_USER_AGENT.slice(0, 255)
+        ]
+      );
+    } catch (logErr) {
+      console.error(`Failed to persist test failure: ${logErr.message}`);
+    }
+  }
+
+  /**
    * THE ONE FILTER BUILDER for the log: the list, its count, the export and the delete all
    * come through it, so the rows deleted are provably the rows listed. `to` is a whole day,
    * EXCLUSIVE of the next one: `<= '2026-01-05'` means midnight at the START of the 5th and
    * would silently drop everything that happened on it.
    */
-  static buildFilter({ q = '', statusCode = '', from = '', to = '' } = {}) {
+  static buildFilter({ q = '', statusCode = '', from = '', to = '', source = '' } = {}) {
     const where = [];
     const params = [];
+    if (SOURCES.includes(source)) {
+      where.push('source = ?');
+      params.push(source);
+    }
     if (q) {
       const like = containsPattern(q);
       where.push('(message LIKE ? OR path LIKE ?)');
@@ -145,3 +183,4 @@ class ErrorLog {
 }
 
 module.exports = ErrorLog;
+module.exports.SOURCES = SOURCES;

@@ -29,6 +29,7 @@ const legalVersions = require('../config/legal-versions');
 const SalesAgent = require('../models/SalesAgent');
 const { requireIdParam } = require('../utils/ids');
 const { LINK_PREVIEW, countOpenOnce } = require('../utils/salesAgentOpens');
+const { QA_EMAIL_LIKE } = require('../utils/qaAccounts');
 
 const router = express.Router();
 
@@ -103,11 +104,16 @@ router.get(
   })
 );
 
-/** People who joined in the last seven days — the "new this week" line. */
+/**
+ * People who joined in the last seven days — the "new this week" line. The admin panel's QA
+ * accounts are not people who joined; left in, every fresh deployment that sets
+ * QA_TEST_PASSWORD would announce four new members on its public home page.
+ */
 async function countRecentMembers() {
   const { promisePool } = require('../config/database');
   const [[row]] = await promisePool.query(
-    'SELECT COUNT(*) AS count FROM users WHERE is_active = 1 AND created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)'
+    'SELECT COUNT(*) AS count FROM users WHERE is_active = 1 AND created_at > DATE_SUB(NOW(), INTERVAL 7 DAY) AND email NOT LIKE ?',
+    [QA_EMAIL_LIKE]
   );
   return row.count;
 }

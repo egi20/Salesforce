@@ -53,7 +53,7 @@ const TOPICS = Object.freeze([
 
 /**
  * The topic "Apply now" on /tax-optimization preselects. An application to the Albania program
- * is an enquiry like any other — same six questions, same consent, same retention — routed
+ * is an enquiry like any other — same questions, same consent, same retention — routed
  * to the people who run the program rather than to an outside specialist.
  */
 const PROGRAM_TOPIC = 'program';

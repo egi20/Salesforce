@@ -115,6 +115,7 @@ describe('config/taxProgram', () => {
     expect(model.stats).toEqual([]);
     expect(model.savingRange).toBeNull();
     expect(model.reviewHours).toBeNull();
+    expect(model.fee).toBeNull();
     expect(JSON.stringify(model.faq)).not.toMatch(/\d/);
   });
 
@@ -124,12 +125,40 @@ describe('config/taxProgram', () => {
     expect(model.stats.map((s) => s.value)).toEqual(['€11,000', '40', '2 weeks']);
     expect(model.eligibility.join(' ')).toMatch(/€4,000 a month/);
     expect(model.whyAlbania[1].text).toMatch(/40 countries/);
-    expect(JSON.stringify(model.faq)).toMatch(/3% of gross plus €50 a month/);
+    expect(JSON.stringify(model.faq)).toMatch(/3% of your gross salary plus €50 a month/);
+    expect(model.fee).toBe('3% of your gross salary plus €50 a month');
+  });
+
+  test('the fee can be published before the payroll, and is the one the calculator deducts', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'taxprog-'));
+    const raw = JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
+
+    const feeOnly = path.join(dir, 'fee.json');
+    fs.writeFileSync(feeOnly, JSON.stringify({ ...raw, payroll: null }));
+    const early = taxProgram.loadProgram(feeOnly);
+    expect(early.payroll).toBeNull();
+    expect(taxProgram.pageModel(early).fee).toMatch(/3% of your gross salary/);
+    // The calculator is not live yet, so the answer must not say it includes the fee.
+    const earlyCosts = taxProgram.pageModel(early).faq.find((f) => /hidden costs/.test(f.q)).a.join(' ');
+    expect(earlyCosts).toMatch(/written into your contract, and the Hub/);
+    expect(earlyCosts).not.toMatch(/calculator/);
+    const liveCosts = taxProgram.pageModel(fixture).faq.find((f) => /hidden costs/.test(f.q)).a.join(' ');
+    expect(liveCosts).toMatch(/included in the calculator above/);
+
+    expect(fixture.payroll.fee).toBe(fixture.fee);
+
+    const twoFees = path.join(dir, 'two.json');
+    fs.writeFileSync(twoFees, JSON.stringify({ ...raw, payroll: { ...raw.payroll, fee: raw.fee } }));
+    expect(() => taxProgram.loadProgram(twoFees)).toThrow(/must not carry its own fee/);
+
+    const noFee = path.join(dir, 'nofee.json');
+    fs.writeFileSync(noFee, JSON.stringify({ ...raw, fee: null }));
+    expect(() => taxProgram.loadProgram(noFee)).toThrow(/needs the top-level "fee"/);
   });
 
   test('refuses a malformed file instead of publishing it', () => {
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'taxprog-')), 'p.json');
-    fs.writeFileSync(file, JSON.stringify({ currency: 'euro', taxTreaties: -1, typicalSavingAnnualMinor: { min: 5 }, payroll: { monthsPerYear: 12 } }));
+    fs.writeFileSync(file, JSON.stringify({ currency: 'euro', taxTreaties: -1, typicalSavingAnnualMinor: { min: 5 }, fee: { label: 'Fee', rateBps: 100, fixedMonthlyMinor: 0 }, payroll: { monthsPerYear: 12 } }));
     expect(() => taxProgram.loadProgram(file)).toThrow(/currency[\s\S]*taxTreaties[\s\S]*both min and max[\s\S]*payroll:/);
   });
 

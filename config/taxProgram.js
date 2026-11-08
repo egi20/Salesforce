@@ -82,8 +82,38 @@ function loadProgram(file = process.env.TAX_PROGRAM_FILE || DEFAULT_FILE) {
     onboardingWeeks: optionalCount(raw.onboardingWeeks, 'onboardingWeeks', problems),
     reviewHours: optionalCount(raw.reviewHours, 'reviewHours', problems),
     minimumGrossMonthlyMinor: optionalCount(raw.minimumGrossMonthlyMinor, 'minimumGrossMonthlyMinor', problems),
-    payroll: raw.payroll === undefined ? null : raw.payroll
+    fee: null,
+    payroll: null
   };
+
+  /*
+   * The fee is its own key, not a part of `payroll`, so it can be PUBLISHED before the
+   * contribution rates are: "what does it cost" is the first question somebody asks, and the
+   * answer is a commercial decision that does not wait on payroll. It is still ONE value —
+   * the calculator receives it inside the payroll it is handed — so the fee the FAQ states
+   * and the fee the calculator deducts can never be two different numbers.
+   */
+  const rawFee = raw.fee === undefined ? null : raw.fee;
+  if (rawFee !== null) {
+    const ok =
+      rawFee && typeof rawFee === 'object' &&
+      typeof rawFee.label === 'string' && rawFee.label.trim() &&
+      Number.isInteger(rawFee.rateBps) && rawFee.rateBps >= 0 && rawFee.rateBps <= 10000 &&
+      isCount(rawFee.fixedMonthlyMinor);
+    if (ok) program.fee = Object.freeze({ label: rawFee.label.trim(), rateBps: rawFee.rateBps, fixedMonthlyMinor: rawFee.fixedMonthlyMinor });
+    else problems.push('fee needs a label, a rateBps of 0-10000 and a fixedMonthlyMinor (0 when there is none), or null');
+  }
+
+  const rawPayroll = raw.payroll === undefined ? null : raw.payroll;
+  if (rawPayroll !== null) {
+    if (rawPayroll && typeof rawPayroll === 'object' && 'fee' in rawPayroll) {
+      problems.push('payroll must not carry its own fee: set the top-level "fee" instead, so there is one');
+    } else if (!program.fee) {
+      problems.push('payroll needs the top-level "fee" set: the calculator would otherwise leave the fee out');
+    } else {
+      program.payroll = { ...rawPayroll, fee: program.fee };
+    }
+  }
 
   const { min, max } = program.typicalSavingAnnualMinor;
   if ((min === null) !== (max === null)) problems.push('typicalSavingAnnualMinor needs both min and max, or neither');
@@ -114,12 +144,12 @@ function percent(bps) {
   return `${(bps / 100).toLocaleString('en-GB', { maximumFractionDigits: 2 })}%`;
 }
 
-/** The program fee in words, or null when the payroll is not configured. */
+/** The program fee in words ("3% of your gross salary plus €50 a month"), or null when unset. */
 function feeText(program = PROGRAM) {
-  if (!program.payroll) return null;
-  const { rateBps, fixedMonthlyMinor } = program.payroll.fee;
+  if (!program.fee) return null;
+  const { rateBps, fixedMonthlyMinor } = program.fee;
   const parts = [];
-  if (rateBps > 0) parts.push(`${percent(rateBps)} of gross`);
+  if (rateBps > 0) parts.push(`${percent(rateBps)} of your gross salary`);
   if (fixedMonthlyMinor > 0) parts.push(`${money(fixedMonthlyMinor, program.currency)} a month`);
   return parts.length ? parts.join(' plus ') : 'nothing';
 }
@@ -222,7 +252,7 @@ function faq(program = PROGRAM) {
       q: 'Are there any hidden costs or fees?',
       a: [
         fee
-          ? `No. The program fee is ${fee}, the calculator includes it, and the Hub charges nothing else.`
+          ? `No. The program fee is ${fee}, written into your contract${program.payroll ? ' and included in the calculator above' : ''}, and the Hub charges nothing else.`
           : 'No. The program fee is set out in your contract before you sign anything, and nothing is charged before then.',
         'What the program cannot include is your own home-country side: a tax return there, or a tax advisor\'s fee, stays with you.'
       ]
@@ -276,6 +306,7 @@ function pageModel(program = PROGRAM) {
     stats,
     reviewHours: program.reviewHours,
     payroll: program.payroll,
+    fee: feeText(program),
     eligibility: eligibility(program),
     whyAlbania: whyAlbania(program),
     faq: faq(program),

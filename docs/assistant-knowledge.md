@@ -83,7 +83,7 @@ People name pages by the menu label they see, so these are the labels:
 | `/auth/register` | Create a free account. |
 | `/auth/login` | Sign in. |
 | `/tax-optimization` | Tax optimization: keep your clients and location and be employed through the Hub's Albania entity (a technology park with reduced social contributions). How it works in three steps, why Albania, who is eligible, an FAQ, and a calculator that shows the program's Albanian payroll applied to your gross — it runs in the browser and stores nothing, and says "coming soon" until the rates are published. Home-country tax obligations still apply; the Hub is not a tax advisor. `/tax-optimization` redirects here. |
-| `/tax-optimization/enquire` | Apply to the program ("Apply now" opens it with the program preselected) or ask about your setup ("Contact us"). Open to anyone, signed in or not. Six questions, none about pay; kept for 180 days, then deleted. |
+| `/tax-optimization/enquire` | Apply to the program ("Apply now" opens it with the program preselected) or ask about your setup ("Contact us"). Open to anyone, signed in or not. A few questions, none about pay; kept for 180 days, then deleted. |
 | `/success-stories` | Case studies from real projects, plus reviews members have left. |
 | `/success-stories/reviews` | Read member reviews, or leave one. You need an account to leave one. |
 | `/recruiters` | The directory of recruitment agencies and headhunters. |
@@ -180,7 +180,7 @@ automatically.
   still apply — and the Hub is not an accountant and gives no advice. If somebody asks "how
   much would I save", point them at that calculator and at `/tax-optimization/enquire`, and
   say a tax advisor in their country has to confirm it. Never estimate a figure yourself.
-- **The advisory form asks for six things and none of them is money.** Name, email, an
+- **The form asks a few things and none of them is money.** Name, email, an
   optional phone number, country of tax residence, how the person works today, and their
   question. It does not ask for salary, employer, notice period, day rate or VAT status. If
   somebody is worried about what they are handing over, that is the answer. The enquiry is

@@ -28,7 +28,7 @@ const router = express.Router();
  * `config/taxProgram.js` for why this is not the reference's flat-percentage "saving".
  *
  * "Apply now" and "Contact us" are both the enquiry form below — the program topic
- * preselected for the first. Six questions, none of them about pay.
+ * preselected for the first. A few questions, none of them about pay.
  *
  * Everything is public. Most people asking how they should be set up have not signed up
  * to anything, and putting the question behind a registration wall would collect an

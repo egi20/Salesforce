@@ -12,6 +12,11 @@
   "onboardingWeeks": 2,
   "reviewHours": 48,
   "minimumGrossMonthlyMinor": 400000,
+  "fee": {
+    "label": "Program fee",
+    "rateBps": 300,
+    "fixedMonthlyMinor": 5000
+  },
   "payroll": {
     "monthsPerYear": 12,
     "contributions": [
@@ -50,11 +55,6 @@
           "rateBps": 2300
         }
       ]
-    },
-    "fee": {
-      "label": "Program fee",
-      "rateBps": 300,
-      "fixedMonthlyMinor": 5000
     }
   }
 }

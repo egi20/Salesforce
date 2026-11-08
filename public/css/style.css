@@ -2965,3 +2965,5 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
 .tax-next li { display: flex; gap: 0.75rem; margin-bottom: 0.9rem; }
 .tax-next li:last-child { margin-bottom: 0; }
 .tax-next .cv-step-n { flex-shrink: 0; margin-bottom: 0; }
+.tax-fee { color: var(--text-medium); padding-top: 0.5rem; border-top: 1px dashed var(--border-color); }
+.tax-fee .bi { color: var(--primary-blue); }

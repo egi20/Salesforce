@@ -137,7 +137,7 @@
           <span class="cv-step-n">1</span>
           <h3 class="h6">Apply &amp; get approved</h3>
           <p class="small text-muted-2 mb-0">
-            Tell us about your setup in six questions.
+            Tell us about your setup in a few short questions, none about your pay.
             <% if (program.reviewHours !== null) { %>We review eligible applications within <%= program.reviewHours %> hours.<% } else { %>We review every eligible application and come back to you.<% } %>
           </p>
         </div>
@@ -147,6 +147,9 @@
           <span class="cv-step-n">2</span>
           <h3 class="h6">Sign your employment contract</h3>
           <p class="small text-muted-2 mb-0">An ordinary Albanian employment contract with our entity. You see what payroll withholds before you sign.</p>
+          <% if (program.fee) { %>
+            <p class="tax-fee small mb-0 mt-2"><i class="bi bi-tag"></i> Program fee: <strong><%= program.fee %></strong>, written into the contract.</p>
+          <% } %>
         </div>
       </div>
       <div class="col-md-4">
@@ -344,7 +347,7 @@
     <div>
       <h2 class="h4 mb-1">Ready to get started?</h2>
       <p class="mb-1">Apply now to increase your take-home pay.</p>
-      <p class="small mb-0 tax-cta-note">Six questions, none about your pay. We keep your application for <%= retentionDays %> days and then delete it.</p>
+      <p class="small mb-0 tax-cta-note">A few questions, none about your pay. We keep your application for <%= retentionDays %> days and then delete it.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
       <a class="btn btn-lg btn-light" href="<%= applyHref %>"><i class="bi bi-send"></i> Apply now</a>

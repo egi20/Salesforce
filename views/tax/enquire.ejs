@@ -14,7 +14,7 @@
     <span class="hub-hero-badge mb-3 d-inline-flex"><i class="bi bi-graph-up-arrow"></i> TAX OPTIMIZATION</span>
     <h1><%= applying ? 'Apply to the Albania employment program' : 'Ask about your setup' %></h1>
     <p class="lead mb-0">
-      <% if (applying) { %>Six questions, none of them about your pay. We read every application and come back to you.<% } else { %>Six questions, none of them about your pay. Tell us your situation and we will come back to you.<% } %>
+      <% if (applying) { %>A few questions, none of them about your pay. We read every application and come back to you.<% } else { %>A few questions, none of them about your pay. Tell us your situation and we will come back to you.<% } %>
     </p>
   </div>
 </section>
@@ -27,10 +27,7 @@
 
       <div class="tax-calc-card tax-enquire-card">
         <h2 class="h5 mb-1"><i class="bi bi-<%= applying ? 'send' : 'chat-dots' %> text-primary"></i> <%= applying ? 'Your application' : 'Your question' %></h2>
-        <p class="small text-muted-2 mb-4">
-          Whoever answers will ask what they need in the conversation, under their own terms —
-          which is the only place a duty of confidentiality actually applies.
-        </p>
+        <p class="small text-muted-2 mb-4">Keep it short — whoever replies will ask for anything else they need.</p>
 
           <% if (typeof error !== 'undefined' && error) { %>
             <div class="alert alert-danger"><%= error %></div>

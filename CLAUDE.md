@@ -791,7 +791,7 @@ with a real payroll to apply. The guardrails that make the difference:
   the section is not rendered at all. The participant count shows from
   `ACTIVE_COUNT_FLOOR` (10) upwards. Both tables are in the erasure PURGE and the export.
   There is no admin screen for either yet; rows are entered by hand.
-- "Apply now" is the same six-question enquiry with `topic=program` preselected, so it keeps
+- "Apply now" is the same enquiry with `topic=program` preselected, so it keeps
   its consent, its rate limit and its retention. "Is this legal?" must keep three points —
   home obligations still apply, foreign tax credit, consult an advisor — and a test holds
   them.
@@ -802,6 +802,11 @@ with a real payroll to apply. The guardrails that make the difference:
 - **With no payroll the calculator shows no inputs at all**, only "Calculator coming soon"
   and Ask about your setup: fields that cannot do anything look broken, and a sample figure
   would be a number nobody stands behind.
+- **The fee is a top-level key, not part of `payroll`**, so it can be published (step 2 of
+  How it works, and the hidden-costs answer) before the contribution rates are. It is still
+  one value: the loader hands it to the calculator inside the payroll, refuses a payroll that
+  carries its own, and refuses a payroll with no fee at all. The pages say "a few questions":
+  the form has seven fields, and a count is a claim somebody checks.
 - **Country selects come in groups** (`countryGroups` in `config/regions.js`): where most
   consultants on the Hub live, MEASURED from `consultant_profiles` rather than chosen; then a
   short list of the ~55 countries contractors here work from; then, on the enquiry form only

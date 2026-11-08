@@ -745,12 +745,6 @@
       if (dirty) { event.preventDefault(); event.returnValue = ''; }
     });
 
-    document.querySelectorAll('[data-submit-on-change]').forEach(function (input) {
-      input.addEventListener('change', function () {
-        // requestSubmit, so the form's submit handler (the unsaved-changes check) runs.
-        if (input.form) { if (input.form.requestSubmit) input.form.requestSubmit(); else input.form.submit(); }
-      });
-    });
     // A link that opens a section and puts the cursor in one of its fields.
     document.querySelectorAll('[data-focus]').forEach(function (a) {
       a.addEventListener('click', function (event) {
@@ -994,6 +988,72 @@
   });
 
   /*
+   * A control that applies its form as soon as it changes (a sort select). requestSubmit, so
+   * the form's own submit handler — the profile's unsaved-changes check — still runs. The
+   * form keeps a button inside <noscript> for the no-script case.
+   */
+  document.querySelectorAll('[data-submit-on-change]').forEach(function (input) {
+    input.addEventListener('change', function () {
+      if (input.form) { if (input.form.requestSubmit) input.form.requestSubmit(); else input.form.submit(); }
+    });
+  });
+
+  /*
+   * Save / unsave a job from a card without leaving the board. Without scripting the form
+   * posts and the route redirects back to the same filtered page.
+   */
+  /*
+   * On the Saved jobs page (and the Saved roles list on Your applications) a card is a
+   * `[data-saved-item]`: unsaving it takes the card out in place, says so, and offers Undo,
+   * which saves the job again and puts the card back where it was. The counts follow, and
+   * removing the last card shows the empty state the page already carries.
+   */
+  var savedToast = document.querySelector('[data-saved-toast]');
+  var toastTimer = null;
+  function savedCountBy(delta) {
+    document.querySelectorAll('[data-saved-count]').forEach(function (el) {
+      var n = Math.max(0, (parseInt(el.textContent, 10) || 0) + delta);
+      el.textContent = String(n);
+      var noun = el.parentElement && el.parentElement.querySelector('[data-saved-noun]');
+      if (noun) noun.textContent = n === 1 ? 'saved job' : 'saved jobs';
+    });
+    var left = document.querySelectorAll('[data-saved-item]:not([hidden])').length;
+    var empty = document.querySelector('[data-saved-empty]');
+    if (empty) empty.hidden = left > 0;
+    var toolbar = document.querySelector('[data-saved-toolbar]');
+    if (toolbar) toolbar.hidden = left === 0;
+  }
+  function showSavedToast(text, onUndo) {
+    if (!savedToast) return;
+    clearTimeout(toastTimer);
+    while (savedToast.firstChild) savedToast.removeChild(savedToast.firstChild);
+    var msg = document.createElement('span');
+    msg.textContent = text;
+    savedToast.appendChild(msg);
+    if (onUndo) {
+      var undo = document.createElement('button');
+      undo.type = 'button';
+      undo.className = 'btn btn-sm btn-link saved-toast-undo';
+      undo.textContent = 'Undo';
+      undo.addEventListener('click', function () {
+        clearTimeout(toastTimer);
+        savedToast.hidden = true;
+        onUndo();
+      });
+      savedToast.appendChild(undo);
+    }
+    savedToast.hidden = false;
+    toastTimer = setTimeout(function () { savedToast.hidden = true; }, 8000);
+  }
+  function postSave(form, savedValue) {
+    return apiFetch(form.action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ saved: savedValue })
+    }).then(function (r) { return r.ok ? r.json() : null; });
+  }
+
+  /*
    * Save / unsave a job from a card without leaving the board. Without scripting the form
    * posts and the route redirects back to the same filtered page.
    */
@@ -1001,23 +1061,32 @@
     form.addEventListener('submit', function (event) {
       event.preventDefault();
       var savedField = form.querySelector('input[name="saved"]');
-      var button = form.querySelector('.btn-save');
-      var icon = button.querySelector('.bi');
+      var button = form.querySelector('button');
+      var item = form.closest('[data-saved-item]');
       button.disabled = true;
-      apiFetch(form.action, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ saved: savedField.value })
-      })
-        .then(function (r) { return r.ok ? r.json() : null; })
+      postSave(form, savedField.value)
         .then(function (data) {
           if (!data || !data.success) { form.submit(); return; }
+          if (item && !data.saved) {
+            item.hidden = true;
+            savedCountBy(-1);
+            showSavedToast('Removed from saved jobs.', function () {
+              // "false" asks the route to SAVE: the field says what the state was before.
+              postSave(form, 'false').then(function (again) {
+                if (!again || !again.success) { showSavedToast('Could not restore it. Save it again from Find Jobs.'); return; }
+                item.hidden = false;
+                savedCountBy(1);
+              }).catch(function () { showSavedToast('Could not restore it. Save it again from Find Jobs.'); });
+            });
+            return;
+          }
           savedField.value = data.saved ? 'true' : 'false';
+          var icon = button.querySelector('.bi');
           button.classList.toggle('is-saved', data.saved);
           button.setAttribute('aria-pressed', data.saved ? 'true' : 'false');
           button.setAttribute('aria-label', data.saved ? 'Remove from saved jobs' : 'Save this job');
           button.title = data.saved ? 'Saved' : 'Save';
-          icon.className = 'bi ' + (data.saved ? 'bi-bookmark-star-fill' : 'bi-bookmark-star');
+          if (icon) icon.className = 'bi ' + (data.saved ? 'bi-bookmark-star-fill' : 'bi-bookmark-star');
         })
         .catch(function () { form.submit(); })
         .finally(function () { button.disabled = false; });

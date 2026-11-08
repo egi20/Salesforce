@@ -1354,6 +1354,28 @@ and any withdrawal (decline is a withdrawal with a note), and nothing else of th
 "Hired" still needs two decisions — the company's offer and the consultant's yes. On an
 offered row the list shows Accept / Decline instead of Withdraw.
 
+## Saved jobs
+
+`/dashboard/saved` uses the board's own job card (`views/partials/job-card.ejs`, `saved` local)
+rather than a second card, so a pill the board shows is a pill the shortlist shows. That is how
+an empty pill was found: `Job.listSaved` selected its own short column list without
+`seniority`, and every saved card rendered a blank badge where the level should be. It now
+selects the board's columns, and the card renders no pill for a level it does not have.
+
+A saved role that closed, expired or was taken down STAYS on the list, greyed, "No longer
+open", with only Remove — `is_open` in `listSaved` is the board's visibility rule, so a card
+offering Apply is one the board would show. A bookmark disappearing without a word is the
+thing somebody writes in about.
+
+"Highest rate" (`utils/savedJobs.js`) ranks only published rates: a hidden one deciding a
+card's position would leak it. Day rates and salaries are different units, so contract roles
+come first, permanent after, unpublished last. The whole list is read once and sliced, because
+SQL here cannot convert currencies; the count is the real one, not page length plus offset.
+
+The "Saved roles" block on Your applications is the same data and the same unsave handler
+(`[data-saved-item]` in `public/js/main.js`): removal is in place with Undo, built from DOM
+nodes, and Undo saves the job again rather than restoring a cached row.
+
 ## Browse Talent
 
 `/consultants` is built the way `/jobs` is: one form, checkbox groups with a count beside each

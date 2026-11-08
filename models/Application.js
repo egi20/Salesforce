@@ -518,6 +518,20 @@ class Application {
     return new Set(rows.map((r) => r.job_id));
   }
 
+  /**
+   * The consultant's application for each of these jobs, as a Map of job id → { id, status }:
+   * one query for a page of saved jobs, so a card can say "Applied · In review" instead of
+   * offering Apply twice.
+   */
+  static async statusByJob(consultantUserId, jobIds) {
+    if (!consultantUserId || !jobIds || !jobIds.length) return new Map();
+    const [rows] = await promisePool.query(
+      'SELECT id, job_id, status FROM applications WHERE consultant_user_id = ? AND job_id IN (?)',
+      [consultantUserId, jobIds]
+    );
+    return new Map(rows.map((r) => [r.job_id, { id: r.id, status: r.status }]));
+  }
+
   /** Every event for a set of applications, grouped by application id — one query per page. */
   static async eventsFor(applicationIds) {
     if (!applicationIds.length) return {};

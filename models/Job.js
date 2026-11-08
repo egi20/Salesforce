@@ -425,20 +425,40 @@ class Job {
     return rows.length > 0;
   }
 
+  /**
+   * The jobs a user saved, closed ones included — a bookmark outlives the advert, and the
+   * saved page says "No longer open" rather than letting the row vanish without a word.
+   *
+   * `is_open` is the board's own visibility rule (open, not expired, not taken down), so a
+   * card offering Apply is a card the board would show. The columns are the board's
+   * (`browse`) so the shared job card has everything it renders: this query once left out
+   * `seniority`, and every saved card carried an empty pill where the level should be.
+   */
   static async listSaved(userId, { limit = 20, offset = 0 } = {}) {
     const [rows] = await promisePool.query(
-      `SELECT j.id, j.title, j.slug, j.role, j.status, j.rate_min, j.rate_max, j.currency,
-              j.rate_visible, j.engagement_type, j.work_mode, j.country, j.city,
-              cp.company_name, cp.logo AS company_logo, sj.created_at AS saved_at
+      `SELECT j.id, j.title, j.slug, j.role, j.seniority, j.engagement_type, j.work_mode,
+              j.country, j.city, j.rate_min, j.rate_max, j.currency, j.rate_visible,
+              j.duration_months, j.published_at, j.status,
+              LEFT(j.description, 600) AS description_snippet,
+              cp.company_name, cp.slug AS company_slug, cp.logo AS company_logo,
+              ${FEATURED_EXPR} AS is_featured,
+              (j.status = 'open' AND (j.expires_at IS NULL OR j.expires_at > NOW())
+                AND j.admin_hidden_at IS NULL) AS is_open,
+              sj.created_at AS saved_at
          FROM saved_jobs sj
          JOIN jobs j ON j.id = sj.job_id
          LEFT JOIN company_profiles cp ON cp.user_id = j.company_user_id
         WHERE sj.user_id = ?
-        ORDER BY sj.created_at DESC
+        ORDER BY sj.created_at DESC, sj.job_id DESC
         LIMIT ? OFFSET ?`,
       [userId, limit, offset]
     );
-    return rows;
+    return rows.map((r) => ({ ...r, is_open: Boolean(Number(r.is_open)) }));
+  }
+
+  static async countSaved(userId) {
+    const [rows] = await promisePool.query('SELECT COUNT(*) AS n FROM saved_jobs WHERE user_id = ?', [userId]);
+    return Number(rows[0].n) || 0;
   }
 
   /**

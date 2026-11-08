@@ -43,25 +43,46 @@
       </div>
     <% } %>
 
+    <%
+      /*
+       * The same saved jobs as /dashboard/saved (Job.listSaved), narrowed to the ones still
+       * open and not applied for, and the same star: unsaving takes the row out in place
+       * with Undo, through the same handler. `savedTotal` counts every saved job, so the link
+       * says how many the full page holds.
+       */
+    %>
     <section class="mb-4" aria-labelledby="savedHeading">
-      <h2 class="h6 mb-2" id="savedHeading"><i class="bi bi-star-fill text-warning"></i> Saved roles</h2>
-      <% if (!saved.length) { %>
-        <div class="glass-card"><div class="card-body small text-muted-2">
-          Save roles from <a href="/jobs">Find Jobs</a> with <i class="bi bi-star"></i> and they appear here, ready to apply to.
-        </div></div>
-      <% } else { %>
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h6 mb-0" id="savedHeading"><i class="bi bi-bookmark-star-fill text-primary"></i> Saved roles</h2>
+        <% if (typeof savedTotal !== 'undefined' && savedTotal > 0) { %>
+          <a class="small" href="/dashboard/saved">All saved jobs (<span data-saved-count><%= savedTotal %></span>)</a>
+        <% } %>
+      </div>
+      <div class="glass-card" data-saved-empty<% if (saved.length) { %> hidden<% } %>><div class="card-body small text-muted-2">
+        Save roles from <a href="/jobs">Find Jobs</a> with <i class="bi bi-bookmark-star" aria-label="the save button"></i> and they appear here, ready to apply to.
+      </div></div>
+      <% if (saved.length) { %>
         <div class="glass-card"><ul class="list-unstyled mb-0">
           <% saved.forEach(function (j) { const pay = formatRateRange(j); %>
-            <li class="d-flex flex-wrap align-items-center gap-3 apps-saved-row">
+            <li class="d-flex flex-wrap align-items-center gap-3 apps-saved-row" data-saved-item>
               <% if (j.company_logo) { %><img class="logo-tile flex-shrink-0" src="<%= j.company_logo %>" alt="" loading="lazy">
               <% } else { %><span class="logo-initials <%= companyTone(j.company_name) %> flex-shrink-0" aria-hidden="true"><%= companyInitials(j.company_name || 'Confidential') %></span><% } %>
               <span class="flex-grow-1 min-w-0">
                 <a class="fw-semibold" href="/jobs/<%= j.slug %>"><%= j.title %></a>
                 <span class="d-block small text-muted-2"><%= [j.company_name || 'Confidential', jobLocation(j), pay].filter(Boolean).join(' · ') %></span>
               </span>
+              <form method="post" action="/jobs/<%= j.slug %>/save" class="job-save" data-save-job>
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="saved" value="true">
+                <input type="hidden" name="redirectTo" value="<%= currentUrl %>">
+                <button type="submit" class="btn-save is-saved" aria-pressed="true" aria-label="Remove <%= j.title %> from saved jobs" title="Saved">
+                  <i class="bi bi-bookmark-star-fill" aria-hidden="true"></i>
+                </button>
+              </form>
               <a class="btn btn-sm btn-primary" href="/jobs/<%= j.slug %>#apply">Apply</a>
             </li>
           <% }); %>
         </ul></div>
       <% } %>
     </section>
+    <div class="saved-toast" data-saved-toast role="status" aria-live="polite" hidden></div>

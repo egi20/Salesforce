@@ -16,6 +16,8 @@ const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination
 const { matchScore, matchReasons } = require('../utils/jobMatcher');
 const appStats = require('../utils/applicationStats');
 const ConsultantDocument = require('../models/ConsultantDocument');
+const RateSubmission = require('../models/RateSubmission');
+const { SAVED_SORTS, sortFrom, sortSaved } = require('../utils/savedJobs');
 
 const router = express.Router();
 
@@ -314,13 +316,15 @@ router.get(
      * both, and suggestions need a profile complete enough to match against — a match % from
      * a half-empty profile is a number that means nothing.
      */
-    const [consultantSkillIds, { rows: openJobs }, savedJobs, appliedIds] = await Promise.all([
+    const [consultantSkillIds, { rows: openJobs }, savedJobs, appliedIds, savedTotal] = await Promise.all([
       Skill.idsForConsultant(userId),
       Job.browse({}, { limit: 60, sort: 'newest' }),
       Job.listSaved(userId, { limit: 12 }),
-      Application.appliedJobIds(userId)
+      Application.appliedJobIds(userId),
+      Job.countSaved(userId)
     ]);
-    const saved = savedJobs.filter((j) => j.status === 'open' && !appliedIds.has(j.id)).slice(0, 6);
+    // Ready to apply to: still open by the board's own rule, and not applied for yet.
+    const saved = savedJobs.filter((j) => j.is_open && !appliedIds.has(j.id)).slice(0, 6);
     /*
      * With no applications only real matches (40%+) are offered: they are the way in. Below
      * a list, the row is "what to look at next", and it used to vanish without a word once
@@ -360,6 +364,7 @@ router.get(
       recommended,
       recommendedWeak,
       saved,
+      savedTotal,
       // Every link on the page is built from the current query with one thing changed.
       linkWith: (change) => {
         const params = new URLSearchParams();
@@ -375,16 +380,36 @@ router.get(
   })
 );
 
+/*
+ * Saved jobs. The whole list is read once (`SAVED_CAP`), ordered by `sortSaved` and sliced
+ * for the page: "Highest rate" converts currencies, which SQL here cannot, and a bookmark list
+ * is one person's, not a table that grows with the site. The count is the real one —
+ * it used to be the rows on this page plus the offset, which no paginator can trust.
+ */
+const SAVED_CAP = 500;
+
 router.get(
   '/saved',
   asyncHandler(async (req, res) => {
-    const { page, perPage, limit, offset } = paginationFrom(req.query);
-    const jobs = await Job.listSaved(req.session.user.id, { limit, offset });
+    const userId = req.session.user.id;
+    const { page, perPage, offset } = paginationFrom(req.query);
+    const sort = sortFrom(req.query.sort);
+    const all = sortSaved(await Job.listSaved(userId, { limit: SAVED_CAP }), sort, RateSubmission.toEur);
+    const jobs = all.slice(offset, offset + perPage);
+    const applications = req.session.user.isConsultant
+      ? await Application.statusByJob(userId, jobs.map((j) => j.id))
+      : new Map();
 
     res.render('dashboard/saved', {
       title: 'Saved jobs',
       jobs,
-      pagination: paginationMeta({ page, perPage, total: jobs.length + offset }),
+      total: all.length,
+      sort,
+      sorts: SAVED_SORTS,
+      applications,
+      statusLabel: appStats.statusLabel,
+      currentUrl: req.originalUrl,
+      pagination: paginationMeta({ page, perPage, total: all.length }),
       pageUrl: (p) => pageUrl('/dashboard/saved', req.query, p)
     });
   })

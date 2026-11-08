@@ -1,21 +1,67 @@
 <%- include('../partials/layout-start') %>
 
-<%- include('../partials/page-header', { icon: 'bi-bookmark', heading: 'Saved jobs', sub: 'Roles you bookmarked.' }) %>
+<section class="hub-hero saved-hero">
+  <div class="container text-center">
+    <span class="hub-hero-badge mb-3"><i class="bi bi-bookmark-star"></i> YOUR SHORTLIST</span>
+    <h1>Saved jobs</h1>
+    <p class="lead mx-auto mb-0">Roles you've bookmarked to come back to</p>
+  </div>
+</section>
 
 <section class="glass-section pb-5">
 <div class="container">
-  <%- include('../partials/flash') %>
-  <% if (jobs.length === 0) { %>
-    <div class="empty-state glass-card"><i class="bi bi-bookmark"></i>
-      <p class="mb-1">Nothing saved yet.</p><a href="/jobs">Browse roles</a></div>
-  <% } else { %>
-    <div class="row g-3">
-      <% jobs.forEach(function (job) { %>
-        <div class="col-lg-6"><%- include('../partials/job-card', { job: job }) %></div>
-      <% }); %>
+  <div class="row justify-content-center">
+    <div class="col-xl-9">
+      <%- include('../partials/flash') %>
+
+      <%
+        /*
+         * The empty state is in the page even when there are saved jobs, hidden: removing
+         * the last card in place shows it without a reload. Without scripting the page
+         * reloads after a removal and renders it from the server instead.
+         */
+      %>
+      <div class="empty-state glass-card saved-empty" data-saved-empty<% if (total > 0) { %> hidden<% } %>>
+        <i class="bi bi-bookmark-star"></i>
+        <h2 class="h5 mb-1">No saved jobs yet</h2>
+        <p class="mb-3">Tap <i class="bi bi-bookmark-star" aria-label="the save button"></i> on any role in Find Jobs to keep it here.</p>
+        <a class="btn btn-primary" href="/jobs">Browse open roles</a>
+      </div>
+
+      <% if (total > 0) { %>
+        <div class="saved-toolbar d-flex flex-wrap align-items-center gap-3 mb-3" data-saved-toolbar>
+          <p class="mb-0 fw-semibold"><span data-saved-count><%= total %></span> <span data-saved-noun><%= total === 1 ? 'saved job' : 'saved jobs' %></span></p>
+          <form method="get" action="/dashboard/saved" class="d-flex align-items-center gap-2 ms-auto">
+            <label class="small text-muted-2 mb-0" for="savedSort">Sort</label>
+            <select class="form-select form-select-sm" id="savedSort" name="sort" data-submit-on-change>
+              <% sorts.forEach(function (s) { %>
+                <option value="<%= s.value %>" <%= s.value === sort ? 'selected' : '' %>><%= s.label %></option>
+              <% }); %>
+            </select>
+            <noscript><button class="btn btn-sm btn-outline-secondary" type="submit">Sort</button></noscript>
+          </form>
+          <a class="btn btn-sm btn-outline-primary" href="/jobs"><i class="bi bi-search"></i> Browse all jobs</a>
+        </div>
+
+        <div data-saved-list>
+          <% jobs.forEach(function (job) {
+               const a = applications.get(job.id);
+          %>
+            <%- include('../partials/job-card', { job: job, returnUrl: currentUrl, saved: { application: a ? { status: a.status, label: statusLabel(a.status) } : null } }) %>
+          <% }); %>
+        </div>
+
+        <% if (sort === 'rate') { %>
+          <p class="small text-muted-2 mt-2 mb-0">Highest rate ranks only rates the company published: contract day rates first, then permanent salaries, then roles with no published rate. Other currencies are compared in EUR.</p>
+        <% } %>
+
+        <%- include('../partials/pagination', { pagination: pagination, pageUrl: pageUrl }) %>
+      <% } %>
     </div>
-  <% } %>
+  </div>
 </div>
 </section>
+
+<div class="saved-toast" data-saved-toast role="status" aria-live="polite" hidden></div>
 
 <%- include('../partials/layout-end') %>

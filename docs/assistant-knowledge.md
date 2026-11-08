@@ -50,6 +50,9 @@ People name pages by the menu label they see, so these are the labels:
   Jobs, Questions, Discussions, Articles and Wins — for visitors and members alike. The
   forum itself (`/community`), success stories and, once signed in, the daily challenge are
   in the footer under Community.
+- The top of the home feed shows **Salesforce news of the day**: one headline a day from the
+  Salesforce Newsroom, with a link to read it there. The Hub writes none of that text and is not
+  affiliated with Salesforce; the article itself is on salesforce.com.
 
 ## Pages, and what each is for
 

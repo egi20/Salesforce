@@ -231,6 +231,26 @@ The display name for the other party falls back to a neutral label, never the em
 part. That fallback is a real finding from the reference implementation: an account with no
 profile would otherwise leak a `firstname.lastname` email prefix.
 
+## Salesforce news of the day
+
+**It leads the first page of the home feed** (owner, 2026-11-08; ported from SAP Hub). It is
+READ from the Salesforce Newsroom's feed (`services/salesforceNews.js`, `SALESFORCE_NEWS_FEED_URL`,
+default `https://www.salesforce.com/news/feed/`), never written here: a news card the Hub typed
+would be a second newsroom nobody owns. The page never waits on Salesforce — a render reads the
+cache, and a stale or empty cache starts a background refresh (also once at boot, never in
+tests); a failed refresh keeps the last good copy. Links are host-pinned to salesforce.com over
+https (an item pointing elsewhere is dropped); tags are stripped and entities decoded in the
+service and the template escapes the rest, so no HTML from somebody else's feed reaches the
+front page. One pick a day, rotating through the ten newest by the server's UTC date, so
+everybody sees the same one; the others are a carousel (`public/js/news.js`, a list of links
+without scripting). A refresh failure is one `Salesforce news:` line in the log.
+
+**The fallback is a pointer, not a headline.** SAP Hub keeps three checked, dated headlines in
+its fallback; `config/salesforceNews.js` keeps none — one item that links to the newsroom itself
+and carries no date, and the card then says "Salesforce news", never "of the day". A headline
+written from memory is the thing most easily remembered wrong, and on the front page it is a
+claim made in somebody else's name. A test holds the fallback to that shape.
+
 ## Community and points
 
 One `posts` table with a `kind` discriminator — article, question, discussion, win. They

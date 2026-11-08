@@ -15,6 +15,7 @@ const SiteReview = require('../models/SiteReview');
 const config = require('../config/config');
 const Post = require('../models/Post');
 const Points = require('../models/Points');
+const salesforceNews = require('../services/salesforceNews');
 const ConsultantProfile = require('../models/ConsultantProfile');
 const ConsultantHiddenCompany = require('../models/ConsultantHiddenCompany');
 const CompanyProfile = require('../models/CompanyProfile');
@@ -79,6 +80,9 @@ router.get(
 
     res.render('feed/index', {
       title: viewer ? 'Home' : res.locals.seo.title,
+      // The day's Salesforce news leads the first page only; never awaited — see
+      // services/salesforceNews.js.
+      news: page === 1 ? salesforceNews.newsOfTheDay() : null,
       posts: postPage.rows,
       jobs: showJobs ? jobPage.rows : [],
       showJobs,

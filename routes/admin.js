@@ -1617,7 +1617,7 @@ router.get(
     const filters = { status: req.query.status || '', q: req.query.q || '' };
     const [{ rows, total }, companies] = await Promise.all([
       PlacementQuote.list(filters, { limit, offset }),
-      CompanyProfile.browse({}, { limit: 500, offset: 0 })
+      CompanyProfile.browse({ include_empty: true }, { limit: 500, offset: 0 })
     ]);
 
     res.render('admin/placements', {

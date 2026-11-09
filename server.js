@@ -293,6 +293,13 @@ app.use(
     res.locals.siteNotice = settings.site_notice;
     // The footer's social icons, saved on /admin/settings and host-checked again here.
     res.locals.socialLinks = socialLinks(settings);
+    // The email icon beside them, in the footer AND the rail: decided once here so the two
+    // cannot disagree. Only a real SUPPORT_EMAIL, never the example.com placeholder.
+    res.locals.socialEmail = /@example\.com$/i.test(config.app.supportEmail) ? null : config.app.supportEmail;
+    // The company behind the site, from the official documents (config/legal.js). Unset, the
+    // footer names nobody and offers no "Company Details" link to a card that is not there.
+    res.locals.footerCompany = legal.isConfigured() ? legal.controller.name : null;
+    res.locals.footerCompanyLink = legal.isConfigured() || !config.isProduction;
     next();
   })
 );

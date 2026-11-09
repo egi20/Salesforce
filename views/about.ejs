@@ -238,7 +238,8 @@
       placeholder company on a public page is worse than an absent one (the boot log warns).
     %>
     <% if (legal.isConfigured() || showDevNotes) { %>
-      <div class="col-lg-6">
+      <%# The footer's "Company Details" link lands here. %>
+      <div class="col-lg-6" id="who-runs-it">
         <div class="glass-card h-100"><div class="card-body p-4">
           <h2 class="h5 mb-3">Who runs it</h2>
           <% if (legal.isConfigured()) { %>

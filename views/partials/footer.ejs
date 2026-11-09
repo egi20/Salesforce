@@ -21,9 +21,10 @@
           // A visitor builds a profile by signing up; a consultant edits the one they have.
           [currentUser ? '/profile/settings' : '/auth/register', 'Build Profile'],
           ['/cv-generator', 'CV Generator'],
-          // A consultant's tool first; it stays under Services too, as it does in the menu.
+          // A consultant's tool, so it lives here and only here: the same link under two
+          // columns reads as two pages. The menu keeps it under Services.
           ['/rates', 'Rate & Salary Index'],
-          ['/rates/calculator', 'Rate calculator']
+          ['/rates/calculator', 'Rate Calculator']
         ]],
         ['Companies Hub', [
           ['/companies-hub', 'Companies Hub'],
@@ -34,11 +35,10 @@
           ['/services/managed-services', 'Managed Services'],
           // Out of the menu to keep it short, so they live here — not nowhere.
           ['/companies', 'Companies'],
-          ['/recruiters', 'Recruitment agencies']
+          ['/recruiters', 'Recruitment Agencies']
         ]],
         ['Services', [
           ['/tax-optimization', 'Tax Optimization'],
-          ['/rates', 'Rate & Salary Index'],
           ['/quotes/new', 'SOW Generator'],
           ['/services/document-generator', 'Document Generator'],
           ['/payments', 'Pricing']
@@ -55,7 +55,7 @@
           ...(currentUser ? [
             ['/community/new?kind=question', 'Ask a Question'],
             ['/community/new?kind=article', 'Share an Article'],
-            ['/challenges', 'Daily challenges'],
+            ['/challenges', 'Daily Challenges'],
             // The menu no longer has a Community dropdown, so this is where it lives now.
             ['/challenges/leaderboard', 'Leaderboard']
           ] : [])
@@ -69,8 +69,15 @@
           ['/ideas', 'Ideas']
         ]],
         ['Legal', [
-          ['/legal/privacy', 'Privacy policy'],
-          ['/legal/terms', 'Terms of service']
+          ['/legal/privacy', 'Privacy Policy'],
+          ['/legal/terms', 'Terms of Service'],
+          // The cookie policy IS the privacy policy's Cookies section, which lists what this
+          // deployment actually sets. A second page saying the same thing is a second place
+          // for the two to disagree.
+          ['/legal/privacy#cookies', 'Cookie Policy'],
+          // The legal entity, from config/legal.js. Hidden in production until it is set,
+          // because the card it opens is hidden too.
+          ...((typeof footerCompanyLink !== 'undefined' && footerCompanyLink) ? [['/about#who-runs-it', 'Company Details']] : [])
         ]]
       ];
     %>
@@ -89,11 +96,16 @@
         </p>
         <%# Only accounts saved on /admin/settings: an unset one is not rendered at all. %>
         <% const social = (typeof socialLinks !== 'undefined' && socialLinks) || []; %>
-        <% if (social.length) { %>
+        <%# The same email entry as the rail (socialEmail, server.js), so the two rows match. %>
+        <% const footerEmail = (typeof socialEmail !== 'undefined' && socialEmail) || null; %>
+        <% if (social.length || footerEmail) { %>
           <ul class="list-inline footer-social mt-3 mb-0" aria-label="Salesforce Hub elsewhere">
             <% social.forEach(function (s) { %>
-              <li class="list-inline-item"><a href="<%= s.href %>" rel="noopener" target="_blank" aria-label="<%= s.label %>"><i class="bi <%= s.icon %>" aria-hidden="true"></i></a></li>
+              <li class="list-inline-item"><a href="<%= s.href %>" rel="noopener" target="_blank" aria-label="<%= s.label %>" title="<%= s.label %>"><i class="bi <%= s.icon %>" aria-hidden="true"></i></a></li>
             <% }); %>
+            <% if (footerEmail) { %>
+              <li class="list-inline-item"><a href="mailto:<%= footerEmail %>" aria-label="Email" title="Email"><i class="bi bi-envelope" aria-hidden="true"></i></a></li>
+            <% } %>
           </ul>
         <% } %>
       </div>
@@ -109,7 +121,7 @@
                 A button, not a link: it changes a setting in this browser and goes nowhere.
                 public/js/analytics.js wires it; consent nobody can withdraw is not consent.
               %>
-              <li><button type="button" class="btn btn-link p-0 footer-link-button" data-analytics-choices>Analytics choices</button></li>
+              <li><button type="button" class="btn btn-link p-0 footer-link-button" data-analytics-choices>Analytics Choices</button></li>
             <% } %>
           </ul>
         </div>
@@ -117,7 +129,8 @@
     </div>
     <hr class="footer-rule">
     <div class="d-flex flex-wrap justify-content-between small gap-2">
-      <span>&copy; <%= new Date().getFullYear() %> <%= appName %>. All rights reserved.</span>
+      <%# The legal entity beside the brand once it is set from the official documents, as on /about. %>
+      <span>&copy; <%= new Date().getFullYear() %> <%= appName %><% if (typeof footerCompany !== 'undefined' && footerCompany) { %>, operated by <%= footerCompany %><% } %>. All rights reserved.</span>
       <span>Built for the Salesforce community</span>
     </div>
     <%# Its own line, never shortened to fit the row above: it is what makes an independent %>

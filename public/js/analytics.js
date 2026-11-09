@@ -12,7 +12,7 @@
  * storage throws (private browsing), the question is asked again on every page and GA4
  * never loads — the honest failure, since we cannot remember a yes.
  *
- * "Analytics choices" in the footer reopens the question. Withdrawing deletes the _ga
+ * "Analytics Choices" in the footer reopens the question. Withdrawing deletes the _ga
  * cookies this site set and stops the tag for the rest of the page.
  */
 (function analyticsConsent() {

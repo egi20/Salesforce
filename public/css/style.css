@@ -2295,7 +2295,7 @@ body[data-active-tab="account"] .profile-savebar { display: none; }
 .analytics-scroll { max-height: 420px; overflow-y: auto; }
 .live-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--grad-success); vertical-align: middle; }
 
-/* "Analytics choices" in the footer is a button, because it changes a setting and goes
+/* "Analytics Choices" in the footer is a button, because it changes a setting and goes
    nowhere; it is dressed as the links beside it. */
 .footer-hub .footer-link-button { color: inherit; opacity: 0.85; text-decoration: none; font-size: inherit; vertical-align: baseline; border: 0; }
 .footer-hub .footer-link-button:hover, .footer-hub .footer-link-button:focus { opacity: 1; text-decoration: underline; }

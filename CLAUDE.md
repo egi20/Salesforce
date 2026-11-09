@@ -935,8 +935,10 @@ see nothing and both write.
 
 **Topic challenges (2026-11-08, migration 045).** `/challenges` is now a hub: "Today's mix"
 at `/challenges/daily` and six topics at `/challenges/<topic>`, each five questions a day from
-its own bank in `config/challengeBank.js` (≥ `MIN_PER_TOPIC` = 20 each, asserted at boot; only
-`config/challenges.js` may read the file, and a test pins that). Every one is the same engine:
+its own bank in `config/challengeBank/<topic>.json` (≥ `MIN_PER_TOPIC` = 60 each, asserted at boot; only
+`config/challenges.js` may read the directory, and a test pins that). Sixty because a day draws six
+from a topic — five for its set, one for the mix — and at twenty a question came back within days.
+One question per JSON line, so a review reads text and a diff shows exactly which question moved. Every one is the same engine:
 `setFor(date, slug)`, `publicFormOf`, `gradeAnswers`. The unique key is now
 `(user_id, challenge_date, challenge)` — one attempt per challenge per day — and the column has
 no default, so an insert that forgets which challenge it graded fails rather than counting as
@@ -944,7 +946,9 @@ the mix. The MIX takes five topics and the SIXTH question of each topic's order 
 it never repeats a question from that day's topic sets: playing a topic first is no head start.
 Points keys: the mix keeps `challenge:<date>:<user>:<i>` so no earlier award can be paid twice
 under a new key; a topic adds its slug. The streak counts DAYS with any attempt; the day's board
-sums every challenge played that day. Slugs are checked with `hasOwnProperty`
+sums every challenge played that day. The hub's cards are full gradients with white text;
+`.challenge-tone-*` stops are read from the stylesheet by a test and held to 4.5:1. `/challenges`
+does not light up Home in the top bar — the account menu's Challenges item is the active one. Slugs are checked with `hasOwnProperty`
 (`isChallenge('__proto__')` is false) and an unknown one is a 404. `POST /challenges` answers
 308 to `/challenges/daily`, so a form cached before the move still posts its answers.
 

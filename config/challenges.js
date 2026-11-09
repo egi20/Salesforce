@@ -38,7 +38,7 @@ const crypto = require('crypto');
  */
 
 /**
- * The question bank lives in `config/challengeBank.js`, by topic, and this module is the
+ * The question bank lives in `config/challengeBank/` (one JSON file per topic), and this module is the
  * only one that reads it. `answer` is NEVER serialised to a client — `publicFormOf` is the
  * only thing a route may render, and a test asserts the route module cannot reach the raw
  * bank. `explain` is shown AFTER grading, which is the part that makes this worth playing
@@ -52,26 +52,28 @@ const { TOPIC_QUESTIONS } = require('./challengeBank');
  * one is the same engine with the same rules: marked on the server, one attempt per person
  * per day, the same set for everybody, one point per correct answer.
  *
- * `tone` is one of the sanctioned `.icon-*` gradient classes in style.css — never a colour here.
+ * `tone` names a `.challenge-tone-<tone>` gradient in style.css — never a colour here. The
+ * cards carry WHITE text on that gradient, so a test reads both stops of every tone from the
+ * stylesheet and holds them to 4.5:1 with `utils/contrast.js`.
  */
 const TOPICS = Object.freeze([
-  { slug: 'admin-security', title: 'Admin & Security', icon: 'bi-shield-lock', tone: 'icon-navy', blurb: 'Sharing, profiles, permission sets and sandboxes.' },
-  { slug: 'apex-lwc', title: 'Apex & LWC', icon: 'bi-code-slash', tone: 'icon-blue', blurb: 'Governor limits, triggers, tests and Lightning Web Components.' },
-  { slug: 'flow-automation', title: 'Flow & Automation', icon: 'bi-diagram-3', tone: 'icon-success', blurb: 'Record-triggered flows, the order of execution and approvals.' },
-  { slug: 'data-integration', title: 'Data Cloud & Integration', icon: 'bi-hdd-network', tone: 'icon-info', blurb: 'Data streams, identity resolution, APIs and events.' },
-  { slug: 'agentforce-ai', title: 'Agentforce & AI', icon: 'bi-robot', tone: 'icon-violet', blurb: 'Agents, grounding, the Trust Layer and prompt design.' },
-  { slug: 'sales-service', title: 'Sales, Service & Experience', icon: 'bi-headset', tone: 'icon-amber', blurb: 'Leads, CPQ, Omni-Channel, cases and sites.' }
+  { slug: 'admin-security', title: 'Admin & Security', icon: 'bi-shield-lock', tone: 'navy', blurb: 'Sharing, profiles, permission sets and sandboxes.' },
+  { slug: 'apex-lwc', title: 'Apex & LWC', icon: 'bi-code-slash', tone: 'blue', blurb: 'Governor limits, triggers, tests and Lightning Web Components.' },
+  { slug: 'flow-automation', title: 'Flow & Automation', icon: 'bi-diagram-3', tone: 'green', blurb: 'Record-triggered flows, the order of execution and approvals.' },
+  { slug: 'data-integration', title: 'Data Cloud & Integration', icon: 'bi-hdd-network', tone: 'teal', blurb: 'Data streams, identity resolution, APIs and events.' },
+  { slug: 'agentforce-ai', title: 'Agentforce & AI', icon: 'bi-robot', tone: 'violet', blurb: 'Agents, grounding, the Trust Layer and prompt design.' },
+  { slug: 'sales-service', title: 'Sales, Service & Experience', icon: 'bi-headset', tone: 'amber', blurb: 'Leads, CPQ, Omni-Channel, cases and sites.' }
 ]);
 
 /** The mixed set keeps the slug the single daily challenge always had. */
 const DAILY = 'daily';
-const DAILY_CHALLENGE = Object.freeze({ slug: DAILY, title: "Today's mix", icon: 'bi-lightning-charge', tone: 'icon-navyblue', blurb: 'One question from five different topics.' });
+const DAILY_CHALLENGE = Object.freeze({ slug: DAILY, title: "Today's mix", icon: 'bi-lightning-charge', tone: 'mix', blurb: 'One question from five different topics.' });
 
 const CHALLENGES = Object.freeze([DAILY_CHALLENGE, ...TOPICS]);
 const CHALLENGE_BY_SLUG = Object.freeze(Object.fromEntries(CHALLENGES.map((c) => [c.slug, c])));
 
 /** A topic bank needs at least this many, so a topic is not the same five every few days. */
-const MIN_PER_TOPIC = 20;
+const MIN_PER_TOPIC = 60;
 
 /** Every question, flat, with its topic — for the integrity check and the bank size. */
 const QUESTIONS = Object.freeze(

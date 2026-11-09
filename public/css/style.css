@@ -3179,9 +3179,28 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
 .challenges-term.t9 { top: 40%; left: 80%; animation-delay: -4.5s; opacity: 0.7; }
 @keyframes challenges-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 @media (prefers-reduced-motion: reduce) { .challenges-term { animation: none; } }
-.challenge-card { position: relative; overflow: hidden; }
-.challenge-band { height: 6px; box-shadow: none; }
-.challenge-featured { border: 1px solid rgba(1, 118, 211, 0.25); }
+/*
+ * Topic cards: a full gradient with white text, like a game tile. Every stop is dark enough
+ * for white text at 4.5:1 — tests/unit/challenges.test.js reads these two lines per tone and
+ * measures them, so a lighter stop fails the suite rather than a reader.
+ */
+.challenge-card { position: relative; overflow: hidden; display: flex; flex-direction: column; border-radius: var(--radius-xl); color: #fff; box-shadow: var(--glass-shadow-lg); transition: var(--transition-fast); }
+.challenge-card:hover { transform: translateY(-2px); }
+.challenge-card h2, .challenge-card h3, .challenge-card p { color: #fff; }
+.challenge-card-body { flex: 1 1 auto; display: flex; flex-direction: column; padding: 1.5rem; }
+.challenge-featured .challenge-card-body { flex-direction: row; }
+.challenge-card-actions { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.challenge-icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: var(--radius-lg); background: rgba(255, 255, 255, 0.18); font-size: 1.2rem; }
+.challenge-icon-lg { width: 56px; height: 56px; font-size: 1.5rem; }
+.challenge-kicker { display: inline-block; margin-bottom: 0.25rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.challenge-done { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.75rem; border-radius: 999px; background: rgba(255, 255, 255, 0.18); font-size: 0.82rem; font-weight: 700; }
+.challenge-tone-mix { background: linear-gradient(135deg, #01203f 0%, #0b5cab 100%); }
+.challenge-tone-navy { background: linear-gradient(135deg, #032d60 0%, #0b5cab 100%); }
+.challenge-tone-blue { background: linear-gradient(135deg, #0b5cab 0%, #0176d3 100%); }
+.challenge-tone-green { background: linear-gradient(135deg, #14573d 0%, #1d7a55 100%); }
+.challenge-tone-teal { background: linear-gradient(135deg, #075a75 0%, #0a6f8f 100%); }
+.challenge-tone-violet { background: linear-gradient(135deg, #3d4a8f 0%, #5361b0 100%); }
+.challenge-tone-amber { background: linear-gradient(135deg, #6e4200 0%, #8a5300 100%); }
 .challenge-resources li { margin-bottom: 0.45rem; }
 .challenge-resources li:last-child { margin-bottom: 0; }
 .challenge-resources .bi { margin-right: 0.35rem; color: var(--primary-blue); }

@@ -39,21 +39,27 @@
   <div class="row g-4">
     <div class="col-lg-8">
 
-      <article class="glass-card challenge-card challenge-featured mb-4">
-        <div class="challenge-band <%= featured.tone %>"></div>
-        <div class="card-body p-4 d-flex flex-wrap align-items-center gap-3">
-          <span class="icon-tile <%= featured.tone %>"><i class="bi <%= featured.icon %>"></i></span>
+      <%
+        /*
+         * Each card is a full gradient with white text, every stop held to 4.5:1 by a test.
+         * The card is a flex column and its body grows, so the action row sits at the bottom
+         * whether the description takes one line or two.
+         */
+      %>
+      <article class="challenge-card challenge-tone-<%= featured.tone %> challenge-featured mb-4">
+        <div class="challenge-card-body d-flex flex-wrap align-items-center gap-3">
+          <span class="challenge-icon challenge-icon-lg"><i class="bi <%= featured.icon %>"></i></span>
           <div class="flex-grow-1 min-w-0">
-            <span class="section-badge mb-1">Featured</span>
-            <h2 class="h5 mb-1"><%= featured.title %> — <%= questionsPerDay %> questions</h2>
-            <p class="small text-muted-2 mb-0"><%= featured.blurb %> None of them is in today's topic sets.</p>
+            <span class="challenge-kicker">Featured</span>
+            <h2 class="h4 mb-1"><%= featured.title %> — <%= questionsPerDay %> questions</h2>
+            <p class="mb-0"><%= featured.blurb %> None of them is in today's topic sets.</p>
           </div>
-          <div class="d-flex align-items-center gap-2">
+          <div class="d-flex flex-wrap align-items-center gap-2">
             <% if (featuredDone) { %>
-              <span class="badge-hub ok"><i class="bi bi-check2"></i> <%= featuredDone %></span>
-              <a class="btn btn-sm btn-outline-primary" href="/challenges/<%= featured.slug %>">See result</a>
+              <span class="challenge-done"><i class="bi bi-check2-circle"></i> <%= featuredDone %></span>
+              <a class="btn btn-light btn-sm" href="/challenges/<%= featured.slug %>">See result</a>
             <% } else { %>
-              <a class="btn btn-primary" href="/challenges/<%= featured.slug %>"><i class="bi bi-play-fill"></i> Play</a>
+              <a class="btn btn-light" href="/challenges/<%= featured.slug %>"><i class="bi bi-play-fill"></i> Play</a>
             <% } %>
           </div>
         </div>
@@ -66,20 +72,19 @@
       <div class="row g-3">
         <% topics.forEach(function (t) { const done = doneLabel(t.slug); %>
           <div class="col-md-6">
-            <article class="glass-card challenge-card h-100">
-              <div class="challenge-band <%= t.tone %>"></div>
-              <div class="card-body p-4 d-flex flex-column">
+            <article class="challenge-card challenge-tone-<%= t.tone %> h-100">
+              <div class="challenge-card-body">
                 <div class="d-flex align-items-center gap-3 mb-2">
-                  <span class="icon-tile icon-tile-sm <%= t.tone %>"><i class="bi <%= t.icon %>"></i></span>
+                  <span class="challenge-icon"><i class="bi <%= t.icon %>"></i></span>
                   <h3 class="h6 mb-0"><%= t.title %></h3>
                 </div>
-                <p class="small text-muted-2 mb-3"><%= t.blurb %></p>
-                <div class="mt-auto d-flex align-items-center gap-2">
+                <p class="small mb-3"><%= t.blurb %></p>
+                <div class="challenge-card-actions">
                   <% if (done) { %>
-                    <span class="badge-hub ok"><i class="bi bi-check2"></i> <%= done %></span>
-                    <a class="btn btn-sm btn-outline-primary ms-auto" href="/challenges/<%= t.slug %>">See result</a>
+                    <span class="challenge-done"><i class="bi bi-check2-circle"></i> <%= done %></span>
+                    <a class="btn btn-sm btn-light ms-auto" href="/challenges/<%= t.slug %>">See result</a>
                   <% } else { %>
-                    <a class="btn btn-sm btn-primary ms-auto" href="/challenges/<%= t.slug %>" aria-label="Play <%= t.title %>"><i class="bi bi-play-fill"></i> Play</a>
+                    <a class="btn btn-sm btn-light ms-auto" href="/challenges/<%= t.slug %>" aria-label="Play <%= t.title %>"><i class="bi bi-play-fill"></i> Play</a>
                   <% } %>
                 </div>
               </div>

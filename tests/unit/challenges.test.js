@@ -345,3 +345,18 @@ describe('corrected questions', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+describe('the topic cards', () => {
+  const { contrastRatio } = require('../../utils/contrast');
+  const css = fs.readFileSync(require.resolve('../../public/css/style.css'), 'utf8');
+
+  test('every tone is a gradient white text can be read on, at both stops', () => {
+    // The cards carry white text on the whole gradient, so the LIGHTER stop is the one that
+    // decides. A tone without a class would render white text on the page background.
+    for (const c of challenges.CHALLENGES) {
+      const rule = css.match(new RegExp(`\\.challenge-tone-${c.tone} \\{ background: linear-gradient\\(135deg, (#[0-9a-f]{6}) 0%, (#[0-9a-f]{6}) 100%\\); \\}`));
+      expect(rule).not.toBeNull();
+      for (const stop of rule.slice(1, 3)) expect(contrastRatio('#ffffff', stop)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});

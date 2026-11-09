@@ -674,7 +674,10 @@ and same team. Three things on it are DATA with an owner, and the page hides eac
   not rendered without one. Dynamics Hub's stories are about Dynamics 365 and are never copied here.
 
 The platform tiles are counts of rows (`SiteStats.platformCounts`, open roles through
-`Job.buildFilter`) and a tile at 0 is hidden. "What we stand for" is the old "What it refuses to
+`Job.buildFilter`) and a tile at 0 is hidden. They count whatever the database holds, so seed data in production
+would publish invented people as real: at boot in production, `SiteStats.seedAccountCount` counts
+accounts on the reserved `example.com` domain (every seeded account uses it, no real person can)
+and warns if there are any. It warns and never deletes — removing them is an operator's decision. "What we stand for" is the old "What it refuses to
 do", restated against what the code does today: the tax programme exists but gives no tax advice,
 and Import from CV is named as the one other use of a CV file, because "uploaded CVs only go to
 companies you apply to" was otherwise true of stored CVs and not of the import.

@@ -100,3 +100,12 @@ describe('the team', () => {
     });
   });
 });
+
+describe('demo data in production', () => {
+  it('counts accounts on the reserved example.com domain', async () => {
+    const { promisePool } = require('../../config/database');
+    const spy = jest.spyOn(promisePool, 'query').mockResolvedValue([[{ n: '3' }]]);
+    await expect(SiteStats.seedAccountCount()).resolves.toBe(3);
+    expect(spy.mock.calls[0][0]).toMatch(/@example\.com[\s\S]*\.example\.com/);
+  });
+});

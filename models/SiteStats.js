@@ -102,6 +102,18 @@ class SiteStats {
     return Object.fromEntries(Object.entries(row).map(([k, v]) => [k, Number(v) || 0]));
   }
 
+  /**
+   * Accounts on the reserved example.com domain (RFC 2606). No real person can hold one, and
+   * every account `npm run seed` creates uses it, so a non-zero count in production means the
+   * platform tiles on /about are counting invented people. Warned at boot, never deleted here.
+   */
+  static async seedAccountCount() {
+    const [[row]] = await promisePool.query(
+      "SELECT COUNT(*) AS n FROM users WHERE email LIKE '%@example.com' OR email LIKE '%.example.com'"
+    );
+    return Number(row.n) || 0;
+  }
+
   static async resetVisitorGeography() {
     const [result] = await promisePool.query('DELETE FROM visit_geo_daily');
     return result.affectedRows;

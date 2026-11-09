@@ -3254,8 +3254,11 @@ a.about-stat:hover { color: inherit; transform: translateY(-2px); }
 .about-steps li { display: flex; gap: 0.9rem; margin-bottom: 1.1rem; }
 .about-steps li:last-child { margin-bottom: 0; }
 .about-step-n { flex-shrink: 0; width: 2rem; height: 2rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--primary-blue); color: #fff; font-weight: 700; }
-.about-values li { display: flex; gap: 0.6rem; padding: 0.35rem 0; font-weight: 600; }
+.about-values .about-value { display: flex; align-items: center; gap: 0.6rem; height: 100%; padding: 0.65rem 0.85rem; font-weight: 600; border: 1px solid var(--border-color, #dbe4f0); border-radius: 0.75rem; background: rgba(255, 255, 255, 0.6); }
 .about-values .bi { color: var(--primary-blue); }
+/* The text column may shrink below its content, and the Draft note wraps, so a long bio never pushes past a phone's card. */
+.about-member > div { min-width: 0; flex: 1; }
+.about-member .badge-hub { white-space: normal; text-align: left; }
 .about-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
 .about-avatar-initials { display: inline-flex; align-items: center; justify-content: center; background: var(--grad-navy); color: #fff; font-weight: 700; font-size: 1.2rem; }
 .about-address { white-space: pre-line; }

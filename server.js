@@ -360,6 +360,17 @@ if (require.main === module) {
     console.log(`${config.app.name} listening on port ${config.app.port} (${config.env})`);
   });
 
+  // The /about tiles and every public count read the live tables. Seed data in a production
+  // database would publish invented people as real ones, so say so loudly — never throw: a
+  // warning about data must not take a running site down.
+  if (config.isProduction) {
+    require('./models/SiteStats').seedAccountCount()
+      .then((n) => {
+        if (n > 0) console.warn(`WARNING: ${n} demo account(s) on example.com in a production database. Public counts on /about include them.`);
+      })
+      .catch((err) => console.warn('Could not check for demo accounts:', err.message));
+  }
+
   const shutdown = (signal) => {
     console.log(`${signal} received, shutting down.`);
     server.close(() => {

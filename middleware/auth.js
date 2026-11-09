@@ -3,6 +3,7 @@
 const User = require('../models/User');
 const ConsultantProfile = require('../models/ConsultantProfile');
 const CompanyProfile = require('../models/CompanyProfile');
+const SalesAgent = require('../models/SalesAgent');
 const { safePath } = require('../utils/safeRedirect');
 
 /**
@@ -153,7 +154,10 @@ async function validateActiveAccount(req, res, next) {
       }
     }
 
-    req.session.user = User.buildSessionUser(user, { displayName, profilePicture });
+    // An agent is a row in `sales_agents`, not a user type: read here with everything else so
+    // pausing an agent removes the dashboard on their next request.
+    const isSalesAgent = Boolean(await SalesAgent.activeAgentFor(user.id));
+    req.session.user = User.buildSessionUser(user, { displayName, profilePicture, isSalesAgent });
     return next();
   } catch (err) {
     return next(err);

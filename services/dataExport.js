@@ -57,6 +57,9 @@ const OWNED = Object.freeze({
   applications: 'consultant_user_id',
   saved_jobs: 'user_id',
   company_shortlists: 'user_id',
+  tax_program_participants: 'user_id',
+  tax_program_stories: 'user_id',
+  generated_documents: 'user_id',
   rate_submissions: 'user_id',
   posts: 'author_user_id',
   post_replies: 'author_user_id',
@@ -69,7 +72,9 @@ const OWNED = Object.freeze({
   invoices: 'user_id',
   site_reviews: 'user_id',
   referrers: 'user_id',
-  sales_agents: 'user_id'
+  sales_agents: 'user_id',
+  sales_agent_leads: 'user_id',
+  agent_commission_ledger: 'user_id'
 });
 
 /** Columns never exported from any table, whatever it is called there. */

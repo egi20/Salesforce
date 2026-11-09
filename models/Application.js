@@ -518,6 +518,20 @@ class Application {
     return new Set(rows.map((r) => r.job_id));
   }
 
+  /**
+   * The consultant's application for each of these jobs, as a Map of job id → { id, status }:
+   * one query for a page of saved jobs, so a card can say "Applied · In review" instead of
+   * offering Apply twice.
+   */
+  static async statusByJob(consultantUserId, jobIds) {
+    if (!consultantUserId || !jobIds || !jobIds.length) return new Map();
+    const [rows] = await promisePool.query(
+      'SELECT id, job_id, status FROM applications WHERE consultant_user_id = ? AND job_id IN (?)',
+      [consultantUserId, jobIds]
+    );
+    return new Map(rows.map((r) => [r.job_id, { id: r.id, status: r.status }]));
+  }
+
   /** Every event for a set of applications, grouped by application id — one query per page. */
   static async eventsFor(applicationIds) {
     if (!applicationIds.length) return {};
@@ -552,6 +566,24 @@ class Application {
    * time: idempotent and writes no new row, so it is safe on the GET that triggers it — the
    * one exception to "no GET writes", because "opened" can only be observed on a read.
    */
+  /**
+   * The day rates consultants put on contract applications in the last `months`, one row per
+   * application, for "Asked on applications" on /rates. Rows, not an AVG: the mean is taken
+   * over PEOPLE in `rateAggregation.meanOfPeople`, with the same floor as the index.
+   */
+  static async askedDayRates({ months = 12 } = {}) {
+    const [rows] = await promisePool.query(
+      `SELECT a.consultant_user_id AS user_id, a.day_rate, a.currency
+         FROM applications a
+         JOIN jobs j ON j.id = a.job_id
+        WHERE j.engagement_type = 'contract'
+          AND a.day_rate IS NOT NULL AND a.day_rate > 0
+          AND a.created_at >= DATE_SUB(NOW(), INTERVAL ? MONTH)`,
+      [months]
+    );
+    return rows;
+  }
+
   static async markViewed(applicationId) {
     await promisePool.query('UPDATE applications SET viewed_at = NOW() WHERE id = ? AND viewed_at IS NULL', [applicationId]);
   }

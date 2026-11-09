@@ -41,8 +41,8 @@ People name pages by the menu label they see, so these are the labels:
 - **Companies Hub** — the hub page itself (`/companies-hub`, every hiring tool on one page),
   Browse Talent (`/consultants`), Get SOW Quote (`/quotes/new`), and the
   three engagement models: Staff Augmentation, Project-Based, Managed Services.
-- **Services** — Tax Optimization (`/tax-advisory`; it introduces a specialist and
-  calculates nothing), Rate & Salary Index (`/rates`, which links
+- **Services** — Tax Optimization (`/tax-optimization`; employment through the Hub's Albania
+  entity, with a take-home calculator once its payroll rates are published), Rate & Salary Index (`/rates`, which links
   to the calculator), SOW Generator (`/quotes/new`), Document Generator.
 - The company directory (`/companies`) and the agency directory (`/recruiters`) are in the
   footer, under Companies Hub, not in the top menu.
@@ -64,8 +64,8 @@ People name pages by the menu label they see, so these are the labels:
 | `/jobs/new` | Post a role. Company accounts only. |
 | `/consultants` | Browse Talent, the consultant directory. Only profiles their owners have made public appear. Filter by cloud, role, official certification, minimum years of experience, availability, country, seniority, work mode, LinkedIn verified, Trailhead and maximum day rate; each option shows how many consultants it would show, and filters apply as you tick them. Cards show the title, years of experience, country, rate (or "Rate on request"), availability, certifications and a short bio. Signed-out visitors see "Sign in to shortlist" and a link to create a company account. Company and recruiter accounts can press ★ Shortlist to keep a private list (only that company sees it; the consultant is not told) and filter to "My shortlist only"; with an open role they also see "Invite to apply", which opens the approach form on the profile; a company with no open role sees "Post a role to invite". On the profile form the seniority level must match the years of experience (Junior 0–2, Mid 3–5, Senior 6–9, Lead 10+); typing the years moves the level to match. |
 | `/companies` | The company directory. |
-| `/rates` | The day-rate index: percentiles and trends by role, seniority and country. |
-| `/rates/submit` | Contribute your own day rate. This is what keeps the index alive. |
+| `/rates` | Rate & Salary Index. "Benchmark my rate" is the Hub's EDITORIAL model (base rate for the role × experience × region, adjusted for certifications, skills, work arrangement, industry and contract type; every figure listed under Methodology) and gives a min, recommended and max day rate with monthly, annual and equivalent-salary figures from the contract rate calculator. Beside it, community data: a trend of the median day rate (30 days, 12 weeks or 12 months) and rates by role; the community index by role, experience and region (median and P25–P75, nothing shown below three people); day-rate budgets and salaries from open job adverts. Consultants share their own rate on the same page (#share): role, contract or permanent, the figure in EUR, years of experience, country optional. |
+| `/rates/submit` | Old address of the share form; it now opens `/rates#share`. |
 | `/rates/calculator` | What a day rate is worth over a year once holiday, the bench and running costs come out. Public, stateless, and **before tax**. |
 | `/profile/consultant/download/package` | A consultant's CV and rate card, rendered from their profile as a zip. Also `/cv` and `/rate-card` individually. |
 | `/quotes/new` | SOW Quote Generator. The page opens with "Get your SOW quote in minutes" (Start new quote, View history), how it works, the supported Salesforce clouds and what the SOW contains; the form follows, in four steps: 1. Client info, 2. Scope (every cloud with its modules, searchable, plus AppExchange add-ons and integrations), 3. Shape & options (complexity, customisation, users, orgs, contingency, currency, training and hypercare), 4. Review & generate (man-days, duration, budget, phases, team and timeline). On Scope and Shape a panel shows the running total as you choose, worked out by the same engine as the saved estimate. If you have a quote already, "Use last quote" fills the form from it (a new quote is saved; the old one is unchanged). Save quote keeps it in Your quotes; Download SOW pack saves it and downloads the pack. |
@@ -75,34 +75,38 @@ People name pages by the menu label they see, so these are the labels:
 | `/messages` | Your conversations. Threads are anchored to an application or a specific role. |
 | `/dashboard` | Your home: applications, roles, saved jobs, activity. |
 | `/dashboard/applications` | My Applications, for consultants: every application with its status (Applied, In review, Shortlisted, Interview, Offer, Hired, Rejected, Withdrawn), whether the company has viewed it, the CV that was sent, the rate you proposed and a timeline. Filter by status, Active or Archived, contract or permanent, or search; add a private note only you can see; message the company or withdraw. When a company makes you an offer, the row shows Accept offer and Decline instead of Withdraw. A nudge appears after 14 days with no reply. With no applications yet it shows roles that match your profile and your saved roles. You get an email when a company moves one of your applications. |
+| `/dashboard/saved` | Saved jobs: every role you saved with the bookmark on Find Jobs, newest saved first, or sorted by newest posting or highest published rate. Each card has View details and Apply, or your application's status if you already applied ("Applied · In review"). The "Saved" button removes a role in place, with Undo. A role that has closed or expired stays, greyed and marked "No longer open", with only Remove. Your applications shows the same saved roles that are still open and not applied for. |
 | `/profile/company` | Build or edit your company profile. |
 | `/profile/company/template` | Document branding: your colours, letterhead and standard clauses. |
-| `/profile/settings` | "Build your profile": one page with sections for Basics, Salesforce (clouds, certifications, Trailhead), Work & rate, Projects & experience, Documents (upload a CV or cover letter as PDF or .docx — older .doc files are not accepted), Privacy, and Account (email, password, roles, LinkedIn, your data). "Import from CV" reads a .docx or .txt CV and shows what it found; nothing is kept until you tick it and save. "Preview public profile" shows the page as a signed-in company sees it. An account without the consultant role sees only the Account section and a button to add the role. `/profile/consultant` redirects here. |
+| `/profile/settings` | "Build your profile": one page with sections for Basics, Salesforce (clouds, certifications, Trailhead), Work & rate, Projects & experience, Documents (a summary with links to My documents), Privacy, and Account (email, password, roles, LinkedIn, your data). "Import from CV" reads a .docx or .txt CV and shows what it found; nothing is kept until you tick it and save. "Preview public profile" shows the page as a signed-in company sees it. An account without the consultant role sees only the Account section and a button to add the role. `/profile/consultant` redirects here. |
 | `/payments` | What the two paid things cost. |
 | `/payments/history` | Your payments and invoices. |
-| `/referrals` | The referral scheme: get a link, see what it has earned, set payout details. |
+| `/referrals` | Your referrals: your link with Copy, LinkedIn and Email sharing, and your code; how many opened it, signed up and verified their email; unpaid, earned, paid out and introductions; an Introductions tab (date joined, role and what it earned — never who) and an Earnings tab (every ledger entry); what earns commission; where to pay you; your rate, window and start date. |
+| `/referrals/agent` | Sales agent dashboard, for Salesforce Hub sales agents only (others get "page not found"): the agent's sign-up link and its figures, leads with a seven-stage pipeline (New to Won or Lost), adding and moving leads, the monthly target, commission on tax optimization and SOW quote payments, and the people who signed up through the link. Department, commission and target are set by an administrator. |
 | `/s/<code>` | A sales agent's personal sign-up link — a member of the Hub's own team. It lands on `/auth/register`. It is not the referral scheme and earns nobody a commission; it only records whose link brought somebody in, once, at sign-up. An agent sees their link and who came through it on `/dashboard`. Agents are added by an administrator; nobody can make themselves one. |
 | `/notifications` | Your notifications. |
 | `/auth/register` | Create a free account. |
 | `/auth/login` | Sign in. |
-| `/tax-advisory` | What the tax advisory service is: an introduction to a specialist who works in your country. It does not calculate anything. |
-| `/tax-advisory/enquire` | Describe your situation and ask to be introduced. Open to anyone, signed in or not. Six questions, none about pay. |
+| `/tax-optimization` | Tax optimization: keep your clients and location and be employed through the Hub's Albania entity (a technology park with reduced social contributions). How it works in three steps, why Albania, who is eligible, an FAQ, and a calculator that shows the program's Albanian payroll applied to your gross — it runs in the browser and stores nothing, and says the figures are not available yet until the rates are published. Home-country tax obligations still apply; the Hub is not a tax advisor. `/tax-advisory` redirects here. |
+| `/tax-optimization/enquire` | Apply to the program ("Apply now" opens it with the program preselected) or ask about your setup ("Contact us"). Open to anyone, signed in or not. A few questions, none about pay; kept for 180 days, then deleted. |
 | `/success-stories` | Case studies from real projects, plus reviews members have left. |
 | `/success-stories/reviews` | Read member reviews, or leave one. You need an account to leave one. |
 | `/recruiters` | The directory of recruitment agencies and headhunters. |
 | `/recruiters/dashboard` | An agency's own home. Recruiter accounts only. |
-| `/challenges` | The daily challenge: five Salesforce questions, one attempt a day. Signed in. |
-| `/challenges/leaderboard` | Who scored what today and over the last thirty days. |
+| `/challenges` | Daily challenges, signed in: "Today's mix" (five questions, one from each of five topics) and six topic challenges — Admin & Security, Apex & LWC, Flow & Automation, Data Cloud & Integration, Agentforce & AI, and Sales, Service & Experience — five questions a day each. One attempt per challenge per day, the same questions for everybody, a new set at midnight UTC. The page shows which ones you have done today and your score, your streak, your record and today's rankings. |
+| `/challenges/daily`, `/challenges/<topic>` | Play one challenge; after submitting you see the correct answers and an explanation for each. |
+| `/challenges/leaderboard` | Who scored what today (all of today's challenges added together) and over the last thirty days. |
 | `/search` | One box across jobs, consultants, companies, agencies and the community. |
 | `/services/staff-augmentation`, `/services/project-based`, `/services/managed-services` | The three shapes an engagement can take, and which one fits. Each ends at the consultant directory or the scope estimator. |
 | `/services/document-generator` | Document Generator, for companies: a quote becomes an SOW, work breakdown and deck. Nothing is stored. "The SOW pack: three documents from one estimate", with Start new quote and Your quotes. One card per file says what is in it: the SOW (scope, add-ons and integrations; approach, timeline and acceptance criteria; team and commercials; assumptions, exclusions, your terms and validity), the work breakdown (summary, WBS with a weekly Gantt, scope, team and cost) and the deck (title, at a glance, scope, approach, timeline, team and commercials, assumptions and next steps). It also explains why the three agree and shows a sample timeline. How it works, the supported clouds and the full list of SOW sections are on /quotes/new. It points consultants to the CV Generator. |
-| `/cv-generator` | CV Generator, for consultants: a CV (.docx) or CV + rate card (.zip) generated from the profile. Choose the sections (projects, employment, certifications, Trailhead, day rate), preview, download. "My documents" lists uploaded CVs and cover letters. The Hub does not write cover letters; upload your own. Visitors are asked to create an account. |
+| `/cv-generator` | CV Generator, for consultants: a CV (.docx) or CV + rate card (.zip) generated from the profile. Choose the sections (projects, employment, certifications, Trailhead, day rate), preview, download. Opened from an application ("Make a CV for this role"), it remembers which application the CV was for. Uploaded CVs and cover letters are on My documents. The Hub does not write cover letters; upload your own. Visitors are asked to create an account. |
+| `/profile/documents` | My documents (user menu): a consultant's uploaded CVs (up to 5) and cover letters (up to 10) — PDF or .docx, at most 5 MB, no macros, older .doc files are not accepted. Download, set the default (preselected when applying), rename or delete each. "Recently generated" lists CVs and rate cards made with the CV Generator, with "Generate again"; generated files are not stored, only the fact they were made. A company account sees its SOW quotes with their .docx, .xlsx, .pptx and .zip downloads. |
 | `/profile/settings` (Work & rate, Privacy) | Where a consultant sets their rates. Three optional figures — a day rate, an hourly rate and the salary a permanent role would have to pay. None is calculated from another. One switch hides all three: the profile then reads "Rate on request" to everyone else, while the figures still drive match scores and the rate card. A private profile is out of the directory, but a company the consultant applied to can still open the profile they were sent. |
 | `/admin/analytics` | Administrators: the site's own counts (visitors and sign-ups by country, the daily challenge, monthly growth), with screens for Google Analytics 4 and Cloudflare Web Analytics beside it where those are configured. |
 | `/admin/applications` | Superadmins only: the state of every application on the site — never its content — and how many have sat untouched. |
 | `/admin/tests` | An administrator's panel that makes real requests against this site's own routes and records what they answered. Admin accounts. |
 | `/dashboard/applicants` | An employer's board: every application across every role they have posted, by stage, with a filter for the role and how recently somebody applied. Company accounts. Moving somebody between stages happens on the application's own page. |
-| `/about` | What the Hub is, who runs it, and the things it deliberately does not do — no tax calculation, no generated prose in a member's name, no uploaded documents served back out. |
+| `/about` | What the Hub is: the Salesforce sister platform of Dynamics Hub, run by the same team. The Consultant Hub, Companies Hub and tools; platform numbers; how it works for consultants and for companies; real stories from members who agreed to share them; the mission and values; the founder and team; what the site stands for (no tax advice, the rate index's three-contributor floor, CVs built only from what you entered, uploaded CVs going only to companies you apply to, no messages sent pretending to be you, moderation that hides rather than deletes); the trademark notice; and who runs it. |
 | `/faq` | Frequently asked questions. |
 | `/contact` | One address, read by a person. Also where a data request goes. |
 | `/report-issue` | Tell us something is broken or wrong, or suggest something. No account needed. You can say how badly it affects you and attach up to three screenshots, which are deleted 90 days after the report is closed. A suggestion can be offered for the ideas page with a tick box. |
@@ -133,6 +137,15 @@ whom does not expire, the earning does.
 
 Exact figures — the rate, the per-payment cap, the payout minimum and the window — are on
 `/referrals`. **Do not quote any of them from memory**, they are configuration.
+
+A referrer sees how many people their link brought in and what each earned, but never who
+those people are: an introduction shows only the date and the role (consultant or company).
+
+Sales agents are Salesforce Hub team members, not referrers. An agent's link is `/s/<code>`
+and their dashboard is `/referrals/agent`. An agent can see the email address, role, country
+and join date of people who signed up through their link — the sign-up form says so — and
+earns a commission agreed with an administrator on what those people pay for tax
+optimization or a SOW quote. Never quote an agent's rate or target: they are set per agent.
 
 Things people ask: you cannot refer yourself; first touch wins and a later link does not
 move someone already attributed; a balance below the payout minimum keeps accruing and is
@@ -176,14 +189,14 @@ automatically.
   depends on country, company structure, VAT registration and how someone pays themselves,
   and a figure that looked like tax advice but was a guess would be worse than none. Every
   figure it shows is before tax and labelled so.
-- **Nothing on this site calculates tax, a take-home figure or a saving — including the
-  tax advisory service.** `/tax-advisory` is an INTRODUCTION: somebody describes their
-  situation and a specialist who works in their jurisdiction gets in touch. The Hub is not
-  an accountant, gives no advice, and shows no before-and-after. If somebody asks "how much
-  would I save", say plainly that the site will not answer that and cannot honestly — and
-  point them at `/tax-advisory/enquire`, or at `/rates/calculator` for the part that does
-  not depend on jurisdiction. Never estimate a figure yourself.
-- **The advisory form asks for six things and none of them is money.** Name, email, an
+- **The only take-home figure on this site is the calculator on `/tax-optimization`**, and
+  it is narrow: it applies the Albania program's own payroll to a gross the visitor types,
+  in their browser, and only once the program's rates are published (until then it says
+  "Figures aren't available yet" and points to the enquiry form). It is not anybody's tax position — home-country tax obligations
+  still apply — and the Hub is not an accountant and gives no advice. If somebody asks "how
+  much would I save", point them at that calculator and at `/tax-optimization/enquire`, and
+  say a tax advisor in their country has to confirm it. Never estimate a figure yourself.
+- **The form asks a few things and none of them is money.** Name, email, an
   optional phone number, country of tax residence, how the person works today, and their
   question. It does not ask for salary, employer, notice period, day rate or VAT status. If
   somebody is worried about what they are handing over, that is the answer. The enquiry is
@@ -199,10 +212,11 @@ automatically.
   available to the site, so nothing could check them. If someone asks what the badge means,
   say this plainly. LinkedIn is not a way to sign in here; it only links to an account
   someone is already signed in to, and no access token is kept.
-- **The daily challenge is graded on the server.** Everybody gets the same five questions,
-  chosen by the date, and the page you are answering on does not know which option is
-  correct — it posts what you chose and the server marks it. One attempt a day, and the
-  streak is counted from your attempts rather than from a button. A correct answer is worth
+- **The challenges are graded on the server.** Every challenge — the mix and each topic —
+  gives everybody the same five questions, chosen by the date, and the page you are
+  answering on does not know which option is correct — it posts what you chose and the
+  server marks it. One attempt per challenge per day, and the streak is counted from the
+  days you played any challenge rather than from a button. A correct answer is worth
   the smallest award on the site on purpose: a quiz should nudge a standing, not build one.
 - **Anyone can leave a review, but only with an account**, and a moderator approves it
   before it appears. Editing a review sends it back for approval. The role shown beside a

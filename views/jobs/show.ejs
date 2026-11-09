@@ -147,12 +147,12 @@
                   <label class="form-label" for="cv_document_id">CV to send</label>
                   <select class="form-select" id="cv_document_id" name="cv_document_id">
                     <% cvDocuments.forEach(function (d) { %>
-                      <option value="<%= d.id %>"><%= d.title || d.filename %><%= d.is_default ? ' (default)' : '' %></option>
+                      <option value="<%= d.id %>" <%= d.is_default ? 'selected' : '' %>><%= d.title || d.filename %><%= d.is_default ? ' (default)' : '' %></option>
                     <% }); %>
                     <option value="" <%= cvDocuments.length ? '' : 'selected' %>>No file — my Hub profile only</option>
                   </select>
                   <% if (!cvDocuments.length) { %>
-                    <p class="form-text mb-0">Your profile always goes with the application. <a href="/profile/settings#documents">Upload a CV</a> to send a file too.</p>
+                    <p class="form-text mb-0">Your profile always goes with the application. <a href="/profile/documents?upload=cv#upload">Upload a CV</a> to send a file too.</p>
                   <% } %>
                 </div>
                 <button class="btn btn-primary w-100" type="submit">Send application</button>

@@ -29,9 +29,9 @@ const PAGE_META = {
     description: 'Partners, ISVs and end customers hiring Salesforce talent.'
   },
   '/rates': {
-    title: 'Salesforce day rate index',
+    title: 'Rate & Salary Index for Salesforce consultants',
     description:
-      'Aggregated day rates for Salesforce roles, contributed anonymously by the community. Aggregates below three contributors are suppressed.'
+      'Benchmark your Salesforce day rate with an editorial model, and see median rates contributed anonymously by consultants and offered in job postings. Groups below three people are never shown.'
   },
   '/success-stories': {
     title: 'Salesforce delivery success stories',
@@ -43,10 +43,10 @@ const PAGE_META = {
     description:
       'Agencies and headhunters placing Salesforce consultants, by cloud specialism and country.'
   },
-  '/tax-advisory': {
-    title: 'Tax advisory for Salesforce contractors',
+  '/tax-optimization': {
+    title: 'Tax optimization for Salesforce contractors',
     description:
-      'An introduction to a specialist who works in your country. Salesforce Hub does not calculate your tax, your take-home pay or a saving.'
+      'Keep your clients and your location, and be employed through our Albania entity. How the program works, who it is for, and what still applies at home.'
   },
   '/services/staff-augmentation': {
     title: 'Salesforce staff augmentation',
@@ -91,19 +91,19 @@ const PAGE_META = {
   '/about': {
     title: 'About Salesforce Hub',
     description:
-      'An independent marketplace for the Salesforce ecosystem: jobs, consultants and contributed day rates — and the things this site deliberately will not do.'
+      'Where Salesforce talent meets opportunity: a specialist job board, a consultant directory and tools for CVs, day rates and project quotes — the Salesforce sister platform of Dynamics Hub.'
   },
   '/auth/login': { title: 'Sign in', description: 'Sign in to Salesforce Hub.' },
   '/auth/register': { title: 'Create an account', description: 'Join Salesforce Hub as a consultant or a hiring company.' }
 };
 
 /** Paths that may appear in the sitemap and carry a canonical URL. */
-// `/tax-advisory` is indexable; `/tax-advisory/enquire` deliberately is not. A form page
+// `/tax-optimization` is indexable; `/tax-optimization/enquire` deliberately is not. A form page
 // carries no content a search result can usefully show, and the page above it already
 // links to it.
 const PUBLIC_PATHS = ['/', '/about', '/blog', '/consultant-hub', '/companies-hub',
   '/services/staff-augmentation', '/services/project-based', '/services/managed-services',
-  '/services/document-generator', '/cv-generator', '/jobs', '/consultants', '/companies', '/rates', '/recruiters', '/success-stories', '/tax-advisory', '/faq', '/contact', '/legal/privacy', '/legal/terms'];
+  '/services/document-generator', '/cv-generator', '/jobs', '/consultants', '/companies', '/rates', '/recruiters', '/success-stories', '/tax-optimization', '/faq', '/contact', '/legal/privacy', '/legal/terms'];
 
 function canonicalUrl(path) {
   const clean = String(path || '/').split('?')[0];

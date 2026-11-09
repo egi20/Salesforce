@@ -90,6 +90,35 @@ class SiteStats {
    * once, deliberately, rather than read around that history forever. It holds counts and
    * nothing else, so there is no audit row to keep: what goes is a tally, not a record.
    */
+  /**
+   * The platform numbers on /about, each a plain count of rows that exist. Accounts that were
+   * erased or closed are not "registered"; open roles are counted by `Job.buildFilter`'s own
+   * visibility rule, so the tile and /jobs cannot disagree; "hired" counts PEOPLE hired, not
+   * hire events. The page hides any tile whose value is 0.
+   */
+  static async platformCounts() {
+    const [[row]] = await promisePool.query(
+      `SELECT
+         (SELECT COUNT(*) FROM users WHERE is_consultant = 1 AND is_active = 1 AND anonymised_at IS NULL) AS consultants,
+         (SELECT COUNT(*) FROM users WHERE is_company = 1 AND is_active = 1 AND anonymised_at IS NULL) AS companies,
+         (SELECT COUNT(*) FROM applications) AS applications,
+         (SELECT COUNT(DISTINCT consultant_user_id) FROM applications WHERE status = 'hired') AS hired`
+    );
+    return Object.fromEntries(Object.entries(row).map(([k, v]) => [k, Number(v) || 0]));
+  }
+
+  /**
+   * Accounts on the reserved example.com domain (RFC 2606). No real person can hold one, and
+   * every account `npm run seed` creates uses it, so a non-zero count in production means the
+   * platform tiles on /about are counting invented people. Warned at boot, never deleted here.
+   */
+  static async seedAccountCount() {
+    const [[row]] = await promisePool.query(
+      "SELECT COUNT(*) AS n FROM users WHERE email LIKE '%@example.com' OR email LIKE '%.example.com'"
+    );
+    return Number(row.n) || 0;
+  }
+
   static async resetVisitorGeography() {
     const [result] = await promisePool.query('DELETE FROM visit_geo_daily');
     return result.affectedRows;

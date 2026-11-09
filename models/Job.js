@@ -120,6 +120,13 @@ function buildFilter(filters = {}) {
       params.push(min);
     }
   }
+  if (filters.rate_published) {
+    /*
+     * Only adverts whose company chose to show the figure. A rate an employer hid on the job
+     * page must not reappear, aggregated, on the rate index.
+     */
+    where.push('j.rate_visible = 1 AND (j.rate_min IS NOT NULL OR j.rate_max IS NOT NULL)');
+  }
   if (filters.posted_within_days) {
     /*
      * "Posted in the last N days", bounded by the caller against a declared list so this
@@ -326,6 +333,23 @@ class Job {
     return { rows, total };
   }
 
+  /**
+   * The published figures of the adverts a filter selects, for the rate index's "Day rate
+   * budgets" and "Annual salaries". Through `buildFilter` like every list, so a job that is
+   * closed, expired or taken down is not counted, and with `rate_published` so a hidden
+   * rate stays hidden.
+   */
+  static async rateRows(filters = {}) {
+    const { clause, params } = buildFilter({ ...filters, rate_published: true });
+    const [rows] = await promisePool.query(
+      `SELECT j.role, j.seniority, j.engagement_type, j.rate_min, j.rate_max, j.currency, j.published_at
+         FROM jobs j
+        WHERE ${clause}`,
+      params
+    );
+    return rows;
+  }
+
   /*
    * Counts per value of one filter field, for the board's checkbox groups — the usual facet
    * rule: the field's OWN selection is left out (ticking Albania must not make Germany read
@@ -401,20 +425,40 @@ class Job {
     return rows.length > 0;
   }
 
+  /**
+   * The jobs a user saved, closed ones included — a bookmark outlives the advert, and the
+   * saved page says "No longer open" rather than letting the row vanish without a word.
+   *
+   * `is_open` is the board's own visibility rule (open, not expired, not taken down), so a
+   * card offering Apply is a card the board would show. The columns are the board's
+   * (`browse`) so the shared job card has everything it renders: this query once left out
+   * `seniority`, and every saved card carried an empty pill where the level should be.
+   */
   static async listSaved(userId, { limit = 20, offset = 0 } = {}) {
     const [rows] = await promisePool.query(
-      `SELECT j.id, j.title, j.slug, j.role, j.status, j.rate_min, j.rate_max, j.currency,
-              j.rate_visible, j.engagement_type, j.work_mode, j.country, j.city,
-              cp.company_name, cp.logo AS company_logo, sj.created_at AS saved_at
+      `SELECT j.id, j.title, j.slug, j.role, j.seniority, j.engagement_type, j.work_mode,
+              j.country, j.city, j.rate_min, j.rate_max, j.currency, j.rate_visible,
+              j.duration_months, j.published_at, j.status,
+              LEFT(j.description, 600) AS description_snippet,
+              cp.company_name, cp.slug AS company_slug, cp.logo AS company_logo,
+              ${FEATURED_EXPR} AS is_featured,
+              (j.status = 'open' AND (j.expires_at IS NULL OR j.expires_at > NOW())
+                AND j.admin_hidden_at IS NULL) AS is_open,
+              sj.created_at AS saved_at
          FROM saved_jobs sj
          JOIN jobs j ON j.id = sj.job_id
          LEFT JOIN company_profiles cp ON cp.user_id = j.company_user_id
         WHERE sj.user_id = ?
-        ORDER BY sj.created_at DESC
+        ORDER BY sj.created_at DESC, sj.job_id DESC
         LIMIT ? OFFSET ?`,
       [userId, limit, offset]
     );
-    return rows;
+    return rows.map((r) => ({ ...r, is_open: Boolean(Number(r.is_open)) }));
+  }
+
+  static async countSaved(userId) {
+    const [rows] = await promisePool.query('SELECT COUNT(*) AS n FROM saved_jobs WHERE user_id = ?', [userId]);
+    return Number(rows[0].n) || 0;
   }
 
   /**

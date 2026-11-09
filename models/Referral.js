@@ -49,6 +49,9 @@ function normaliseCode(value) {
   return new RegExp(`^[${CODE_ALPHABET}]{${CODE_LENGTH}}$`).test(upper) ? upper : '';
 }
 
+/** The migration that started counting referral link opens; its applied_at dates the count. */
+const OPENS_MIGRATION = '046_referral_links_and_agent_dashboard.sql';
+
 class Referral {
   static generateCode = generateCode;
 
@@ -295,22 +298,92 @@ class Referral {
     return { rows, total };
   }
 
-  /** Who they introduced, and whether it has earned anything. No email, no name of a payer. */
+  /**
+   * Who they introduced, and whether it has earned anything. No email, no name, no country:
+   * the date they joined, which ROLE they joined as, and what it earned. A role says what kind
+   * of introduction it was without saying who.
+   */
   static async introductionsFor(referrerId, { limit = 50, offset = 0 } = {}) {
     const [rows] = await promisePool.query(
       `SELECT a.id, a.created_at, a.earns_until,
+              u.is_consultant, u.is_company,
               COALESCE(SUM(l.amount_minor), 0) AS earned_minor,
               COUNT(l.id) AS conversions
          FROM referral_attributions a
+         JOIN users u ON u.id = a.referred_user_id
          LEFT JOIN commission_ledger l
            ON l.referred_user_id = a.referred_user_id AND l.entry_type = 'earned'
         WHERE a.referrer_id = ?
-        GROUP BY a.id, a.created_at, a.earns_until
+        GROUP BY a.id, a.created_at, a.earns_until, u.is_consultant, u.is_company
         ORDER BY a.created_at DESC
         LIMIT ? OFFSET ?`,
       [referrerId, limit, offset]
     );
-    return rows;
+    return rows.map((r) => ({ ...r, earned_minor: Number(r.earned_minor) || 0 }));
+  }
+
+  /**
+   * What the link has done, as counts only: opens (people, once per session — counted in
+   * `/referrals/go/:code`), sign-ups attributed, and how many of those confirmed an email.
+   *
+   * Opens were only counted from migration 046 on, so a referrer enrolled earlier can have
+   * sign-ups with no open behind them ("0 opens, 2 sign-ups"). `opensSince` is when counting
+   * began for THIS referrer — the later of the migration and their enrolment — read from the
+   * migration history rather than a date in code, so it is true for every deployment. The
+   * rate divides the sign-ups SINCE then by the opens, so it never compares two different
+   * periods and never reads above 100% because of history nobody measured.
+   */
+  static async linkStatsFor(referrerId) {
+    const [[since]] = await promisePool.query(
+      `SELECT GREATEST(r.created_at, COALESCE(m.applied_at, r.created_at)) AS opens_since
+         FROM referrers r
+         LEFT JOIN schema_migrations m ON m.filename = ?
+        WHERE r.id = ?`,
+      [OPENS_MIGRATION, referrerId]
+    );
+    const opensSince = since ? since.opens_since : null;
+    const [[row]] = await promisePool.query(
+      `SELECT r.link_opens,
+              COUNT(a.id) AS signups,
+              COALESCE(SUM(a.created_at >= ?), 0) AS signups_since,
+              COALESCE(SUM(u.email_verified = 1), 0) AS verified
+         FROM referrers r
+         LEFT JOIN referral_attributions a ON a.referrer_id = r.id
+         LEFT JOIN users u ON u.id = a.referred_user_id
+        WHERE r.id = ?
+        GROUP BY r.id, r.link_opens`,
+      [opensSince || new Date(0), referrerId]
+    );
+    const opens = Number(row && row.link_opens) || 0;
+    const signups = Number(row && row.signups) || 0;
+    const signupsSince = Number(row && row.signups_since) || 0;
+    return {
+      opens,
+      signups,
+      verified: Number(row && row.verified) || 0,
+      opensSince,
+      // Sign-ups before counting began are real but have no open behind them.
+      signupsBeforeCounting: signups - signupsSince,
+      // Null below one open: a rate with nothing under it is not 0%, it is no rate.
+      signupRatePct: opens > 0 ? Math.min(100, Math.round((signupsSince / opens) * 100)) : null
+    };
+  }
+
+  static async countOpen(referrerId) {
+    await promisePool.query('UPDATE referrers SET link_opens = link_opens + 1 WHERE id = ?', [referrerId]);
+  }
+
+  /** Earned entries grouped by the PRODUCT that was paid for, for "What earns commission". */
+  static async earningsByProduct(referrerId) {
+    const [rows] = await promisePool.query(
+      `SELECT p.product, COUNT(*) AS n, COALESCE(SUM(l.amount_minor), 0) AS earned_minor
+         FROM commission_ledger l
+         JOIN payments p ON p.id = l.payment_id
+        WHERE l.referrer_id = ? AND l.entry_type = 'earned'
+        GROUP BY p.product`,
+      [referrerId]
+    );
+    return new Map(rows.map((r) => [r.product, { count: Number(r.n), earnedMinor: Number(r.earned_minor) }]));
   }
 
   /**

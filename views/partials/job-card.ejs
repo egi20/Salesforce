@@ -9,10 +9,18 @@
    * Optional locals: `match` ({ score, reasons }) from the recommender, and `savedIds` (a
    * Set) — the star is offered only where the page passed one, so a list that never asked
    * for saved state does not show every job as unsaved.
+   *
+   * `saved` ({ application }) is the Saved jobs page: the star reads "Saved" and removes the
+   * card in place, the card gets View details / Apply (or the application's status when
+   * there is one), and a role no longer open is greyed with only Remove left. `job.is_open`
+   * comes from `Job.listSaved`, the board's own visibility rule.
    */
   const m = typeof match !== 'undefined' ? match : null;
-  const saveState = typeof savedIds !== 'undefined' && savedIds ? savedIds : null;
+  const savedView = typeof saved !== 'undefined' && saved ? saved : null;
+  const saveState = savedView ? new Set([job.id]) : (typeof savedIds !== 'undefined' && savedIds ? savedIds : null);
   const isSaved = saveState ? saveState.has(job.id) : false;
+  const closed = savedView ? !job.is_open : false;
+  const appl = savedView ? savedView.application : null;
   const rateText = formatRateRange(job);
   const place = jobLocation(job);
   const posted = postedAgo(job.published_at);
@@ -22,7 +30,7 @@
   const roleInTitle = roleText && String(job.title || '').toLowerCase().includes(roleText.toLowerCase());
   const backTo = typeof returnUrl !== 'undefined' ? returnUrl : currentPath;
 %>
-<article class="glass-card job-card mb-3 <%= job.is_featured ? 'job-featured' : '' %>">
+<article class="glass-card job-card mb-3 <%= job.is_featured && !closed ? 'job-featured' : '' %> <%= closed ? 'job-card-closed' : '' %>"<% if (savedView) { %> data-saved-item<% } %>>
   <div class="card-body d-flex gap-3">
     <% if (job.company_logo) { %>
       <img class="logo-tile flex-shrink-0" src="<%= job.company_logo %>" alt="" loading="lazy">
@@ -32,26 +40,28 @@
     <div class="flex-grow-1 min-w-0">
       <div class="d-flex justify-content-between align-items-start gap-2">
         <h3 class="mb-1 h6">
-          <a class="stretched-link text-reset text-decoration-none" href="/jobs/<%= job.slug %>"><%= job.title %></a>
+          <% if (closed) { %><%= job.title %><% } else { %><a class="stretched-link text-reset text-decoration-none" href="/jobs/<%= job.slug %>"><%= job.title %></a><% } %>
         </h3>
         <div class="job-card-side d-flex align-items-center gap-2 flex-shrink-0">
           <% if (m) { %>
             <span class="badge-hub match-badge" title="How well this role matches your profile"><%= m.score %>% match</span>
           <% } %>
-          <% if (job.status && job.status !== 'open') { %>
+          <% if (closed) { %>
+            <span class="badge-hub muted">No longer open</span>
+          <% } else if (!savedView && job.status && job.status !== 'open') { %>
             <span class="badge-hub muted"><%= job.status %></span>
           <% } %>
-          <% if (saveState) { %>
+          <% if (saveState && !closed) { %>
             <% if (currentUser) { %>
               <form method="post" action="/jobs/<%= job.slug %>/save" class="job-save" data-save-job>
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <input type="hidden" name="saved" value="<%= isSaved ? 'true' : 'false' %>">
                 <input type="hidden" name="redirectTo" value="<%= backTo %>">
-                <button type="submit" class="btn-save <%= isSaved ? 'is-saved' : '' %>"
+                <button type="submit" class="btn-save <%= isSaved ? 'is-saved' : '' %> <%= savedView ? 'btn-save-label' : '' %>"
                         aria-pressed="<%= isSaved ? 'true' : 'false' %>"
                         aria-label="<%= isSaved ? 'Remove from saved jobs' : 'Save this job' %>"
                         title="<%= isSaved ? 'Saved' : 'Save' %>">
-                  <i class="bi <%= isSaved ? 'bi-bookmark-star-fill' : 'bi-bookmark-star' %>" aria-hidden="true"></i>
+                  <i class="bi <%= isSaved ? 'bi-bookmark-star-fill' : 'bi-bookmark-star' %>" aria-hidden="true"></i><% if (savedView) { %> <span>Saved</span><% } %>
                 </button>
               </form>
             <% } else { %>
@@ -73,6 +83,8 @@
           <% m.reasons.forEach(function (r) { %><span class="badge-hub ok"><i class="bi bi-check2"></i> <%= r %></span><% }); %>
         </div>
       <% } %>
+      <%# On the saved page the actions share the pills' row, on the right, and wrap below them only when the row is full. %>
+      <div class="<%= savedView ? 'job-card-bottom d-flex flex-wrap align-items-center gap-2' : '' %>">
       <div class="d-flex flex-wrap gap-1">
         <%
           /*
@@ -85,11 +97,33 @@
           <span class="badge-hub featured"><i class="bi bi-stars"></i> Featured</span>
         <% } %>
         <% if (!roleInTitle) { %><span class="badge-hub cloud"><%= roleText %></span><% } %>
-        <span class="badge-hub"><%= seniorityLabel(job.seniority) %></span>
+        <%# A level the query did not select is no pill at all, never an empty one. %>
+        <% if (job.seniority) { %><span class="badge-hub"><%= seniorityLabel(job.seniority) %></span><% } %>
         <% if (job.work_mode !== 'remote') { %><span class="badge-hub"><%= workModeLabel(job.work_mode) %></span><% } %>
         <span class="badge-hub"><%= engagementLabel(job.engagement_type) %></span>
         <% if (rateText) { %><span class="badge-hub ok"><%= rateText %></span><% } %>
         <% if (job.duration_months) { %><span class="badge-hub"><%= job.duration_months %> months</span><% } %>
+      </div>
+      <% if (savedView) { %>
+        <div class="job-card-foot d-flex flex-wrap justify-content-end align-items-center gap-2 ms-auto">
+          <% if (closed) { %>
+            <form method="post" action="/jobs/<%= job.slug %>/save" class="job-save" data-save-job data-remove-only>
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="saved" value="true">
+              <input type="hidden" name="redirectTo" value="<%= backTo %>">
+              <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-lg"></i> Remove</button>
+            </form>
+          <% } else { %>
+            <% if (appl) { %>
+              <a class="badge-hub ok app-status-chip" href="/dashboard/applications" title="Open Your applications">
+                <i class="bi bi-send-check"></i> <%= appl.status === 'submitted' ? 'Applied' : 'Applied · ' + appl.label %>
+              </a>
+            <% } %>
+            <a class="btn btn-sm btn-outline-primary" href="/jobs/<%= job.slug %>">View details</a>
+            <% if (!appl) { %><a class="btn btn-sm btn-primary" href="/jobs/<%= job.slug %>#apply">Apply</a><% } %>
+          <% } %>
+        </div>
+      <% } %>
       </div>
     </div>
   </div>

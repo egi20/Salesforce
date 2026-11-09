@@ -219,6 +219,7 @@ const MEMBER_PAGES = [
   ['/profile/company/template', 'Document branding'],
   ['/profile/hidden-companies', 'Hidden companies'],
   ['/profile/data', 'Data export'],
+  ['/profile/documents', 'My documents'],
   ['/profile/close', 'Close account'],
   ['/community/new', 'New post'],
   ['/jobs/new', 'Post a role'],
@@ -226,12 +227,12 @@ const MEMBER_PAGES = [
   ['/cv-generator/download', 'CV download'],
   ['/quotes', 'Quotes'],
   ['/quotes/new', 'New quote'],
-  ['/rates/submit', 'Rate submission'],
   ['/payments/success', 'Payment success'],
   ['/payments/cancelled', 'Payment cancelled'],
   ['/payments/history', 'Payment history'],
   ['/payments/placements', 'Placement fees'],
   ['/referrals', 'Referrals'],
+  ['/referrals/agent', 'Agent dashboard'],
   ['/linkedin/start', 'LinkedIn start'],
   ['/linkedin/callback', 'LinkedIn callback'],
   ['/challenges', 'Daily challenge'],
@@ -309,7 +310,7 @@ const TEST_SUITE = [
   page(PUBLIC, 'Home feed loads', '/', 'the Salesforce community, live'),
   page(PUBLIC, 'Consultant hub loads', '/consultant-hub', 'Everything for Salesforce consultants'),
   page(PUBLIC, 'Companies hub loads', '/companies-hub', 'Hire Salesforce talent, or scope the work first'),
-  page(PUBLIC, 'About loads', '/about', 'About Salesforce Hub'),
+  page(PUBLIC, 'About loads', '/about', 'sister platform of Dynamics Hub'),
   page(PUBLIC, 'Blog loads', '/blog', 'Articles from people who deliver on the Salesforce platform'),
   page(PUBLIC, 'FAQ loads', '/faq', 'Frequently asked questions'),
   page(PUBLIC, 'Privacy policy loads', '/legal/privacy', 'Privacy policy'),
@@ -322,13 +323,15 @@ const TEST_SUITE = [
   page(PUBLIC, 'Agency directory loads, without QA accounts', '/recruiters', 'Recruitment agencies', { expectedNotContains: NOT_A_QA_ACCOUNT }),
   page(PUBLIC, 'Community loads', '/community', 'Questions, discussions, articles and wins'),
   page(PUBLIC, 'Jobs board loads', '/jobs', 'Salesforce jobs and contracts'),
-  page(PUBLIC, 'Rate index loads', '/rates', 'Salesforce day rate index'),
+  page(PUBLIC, 'Rate index loads', '/rates', ['Salary Index', 'id="share"']),
   page(PUBLIC, 'Rate calculator loads', '/rates/calculator', 'Contract rate calculator'),
   page(PUBLIC, 'Pricing loads', '/payments', 'Two paid things'),
   page(PUBLIC, 'Search loads', '/search', 'One box, four places'),
   page(PUBLIC, 'Search answers a query', '/search?q=salesforce', 'Search'),
-  page(PUBLIC, 'Tax advisory loads', '/tax-advisory', 'We do not calculate anything'),
-  page(PUBLIC, 'Tax enquiry form loads', '/tax-advisory/enquire', ['Ask about your setup', 'name="_csrf"']),
+  page(PUBLIC, 'Tax optimization loads', '/tax-optimization', 'Tax optimization'),
+  page(PUBLIC, 'Tax enquiry form loads', '/tax-optimization/enquire', ['name="_csrf"']),
+  /* The page's old address must keep working for links already out there: 301 to its name. */
+  { category: EDGES, name: 'The old tax advisory address moves permanently', endpoint: '/tax-advisory', method: 'GET', expectedStatus: 301, expectedRedirect: '/tax-optimization' },
   page(PUBLIC, 'CV generator page loads', '/cv-generator', 'Your CV and rate card, generated from your profile'),
   page(PUBLIC, 'Success stories load', '/success-stories', 'What people actually delivered'),
   page(PUBLIC, 'Member reviews load', '/success-stories/reviews', 'What members say'),
@@ -375,13 +378,15 @@ const TEST_SUITE = [
   asRole('consultant', CONSULTANT, 'Unread notifications count answers JSON', '/notifications/unread-count', '"success":true', { api: true }),
   asRole('consultant', CONSULTANT, 'Applications list loads', '/dashboard/applications', 'Your applications'),
   asRole('consultant', CONSULTANT, 'Saved jobs load', '/dashboard/saved', 'Saved jobs'),
+  asRole('consultant', CONSULTANT, 'My documents load', '/profile/documents', 'My documents'),
+  /* The agent dashboard is a 404 to anybody who is not an ACTIVE sales agent — the QA consultant is not one. */
+  { category: ROLES, name: 'Agent dashboard is a 404 to a member who is not an agent', endpoint: '/referrals/agent', method: 'GET', authRole: 'consultant', expectedStatus: 404 },
   redirects(CONSULTANT, 'Profile goes to the one settings page', '/profile', '/profile/settings', { authRole: 'consultant' }),
   redirects(CONSULTANT, 'Old consultant profile URL goes to settings', '/profile/consultant', '/profile/settings', { authRole: 'consultant' }),
   asRole('consultant', CONSULTANT, 'Build your profile loads', '/profile/settings', 'Build your profile'),
   asRole('consultant', CONSULTANT, 'Hide from companies loads', '/profile/hidden-companies', 'Hide from companies'),
   asRole('consultant', CONSULTANT, 'Close account page loads', '/profile/close', 'Close your account'),
   asRole('consultant', CONSULTANT, 'CV preview renders for a thin profile', '/cv-generator/preview', 'Fill your profile to see your CV here'),
-  asRole('consultant', CONSULTANT, 'Rate submission form loads', '/rates/submit', 'Contribute your rate'),
   asRole('consultant', CONSULTANT, 'Quotes list loads', '/quotes', 'Your quotes'),
   asRole('consultant', CONSULTANT, 'Quote form loads', '/quotes/new', 'Generate a Statement of Work for Salesforce implementations'),
   asRole('consultant', CONSULTANT, 'Write a post loads', '/community/new', 'Write a post'),
@@ -434,7 +439,6 @@ const TEST_SUITE = [
   refused('consultant', ROLES, 'Recruiter dashboard', '/recruiters/dashboard'),
   refused('company', ROLES, 'Agency profile', '/recruiters/profile'),
   refused('company', ROLES, 'Your applications', '/dashboard/applications', '/profile/settings'),
-  refused('company', ROLES, 'Rate submission', '/rates/submit', '/profile/settings'),
   refused('company', ROLES, 'Hide from companies', '/profile/hidden-companies', '/profile/settings'),
   refused('company', ROLES, 'CV preview', '/cv-generator/preview', '/profile/settings'),
   refused('company', ROLES, 'CV download', '/cv-generator/download', '/profile/settings'),
@@ -451,7 +455,7 @@ const TEST_SUITE = [
   { category: FORMS, name: 'Login refuses a post without a token', endpoint: '/auth/login', method: 'POST', testType: 'form', expectedStatus: 302, expectedRedirect: '/' },
   { category: FORMS, name: 'Registration refuses a post without a token', endpoint: '/auth/register', method: 'POST', testType: 'form', expectedStatus: 302, expectedRedirect: '/' },
   { category: FORMS, name: 'Report a problem refuses a post without a token', endpoint: '/report-issue', method: 'POST', testType: 'form', expectedStatus: 302, expectedRedirect: '/' },
-  { category: FORMS, name: 'Tax enquiry refuses a post without a token', endpoint: '/tax-advisory/enquire', method: 'POST', testType: 'form', expectedStatus: 302, expectedRedirect: '/' },
+  { category: FORMS, name: 'Tax enquiry refuses a post without a token', endpoint: '/tax-optimization/enquire', method: 'POST', testType: 'form', expectedStatus: 302, expectedRedirect: '/' },
   { category: FORMS, name: 'A fetch without a token gets 403 JSON', endpoint: '/report-issue', method: 'POST', testType: 'form', api: true, expectedStatus: 403, expectedContains: ['"success":false'] },
 
   /* ------------------------------------------------- not found, redirects */
@@ -462,6 +466,8 @@ const TEST_SUITE = [
    * stale link must not meet an error page — and the runner's user agent says "monitor", so
    * even a real code would not be counted as an open.
    */
+  /* Sharing a rate is inline on /rates now; the old form address sends anybody there. */
+  { category: EDGES, name: 'The old rate submission address moves to the inline form', endpoint: '/rates/submit', method: 'GET', expectedStatus: 301, expectedRedirect: '/rates' },
   redirects(EDGES, 'An unknown sales-agent link lands on sign-up', '/s/not-a-real-code', '/auth/register')
 ];
 

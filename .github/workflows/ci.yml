@@ -34,10 +34,16 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - run: npm ci
+
+      # Production dependencies only, and only at "critical": the build log showed 19 advisories
+      # that nobody acted on because nothing failed. The ones left open are documented in
+      # CLAUDE.md ("Node version and dependencies") with why their code is never reached.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=critical
 
       - name: Boot validation (no database needed)
         run: npm run validate-boot

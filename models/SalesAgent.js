@@ -2,11 +2,20 @@
 
 const { promisePool } = require('../config/database');
 const Referral = require('./Referral');
+const { commissionMinor } = require('../config/referrals');
+const {
+  AGENT_COMMISSION_PRODUCTS,
+  AGENT_EARNING_WINDOW_DAYS,
+  MAX_AGENT_COMMISSION_BPS,
+  MAX_MONTHLY_TARGET
+} = require('../config/salesAgents');
+const { containsPattern } = require('../utils/likePattern');
 const { QA_EMAIL_LIKE } = require('../utils/qaAccounts');
 
 /**
- * Sales agents (migration 031): colleagues with a personal sign-up link that is measured
- * and pays nothing. Not the referral scheme — see the migration for why the two are apart.
+ * Sales agents (migration 031): colleagues with a personal sign-up link that is measured.
+ * Migration 031 made it pay nothing; since 2026-11-09 (migration 046) an agent earns a share
+ * of what their sign-ups pay — the owner's decision, credited by `credit` below. Not the referral scheme — see the migration for why the two are apart.
  *
  * Codes use the referral alphabet and length, so they read the same aloud, but live in
  * their own table: the same eight letters can be a referral code and an agent code without
@@ -83,7 +92,9 @@ class SalesAgent {
       const agent = await SalesAgent.findActiveByCode(rawCode);
       if (!agent || agent.user_id === newUserId) return false;
       const [result] = await promisePool.query(
-        'UPDATE users SET sales_agent_id = ? WHERE id = ? AND sales_agent_id IS NULL',
+        // `agent_notice_at` (migration 046): attribution only happens on the sign-up form, and
+        // that form tells the person an agent whose link they came through may contact them.
+        'UPDATE users SET sales_agent_id = ?, agent_notice_at = NOW() WHERE id = ? AND sales_agent_id IS NULL',
         [agent.user_id, newUserId]
       );
       return result.affectedRows > 0;
@@ -94,10 +105,142 @@ class SalesAgent {
     }
   }
 
+  /** The row behind the agent dashboard: on the list and switched on. A paused agent has no dashboard. */
+  static async activeAgentFor(userId) {
+    if (!userId) return null;
+    const [rows] = await promisePool.query('SELECT * FROM sales_agents WHERE user_id = ? AND is_active = 1', [userId]);
+    return rows[0] || null;
+  }
+
+  /**
+   * An administrator sets an agent's terms. Each one may be left empty — "not agreed yet" —
+   * and an empty commission earns nothing. Out-of-range values are refused, never clamped:
+   * a rate somebody mistyped as 150% must be noticed, not quietly turned into 30%.
+   *
+   * @returns {{ok:true}|{ok:false, error:string}}
+   */
+  static parseTerms(input = {}) {
+    const department = typeof input.department === 'string' ? input.department.trim() : '';
+    if (department.length > 80) return { ok: false, error: 'The department name is longer than 80 characters.' };
+
+    let commissionBps = null;
+    const pct = String(input.commission_pct ?? '').trim().replace(',', '.');
+    if (pct !== '') {
+      if (!/^\d{1,2}(\.\d{1,2})?$/.test(pct)) return { ok: false, error: 'Commission must be a percentage such as 10 or 7.5.' };
+      commissionBps = Math.round(Number(pct) * 100);
+      if (commissionBps > MAX_AGENT_COMMISSION_BPS) return { ok: false, error: `Commission cannot be above ${MAX_AGENT_COMMISSION_BPS / 100}%.` };
+    }
+
+    let monthlyTarget = null;
+    const target = String(input.monthly_target ?? '').trim();
+    if (target !== '') {
+      if (!/^\d{1,3}$/.test(target) || Number(target) > MAX_MONTHLY_TARGET) return { ok: false, error: `The monthly target must be a whole number from 0 to ${MAX_MONTHLY_TARGET}.` };
+      monthlyTarget = Number(target);
+    }
+    return { ok: true, department: department || null, commissionBps, monthlyTarget };
+  }
+
+  static async setTerms(userId, { department, commissionBps, monthlyTarget }) {
+    const [result] = await promisePool.query(
+      'UPDATE sales_agents SET department = ?, commission_bps = ?, monthly_target = ? WHERE user_id = ?',
+      [department, commissionBps, monthlyTarget, userId]
+    );
+    return result.affectedRows > 0;
+  }
+
+  /**
+   * Credit the agent whose link a paying customer came through. Called from
+   * `services/paymentFulfilment.js` beside `Referral.credit`, outside the fulfilment
+   * transaction, and the same rules hold: never throws, credits money RECEIVED, idempotent on
+   * the payment (unique key), rate SNAPSHOT on the row so a later change reprices nothing.
+   *
+   * Nothing is written when the agent has no agreed rate, the product is not one agents earn
+   * on, or the payment falls outside the earning window from the customer's sign-up.
+   */
+  static async credit(payment) {
+    try {
+      if (!payment || !payment.id || !payment.user_id) return { credited: 0, reason: 'no payment' };
+      if (!AGENT_COMMISSION_PRODUCTS.includes(payment.product)) return { credited: 0, reason: 'not an agent product' };
+
+      const [[row]] = await promisePool.query(
+        `SELECT sa.user_id AS agent_id, sa.commission_bps, u.created_at AS joined_at
+           FROM users u JOIN sales_agents sa ON sa.user_id = u.sales_agent_id
+          WHERE u.id = ?`,
+        [payment.user_id]
+      );
+      if (!row) return { credited: 0, reason: 'no agent' };
+      if (row.commission_bps == null) return { credited: 0, reason: 'no agreed rate' };
+      const windowEnds = new Date(new Date(row.joined_at).getTime() + AGENT_EARNING_WINDOW_DAYS * 86400000);
+      if (new Date() > windowEnds) return { credited: 0, reason: 'outside the earning window' };
+
+      const amount = commissionMinor(Number(payment.amount_minor), Number(row.commission_bps));
+      const [result] = await promisePool.query(
+        `INSERT IGNORE INTO agent_commission_ledger
+           (user_id, payment_id, product, payment_amount_minor, rate_bps, commission_minor, currency)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [row.agent_id, payment.id, payment.product, Number(payment.amount_minor), Number(row.commission_bps), amount, payment.currency || 'EUR']
+      );
+      return result.affectedRows === 1 ? { credited: amount, reason: 'credited' } : { credited: 0, reason: 'already credited' };
+    } catch (err) {
+      console.error(`SalesAgent.credit failed for payment #${payment && payment.id}: ${err.message}`);
+      return { credited: 0, reason: 'error' };
+    }
+  }
+
+  /** What the agent's ledger holds, per product, and in total. */
+  static async earningsFor(userId) {
+    const [rows] = await promisePool.query(
+      `SELECT product, COUNT(*) AS n, COALESCE(SUM(payment_amount_minor), 0) AS paid_minor,
+              COALESCE(SUM(commission_minor), 0) AS commission_minor
+         FROM agent_commission_ledger WHERE user_id = ? GROUP BY product`,
+      [userId]
+    );
+    const byProduct = new Map(rows.map((r) => [r.product, { count: Number(r.n), paidMinor: Number(r.paid_minor), commissionMinor: Number(r.commission_minor) }]));
+    const totalMinor = [...byProduct.values()].reduce((sum, r) => sum + r.commissionMinor, 0);
+    return { byProduct, totalMinor };
+  }
+
+  /**
+   * "Came from your link", for the agent's own follow-up: email, role, country and date —
+   * and the email ONLY for people who were told at sign-up that an agent may contact them
+   * (`users.agent_notice_at`, migration 046). Anybody who signed up before that notice
+   * existed is listed without an address, and is not findable by one either: the search
+   * matches addresses the agent is allowed to see, so it cannot confirm a hidden one.
+   */
+  static async peopleForAgent(userId, { q = '', role = '', verified = '', limit = 100 } = {}) {
+    const where = ['u.sales_agent_id = ?'];
+    const params = [userId];
+    const term = String(q || '').trim().slice(0, 100);
+    if (term) {
+      where.push('(u.agent_notice_at IS NOT NULL AND u.email LIKE ?)');
+      params.push(containsPattern(term));
+    }
+    if (role === 'consultant') where.push('u.is_consultant = 1');
+    else if (role === 'company') where.push('u.is_company = 1');
+    else if (role === 'other') where.push('u.is_consultant = 0 AND u.is_company = 0');
+    if (verified === 'yes') where.push('u.email_verified = 1');
+    else if (verified === 'no') where.push('u.email_verified = 0');
+
+    const clause = where.join(' AND ');
+    const [rows] = await promisePool.query(
+      `SELECT u.id, CASE WHEN u.agent_notice_at IS NOT NULL THEN u.email END AS email,
+              u.created_at, u.is_active, u.is_consultant, u.is_company, u.email_verified,
+              ${COUNTRY_SQL} AS country, ${COUNTRY_SOURCE_SQL} AS country_source
+         FROM users u ${COUNTRY_JOINS}
+        WHERE ${clause}
+        ORDER BY u.created_at DESC, u.id DESC
+        LIMIT ?`,
+      [...params, limit]
+    );
+    const [[{ total }]] = await promisePool.query(`SELECT COUNT(*) AS total FROM users u WHERE ${clause}`, params);
+    return { rows, total: Number(total) };
+  }
+
   /** Every agent with what their link has done, in ONE query for the page. */
   static async listAll() {
     const [rows] = await promisePool.query(
       `SELECT sa.user_id, sa.code, sa.is_active, sa.link_opens, sa.created_at,
+              sa.department, sa.commission_bps, sa.monthly_target,
               u.name, u.email, u.is_active AS account_active,
               COUNT(s.id)                          AS signups,
               COALESCE(SUM(s.is_consultant = 1), 0) AS consultants,
@@ -110,7 +253,7 @@ class SalesAgent {
          FROM sales_agents sa
          JOIN users u ON u.id = sa.user_id
          LEFT JOIN users s ON s.sales_agent_id = sa.user_id
-        GROUP BY sa.user_id, sa.code, sa.is_active, sa.link_opens, sa.created_at, u.name, u.email, u.is_active
+        GROUP BY sa.user_id, sa.code, sa.is_active, sa.link_opens, sa.created_at, sa.department, sa.commission_bps, sa.monthly_target, u.name, u.email, u.is_active
         ORDER BY sa.is_active DESC, signups DESC, u.name`,
       []
     );

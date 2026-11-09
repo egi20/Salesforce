@@ -1120,7 +1120,7 @@ async function seedDemo() {
       }
       if (result.recorded) {
         // When it was played, not when the seed ran: the daily board breaks ties on it.
-        await promisePool.query('UPDATE challenge_attempts SET created_at = ? WHERE user_id = ? AND challenge_date = ?', [
+        await promisePool.query("UPDATE challenge_attempts SET created_at = ? WHERE user_id = ? AND challenge_date = ? AND challenge = 'daily'", [
           when,
           player.id,
           date

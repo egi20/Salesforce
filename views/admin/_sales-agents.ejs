@@ -65,6 +65,10 @@
               <% if (!a.is_active) { %><span class="badge-hub muted">paused</span><% } %>
               <% if (!a.account_active) { %><span class="badge-hub muted">account inactive</span><% } %>
               <span class="small text-muted-2 d-block"><%= a.email %></span>
+              <%# The agent's terms (migration 046), set here and nowhere in code. %>
+              <span class="small d-block"><%= a.department || 'No department' %> ·
+                <%= a.commission_bps == null ? 'commission not agreed' : (a.commission_bps / 100) + '% commission' %> ·
+                <%= a.monthly_target == null ? 'no target' : 'target ' + a.monthly_target + '/month' %></span>
             </td>
             <td>
               <code class="small"><%= linkFor(a.code) %></code>
@@ -87,6 +91,20 @@
                 <input type="hidden" name="is_active" value="<%= a.is_active ? 'false' : 'true' %>">
                 <button class="btn btn-sm <%= a.is_active ? 'btn-outline-secondary' : 'btn-outline-success' %>" type="submit"><%= a.is_active ? 'Pause' : 'Resume' %></button>
               </form>
+              <details class="agent-terms text-start mt-2">
+                <summary class="btn btn-sm btn-outline-primary">Terms</summary>
+                <form method="post" action="/admin/referrals/agents/<%= a.user_id %>/terms" class="mt-2">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <label class="form-label small mb-0" for="dept-<%= a.user_id %>">Department</label>
+                  <input class="form-control form-control-sm mb-1" id="dept-<%= a.user_id %>" name="department" maxlength="80" value="<%= a.department || '' %>">
+                  <label class="form-label small mb-0" for="pct-<%= a.user_id %>">Commission %</label>
+                  <input class="form-control form-control-sm mb-1" id="pct-<%= a.user_id %>" name="commission_pct" inputmode="decimal" placeholder="Not agreed" value="<%= a.commission_bps == null ? '' : a.commission_bps / 100 %>">
+                  <label class="form-label small mb-0" for="target-<%= a.user_id %>">Monthly target (won deals)</label>
+                  <input class="form-control form-control-sm mb-2" id="target-<%= a.user_id %>" name="monthly_target" inputmode="numeric" placeholder="No target" value="<%= a.monthly_target == null ? '' : a.monthly_target %>">
+                  <button class="btn btn-sm btn-primary w-100" type="submit">Save terms</button>
+                  <p class="small text-muted-2 mt-1 mb-0">Commission is a share of what we are paid for tax optimization or a SOW quote by people who came through this link. A change applies to payments from now on.</p>
+                </form>
+              </details>
             </td>
           </tr>
         <% }); %>

@@ -1,0 +1,14 @@
+<%#
+  Country options in groups, commonest first: where most consultants on the Hub live
+  (measured), then the countries contractors here commonly work from, then — when the field
+  needs any real country — every other inhabited one. Same groups as the enquiry form.
+%>
+<% [
+  ['Where most consultants on the Hub live', groups.top],
+  ['Europe and other common countries', groups.relevant],
+  withRest ? ['All other countries', groups.rest] : null
+].filter(function (g) { return g && g[1].length; }).forEach(function (g) { %>
+  <optgroup label="<%= g[0] %>">
+    <% g[1].forEach(function (c) { %><option value="<%= c.code %>" <%= selected === c.code ? 'selected' : '' %>><%= c.name %></option><% }); %>
+  </optgroup>
+<% }); %>

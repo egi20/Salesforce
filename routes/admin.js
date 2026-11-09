@@ -1251,6 +1251,28 @@ router.post(
 );
 
 /**
+ * An agent's terms: department, commission and monthly target. Set by a superadmin, never in
+ * code; an empty field means "not agreed yet". A new rate applies to payments from now on —
+ * each credited payment keeps the rate it was credited at (agent_commission_ledger.rate_bps).
+ */
+router.post(
+  '/referrals/agents/:id/terms',
+  isSuperadmin,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const terms = SalesAgent.parseTerms(req.body);
+    if (!terms.ok) {
+      req.flash('error', terms.error);
+      return res.redirect('/admin/referrals?tab=agents');
+    }
+    const saved = await SalesAgent.setTerms(req.params.id, terms);
+    req.flash(saved ? 'success' : 'error', saved ? 'Agent terms saved.' : 'That account is not a sales agent.');
+    return res.redirect('/admin/referrals?tab=agents');
+  })
+);
+
+/**
  * POST /admin/referrals/:id/payout — record that a transfer was made.
  *
  * It settles the WHOLE unpaid balance, not an amount typed into a box. The reference took

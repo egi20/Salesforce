@@ -60,7 +60,7 @@ worse than no number.
 
 | Layer | Choice |
 |---|---|
-| Runtime | Node.js ≥ 18, CommonJS, no transpilation |
+| Runtime | Node.js 24 (LTS), CommonJS, no transpilation |
 | HTTP | Express 4, `express-session` with a MySQL store |
 | Views | EJS, server-rendered; Bootstrap 5 served from this origin plus a hand-written design system |
 | Data | MySQL 8 via `mysql2`. **No ORM** — every model is a class of static methods issuing parameterised SQL |
@@ -75,7 +75,7 @@ worse than no number.
 
 ## Getting started
 
-Requires **Node 18+** and **MySQL 8**.
+Requires **Node 24** and **MySQL 8**. `.nvmrc` pins the major, so `nvm use` picks it up; the Dockerfile and CI use the same one.
 
 ```bash
 git clone -b claude/dynamichub-webapp-clone-4cmj1w https://github.com/egi20/Salesforce.git

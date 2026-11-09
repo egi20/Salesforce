@@ -9,6 +9,10 @@ wrong produced a real bug.
 - **The schema is migrations.** Never add `CREATE TABLE` or `ALTER TABLE` to a model. Add a
   numbered file under `scripts/migrations/`. An applied migration is immutable — the runner
   compares checksums and refuses to start if one changed. Correct a mistake with a new file.
+  Two files share the number 042 (`042_admin_test_cases`, `042_tax_program`): two branches
+  each took the next number and both were applied before they met. The runner orders by full
+  filename and records each by name, so that is harmless — and renaming either would make it
+  run again where it is already applied. Do not "fix" it; just take the next free number.
 - **All SQL is parameterised.** Filter clauses are assembled from fixed fragments plus a
   `params[]` array. No value is ever interpolated into a query string.
 - **Never add a second filter builder.** `Job.buildFilter` and
@@ -105,6 +109,44 @@ Do not push aggregation into SQL: a `GROUP BY` will quietly bypass the floor.
 
 `RATE_MIN_SAMPLE` is configurable, but lowering it below 3 to make a sparse index look
 fuller defeats the point of having it.
+
+**`/rates` shows three kinds of figure and labels every one** (2026-11-08): the EDITORIAL
+benchmark, COMMUNITY data and JOB POSTINGS. They are never blended.
+
+- **The editorial model is `config/rateModel.js` + `utils/rateBenchmark.js`**, ours, under
+  version control and printed in full under Methodology: `BASE_DAY_RATES` × the seniority
+  multiplier (the experience brackets ARE the seniority bands) × a region multiplier ×
+  (1 + basis-point adjustments), to €5, ∓ `SPREAD_BPS`. `benchmarkProblems` re-checks the
+  working shown against the figure shown and the route throws a 500 on failure, as quotes do.
+  None of Dynamics Hub's figures are reused; a test pins the ones that must differ. Monthly,
+  annual and equivalent salary come from `contractorEconomics.project` — never `rate × 220`.
+- **Trend windows** (`TREND_WINDOWS`): 12 months reads the stored `period`; 12 weeks and 30
+  days bucket by `updated_at`. Every bucket still goes through `trendSeries`, so a short
+  window has more gaps, never zeros. The chart is server-drawn SVG (`utils/rateCharts.js`)
+  and a gap BREAKS the line. "Asked on applications" is `meanOfPeople`: one figure per
+  consultant, same floor.
+- **Job figures go through `Job.buildFilter`** with `rate_published`, so a closed, expired,
+  taken-down or rate-hidden advert is never counted. They are public already, so no floor —
+  but every figure has its posting count beside it.
+- **Sharing is inline** (`POST /rates/submit`, `GET /rates/submit` → `/rates#share`): five
+  answers; the seniority is DERIVED from the years with `seniorityForYears`; country is
+  optional and work mode no longer asked (migration 043 made both nullable rather than let
+  a default record "remote" for everybody). A contract figure above €5,000/day or a permanent
+  one below €5,000/year is refused by name — the wrong-unit figure is the one that moves a
+  percentile for everybody.
+- Every GET form on the page carries the others' state through `keepExcept`, built only from
+  validated values, so changing one filter never resets another and nothing raw is echoed.
+- **The trend's axis starts at the first period with any contributor**, and below two
+  published points the card says "Trend appears after two months of data" and lists the
+  periods so far. Leading periods with NO contributors are not gaps (there was nothing to
+  suppress), so trimming them hides nothing; a period with contributors below the floor is
+  still a gap. The count axis has headroom so a full bar never sits on the € axis label.
+- **Equiv. salary is labelled "before employer contributions"** wherever it appears. It is
+  revenue less a contractor's running costs; an employer would add its country's social
+  contributions on top, and those vary by country, so they are named, not guessed.
+- "Rate benchmarks by role" shows ten chips ranked by open jobs + contributors, the rest
+  behind "All roles". Day-rate budgets say per row how many postings they come from: with
+  one posting the range is that advert's own, which is public but is not an aggregate.
 
 ## The estimator
 
@@ -597,6 +639,73 @@ the same reason `needs_refund` on a payment is a queue rather than an API call.
 Which products pay is named in `config/referrals.js`, not inferred: adding a product to
 `config/payments.js` must not silently create a liability.
 
+## The referrals page and the sales agent dashboard (2026-11-09)
+
+**`/referrals`** shows what a member's link did, never WHO it brought: an introduction is a date,
+a role and an amount. `Referral.introductionsFor` selects the role flags from `users` and nothing
+else of theirs, and a test reads the query and the view for name, email or country. Link opens are
+counted in `/referrals/go/:code` by the agent link's rule — `looksLikeAPerson`, `LINK_PREVIEW` (now
+both in `middleware/visitGeo.js`), once per session — into `referrers.link_opens` (migration 046).
+The two tabs are server-side (`?tab=earnings`), so they work without scripting and keep their own
+pagination.
+
+**Sales agents now earn commission, and that is the owner's decision, not drift.** Migration 031
+said an agent's link "pays nothing"; on 2026-11-09 the owner decided agents earn a share of what
+their sign-ups PAY for tax optimization or a SOW quote. Everything about it follows the referral
+rules: credited on money received by `SalesAgent.credit`, called beside `Referral.credit` in
+`services/paymentFulfilment.js`, never throwing, idempotent on `agent_commission_ledger.payment_id`
+(UNIQUE), the rate SNAPSHOT on the row, the same `commissionMinor` cap and the same finite window
+from sign-up. The agent ledger is its own table — `models/SalesAgent.js` must never write the
+referral `commission_ledger`, and a test holds that. Tax optimization has no payment product yet,
+so its row is shown with nothing counted rather than left off. A customer who came through a
+referrer's link AND an agent's can credit both; that is two schemes, and if it should not be,
+it is a decision for the owner, not a quiet `if`.
+
+**An agent's terms are DATA set by a superadmin** (`/admin/referrals?tab=agents` → Terms):
+department, `commission_bps`, `monthly_target`. NULL means "not agreed yet" and is shown that way;
+a NULL rate earns nothing. `SalesAgent.parseTerms` refuses rather than clamps an out-of-range
+value. Nothing about an agent's pay is a constant in code.
+
+**An agent sees an email address only where the person was told.** The sign-up form says an agent
+whose link you came through can see your email, role, country and join date; `SalesAgent.attribute`
+stamps `users.agent_notice_at` in the same UPDATE that credits the agent, and `peopleForAgent`
+selects the email only where that is set — and searches only those addresses, so a search cannot
+confirm a hidden one. People who signed up before the notice existed are listed without an email.
+The privacy policy says the same.
+
+Leads (`sales_agent_leads`, `user_id` = the agent) are the agent's own: every read and write is
+scoped by agent in the query, `AgentLead.leadFilter` is the one filter for the list and its count,
+`won_at` is stamped on the move into Won (the monthly target counts deals won IN the month), and
+the table is in the erasure PURGE and the export. `/referrals/agent` answers 404 to anyone who is
+not an ACTIVE agent; `isSalesAgent` is rebuilt into the session on every request, so pausing an
+agent removes the menu item and the page on their next request. The `/dashboard` agent block is a
+summary pointing at the one page that lists people.
+
+## About (2026-11-09)
+
+`/about` presents Salesforce Hub as the Salesforce sister platform of Dynamics Hub, same operator
+and same team. Three things on it are DATA with an owner, and the page hides each until it exists:
+
+- **The team** is `config/team.js`, asserted at boot. A bio was adapted from Dynamics Hub's for
+  this site, so each carries `approved: false` until its person has read it: in production an
+  unapproved bio is left out (name and role only), in development it shows with a Draft badge.
+  `linkedin` and `photo` stay null until somebody supplies the real ones — a photo is a file under
+  `/images/team/` (the CSP allows no other host), and a card without one shows initials.
+- **Who runs it** reads `config/legal.js` (`LEGAL_CONTROLLER_*`, with the NIPT in
+  `LEGAL_CONTROLLER_REGISTRATION`), filled from the company's official documents. Unset: a warning
+  in development, and the card left out in production.
+- **Stories** are `TaxProgram.liveStories` — consented, published, not hidden — and the section is
+  not rendered without one. Dynamics Hub's stories are about Dynamics 365 and are never copied here.
+
+The platform tiles are counts of rows (`SiteStats.platformCounts`, open roles through
+`Job.buildFilter`) and a tile at 0 is hidden. They count whatever the database holds, so seed data in production
+would publish invented people as real: at boot in production, `SiteStats.seedAccountCount` counts
+accounts on the reserved `example.com` domain (every seeded account uses it, no real person can)
+and warns if there are any. It warns and never deletes — removing them is an operator's decision. "What we stand for" is the old "What it refuses to
+do", restated against what the code does today: the tax programme exists but gives no tax advice,
+and Import from CV is named as the one other use of a CV file, because "uploaded CVs only go to
+companies you apply to" was otherwise true of stored CVs and not of the import.
+
 ## LinkedIn verification
 
 **What LinkedIn actually returns decides the whole design.** The OpenID Connect userinfo
@@ -783,6 +892,64 @@ every query string would be a separate URL.
 
 ## Tax advisory
 
+**The page is now "Tax optimization", the Albania employment program, WITH a take-home
+calculator (2026-11-06).** That is a decision, not a drift, and the reasoning below about
+the reference's calculator still holds: what changed is that there is now a real program
+with a real payroll to apply. The guardrails that make the difference:
+
+- **Every figure comes from `config/tax-program.json`, owned by finance and legal**, changed
+  by a reviewed commit and never by a setting. The committed file is all `null`, and null
+  HIDES: no stat tile, no "by €X–€Y a year", no number in an FAQ answer, and a valid
+  calculator submit says "Figures aren't available yet — ask about your setup". Keys are
+  snake_case: `program_fee`, `income_tax_bands`, `employee_contributions`,
+  `employer_contributions` (each says whether it is `paid_from_gross`), `months_per_year`.
+  All four payroll keys or none — `[]` means "there are none" and must be written by somebody
+  who knows, because a half-filled payroll prints a take-home far above the real one.
+  **Dynamics Hub's calculator is the special case** (`routes/tax.js` there): new net = gross −
+  (gross × percentRate / 100 + fixedFee), both admin settings in DH's database. Its exact
+  equivalent is a fee of that rate and fixed amount, one 0 % band and two empty lists; the 5 %
+  in DH's code is a fallback, not a rate anybody confirmed, so it is not copied here.
+  `config/taxProgram.js` validates
+  the file and THROWS at boot on a malformed one; `TAX_PROGRAM_FILE` points elsewhere for a
+  staging site or a test fixture. Nothing on the page is copied from another site.
+- **The arithmetic is ONE file, `public/js/tax-calculator.js`**, UMD so the browser runs it
+  and the server validates parameters with the same code. It knows no rate — a test asserts
+  it holds no numeric literal beyond its unit constants. Contributions (each capped or not,
+  each reducing taxable income or not), marginal brackets, a fee; integers, each line
+  rounded once, net = gross minus the rounded lines, so the lines add up to the difference.
+- **What is typed is never sent.** The inputs have no `name`, the form no action or method,
+  `tax-page.js` holds no fetch (both asserted), and the form opts out of `main.js`'s submit
+  guard (`data-no-guard`) because it never submits. Every result says "Indicative only —
+  your home-country tax obligations still apply": the figure is the program's Albanian
+  payroll, not anybody's tax position.
+- **Stories are a separate table from `success_stories`** (migration 042), because those
+  deliberately carry no pay. A program story belongs to an account, stores no name (the page
+  derives "first name + initial" at read time), and is shown only with consent given and not
+  withdrawn, published, not hidden — `TaxProgram.LIVE_STORY` is that one clause. With none,
+  the section is not rendered at all. The participant count shows from
+  `ACTIVE_COUNT_FLOOR` (10) upwards. Both tables are in the erasure PURGE and the export.
+  There is no admin screen for either yet; rows are entered by hand.
+- "Apply now" is the same enquiry with `topic=program` preselected, so it keeps
+  its consent, its rate limit and its retention. "Is this legal?" must keep three points —
+  home obligations still apply, foreign tax credit, consult an advisor — and a test holds
+  them.
+- **The page lives at `/tax-optimization`**, its name. `/tax-advisory` and everything under it
+  redirect there (`legacyRedirect` in `routes/tax.js`): 301 for a read, 308 for a POST, because
+  a 301 lets a browser turn an enquiry posted from a cached form into a GET that drops it. The
+  admin queue stays at `/admin/tax-advisory` — it is the enquiries, not the page.
+- **The calculator form is always shown** (DH's layout: gross, net, country, one button),
+  and it validates inline either way — both amounts, net below gross. Only a VALID submit
+  meets the missing rates, and it answers with the enquiry link, never a sample figure.
+- **`program_fee` is its own key, not part of the payroll**, so it can be published (step 2 of
+  How it works, and the hidden-costs answer) before the contribution rates are. It is still
+  one value: the loader hands it to the calculator inside the payroll, refuses a payroll that
+  carries its own, and refuses a payroll with no fee at all. The pages say "a few questions":
+  the form has seven fields, and a count is a claim somebody checks.
+- **Country selects come in groups** (`countryGroups` in `config/regions.js`): where most
+  consultants on the Hub live, MEASURED from `consultant_profiles` rather than chosen; then a
+  short list of the ~55 countries contractors here work from; then, on the enquiry form only
+  (it needs a real code), every other inhabited country. The calculator's ends in "Other".
+
 **This feature exists because the reference's version of it cannot be ported.** Its
 `POST /tax-optimization/calculate` takes the gross and net a visitor types, computes
 `newNet = gross - (gross * percentRate / 100 + fixedFee)` with `percentRate` defaulting to
@@ -795,8 +962,8 @@ calculator in `routes/tax.js` would have moved that refusal one directory to the
 a test scans this feature's source and its exported surface for anything
 saving- or tax-computation-shaped.
 
-What is real underneath it is the INTRODUCTION. So `/tax-advisory` explains the service,
-says in the same breath that the Hub calculates nothing, and offers a form. Nothing else.
+What is real underneath it is the INTRODUCTION — the enquiry below, which is still the
+only thing that stores anything, and still computes nothing.
 
 **Six fields, and none of them is money.** The reference's form collects forty from an
 anonymous visitor with no rate limit and no consent record: current employer, contract end
@@ -857,7 +1024,38 @@ clock. `UNIQUE (user_id, challenge_date)` gives one attempt a day and is checked
 ATTEMPTING THE INSERT, because a select-then-insert has a window where two submissions both
 see nothing and both write.
 
-ONE game, not the reference's nine. The other eight are the same shape wearing different UI.
+**Topic challenges (2026-11-08, migration 045).** `/challenges` is now a hub: "Today's mix"
+at `/challenges/daily` and six topics at `/challenges/<topic>`, each five questions a day from
+its own bank in `config/challengeBank/<topic>.json` (≥ `MIN_PER_TOPIC` = 60 each, asserted at boot; only
+`config/challenges.js` may read the directory, and a test pins that). Sixty because a day draws six
+from a topic — five for its set, one for the mix — and at twenty a question came back within days.
+One question per JSON line, so a review reads text and a diff shows exactly which question moved. Every one is the same engine:
+`setFor(date, slug)`, `publicFormOf`, `gradeAnswers`. The unique key is now
+`(user_id, challenge_date, challenge)` — one attempt per challenge per day — and the column has
+no default, so an insert that forgets which challenge it graded fails rather than counting as
+the mix. The MIX takes five topics and the SIXTH question of each topic's order for the day, so
+it never repeats a question from that day's topic sets: playing a topic first is no head start.
+Points keys: the mix keeps `challenge:<date>:<user>:<i>` so no earlier award can be paid twice
+under a new key; a topic adds its slug. The streak counts DAYS with any attempt; the day's board
+sums every challenge played that day. The hub's cards are full gradients with white text;
+`.challenge-tone-*` stops are read from the stylesheet by a test and held to 4.5:1. `/challenges`
+does not light up Home in the top bar — the account menu's Challenges item is the active one. Slugs are checked with `hasOwnProperty`
+(`isChallenge('__proto__')` is false) and an unknown one is a 404. `POST /challenges` answers
+308 to `/challenges/daily`, so a form cached before the move still posts its answers.
+
+**Two questions in the original bank were wrong**, and nobody could have appealed, because the
+bank is exactly what a player cannot see. `gov-soql-101` marked "50" as the synchronous SOQL
+limit (it is 100; the explanation said so), so every player who knew it was scored wrong; and
+"which sandbox refreshes most frequently" had two right answers. A question needs ONE answer
+right in every reading — write it that way, and change it in the same commit when Salesforce
+changes a limit. The attempt now records the chosen option's LABEL beside its index, because a
+growing bank changes what a past date's set reconstructs to.
+
+**The insert no longer uses `CAST(? AS JSON)`.** MariaDB stores JSON as LONGTEXT and rejects the
+cast, so on MariaDB every submission was a 500 (the seed skipped challenges there for the same
+reason). A plain JSON string is stored as is by MySQL 8's JSON column and by MariaDB.
+
+ONE engine, not the reference's nine games. The other eight are the same shape wearing different UI.
 The streak is kept but DERIVED from attempt dates, never posted by a `/streak/checkin` the
 browser can call at will; `streakFromDates` is pure so month, year and leap-day boundaries
 are testable.
@@ -1236,6 +1434,23 @@ availability, as the spec's minimum says. "Anywhere (remote)" is its own column,
 `nextSortOrder` wraps the MAX in `Number()`: MariaDB returns `COALESCE(MAX(..))` as a string,
 and `"5" + 1` gave an imported project sort order 51.
 
+## My documents
+
+`/profile/documents` is the ONE page for a person's files: uploaded CVs and cover letters, the
+CV Generator's log, and — for a company — its SOW quotes with their downloads. The menu, the CV
+Generator, the profile's Documents section and the applications list all link here; the
+profile section is a summary, not a second upload form.
+
+**Uploads are limited per kind** (`ConsultantDocument.LIMITS`: 5 CVs, 10 cover letters),
+counted `FOR UPDATE` inside the insert's transaction so two tabs cannot both take the last slot.
+
+**"Recently generated" is a LOG, not a store** (`generated_documents`, migration 044): the kind,
+the sections chosen and the application it was for. The file itself is never kept — a profile
+changes, and the stale copy is the one somebody sends — so "Generate again" rebuilds it from the
+profile as it is now. `GeneratedDocument.log` never throws: a bookkeeping failure must not cost
+somebody their download. The application is accepted only if it is the consultant's own.
+Both tables are in the erasure PURGE and the export.
+
 ## The consultant's applications
 
 `/dashboard/applications` lists through `Application.buildFilter` with the CONSULTANT scope,
@@ -1260,6 +1475,28 @@ The consultant answers an offer: `Application.consultantMay` allows offered → 
 and any withdrawal (decline is a withdrawal with a note), and nothing else of the company's.
 "Hired" still needs two decisions — the company's offer and the consultant's yes. On an
 offered row the list shows Accept / Decline instead of Withdraw.
+
+## Saved jobs
+
+`/dashboard/saved` uses the board's own job card (`views/partials/job-card.ejs`, `saved` local)
+rather than a second card, so a pill the board shows is a pill the shortlist shows. That is how
+an empty pill was found: `Job.listSaved` selected its own short column list without
+`seniority`, and every saved card rendered a blank badge where the level should be. It now
+selects the board's columns, and the card renders no pill for a level it does not have.
+
+A saved role that closed, expired or was taken down STAYS on the list, greyed, "No longer
+open", with only Remove — `is_open` in `listSaved` is the board's visibility rule, so a card
+offering Apply is one the board would show. A bookmark disappearing without a word is the
+thing somebody writes in about.
+
+"Highest rate" (`utils/savedJobs.js`) ranks only published rates: a hidden one deciding a
+card's position would leak it. Day rates and salaries are different units, so contract roles
+come first, permanent after, unpublished last. The whole list is read once and sliced, because
+SQL here cannot convert currencies; the count is the real one, not page length plus offset.
+
+The "Saved roles" block on Your applications is the same data and the same unsave handler
+(`[data-saved-item]` in `public/js/main.js`): removal is in place with Undo, built from DOM
+nodes, and Undo saves the job again rather than restoring a cached row.
 
 ## Browse Talent
 
@@ -1518,3 +1755,24 @@ visible. Never let an animation be the reason a page cannot be read.
 - `<%= %>` escapes, `<%- %>` does not. Only ever pass `sanitizeRichText()` output to `<%- %>`.
 - Server-side validation is authoritative. Client-side JavaScript is a convenience and the
   page must work without it.
+
+## Node version and dependencies
+
+**Node 24, in four places that must agree**: `Dockerfile` (`node:24-bookworm-slim`), the CI
+workflow's `node-version`, `engines` in `package.json`, and `.nvmrc`. Node 20 reached end of life
+in April 2026, and the deploy log showed what staying on it costs: `geoip-lite` 2.0.3 and
+`sanitize-html` 2.17.7 already declared newer engines. `sanitize-html` 2.18 then moved to an
+ESM-only `htmlparser2`; the app `require()`s it fine on any Node that has require(esm), but Jest
+can only do that from Node 24.9, so on an older local Node fifteen suites fail to load while CI
+is green. Use Node 24 locally.
+
+**`overrides` in `package.json` exist for advisories a dependency pins out of reach**, each
+named for its parent: `brace-expansion` 1.x under `exceljs`'s old `minimatch`;
+`express-mysql-session`'s own `mysql2` (the store is handed our pool, but the stale copy still
+shipped in the image); `exceljs`'s `uuid`. After changing one, delete the nested lockfile entry
+it replaces — npm keeps a locked version over an override until the entry is gone.
+
+Left on purpose, because the vulnerable code is never reached: `image-size` under `pptxgenjs`
+(it measures images; the deck adds none) and `glob`/`minimatch` under `archiver` 7 (they serve
+`archive.glob()`/`directory()`; every archive here is `append()` of buffers). `archiver` 8 is
+ESM-only — revisit both when moving to it.

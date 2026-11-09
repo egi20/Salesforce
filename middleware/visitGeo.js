@@ -15,6 +15,13 @@ const { isQaEmail, isSelfTestRequest } = require('../utils/qaAccounts');
  */
 const NOT_A_PERSON = /bot|crawl|spider|slurp|scan|monitor|uptime|probe|preview|headless|phantom|lighthouse|curl|wget|python|httpclient|okhttp|go-http|java\/|axios|node-fetch|undici|libwww|postman|insomnia/i;
 
+// The FETCHERS that draw a link's preview card, by their own names — never the app a person
+// is using. SAP Hub's first version said `linkedin` and `twitter`, which also matched the
+// LinkedIn and X IN-APP BROWSERS ("[LinkedInApp]", "Twitter for iPhone"): a real person
+// tapping an agent's link inside LinkedIn, where agents share it, was credited at sign-up
+// and never counted as an open. LinkedIn's fetcher is LinkedInBot, X's is Twitterbot.
+const LINK_PREVIEW = /whatsapp\/|facebookexternalhit|facebookcatalog|slackbot|slack-imgproxy|telegrambot|discordbot|linkedinbot|twitterbot|skypeuripreview|viber|embedly|vkshare|redditbot|pinterestbot/i;
+
 function looksLikeAPerson(userAgent) {
   return Boolean(userAgent) && !NOT_A_PERSON.test(userAgent);
 }
@@ -85,4 +92,4 @@ function visitGeo(req, res, next) {
   }
 }
 
-module.exports = { visitGeo, looksLikeAPerson, isOwnTraffic };
+module.exports = { visitGeo, looksLikeAPerson, isOwnTraffic, LINK_PREVIEW };

@@ -6,6 +6,7 @@ const Payment = require('../models/Payment');
 const Invoice = require('../models/Invoice');
 const Notification = require('../models/Notification');
 const Referral = require('../models/Referral');
+const SalesAgent = require('../models/SalesAgent');
 const { JOB_FEATURE_DAYS, formatMinor } = require('../config/payments');
 
 /**
@@ -241,6 +242,9 @@ async function fulfil(payment, { source = 'unknown', stripeSessionId = null, str
    * buyer paid for, and they must not be rolled back by a bookkeeping failure.
    */
   await Referral.credit(settled);
+  // The agent whose link this customer came through, by the same rules: money received,
+  // never throws, idempotent on the payment, rate snapshot on the row.
+  await SalesAgent.credit(settled);
 
   // Only the caller that actually claimed the payment tells the buyer, so a webhook and
   // a page refresh do not produce two receipts. The dedupe key would make a second one

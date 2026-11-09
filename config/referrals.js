@@ -60,6 +60,11 @@ const COMMISSIONABLE_PRODUCTS = Object.freeze(['job_feature', 'quote_deposit']);
 
 /** Payout methods the admin screen offers. Free text would make reconciliation guesswork. */
 const PAYOUT_METHODS = Object.freeze(['bank_transfer', 'paypal', 'credit_note']);
+const PAYOUT_METHOD_LABELS = Object.freeze({ bank_transfer: 'Bank transfer', paypal: 'PayPal', credit_note: 'Credit note' });
+
+/** How each commissionable product reads on the referrer's page, and what plainly does not pay. */
+const COMMISSION_LABELS = Object.freeze({ job_feature: 'Featured jobs', quote_deposit: 'Quote deposits' });
+const NOT_COMMISSIONABLE_LABELS = Object.freeze(['Sign-ups', 'CV generator']);
 
 /**
  * The referral code alphabet: no I, L, O or U.
@@ -124,6 +129,12 @@ function assertReferralIntegrity() {
     // which is almost certainly a typo rather than a policy.
     throw new Error('Referrals: the payout floor is implausibly high against the commission cap');
   }
+  for (const p of COMMISSIONABLE_PRODUCTS) {
+    if (!Object.prototype.hasOwnProperty.call(COMMISSION_LABELS, p)) throw new Error(`Referrals: ${p} has no label`);
+  }
+  for (const m of PAYOUT_METHODS) {
+    if (!Object.prototype.hasOwnProperty.call(PAYOUT_METHOD_LABELS, m)) throw new Error(`Referrals: payout method ${m} has no label`);
+  }
   if (!COMMISSIONABLE_PRODUCTS.length) {
     throw new Error('Referrals: no product pays commission, so the scheme cannot pay anyone');
   }
@@ -141,6 +152,9 @@ module.exports = {
   MIN_PAYOUT_MINOR,
   COMMISSIONABLE_PRODUCTS,
   PAYOUT_METHODS,
+  PAYOUT_METHOD_LABELS,
+  COMMISSION_LABELS,
+  NOT_COMMISSIONABLE_LABELS,
   CODE_ALPHABET,
   CODE_LENGTH,
   commissionMinor,

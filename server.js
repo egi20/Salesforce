@@ -7,12 +7,13 @@ const MySQLStore = require('express-mysql-session')(session);
 const bodyParser = require('body-parser');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const flash = require('connect-flash');
+const flash = require('./middleware/flash');
 
 const config = require('./config/config');
 const { pool } = require('./config/database');
 const { assertTaxonomyIntegrity } = require('./config/roleTaxonomy');
 const { assertAdvisoryIntegrity } = require('./config/taxAdvisory');
+const { assertRateModel } = require('./config/rateModel');
 const { assertChallengeIntegrity } = require('./config/challenges');
 const { assertCrmIntegrity } = require('./config/crm');
 const { EMBED_HOSTS } = require('./utils/videoEmbed');
@@ -24,6 +25,8 @@ const assistantConfig = require('./config/assistant');
 const { assertSettingsIntegrity } = require('./config/settings');
 const { socialLinks } = require('./config/social');
 const { assertReferralIntegrity } = require('./config/referrals');
+const { assertSalesAgentConfig } = require('./config/salesAgents');
+const { assertTeam } = require('./config/team');
 const { assertLinkedInIntegrity, isConfigured: linkedInConfigured } = require('./config/linkedin');
 const { assertDraftingIntegrity } = require('./config/drafting');
 const { assertCompanyTemplateIntegrity } = require('./config/companyTemplates');
@@ -46,6 +49,7 @@ const { attachViewHelpers } = require('./utils/viewHelpers');
 // or no label produces a UI that half-works and rate buckets that quietly flatten.
 assertTaxonomyIntegrity();
 assertAdvisoryIntegrity();
+assertRateModel();
 // And for the challenge bank: a question whose answer index is outside its options is a
 // question nobody can get right, and it would only show up as a puzzled member.
 assertChallengeIntegrity();
@@ -66,6 +70,8 @@ assertSettingsIntegrity();
 // And for the scheme that owes people money: a rate above its own ceiling, or a payout
 // floor no commission can reach, fails as a person asking why they have not been paid.
 assertReferralIntegrity();
+assertSalesAgentConfig();
+assertTeam();
 // Half-configured is worse than absent: the button appears, the member is sent to
 // LinkedIn, and the failure lands after they have already granted access.
 assertLinkedInIntegrity();
@@ -335,7 +341,9 @@ app.use('/assistant', require('./routes/assistant'));
 app.use('/referrals', require('./routes/referrals'));
 app.use('/linkedin', require('./routes/linkedin'));
 app.use('/search', require('./routes/search'));
-app.use('/tax-advisory', require('./routes/tax'));
+app.use('/tax-optimization', require('./routes/tax'));
+// The page's old address, and every path under it (see routes/tax.js legacyRedirect).
+app.use('/tax-advisory', require('./routes/tax').legacyRedirect);
 app.use('/challenges', require('./routes/challenges'));
 app.use('/recruiters', require('./routes/recruiters'));
 app.use('/success-stories', require('./routes/stories'));
@@ -357,6 +365,17 @@ if (require.main === module) {
     // fallback. Never awaited: the server is already answering.
     require('./services/salesforceNews').refresh().catch(() => {});
   });
+
+  // The /about tiles and every public count read the live tables. Seed data in a production
+  // database would publish invented people as real ones, so say so loudly — never throw: a
+  // warning about data must not take a running site down.
+  if (config.isProduction) {
+    require('./models/SiteStats').seedAccountCount()
+      .then((n) => {
+        if (n > 0) console.warn(`WARNING: ${n} demo account(s) on example.com in a production database. Public counts on /about include them.`);
+      })
+      .catch((err) => console.warn('Could not check for demo accounts:', err.message));
+  }
 
   const shutdown = (signal) => {
     console.log(`${signal} received, shutting down.`);

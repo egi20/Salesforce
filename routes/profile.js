@@ -15,6 +15,7 @@ const { singleImage, singleCv, singleDocument } = require('../middleware/fileUpl
 const { extractText } = require('../utils/cvText');
 const { importFromText } = require('../utils/cvImport');
 const { requireIdParam } = require('../utils/ids');
+const { returnTo } = require('../utils/returnTo');
 const { sanitizeRichText, plainTextToRichText } = require('../utils/sanitize');
 const { ROLE_CATEGORIES, ROLE_SLUGS, SENIORITY_LEVELS, seniorityFitsYears, seniorityLabel } = require('../config/roleTaxonomy');
 const { CERTIFICATIONS } = require('../config/certifications');
@@ -27,6 +28,9 @@ const ExternalIdentity = require('../models/ExternalIdentity');
 const AccountErasure = require('../models/AccountErasure');
 const ConsultantHiddenCompany = require('../models/ConsultantHiddenCompany');
 const ConsultantDocument = require('../models/ConsultantDocument');
+const GeneratedDocument = require('../models/GeneratedDocument');
+const Quote = require('../models/Quote');
+const { DOCUMENT_KINDS: QUOTE_DOCUMENT_KINDS, PACKAGE_KIND: QUOTE_PACKAGE_KIND } = require('../services/quotePackage');
 const { validateDocument, safeFilename, MAX_BYTES: DOCUMENT_MAX_BYTES } = require('../utils/documentUpload');
 const { buildExport, filenameFor: exportFilename } = require('../services/dataExport');
 const config = require('../config/config');
@@ -721,6 +725,42 @@ router.post(
 
 /* ------------------------------------------------------------ uploaded CVs and cover letters */
 
+const DOCUMENTS_PAGE = '/profile/documents';
+
+/**
+ * GET /profile/documents — "My documents".
+ *
+ * ONE place for a person's documents, by role: a consultant's uploaded CVs and cover letters
+ * and the log of CVs they generated; a company's SOW quotes and their packs. Generated files
+ * are listed as a LOG only — they are made fresh on each download and never stored, so
+ * "Generate again" makes a new one from today's profile. Every write on this page is one of
+ * the existing document routes below, returning here through `redirectTo`.
+ */
+router.get(
+  '/documents',
+  asyncHandler(async (req, res) => {
+    const user = req.session.user;
+    const [uploads, generated, quotes] = await Promise.all([
+      user.isConsultant ? ConsultantDocument.listFor(user.id) : [],
+      user.isConsultant ? GeneratedDocument.recentFor(user.id) : [],
+      user.isCompany ? Quote.listForOwner(user.id, { limit: 20 }).then((r) => r.rows) : []
+    ]);
+    const uploadKind = ConsultantDocument.KINDS.includes(req.query.upload) ? req.query.upload : '';
+    res.render('profile/documents', {
+      title: 'My documents',
+      cvs: uploads.filter((d) => d.kind === 'cv'),
+      coverLetters: uploads.filter((d) => d.kind === 'cover_letter'),
+      limits: ConsultantDocument.LIMITS,
+      generated,
+      quotes,
+      quoteKinds: Object.entries(QUOTE_DOCUMENT_KINDS).map(([kind, spec]) => ({ kind, extension: spec.extension, label: spec.label })),
+      quotePackageKind: QUOTE_PACKAGE_KIND,
+      uploadKind,
+      documentMaxMb: DOCUMENT_MAX_BYTES / 1024 / 1024
+    });
+  })
+);
+
 router.post(
   '/consultant/documents',
   isConsultant,
@@ -729,12 +769,12 @@ router.post(
   asyncHandler(async (req, res) => {
     if (req.uploadError || !req.file) {
       req.flash('error', req.uploadError || 'Please choose a file.');
-      return res.redirect('/profile/settings#documents');
+      return res.redirect(returnTo(req, DOCUMENTS_PAGE));
     }
     const check = validateDocument(req.file);
     if (!check.ok) {
       req.flash('error', check.reason);
-      return res.redirect('/profile/settings#documents');
+      return res.redirect(returnTo(req, DOCUMENTS_PAGE));
     }
     const result = await ConsultantDocument.add(req.session.user.id, {
       kind: req.body.kind,
@@ -745,7 +785,7 @@ router.post(
       isDefault: req.body.is_default === 'on'
     });
     req.flash(result.ok ? 'success' : 'error', result.ok ? 'Document uploaded.' : result.reason);
-    return res.redirect('/profile/settings#documents');
+    return res.redirect(returnTo(req, DOCUMENTS_PAGE));
   })
 );
 
@@ -779,7 +819,7 @@ router.post(
   asyncHandler(async (req, res) => {
     const ok = await ConsultantDocument.setDefault(req.session.user.id, req.params.id);
     req.flash(ok ? 'success' : 'error', ok ? 'Default updated.' : 'Nothing to update.');
-    return res.redirect('/profile/settings#documents');
+    return res.redirect(returnTo(req, DOCUMENTS_PAGE));
   })
 );
 
@@ -791,7 +831,19 @@ router.post(
   asyncHandler(async (req, res) => {
     const ok = await ConsultantDocument.remove(req.session.user.id, req.params.id);
     req.flash(ok ? 'success' : 'error', ok ? 'Document deleted.' : 'Nothing to delete.');
-    return res.redirect('/profile/settings#documents');
+    return res.redirect(returnTo(req, DOCUMENTS_PAGE));
+  })
+);
+
+router.post(
+  '/consultant/documents/:id/rename',
+  isConsultant,
+  requireIdParam('id'),
+  writeLimiter,
+  asyncHandler(async (req, res) => {
+    const ok = await ConsultantDocument.rename(req.session.user.id, req.params.id, req.body.title);
+    req.flash(ok ? 'success' : 'error', ok ? 'Document renamed.' : 'Nothing to rename.');
+    return res.redirect(returnTo(req, DOCUMENTS_PAGE));
   })
 );
 
@@ -833,6 +885,10 @@ router.get(
       }
       throw err;
     }
+
+    await GeneratedDocument.log(req.session.user.id, {
+      kind: kind === PACKAGE_KIND ? 'cv_rate_card' : kind === 'rate-card' ? 'rate_card' : 'cv'
+    });
 
     res.set('Content-Type', result.contentType);
     // The filename is built from a slugified name, so it cannot inject a header.

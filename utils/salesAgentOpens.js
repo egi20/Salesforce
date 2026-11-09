@@ -26,14 +26,10 @@
  * they sign up. Attribution is first touch and lives in the session and the URL.
  */
 const SalesAgent = require('../models/SalesAgent');
-const { looksLikeAPerson } = require('../middleware/visitGeo');
+const { looksLikeAPerson, LINK_PREVIEW } = require('../middleware/visitGeo');
 
-// The FETCHERS that draw a link's preview card, by their own names — never the app a person
-// is using. SAP Hub's first version said `linkedin` and `twitter`, which also matched the
-// LinkedIn and X IN-APP BROWSERS ("[LinkedInApp]", "Twitter for iPhone"): a real person
-// tapping an agent's link inside LinkedIn, where agents share it, was credited at sign-up
-// and never counted as an open. LinkedIn's fetcher is LinkedInBot, X's is Twitterbot.
-const LINK_PREVIEW = /whatsapp\/|facebookexternalhit|facebookcatalog|slackbot|slack-imgproxy|telegrambot|discordbot|linkedinbot|twitterbot|skypeuripreview|viber|embedly|vkshare|redditbot|pinterestbot/i;
+// LINK_PREVIEW is defined once, in middleware/visitGeo.js, because a referral link's opens are
+// counted by this same rule (routes/referrals.js). Two copies of a fetcher list drift.
 
 /** Pure: would this request be counted for this code? Separate so the rule is testable. */
 function shouldCount({ signedIn, userAgent, alreadyCounted, code }) {

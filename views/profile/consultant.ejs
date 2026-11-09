@@ -524,69 +524,31 @@
     <section class="glass-card profile-section mb-3" id="documents" data-tab="documents">
       <div class="card-body">
         <h2 class="h5 mb-1">Documents</h2>
-        <p class="small text-muted-2 mb-3">Your own CVs and cover letters, plus a CV generated from this profile.</p>
-
+        <p class="small text-muted-2 mb-3">Your CVs and cover letters are kept on <a href="/profile/documents">My documents</a>, with the CVs generated from this profile.</p>
+        <%# One place to manage them: this tab summarises and links, it does not repeat the upload form. %>
         <% if (documents.length) { %>
           <ul class="list-unstyled small mb-3">
             <% documents.forEach(function (d) { %>
-              <li class="d-flex flex-wrap justify-content-between align-items-center gap-2 border-top py-2">
-                <span>
-                  <i class="bi <%= d.content_type === 'application/pdf' ? 'bi-file-earmark-pdf' : 'bi-file-earmark-word' %>"></i>
-                  <strong><%= d.title || d.filename %></strong>
-                  <span class="text-muted-2">· <%= d.kind === 'cv' ? 'CV' : 'Cover letter' %> · <%= kb(d.byte_size) %></span>
-                  <% if (d.is_default) { %><span class="badge-hub ok ms-1">Default</span><% } %>
-                </span>
-                <span class="d-flex gap-2">
-                  <a class="btn btn-outline-primary btn-sm" href="/profile/consultant/documents/<%= d.id %>/download">Download</a>
-                  <% if (!d.is_default) { %>
-                    <button class="btn btn-outline-primary btn-sm" type="submit" form="removeForm" formaction="/profile/consultant/documents/<%= d.id %>/default">Set as default</button>
-                  <% } %>
-                  <button class="btn btn-outline-danger btn-sm" type="submit" form="removeForm" formaction="/profile/consultant/documents/<%= d.id %>/delete" aria-label="Delete <%= d.title || d.filename %>"><i class="bi bi-trash"></i></button>
-                </span>
+              <li class="d-flex flex-wrap align-items-center gap-2 border-top py-2">
+                <i class="bi <%= d.content_type === 'application/pdf' ? 'bi-file-earmark-pdf' : 'bi-file-earmark-word' %>"></i>
+                <strong><%= d.title || d.filename %></strong>
+                <span class="text-muted-2">· <%= d.kind === 'cv' ? 'CV' : 'Cover letter' %> · <%= kb(d.byte_size) %></span>
+                <% if (d.is_default) { %><span class="badge-hub ok">Default</span><% } %>
               </li>
             <% }); %>
           </ul>
+        <% } else { %>
+          <p class="small mb-3">Nothing uploaded yet.</p>
         <% } %>
-
-        <div class="row g-2 align-items-end mb-2">
-          <div class="col-md-5">
-            <label class="form-label small" for="docFile">File</label>
-            <input class="form-control form-control-sm" id="docFile" name="document" type="file" form="docUploadForm" accept=".pdf,.docx" required>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label small" for="docKind">Type</label>
-            <select class="form-select form-select-sm" id="docKind" name="kind" form="docUploadForm">
-              <option value="cv">CV</option>
-              <option value="cover_letter">Cover letter</option>
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label small" for="docTitle">Title (optional)</label>
-            <input class="form-control form-control-sm" id="docTitle" name="title" maxlength="120" form="docUploadForm" placeholder="e.g. CPQ-focused CV">
-          </div>
-          <div class="col-md-6">
-            <div class="form-check mb-0">
-              <input class="form-check-input" type="checkbox" id="docDefault" name="is_default" form="docUploadForm">
-              <label class="form-check-label small" for="docDefault">Set as default</label>
-            </div>
-          </div>
-          <div class="col-md-6 text-md-end"><button class="btn btn-outline-primary btn-sm" type="submit" form="docUploadForm"><i class="bi bi-upload"></i> Upload</button></div>
-        </div>
-        <p class="form-text mb-4">
-          PDF or Word (.docx), up to <%= documentMaxMb %> MB. Older .doc files and documents with macros,
-          scripts or links to outside templates are refused — save as PDF or .docx instead.
-        </p>
-
-        <h3 class="h6 mb-2">Generated from your profile</h3>
         <div class="d-flex flex-wrap gap-2 mb-4">
-          <a class="btn btn-primary btn-sm" href="/profile/consultant/download/cv"><i class="bi bi-file-earmark-word"></i> Generate CV (.docx)</a>
-          <a class="btn btn-outline-primary btn-sm" href="/profile/consultant/download/package">CV + rate card (.zip)</a>
+          <a class="btn btn-primary btn-sm" href="/profile/documents"><i class="bi bi-folder2-open"></i> Open My documents</a>
+          <a class="btn btn-outline-primary btn-sm" href="/profile/documents?upload=cv#upload"><i class="bi bi-upload"></i> Upload a CV</a>
           <a class="btn btn-outline-primary btn-sm" href="/cv-generator">Open the CV Generator</a>
         </div>
 
         <h3 class="h6 mb-2">What's next</h3>
         <ol class="whats-next">
-          <li><a href="#documents" data-focus="docFile">Upload your CV</a> — or <a href="#" data-click="importCvBtn">import it</a> to fill the fields you have not typed yet.</li>
+          <li><a href="/profile/documents?upload=cv#upload">Upload your CV</a> — or <a href="#" data-click="importCvBtn">import it</a> to fill the fields you have not typed yet.</li>
           <li><a href="/profile/consultant/download/cv">Generate a CV</a> from the finished profile.</li>
           <li><a href="/jobs">Browse jobs</a> — every role shows how well it matches you.</li>
         </ol>
@@ -666,7 +628,6 @@
   <% }); %>
   <%# CSRF goes in the query for a multipart upload: the token is checked after multer parses %>
   <%# the body (middleware/csrf.js), and the hidden field below carries it there. %>
-  <form id="docUploadForm" method="post" action="/profile/consultant/documents" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="<%= csrfToken %>"></form>
   <%# Every × and move names its own target with `formaction`. The default action deliberately %>
   <%# goes nowhere: an empty post to the profile route would save a profile with every field blank. %>
   <form id="removeForm" method="post" action="/profile/consultant/no-target"><input type="hidden" name="_csrf" value="<%= csrfToken %>"></form>

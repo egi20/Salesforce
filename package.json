@@ -1,11 +1,11 @@
 {
   "name": "salesforce-hub",
   "version": "0.1.0",
-  "description": "Salesforce Hub \u2014 marketplace, job board and rate index for the Salesforce consulting ecosystem",
+  "description": "Salesforce Hub — marketplace, job board and rate index for the Salesforce consulting ecosystem",
   "main": "server.js",
   "license": "ISC",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
     "start": "npm run migrate && npm run sync:categories && node server.js",
@@ -39,7 +39,6 @@
     "body-parser": "^1.20.2",
     "bootstrap": "^5.3.3",
     "bootstrap-icons": "^1.11.3",
-    "connect-flash": "^0.1.1",
     "docx": "^9.7.1",
     "dotenv": "^16.6.1",
     "ejs": "^3.1.9",
@@ -86,9 +85,12 @@
     ]
   },
   "overrides": {
-    "htmlparser2": "^9.1.0",
-    "mysql2": "^3.24.4",
-    "qs": "^6.16.0",
-    "uuid": "^11.1.0"
+    "brace-expansion@^1.1.7": "1.1.21",
+    "express-mysql-session": {
+      "mysql2": "$mysql2"
+    },
+    "exceljs": {
+      "uuid": "11.1.1"
+    }
   }
 }

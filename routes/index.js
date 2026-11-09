@@ -7,10 +7,13 @@ const { isAuthenticated } = require('../middleware/auth');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
 const { PUBLIC_PATHS, canonicalUrl } = require('../config/seoMeta');
 const legal = require('../config/legal');
+const { teamFor } = require('../config/team');
 const IssueReport = require('../models/IssueReport');
 const { ISSUE_KINDS, ISSUE_SEVERITIES, SCREENSHOTS, LIMITS: ISSUE_LIMITS } = require('../config/issues');
 const { screenshots } = require('../middleware/fileUpload');
 const Job = require('../models/Job');
+const SiteStats = require('../models/SiteStats');
+const TaxProgram = require('../models/TaxProgram');
 const SiteReview = require('../models/SiteReview');
 const config = require('../config/config');
 const Post = require('../models/Post');
@@ -317,12 +320,12 @@ router.get(
       { href: '/cv-generator', icon: 'bi-file-earmark-person', tone: 'icon-info', title: 'CV Generator', text: 'A formatted CV and rate card, generated from your own profile in one click — private by default.' },
       { href: '/rates', icon: 'bi-graph-up', tone: 'icon-success', title: 'Rate & Salary Index', text: 'Day rates contributed by consultants. No figure is published from fewer than three people.' },
       { href: '/rates/calculator', icon: 'bi-calculator', tone: 'icon-blue', title: 'Rate calculator', text: 'What a day rate comes to over a year once holidays, illness and the bench are taken out.' },
-      { href: '/tax-advisory', icon: 'bi-signpost-split', tone: 'icon-navyblue', title: 'Tax Optimization', text: 'Get introduced to a tax specialist who works with contractors in your situation.' }
+      { href: '/tax-optimization', icon: 'bi-signpost-split', tone: 'icon-navyblue', title: 'Tax Optimization', text: 'Keep your clients and your location, and be employed through our Albania entity.' }
     ];
     if (isConsultant) {
       tools.push(
         { href: '/dashboard/applications', icon: 'bi-send', tone: 'icon-info', title: 'Your applications', text: 'Every role you applied to and where each one stands.' },
-        { href: '/rates/submit', icon: 'bi-plus-circle', tone: 'icon-success', title: 'Contribute your rate', text: 'Add your figure to the index. It is never shown on its own.' }
+        { href: '/rates#share', icon: 'bi-plus-circle', tone: 'icon-success', title: 'Contribute your rate', text: 'Add your figure to the index. It is never shown on its own.' }
       );
     }
 
@@ -488,9 +491,37 @@ router.get(
   })
 );
 
-router.get('/about', (req, res) => {
-  res.render('about', { title: 'About', legal });
-});
+/*
+ * /about — the platform, its numbers, how it works, the people behind it and what it refuses
+ * to do. Every figure is a count of rows that exist (a tile at 0 is hidden, never shown as 0),
+ * the stories are only consented ones from Salesforce Hub's own users, and the team's bios
+ * appear in production only once each person has approved theirs (config/team.js).
+ */
+router.get(
+  '/about',
+  asyncHandler(async (req, res) => {
+    const [counts, openRoles, stories] = await Promise.all([
+      SiteStats.platformCounts(),
+      Job.browse({}, { limit: 1 }).then((r) => r.total),
+      TaxProgram.liveStories({ limit: 6 })
+    ]);
+    const tiles = [
+      { value: counts.consultants, label: 'Registered consultants', icon: 'bi-person-badge', href: '/consultants' },
+      { value: counts.companies, label: 'Companies', icon: 'bi-building', href: '/companies' },
+      { value: Number(openRoles) || 0, label: 'Open roles', icon: 'bi-briefcase', href: '/jobs' },
+      { value: counts.applications, label: 'Applications submitted', icon: 'bi-send', href: null },
+      { value: counts.hired, label: 'Consultants hired', icon: 'bi-trophy', href: null }
+    ].filter((t) => t.value > 0);
+    res.render('about', {
+      title: 'About',
+      legal,
+      tiles,
+      stories,
+      team: teamFor({ isProduction: config.isProduction }),
+      showDevNotes: !config.isProduction
+    });
+  })
+);
 
 /*
  * The blog is the community's ARTICLES, not a second store of posts.

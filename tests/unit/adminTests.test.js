@@ -436,7 +436,9 @@ describe('coverage: every page has a built-in case', () => {
     const express = require('express');
     const app = express();
     mountedRouters().forEach(({ prefix, router }) => app.use(prefix || '/', router));
-    const deliberate = new Set(['/this-page-does-not-exist', '/services/not-a-real-service', '/services/constructor']);
+    // /tax-advisory is the tax page's old address: a 301 mounted directly in server.js with
+    // app.use, not a router, so this test's app never sees it. Its case asserts the redirect.
+    const deliberate = new Set(['/this-page-does-not-exist', '/services/not-a-real-service', '/services/constructor', '/tax-advisory']);
     const strays = TEST_SUITE.map(normaliseCase)
       .filter((c) => c.method === 'GET' && !deliberate.has(c.endpoint.split('?')[0]))
       .filter((c) => !routeExists(app, 'GET', c.endpoint.split('?')[0]))

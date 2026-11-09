@@ -1,7 +1,11 @@
 'use strict';
 
 const { promisePool } = require('../config/database');
-const { aggregate, aggregateBy, trendSeries, recentPeriods, currentPeriod } = require('../utils/rateAggregation');
+const { aggregate, aggregateBy, trendSeries, recentPeriods, currentPeriod, windowTrend, TREND_WINDOWS } = require('../utils/rateAggregation');
+const { REGIONS } = require('../config/rateModel');
+
+/** Country code -> rate-model region, for the "By region" tab. */
+const REGION_OF = new Map(REGIONS.flatMap((r) => r.countries.map((c) => [c, r.value])));
 
 /**
  * Rough EUR conversion for normalising submissions.
@@ -85,7 +89,7 @@ class RateSubmission {
    * person and the privacy floor all live in `utils/rateAggregation.js`, and doing any
    * of it in SQL would let a GROUP BY quietly bypass the floor.
    */
-  static async rowsFor({ role = '', seniority = '', engagementType = 'contract', country = '', periods = [] } = {}) {
+  static async rowsFor({ role = '', seniority = '', engagementType = 'contract', country = '', periods = [], sinceDays = null } = {}) {
     /*
      * `voided_at IS NULL` is not optional and is not a filter the caller may turn off.
      *
@@ -114,9 +118,14 @@ class RateSubmission {
       where.push('period IN (?)');
       params.push(periods);
     }
+    if (Number.isInteger(sinceDays) && sinceDays > 0) {
+      // A whole number of days from a declared window (TREND_WINDOWS), never a caller's string.
+      where.push('updated_at >= DATE_SUB(NOW(), INTERVAL ? DAY)');
+      params.push(sinceDays);
+    }
 
     const [rows] = await promisePool.query(
-      `SELECT user_id, role, seniority, country, work_mode, amount_eur, period
+      `SELECT user_id, role, seniority, country, work_mode, amount_eur, period, updated_at
          FROM rate_submissions
         WHERE ${where.join(' AND ')}`,
       params
@@ -157,6 +166,32 @@ class RateSubmission {
     const periods = recentPeriods(months);
     const rows = await RateSubmission.rowsFor({ ...filters, periods });
     return trendSeries(rows, periods);
+  }
+
+  /**
+   * The trend over one declared window ('30d', '12w', '12m'). Gaps stay gaps: every bucket
+   * goes through `trendSeries`, whatever its width.
+   */
+  static async trendWindow(filters, windowKey) {
+    const w = TREND_WINDOWS[windowKey] ? windowKey : '12m';
+    const spec = TREND_WINDOWS[w];
+    const rows = await RateSubmission.rowsFor(
+      spec.days ? { ...filters, sinceDays: spec.days } : { ...filters, periods: recentPeriods(12) }
+    );
+    return windowTrend(rows, w);
+  }
+
+  /**
+   * Aggregate per rate-model region. A figure with no country is counted in no region —
+   * it is not "Other", which means a country outside the regions.
+   */
+  static async byRegion(filters, { months = 12 } = {}) {
+    const periods = recentPeriods(months);
+    const rows = await RateSubmission.rowsFor({ ...filters, country: '', periods });
+    const grouped = aggregateBy(rows, (r) => (r.country ? REGION_OF.get(r.country) || 'other' : null));
+    return [...REGIONS.map((r) => r.value), 'other']
+      .filter((key) => grouped.has(key))
+      .map((key) => ({ region: key, ...grouped.get(key) }));
   }
 
   static async totalContributors() {

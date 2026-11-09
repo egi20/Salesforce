@@ -10,7 +10,7 @@ const AgentLead = require('../models/AgentLead');
 const { requireIdParam } = require('../utils/ids');
 const { isAuthenticated } = require('../middleware/auth');
 const { writeLimiter } = require('../middleware/rateLimit');
-const { looksLikeAPerson, LINK_PREVIEW } = require('../middleware/visitGeo');
+const { shouldCount } = require('../utils/salesAgentOpens');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
 const { formatMinor } = require('../config/payments');
@@ -61,11 +61,12 @@ router.get(
 
     if (referrer && referrer.is_active) {
       req.session.referralCode = referrer.code;
-      // Counted as people, once per session, no link previews or robots — the agent link's
-      // rule (routes/index.js), so the two "opens" figures mean the same thing.
-      const ua = req.get('user-agent') || '';
+      // Counted by the agent link's rule (`shouldCount` in utils/salesAgentOpens.js): people,
+      // not robots or preview fetchers, once per session, and nobody signed in — the commonest
+      // signed-in visitor is the member testing their own link. Same rule, so the two "opens"
+      // figures mean the same thing.
       const counted = Array.isArray(req.session.referralOpens) ? req.session.referralOpens : [];
-      if (looksLikeAPerson(ua) && !LINK_PREVIEW.test(ua) && !counted.includes(referrer.code)) {
+      if (shouldCount({ signedIn: Boolean(req.session.user), userAgent: req.get('user-agent') || '', alreadyCounted: counted, code: referrer.code })) {
         req.session.referralOpens = [...counted, referrer.code].slice(-10);
         await Referral.countOpen(referrer.id);
       }

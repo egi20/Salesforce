@@ -10,10 +10,12 @@ const {
   MAX_MONTHLY_TARGET
 } = require('../config/salesAgents');
 const { containsPattern } = require('../utils/likePattern');
+const { QA_EMAIL_LIKE } = require('../utils/qaAccounts');
 
 /**
- * Sales agents (migration 031): colleagues with a personal sign-up link that is measured
- * and pays nothing. Not the referral scheme — see the migration for why the two are apart.
+ * Sales agents (migration 031): colleagues with a personal sign-up link that is measured.
+ * Migration 031 made it pay nothing; since 2026-11-09 (migration 046) an agent earns a share
+ * of what their sign-ups pay — the owner's decision, credited by `credit` below. Not the referral scheme — see the migration for why the two are apart.
  *
  * Codes use the referral alphabet and length, so they read the same aloud, but live in
  * their own table: the same eight letters can be a referral code and an agent code without
@@ -289,7 +291,7 @@ class SalesAgent {
    */
   static async unattributed() {
     const [[row]] = await promisePool.query(
-      `SELECT (SELECT COUNT(*) FROM users) AS all_accounts,
+      `SELECT (SELECT COUNT(*) FROM users WHERE email NOT LIKE ?) AS all_accounts,
               COUNT(*) AS signups,
               COALESCE(SUM(u.is_consultant = 1), 0) AS consultants,
               COALESCE(SUM(u.is_company = 1), 0) AS companies,
@@ -298,8 +300,10 @@ class SalesAgent {
               COALESCE(SUM(u.created_at >= NOW() - INTERVAL 24 HOUR), 0) AS signups_24h
          FROM users u
          LEFT JOIN referral_attributions ra ON ra.referred_user_id = u.id
-        WHERE u.sales_agent_id IS NULL`,
-      []
+        WHERE u.sales_agent_id IS NULL AND u.email NOT LIKE ?`,
+      // The admin panel's QA accounts signed up through nobody: they are not organic
+      // sign-ups either, and counting them here would make the agents' share look smaller.
+      [QA_EMAIL_LIKE, QA_EMAIL_LIKE]
     );
     return Object.fromEntries(Object.entries(row).map(([k, v]) => [k, Number(v)]));
   }

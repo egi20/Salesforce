@@ -1068,7 +1068,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const [blocks, companies] = await Promise.all([
       ConsultantHiddenCompany.listFor(req.session.user.id),
-      CompanyProfile.browse({}, { limit: 500, offset: 0 })
+      CompanyProfile.browse({ include_empty: true }, { limit: 500, offset: 0 })
     ]);
 
     res.render('profile/hiddenCompanies', {

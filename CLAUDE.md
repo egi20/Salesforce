@@ -9,6 +9,10 @@ wrong produced a real bug.
 - **The schema is migrations.** Never add `CREATE TABLE` or `ALTER TABLE` to a model. Add a
   numbered file under `scripts/migrations/`. An applied migration is immutable — the runner
   compares checksums and refuses to start if one changed. Correct a mistake with a new file.
+  Two files share the number 042 (`042_admin_test_cases`, `042_tax_program`): two branches
+  each took the next number and both were applied before they met. The runner orders by full
+  filename and records each by name, so that is harmless — and renaming either would make it
+  run again where it is already applied. Do not "fix" it; just take the next free number.
 - **All SQL is parameterised.** Filter clauses are assembled from fixed fragments plus a
   `params[]` array. No value is ever interpolated into a query string.
 - **Never add a second filter builder.** `Job.buildFilter` and
@@ -268,6 +272,26 @@ nothing in a chat message and costs an XSS surface.
 The display name for the other party falls back to a neutral label, never the email local
 part. That fallback is a real finding from the reference implementation: an account with no
 profile would otherwise leak a `firstname.lastname` email prefix.
+
+## Salesforce news of the day
+
+**It leads the first page of the home feed** (owner, 2026-11-08; ported from SAP Hub). It is
+READ from the Salesforce Newsroom's feed (`services/salesforceNews.js`, `SALESFORCE_NEWS_FEED_URL`,
+default `https://www.salesforce.com/news/feed/`), never written here: a news card the Hub typed
+would be a second newsroom nobody owns. The page never waits on Salesforce — a render reads the
+cache, and a stale or empty cache starts a background refresh (also once at boot, never in
+tests); a failed refresh keeps the last good copy. Links are host-pinned to salesforce.com over
+https (an item pointing elsewhere is dropped); tags are stripped and entities decoded in the
+service and the template escapes the rest, so no HTML from somebody else's feed reaches the
+front page. One pick a day, rotating through the ten newest by the server's UTC date, so
+everybody sees the same one; the others are a carousel (`public/js/news.js`, a list of links
+without scripting). A refresh failure is one `Salesforce news:` line in the log.
+
+**The fallback is a pointer, not a headline.** SAP Hub keeps three checked, dated headlines in
+its fallback; `config/salesforceNews.js` keeps none — one item that links to the newsroom itself
+and carries no date, and the card then says "Salesforce news", never "of the day". A headline
+written from memory is the thing most easily remembered wrong, and on the front page it is a
+claim made in somebody else's name. A test holds the fallback to that shape.
 
 ## Community and points
 
@@ -1592,6 +1616,58 @@ reaches `closed` in ONE step, asserted at boot — the same rule `config/crm.js`
 
 An answer written by an administrator is shown to the reporter on `/my-issues`. A queue that
 never replies teaches people not to send the next report.
+
+## The admin test panel
+
+`/admin/tests` requests the RUNNING site over HTTP, on `APP_BASE_URL`, one case at a time,
+redirects not followed — the question Jest cannot answer is whether the thing behind the
+domain is up and behind the right guards. Ported from Dynamics Hub, with its cases in
+`admin_test_cases` (migration 042) and these rules:
+
+- **The built-in suite is code.** `config/adminTests.js` holds it; "Rebuild suite" upserts
+  those rows by `builtin_key`, switches them back on, deletes built-ins the code dropped,
+  and does NOT touch a custom case or a past result. The reference drops both tables.
+  Results copy the case's name and path and SET NULL on delete, so a run still says what it
+  checked after the case is gone. `admin_test_runs` (028) is kept and no longer written.
+- **One safety rule, `caseSafetyProblems`, at boot, on save and again just before a case
+  runs.** A path on this site, never a URL (the runner re-checks the origin). A GET, or a
+  POST sent as a visitor with no cookie, no token and no body, to a route not CSRF-exempt and
+  not named for deleting, paying or sending, expecting the CSRF refusal (302 or 403) — the
+  only write a case may attempt is one that cannot happen. No `body` column at all, and only
+  the headers in `ALLOWED_HEADERS`, so a case cannot carry a session.
+- **Running and rebuilding are admin; adding, switching off and deleting are superadmin** —
+  those decide what the panel requests on the live site and what it stops checking. A
+  built-in is switched off, never deleted from the screen: it would come back on rebuild.
+- **Signed-in cases are OPT-IN via `QA_TEST_PASSWORD`** (12+ characters, or it counts as
+  unset). Without it they are recorded as SKIPPED — never passed — the screen says how many
+  and why, and any QA accounts are switched off. With it, `QaAccount.ensure` creates or
+  repairs `qa-<role>@salesforcehub.test` for consultant, company, recruiter and admin:
+  verified, active, exact flags, every profile hidden. **The QA admin is a plain admin and
+  `is_superadmin` is forced to 0 on every run** — superadmin is shell-only, for named people,
+  and a QA superadmin would also make every "a plain admin is refused" case pass for the
+  wrong reason. Sign-in goes through the real form (GET for the cookie and `_csrf`, then
+  POST); sessions are cached per role because the login limiter allows ten a window.
+- **No `X-Forwarded-Proto`.** The reference forges it to get a secure cookie over loopback.
+  Here the base URL is the public https address behind the platform's proxy, and an http one
+  in production should fail at sign-in, which it does, with a message saying so.
+- **QA accounts are never counted.** `utils/qaAccounts.js` is the one definition:
+  `isOwnTraffic` skips them and the runner's user agent, which also says `monitor` so a
+  sales-agent link it opens is no open; "new this week", the admin overview, sign-ups by
+  country and the sales agents' unattributed row bind `QA_EMAIL_LIKE`; `utils/email.js`
+  refuses every `.test` address. They are created by the model, never through
+  `/auth/register`, so no referral or sales-agent attribution can reach them. The company's
+  profile is created HIDDEN before any page opens, because `GET /jobs/new` and `GET
+  /profile/company` create one on first use and `company_profiles` defaults to public — the
+  suite's own directory case caught "QA Company" in the public list.
+- **Failures go to the error log as `source = 'self_test'`**, written directly rather than
+  through the error handler, so the CSRF-scanner rule never sees them, and filterable and
+  deletable by filter like any other row. No response text is copied there.
+- **Coverage is a test.** `tests/unit/adminTests.test.js` walks every router `server.js`
+  mounts and fails for any GET route without a path parameter that no built-in case
+  requests, and for any `isSuperadmin` route without a case proving the plain QA admin is
+  refused it. `COVERAGE_EXEMPT` is the named list for a route that genuinely cannot be
+  checked this way; it is empty, because even a download or an OAuth callback can be guarded.
+  Add the case in the same commit as the page.
 
 ## Notifications
 

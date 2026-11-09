@@ -1,6 +1,7 @@
 'use strict';
 
 const { promisePool } = require('../config/database');
+const { QA_EMAIL_LIKE } = require('../utils/qaAccounts');
 
 /**
  * The analytics figures the site counts ITSELF — no script, no consent, no sampling — over
@@ -35,16 +36,20 @@ class SiteStats {
     return { total: Number(total.visits), rows: rows.map((r) => ({ country: r.country, visits: Number(r.visits) })) };
   }
 
-  /** Accounts created in the range, by the country their sign-up request came from. */
+  /**
+   * Accounts created in the range, by the country their sign-up request came from. Not the
+   * admin panel's QA accounts, which nobody signed up for and which would otherwise appear
+   * as a row of "unknown country" sign-ups the day the tests first run.
+   */
   static async signupsByCountry({ from, to }, { limit = 50 } = {}) {
     const [rows] = await promisePool.query(
       `SELECT COALESCE(signup_country, '') AS country, COUNT(*) AS signups
          FROM users
-        WHERE created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
+        WHERE created_at >= ? AND created_at < DATE_ADD(?, INTERVAL 1 DAY) AND email NOT LIKE ?
         GROUP BY COALESCE(signup_country, '')
         ORDER BY signups DESC, country
         LIMIT ?`,
-      [from, to, limit]
+      [from, to, QA_EMAIL_LIKE, limit]
     );
     return rows.map((r) => ({ country: r.country || null, signups: Number(r.signups) }));
   }

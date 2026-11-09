@@ -18,6 +18,7 @@ const SiteReview = require('../models/SiteReview');
 const config = require('../config/config');
 const Post = require('../models/Post');
 const Points = require('../models/Points');
+const salesforceNews = require('../services/salesforceNews');
 const ConsultantProfile = require('../models/ConsultantProfile');
 const ConsultantHiddenCompany = require('../models/ConsultantHiddenCompany');
 const CompanyProfile = require('../models/CompanyProfile');
@@ -30,7 +31,8 @@ const { toPlainText } = require('../utils/sanitize');
 const legalVersions = require('../config/legal-versions');
 const SalesAgent = require('../models/SalesAgent');
 const { requireIdParam } = require('../utils/ids');
-const { looksLikeAPerson, LINK_PREVIEW } = require('../middleware/visitGeo');
+const { LINK_PREVIEW, countOpenOnce } = require('../utils/salesAgentOpens');
+const { QA_EMAIL_LIKE } = require('../utils/qaAccounts');
 
 const router = express.Router();
 
@@ -82,6 +84,9 @@ router.get(
 
     res.render('feed/index', {
       title: viewer ? 'Home' : res.locals.seo.title,
+      // The day's Salesforce news leads the first page only; never awaited — see
+      // services/salesforceNews.js.
+      news: page === 1 ? salesforceNews.newsOfTheDay() : null,
       posts: postPage.rows,
       jobs: showJobs ? jobPage.rows : [],
       showJobs,
@@ -102,11 +107,16 @@ router.get(
   })
 );
 
-/** People who joined in the last seven days — the "new this week" line. */
+/**
+ * People who joined in the last seven days — the "new this week" line. The admin panel's QA
+ * accounts are not people who joined; left in, every fresh deployment that sets
+ * QA_TEST_PASSWORD would announce four new members on its public home page.
+ */
 async function countRecentMembers() {
   const { promisePool } = require('../config/database');
   const [[row]] = await promisePool.query(
-    'SELECT COUNT(*) AS count FROM users WHERE is_active = 1 AND created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)'
+    'SELECT COUNT(*) AS count FROM users WHERE is_active = 1 AND created_at > DATE_SUB(NOW(), INTERVAL 7 DAY) AND email NOT LIKE ?',
+    [QA_EMAIL_LIKE]
   );
   return row.count;
 }
@@ -753,9 +763,6 @@ router.get(
  *
  * `/s/` collides with nothing else here: no other route or static directory uses it.
  */
-// LINK_PREVIEW lives beside looksLikeAPerson in middleware/visitGeo.js: the referral link
-// counts opens by the same rule.
-
 router.get(
   '/s/:code',
   asyncHandler(async (req, res) => {
@@ -763,13 +770,9 @@ router.get(
     if (!agent) return res.redirect(302, '/auth/register');
     // First touch: a second agent's link later in the same session does not replace it.
     if (!req.session.salesAgentCode) req.session.salesAgentCode = agent.code;
-    const ua = req.get('user-agent') || '';
-    const counted = Array.isArray(req.session.salesAgentOpens) ? req.session.salesAgentOpens : [];
-    if (looksLikeAPerson(ua) && !LINK_PREVIEW.test(ua) && !counted.includes(agent.code)) {
-      // Capped, because a session is not somewhere to accumulate an unbounded list.
-      req.session.salesAgentOpens = [...counted, agent.code].slice(-10);
-      await SalesAgent.countOpen(agent.user_id);
-    }
+    // What counts as an open is decided in utils/salesAgentOpens.js, shared with the
+    // registration form the redirect lands on, so the two never count one visitor twice.
+    await countOpenOnce(req, agent);
     return res.redirect(302, `/auth/register?a=${encodeURIComponent(agent.code)}`);
   })
 );
@@ -779,4 +782,4 @@ router.get('/healthz', (req, res) => {
 });
 
 module.exports = router;
-module.exports.LINK_PREVIEW = LINK_PREVIEW;
+module.exports.LINK_PREVIEW = LINK_PREVIEW; // kept for the existing preview-filter test

@@ -2,6 +2,7 @@
 
 const { promisePool } = require('../config/database');
 const { countryFromIp, clientIp } = require('../utils/geo');
+const { isQaEmail, isSelfTestRequest } = require('../utils/qaAccounts');
 
 /**
  * Something that declares itself a crawler, a library or a headless browser — or sends no
@@ -44,10 +45,16 @@ function looksLikeAPerson(userAgent) {
  */
 const OWN_PATHS = /^\/(admin|auth|crm)(\/|$)/;
 
+/*
+ * The admin test panel is own traffic too, by its user agent when it browses as a visitor
+ * and by its account when it is signed in as a QA consultant, company or recruiter — none of
+ * which is an admin, so the role check alone would count every page the runner opens.
+ */
 function isOwnTraffic(req) {
   if (OWN_PATHS.test(req.path || '')) return true;
+  if (isSelfTestRequest(req)) return true;
   const user = req.session && req.session.user;
-  return Boolean(user && (user.isAdmin || user.isSuperadmin));
+  return Boolean(user && (user.isAdmin || user.isSuperadmin || isQaEmail(user.email)));
 }
 
 /**

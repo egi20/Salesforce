@@ -1,0 +1,64 @@
+<%
+  /*
+   * "Salesforce news of the day" — the first card in the home feed (services/salesforceNews.js),
+   * ported from SAP Hub's.
+   *
+   * Every slide names its source and links to the article; the Hub writes none of the text.
+   * Slide one is today's pick. The others are the rest of the newsroom's newest items: with
+   * scripting they become a carousel, without it they are a list of links underneath.
+   *
+   * Over the fallback the card says "Salesforce news", never "of the day" — the fallback is a
+   * pointer to the newsroom, not the day's headline.
+   */
+  const slides = [news.today].concat(news.more);
+  const fmt = function (iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  };
+%>
+<section class="sf-news mb-4" data-news aria-labelledby="sfNewsHeading">
+  <div class="sf-news-inner">
+    <header class="sf-news-head">
+      <span class="sf-news-badge">
+        <% if (news.live) { %><span class="sf-news-dot" aria-hidden="true"></span><% } %>
+        <i class="bi bi-newspaper" aria-hidden="true"></i>
+        <span id="sfNewsHeading"><%= news.live ? 'Salesforce news of the day' : 'Salesforce news' %></span>
+      </span>
+      <div class="sf-news-controls" data-news-controls hidden>
+        <button type="button" class="sf-news-nav" data-news-prev aria-label="Previous headline"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+        <span class="sf-news-count small" data-news-count aria-live="polite"></span>
+        <button type="button" class="sf-news-nav" data-news-next aria-label="Next headline"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+      </div>
+    </header>
+
+    <% slides.forEach(function (item, i) {
+         const shareText = item.title + ' — ' + item.link + ' (via Salesforce Hub) #Salesforce';
+    %>
+    <article class="sf-news-slide" data-news-slide <%= i === 0 ? '' : 'hidden' %>>
+      <div class="sf-news-meta">
+        <% if (i === 0 && news.isNew) { %><span class="sf-news-new">New</span><% } %>
+        <% if (item.category) { %><span class="sf-news-chip"><%= item.category %></span><% } %>
+        <span class="sf-news-source"><i class="bi bi-patch-check" aria-hidden="true"></i> <%= item.source %><% if (item.date) { %> · <time datetime="<%= item.date %>"><%= fmt(item.date) %></time><% } %></span>
+      </div>
+      <h2 class="sf-news-title"><a href="<%= item.link %>" target="_blank" rel="noopener nofollow"><%= item.title %></a></h2>
+      <% if (item.summary) { %><p class="sf-news-summary"><%= item.summary %></p><% } %>
+      <div class="sf-news-actions">
+        <a class="sf-news-read" href="<%= item.link %>" target="_blank" rel="noopener nofollow">Read more on <%= item.source %> <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i><span class="visually-hidden"> (opens in a new tab)</span></a>
+        <a class="sf-news-share" href="https://www.linkedin.com/feed/?shareActive=true&amp;text=<%= encodeURIComponent(shareText) %>" target="_blank" rel="noopener"><i class="bi bi-linkedin" aria-hidden="true"></i> Share<span class="visually-hidden"> on LinkedIn (opens in a new tab)</span></a>
+      </div>
+    </article>
+    <% }); %>
+
+    <% if (news.more.length) { %>
+    <div class="sf-news-dots" data-news-dots hidden aria-hidden="true">
+      <% slides.forEach(function (item, i) { %><button type="button" tabindex="-1" class="<%= i === 0 ? 'on' : '' %>" data-news-dot="<%= i %>"></button><% }); %>
+    </div>
+    <noscript>
+      <ul class="sf-news-list small mb-0">
+        <% news.more.forEach(function (item) { %><li><a href="<%= item.link %>" target="_blank" rel="noopener nofollow"><%= item.title %></a></li><% }); %>
+      </ul>
+    </noscript>
+    <% } %>
+  </div>
+</section>
+<script src="/js/news.js?v=<%= typeof assetVersion !== 'undefined' ? assetVersion : '' %>" defer></script>

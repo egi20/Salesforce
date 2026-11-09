@@ -86,9 +86,23 @@ class CompanyProfile {
     await promisePool.query('UPDATE company_profiles SET logo = ? WHERE user_id = ?', [pointerUrl, userId]);
   }
 
-  static async browse({ q = '', company_type = '', country = '' } = {}, { limit = 20, offset = 0 } = {}) {
+  /**
+   * `include_empty` is for PICKERS, never for a public list. A company profile is created on
+   * first use — opening /jobs/new or /profile/company inserts one, and `is_public` defaults
+   * to 1 — so without the content clause every company that only LOOKED was listed in the
+   * directory, counted in the hero figures and offered to search as an empty card. The
+   * admin test suite caught it ("QA Company" in the public list). A consultant hiding from
+   * an employer is the opposite case: that employer may never have written a word, and
+   * leaving it out of the picker would make it impossible to hide from them.
+   */
+  static async browse(
+    { q = '', company_type = '', country = '', include_empty = false } = {},
+    { limit = 20, offset = 0 } = {}
+  ) {
     const where = ['cp.is_public = 1', 'u.is_active = 1'];
     const params = [];
+
+    if (!include_empty) where.push(CompanyProfile.HAS_CONTENT);
 
     if (q) {
       where.push('(cp.company_name LIKE ? OR cp.tagline LIKE ?)');
@@ -122,5 +136,13 @@ class CompanyProfile {
     return { rows, total };
   }
 }
+
+/**
+ * Something to show: a line about the company, or a role it is advertising. Deliberately not
+ * "every field filled" — a small agency with one open role is worth listing.
+ */
+CompanyProfile.HAS_CONTENT = `(TRIM(COALESCE(cp.tagline, '')) <> ''
+    OR TRIM(COALESCE(cp.about, '')) <> ''
+    OR EXISTS (SELECT 1 FROM jobs jx WHERE jx.company_user_id = cp.user_id AND jx.status = 'open'))`;
 
 module.exports = CompanyProfile;

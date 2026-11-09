@@ -101,6 +101,9 @@ legal.warnIfUnconfigured();
 // And the analytics ids. A malformed one is not an error anywhere else: the tag loads,
 // reports to nobody, and the admin screen shows an empty month.
 webAnalytics.assertWebAnalyticsIntegrity();
+// And the news fallback: shown when the newsroom feed has never been read, so it must link
+// to Salesforce over https.
+require('./config/salesforceNews').assertSalesforceNewsIntegrity();
 // Decided once, at boot, from the environment: a provider is either configured for this
 // deployment or it is not, and nothing a request carries can change which hosts the
 // policy names.
@@ -358,6 +361,9 @@ app.use(errorHandler);
 if (require.main === module) {
   const server = app.listen(config.app.port, () => {
     console.log(`${config.app.name} listening on port ${config.app.port} (${config.env})`);
+    // Read the newsroom once now, so the first visitor sees today's news rather than the
+    // fallback. Never awaited: the server is already answering.
+    require('./services/salesforceNews').refresh().catch(() => {});
   });
 
   // The /about tiles and every public count read the live tables. Seed data in a production

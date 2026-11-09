@@ -657,6 +657,28 @@ not an ACTIVE agent; `isSalesAgent` is rebuilt into the session on every request
 agent removes the menu item and the page on their next request. The `/dashboard` agent block is a
 summary pointing at the one page that lists people.
 
+## About (2026-11-09)
+
+`/about` presents Salesforce Hub as the Salesforce sister platform of Dynamics Hub, same operator
+and same team. Three things on it are DATA with an owner, and the page hides each until it exists:
+
+- **The team** is `config/team.js`, asserted at boot. A bio was adapted from Dynamics Hub's for
+  this site, so each carries `approved: false` until its person has read it: in production an
+  unapproved bio is left out (name and role only), in development it shows with a Draft badge.
+  `linkedin` and `photo` stay null until somebody supplies the real ones — a photo is a file under
+  `/images/team/` (the CSP allows no other host), and a card without one shows initials.
+- **Who runs it** reads `config/legal.js` (`LEGAL_CONTROLLER_*`, with the NIPT in
+  `LEGAL_CONTROLLER_REGISTRATION`), filled from the company's official documents. Unset: a warning
+  in development, and the card left out in production.
+- **Stories** are `TaxProgram.liveStories` — consented, published, not hidden — and the section is
+  not rendered without one. Dynamics Hub's stories are about Dynamics 365 and are never copied here.
+
+The platform tiles are counts of rows (`SiteStats.platformCounts`, open roles through
+`Job.buildFilter`) and a tile at 0 is hidden. "What we stand for" is the old "What it refuses to
+do", restated against what the code does today: the tax programme exists but gives no tax advice,
+and Import from CV is named as the one other use of a CV file, because "uploaded CVs only go to
+companies you apply to" was otherwise true of stored CVs and not of the import.
+
 ## LinkedIn verification
 
 **What LinkedIn actually returns decides the whole design.** The OpenID Connect userinfo

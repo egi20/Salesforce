@@ -7,10 +7,13 @@ const { isAuthenticated } = require('../middleware/auth');
 const { paginationFrom, paginationMeta, pageUrl } = require('../utils/pagination');
 const { PUBLIC_PATHS, canonicalUrl } = require('../config/seoMeta');
 const legal = require('../config/legal');
+const { teamFor } = require('../config/team');
 const IssueReport = require('../models/IssueReport');
 const { ISSUE_KINDS, ISSUE_SEVERITIES, SCREENSHOTS, LIMITS: ISSUE_LIMITS } = require('../config/issues');
 const { screenshots } = require('../middleware/fileUpload');
 const Job = require('../models/Job');
+const SiteStats = require('../models/SiteStats');
+const TaxProgram = require('../models/TaxProgram');
 const SiteReview = require('../models/SiteReview');
 const config = require('../config/config');
 const Post = require('../models/Post');
@@ -478,9 +481,37 @@ router.get(
   })
 );
 
-router.get('/about', (req, res) => {
-  res.render('about', { title: 'About', legal });
-});
+/*
+ * /about — the platform, its numbers, how it works, the people behind it and what it refuses
+ * to do. Every figure is a count of rows that exist (a tile at 0 is hidden, never shown as 0),
+ * the stories are only consented ones from Salesforce Hub's own users, and the team's bios
+ * appear in production only once each person has approved theirs (config/team.js).
+ */
+router.get(
+  '/about',
+  asyncHandler(async (req, res) => {
+    const [counts, openRoles, stories] = await Promise.all([
+      SiteStats.platformCounts(),
+      Job.browse({}, { limit: 1 }).then((r) => r.total),
+      TaxProgram.liveStories({ limit: 6 })
+    ]);
+    const tiles = [
+      { value: counts.consultants, label: 'Registered consultants', icon: 'bi-person-badge', href: '/consultants' },
+      { value: counts.companies, label: 'Companies', icon: 'bi-building', href: '/companies' },
+      { value: Number(openRoles) || 0, label: 'Open roles', icon: 'bi-briefcase', href: '/jobs' },
+      { value: counts.applications, label: 'Applications submitted', icon: 'bi-send', href: null },
+      { value: counts.hired, label: 'Consultants hired', icon: 'bi-trophy', href: null }
+    ].filter((t) => t.value > 0);
+    res.render('about', {
+      title: 'About',
+      legal,
+      tiles,
+      stories,
+      team: teamFor({ isProduction: config.isProduction }),
+      showDevNotes: !config.isProduction
+    });
+  })
+);
 
 /*
  * The blog is the community's ARTICLES, not a second store of posts.

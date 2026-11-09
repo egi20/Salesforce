@@ -91,7 +91,7 @@ const PAGE_META = {
   '/about': {
     title: 'About Salesforce Hub',
     description:
-      'An independent marketplace for the Salesforce ecosystem: jobs, consultants and contributed day rates — and the things this site deliberately will not do.'
+      'Where Salesforce talent meets opportunity: a specialist job board, a consultant directory and tools for CVs, day rates and project quotes — the Salesforce sister platform of Dynamics Hub.'
   },
   '/auth/login': { title: 'Sign in', description: 'Sign in to Salesforce Hub.' },
   '/auth/register': { title: 'Create an account', description: 'Join Salesforce Hub as a consultant or a hiring company.' }

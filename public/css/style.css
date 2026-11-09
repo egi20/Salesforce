@@ -3300,3 +3300,13 @@ a.about-stat:hover { color: inherit; transform: translateY(-2px); }
   .sf-news, .sf-news-dot, .sf-news-slide.is-entering { animation: none; }
   .sf-news-dots button, .sf-news-nav { transition: none; }
 }
+
+/* Admin overview, laid out as SAP Hub's. A card that links to a list shows its figure in
+   the link colour, which is what says it can be clicked. */
+.admin-stat-link .stat-value { color: var(--primary-blue); }
+.admin-stat-link:hover .stat-value { color: var(--primary-blue-dark); }
+.admin-quick-title {
+  font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-medium); margin-bottom: 1rem;
+}
+.admin-quick-btn { font-weight: 600; padding-top: 0.55rem; padding-bottom: 0.55rem; }

@@ -21,8 +21,8 @@
       <a href="mailto:<%= railEmail %>" aria-label="Email" title="Email"><i class="bi bi-envelope" aria-hidden="true"></i></a>
     <% } %>
   </nav>
-<% } else if (typeof currentUser !== 'undefined' && currentUser && currentUser.isAdmin) { %>
-  <%# Nobody else sees an empty rail. An administrator sees where it goes and how to fill it. %>
+<% } else if (typeof currentUser !== 'undefined' && currentUser && currentUser.isSuperadmin) { %>
+  <%# Nobody else sees an empty rail. A superadmin sees where it goes and how to fill it; a plain admin would land on a Settings page that refuses them. %>
   <nav class="social-rail social-rail-empty" aria-label="Social links (not set)">
     <a href="/admin/settings#social" aria-label="Add the Hub's social links" title="Add the Hub's social links — only you can see this"><i class="bi bi-plus-lg" aria-hidden="true"></i></a>
   </nav>

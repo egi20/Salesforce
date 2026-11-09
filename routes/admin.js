@@ -70,6 +70,9 @@ router.get(
          (SELECT COUNT(*) FROM users WHERE email NOT LIKE ?)                         AS users,
          (SELECT COUNT(*) FROM users WHERE is_active = 1 AND email NOT LIKE ?)       AS active_users,
          (SELECT COUNT(*) FROM users WHERE email_verified = 1 AND email NOT LIKE ?)  AS verified_users,
+         (SELECT COUNT(*) FROM users WHERE anonymised_at IS NULL AND email NOT LIKE ?) AS live_users,
+         (SELECT COUNT(*) FROM users WHERE anonymised_at IS NULL AND email NOT LIKE ?
+             AND (user_type = 'consultant' OR is_consultant = 1))                    AS consultants,
          (SELECT COUNT(*) FROM consultant_profiles WHERE is_public = 1) AS public_consultants,
          (SELECT COUNT(*) FROM company_profiles cp JOIN users u ON u.id = cp.user_id WHERE u.email NOT LIKE ?) AS companies,
          (SELECT COUNT(*) FROM jobs)                               AS jobs,
@@ -80,7 +83,7 @@ router.get(
          (SELECT COUNT(*) FROM payments WHERE needs_refund = 1)    AS refunds_due,
          (SELECT COUNT(*) FROM issue_reports WHERE status <> 'closed') AS open_issues,
          (SELECT COUNT(*) FROM error_logs WHERE created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)) AS recent_errors`,
-      [QA_EMAIL_LIKE, QA_EMAIL_LIKE, QA_EMAIL_LIKE, QA_EMAIL_LIKE]
+      [QA_EMAIL_LIKE, QA_EMAIL_LIKE, QA_EMAIL_LIKE, QA_EMAIL_LIKE, QA_EMAIL_LIKE, QA_EMAIL_LIKE]
     );
 
     const [geo] = await promisePool.query(
@@ -94,7 +97,10 @@ router.get(
       title: 'Admin',
       counts,
       geo,
-      rateContributors: await RateSubmission.totalContributors()
+      rateContributors: await RateSubmission.totalContributors(),
+      // SAP Hub's System Info card. Nothing secret: the environment name, the runtime and
+      // the clock, which is what you check first when a scheduled thing ran "at the wrong time".
+      systemInfo: { environment: config.env || process.env.NODE_ENV || 'development', nodeVersion: process.version, serverTime: new Date() }
     });
   })
 );

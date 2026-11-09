@@ -3215,7 +3215,9 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
 .ref-earn-list li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.5rem 0; border-top: 1px solid var(--border-color); }
 .ref-earn-list li:first-child { border-top: 0; }
 .ref-earn-none { color: var(--text-light); }
-.ref-quick li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.35rem 0; }
+.ref-quick li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.35rem 0; }
+/* A code is read aloud and typed: the same colour and size as the values beside it, spaced. */
+.ref-code { color: inherit; font-weight: 600; letter-spacing: 0.06em; }
 .agent-hero { padding: 2.5rem 0 2.75rem; }
 .agent-hero h1 { font-size: clamp(1.75rem, 1.3rem + 1.4vw, 2.4rem); }
 .agent-code { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); letter-spacing: 0.04em; }

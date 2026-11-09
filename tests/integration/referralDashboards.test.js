@@ -50,7 +50,7 @@ const REFERRER = { id: 1, user_id: 7, code: 'X4Z3T9YA', rate_bps: 1000, is_activ
 function stubReferrer() {
   jest.spyOn(Referral, 'findByUserId').mockResolvedValue(REFERRER);
   jest.spyOn(Referral, 'balanceFor').mockResolvedValue({ unpaidMinor: 1200, lifetimeEarnedMinor: 3400, lifetimePaidMinor: 2200, payable: false, minPayoutMinor: 5000 });
-  jest.spyOn(Referral, 'linkStatsFor').mockResolvedValue({ opens: 8, signups: 2, verified: 1, signupRatePct: 25 });
+  jest.spyOn(Referral, 'linkStatsFor').mockResolvedValue({ opens: 8, signups: 4, verified: 1, signupRatePct: 25, opensSince: new Date('2026-11-09'), signupsBeforeCounting: 2 });
   jest.spyOn(Referral, 'earningsByProduct').mockResolvedValue(new Map([['quote_deposit', { count: 1, earnedMinor: 3400 }]]));
   jest.spyOn(Referral, 'payoutsFor').mockResolvedValue([]);
 }
@@ -76,6 +76,12 @@ describe('GET /referrals', () => {
     expect(res.text).toMatch(/>PayPal</);
     expect(res.text).toMatch(/class="btn btn-primary w-100" type="submit">Save/);
     expect(res.text).toMatch(/Earning window[\s\S]*365 days/);
+    // Opens began to be counted with migration 046; the page says from when, and why the
+    // rate leaves the earlier sign-ups out.
+    expect(res.text).toMatch(/Opens counted since 9 Nov 2026\.\s*2 sign-ups are from before then/);
+    // The code reads as a value, with its own copy button — not as pink inline code.
+    expect(res.text).toMatch(/<span class="ref-code">X4Z3T9YA<\/span><button[^>]*data-copy="X4Z3T9YA"/);
+    expect(res.text).not.toMatch(/<code>X4Z3T9YA<\/code>/);
   });
 
   it('never names, addresses or locates an introduction', () => {
@@ -212,5 +218,15 @@ describe('agent terms and commission', () => {
     expect(PURGE).toContain('sales_agent_leads');
     expect(OWNED.sales_agent_leads).toBe('user_id');
     expect(OWNED.agent_commission_ledger).toBe('user_id');
+  });
+});
+
+describe('the referral rate never compares two periods', () => {
+  it('divides only the sign-ups since counting began by the opens, capped at 100%', async () => {
+    jest.spyOn(promisePool, 'query')
+      .mockResolvedValueOnce([[{ opens_since: new Date('2026-11-09') }]])
+      .mockResolvedValueOnce([[{ link_opens: 4, signups: 3, signups_since: 1, verified: 2 }]]);
+    const stats = await Referral.linkStatsFor(1);
+    expect(stats).toMatchObject({ opens: 4, signups: 3, signupsBeforeCounting: 2, signupRatePct: 25 });
   });
 });

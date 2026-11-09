@@ -45,6 +45,28 @@ describe('admin tabs', () => {
     }
   });
 
+  test("each Quick Actions button's superadmin marker matches the guard on its route", () => {
+    // The overview's Quick Actions are a second navigation, so they drift the same way.
+    const INDEX = read('views/admin/index.ejs');
+    const items = [...INDEX.matchAll(/\{ label: '[^']+', href: '([^']+)', icon: '[^']+'(, super: true)? \}/g)]
+      .map((m) => ({ href: m[1], super: Boolean(m[2]) }));
+    expect(items.length).toBeGreaterThan(10);
+    const guardOf = (href) => {
+      if (href === '/admin/finance') return /router\.use\(isAuthenticated, isSuperadmin\)/.test(read('routes/finance.js'));
+      if (href === '/crm') return /router\.use\(isAuthenticated, isSuperadmin\)/.test(read('routes/crm.js'));
+      // GA4 and Cloudflare are one route keyed by WEB_ANALYTICS_PROVIDERS, open to any admin.
+      if (/^\/admin\/analytics\/(ga4|cloudflare)$/.test(href)) return false;
+      const sub = href.replace(/^\/admin/, '').replace(/\?.*$/, '') || '/';
+      const key = `router.get(\n  '${sub}',`;
+      const at = ADMIN_ROUTES.indexOf(key);
+      expect({ href, found: at > -1 }).toEqual({ href, found: true });
+      return /^\s*isSuperadmin,/.test(ADMIN_ROUTES.slice(at + key.length));
+    };
+    for (const item of items.filter((i) => i.href.startsWith('/admin') || i.href === '/crm')) {
+      expect({ href: item.href, super: item.super }).toEqual({ href: item.href, super: guardOf(item.href) });
+    }
+  });
+
   test('every admin page carries the strip, marked with its own tab', () => {
     const keys = new Set(tabs.map((t) => t.key));
     const dir = path.join(ROOT, 'views', 'admin');

@@ -12,10 +12,22 @@
   <%- include('../partials/flash') %>
 
   <%
+    const isSuper = Boolean(currentUser && currentUser.isSuperadmin);
     /*
-     * The queues come first and the vanity numbers second, deliberately. Everything in
-     * this first row is something somebody has to DO; everything below it is context.
-     * A queue that is not empty turns amber, so the eye goes to it without reading.
+     * The layout is SAP Hub's admin overview, section for section: four headline figures,
+     * the queues, the context figures, then Quick Actions grouped as SAP Hub groups them.
+     * A headline card is a link to the list it counts, so its number is in link blue.
+     * Erased accounts are tombstones, not users.
+     */
+    const headline = [
+      { label: 'Total Users', value: counts.live_users, icon: 'bi-people', href: '/admin/users' },
+      { label: 'Consultants', value: counts.consultants, icon: 'bi-person-badge', href: '/admin/users?role=consultant' },
+      { label: 'Total Jobs', value: counts.jobs, icon: 'bi-briefcase', href: '/admin/jobs' },
+      { label: 'Active Jobs', value: counts.open_jobs, icon: 'bi-briefcase-fill', href: '/admin/jobs?status=open' }
+    ];
+    /*
+     * The queues come before the vanity numbers, deliberately: everything in this row is
+     * something somebody has to DO. A queue that is not empty turns amber.
      */
     const queues = [
       { label: 'Refunds to issue', value: counts.refunds_due, href: '/admin/payments', icon: 'bi-arrow-counterclockwise' },
@@ -32,17 +44,74 @@
       { label: 'Community posts', value: counts.posts, sub: 'visible', icon: 'bi-chat-square-text' },
       { label: 'Rate contributors', value: rateContributors, sub: 'people, not submissions', icon: 'bi-cash-coin' }
     ];
+    /*
+     * Quick Actions, in SAP Hub's groups. Every button opens a screen that EXISTS here:
+     * SAP Hub's greyed "Coming soon" buttons are left out, because a button that does
+     * nothing is noise on the one page people open every day. The superadmin-only screens
+     * are hidden from an ordinary admin exactly as the tab strip hides them, and `super`
+     * must match the route's guard.
+     */
+    const quickGroups = [
+      { title: 'Users & Talent', items: [
+        { label: 'Manage Users', href: '/admin/users', icon: 'bi-people' },
+        { label: 'Referrers & Agents', href: '/admin/referrals', icon: 'bi-people-fill', super: true },
+        { label: 'Browse Talent', href: '/consultants', icon: 'bi-person-badge' }
+      ] },
+      { title: 'Sales & Outreach', items: [
+        { label: 'Leads (CRM)', href: '/crm', icon: 'bi-person-lines-fill', super: true },
+        { label: 'Placements', href: '/admin/placements', icon: 'bi-person-check', super: true },
+        { label: 'Finance', href: '/admin/finance', icon: 'bi-receipt', super: true }
+      ] },
+      { title: 'Content & Community', items: [
+        { label: 'Success Stories', href: '/admin/stories', icon: 'bi-journal-text' },
+        { label: 'Manage Reviews', href: '/admin/reviews', icon: 'bi-star' },
+        { label: 'Moderation', href: '/admin/moderation', icon: 'bi-shield-check' },
+        { label: 'Issue Reports', href: '/admin/issues', icon: 'bi-flag' }
+      ] },
+      { title: 'Jobs & Payments', items: [
+        { label: 'Manage Jobs', href: '/admin/jobs', icon: 'bi-briefcase' },
+        { label: 'Applications Oversight', href: '/admin/applications', icon: 'bi-send', super: true },
+        { label: 'Tax Enquiries', href: '/admin/tax-advisory', icon: 'bi-signpost-split', super: true },
+        { label: 'Payments', href: '/admin/payments', icon: 'bi-credit-card' }
+      ] },
+      { title: 'System & Monitoring', items: [
+        { label: 'Site Analytics', href: '/admin/analytics', icon: 'bi-graph-up' },
+        { label: 'Google Analytics 4', href: '/admin/analytics/ga4', icon: 'bi-bar-chart-line' },
+        { label: 'Cloudflare Web Analytics', href: '/admin/analytics/cloudflare', icon: 'bi-bar-chart-line' },
+        { label: 'Assistant & API Cost Tracking', href: '/admin/ai', icon: 'bi-chat-dots' },
+        { label: 'Error Logs', href: '/admin/errors', icon: 'bi-bug' },
+        { label: 'Automated Tests', href: '/admin/tests', icon: 'bi-check2-square' },
+        { label: 'Rates', href: '/admin/rates', icon: 'bi-cash-coin', super: true },
+        { label: 'Settings', href: '/admin/settings', icon: 'bi-sliders', super: true }
+      ] }
+    ];
   %>
+
+  <div class="row g-3 mb-4">
+    <% headline.forEach(function (h) { %>
+      <div class="col-6 col-lg-3">
+        <a class="glass-card admin-stat-link h-100 text-decoration-none d-block" href="<%= h.href %>">
+          <div class="card-body d-flex align-items-center gap-3">
+            <span class="icon-tile icon-navy"><i class="bi <%= h.icon %>" aria-hidden="true"></i></span>
+            <div>
+              <p class="stat-value mb-0"><%= h.value %></p>
+              <p class="text-muted-2 small mb-0"><%= h.label %></p>
+            </div>
+          </div>
+        </a>
+      </div>
+    <% }); %>
+  </div>
 
   <div class="row g-3 mb-4">
     <% queues.forEach(function (q) { %>
       <div class="col-md-4">
-        <a class="glass-card h-100 text-reset d-block" href="<%= q.href %>">
+        <a class="glass-card admin-stat-link h-100 text-decoration-none d-block" href="<%= q.href %>">
           <div class="card-body d-flex align-items-center gap-3">
-            <span class="icon-tile icon-tile-sm <%= q.value > 0 ? 'icon-amber' : 'icon-navy' %>"><i class="bi <%= q.icon %>"></i></span>
+            <span class="icon-tile <%= q.value > 0 ? 'icon-amber' : 'icon-navy' %>"><i class="bi <%= q.icon %>" aria-hidden="true"></i></span>
             <div>
-              <div class="h3 mb-0"><%= q.value %></div>
-              <div class="small text-muted-2"><%= q.label %></div>
+              <p class="stat-value mb-0"><%= q.value %></p>
+              <p class="text-muted-2 small mb-0"><%= q.label %></p>
             </div>
           </div>
         </a>
@@ -55,10 +124,32 @@
       <div class="col-6 col-lg-3">
         <div class="glass-card h-100">
           <div class="card-body">
-            <span class="icon-tile icon-tile-sm icon-navy mb-2"><i class="bi <%= s.icon %>"></i></span>
-            <div class="h3 mb-0"><%= s.value %></div>
-            <div><%= s.label %></div>
-            <div class="small text-muted-2"><%= s.sub %></div>
+            <span class="icon-tile icon-navy mb-3"><i class="bi <%= s.icon %>" aria-hidden="true"></i></span>
+            <p class="stat-value mb-0"><%= s.value %></p>
+            <p class="mb-0"><%= s.label %></p>
+            <p class="text-muted-2 small mb-0"><%= s.sub %></p>
+          </div>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+
+  <h2 class="h4 mt-5 mb-3">Quick Actions</h2>
+  <div class="row g-3">
+    <% quickGroups.forEach(function (g) {
+         const visible = g.items.filter(function (i) { return isSuper || !i.super; });
+         if (!visible.length) return; %>
+      <div class="col-md-6 col-xl-4">
+        <div class="glass-card h-100">
+          <div class="card-body">
+            <h3 class="admin-quick-title"><%= g.title %></h3>
+            <div class="d-grid gap-2">
+              <% visible.forEach(function (i) { %>
+                <a class="btn btn-outline-primary admin-quick-btn" href="<%= i.href %>">
+                  <i class="bi <%= i.icon %> me-2" aria-hidden="true"></i><%= i.label %><% if (i.super) { %><i class="bi bi-shield-lock ms-2" aria-hidden="true"></i><span class="visually-hidden">(superadmin only)</span><% } %>
+                </a>
+              <% }); %>
+            </div>
           </div>
         </div>
       </div>
@@ -86,6 +177,17 @@
           </table>
         </div>
       <% } %>
+    </div>
+  </div>
+
+  <div class="glass-card mt-4">
+    <div class="card-body">
+      <h2 class="h5">System Info</h2>
+      <dl class="row mb-0 small">
+        <dt class="col-sm-3">Environment</dt><dd class="col-sm-9"><code><%= systemInfo.environment %></code></dd>
+        <dt class="col-sm-3">Node Version</dt><dd class="col-sm-9"><code><%= systemInfo.nodeVersion %></code></dd>
+        <dt class="col-sm-3">Server Time</dt><dd class="col-sm-9 mb-0"><%= systemInfo.serverTime.toISOString().slice(0, 19).replace('T', ' ') %> UTC</dd>
+      </dl>
     </div>
   </div>
 </div>

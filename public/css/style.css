@@ -3204,3 +3204,36 @@ html:not(.js-reveal) .admin-user-modal .modal-dialog { transform: none; }
 .challenge-resources li { margin-bottom: 0.45rem; }
 .challenge-resources li:last-child { margin-bottom: 0; }
 .challenge-resources .bi { margin-right: 0.35rem; color: var(--primary-blue); }
+
+/*
+ * Referrals (/referrals) and the sales agent dashboard (/referrals/agent). Stage colours are
+ * the existing badge tones: won is the success green, lost the danger red.
+ */
+.ref-mini { padding: 0.75rem 0.5rem; border-radius: var(--radius-lg); background: var(--bg-light); border: 1px solid var(--border-color); }
+.ref-mini .value { font-size: 1.35rem; font-weight: 700; color: var(--primary-navy); line-height: 1.2; }
+.ref-mini .label { font-size: 0.78rem; color: var(--text-light); }
+.ref-earn-list li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.5rem 0; border-top: 1px solid var(--border-color); }
+.ref-earn-list li:first-child { border-top: 0; }
+.ref-earn-none { color: var(--text-light); }
+.ref-quick li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.35rem 0; }
+.agent-hero { padding: 2.5rem 0 2.75rem; }
+.agent-hero h1 { font-size: clamp(1.75rem, 1.3rem + 1.4vw, 2.4rem); }
+.agent-code { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); letter-spacing: 0.04em; }
+.agent-pipeline { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.5rem; }
+@media (max-width: 767.98px) { .agent-pipeline { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.agent-stage { display: flex; flex-direction: column; align-items: center; padding: 0.75rem 0.25rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--bg-light); color: var(--primary-navy); text-decoration: none; transition: var(--transition-fast); }
+.agent-stage:hover, .agent-stage:focus-visible { border-color: var(--primary-blue); color: var(--primary-navy); }
+.agent-stage.is-active { border-color: var(--primary-blue); box-shadow: 0 0 0 2px rgba(1, 118, 211, 0.25); }
+.agent-stage-n { font-size: 1.4rem; font-weight: 700; line-height: 1.1; }
+.agent-stage-label { font-size: 0.78rem; color: var(--text-medium); }
+.agent-stage-won { background: rgba(29, 111, 79, 0.10); border-color: rgba(29, 111, 79, 0.35); }
+.agent-stage-won .agent-stage-n, .agent-stage-won .agent-stage-label { color: #1d6f4f; }
+.agent-stage-lost { background: rgba(179, 54, 74, 0.08); border-color: rgba(179, 54, 74, 0.30); }
+.agent-stage-lost .agent-stage-n, .agent-stage-lost .agent-stage-label { color: #9e2b3d; }
+.agent-stage-select { min-width: 8.5rem; }
+.agent-stage-select.tone-won { color: #1d6f4f; font-weight: 600; }
+.agent-stage-select.tone-lost { color: #9e2b3d; font-weight: 600; }
+.agent-progress { background: var(--primary-blue); }
+.agent-people { max-height: 22rem; overflow-y: auto; }
+/* Without scripting, the Add lead button's #addLeadModal target shows the modal itself. */
+.agent-modal:target { display: block; opacity: 1; background: rgba(1, 32, 63, 0.5); }

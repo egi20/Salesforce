@@ -27,7 +27,7 @@ const { toPlainText } = require('../utils/sanitize');
 const legalVersions = require('../config/legal-versions');
 const SalesAgent = require('../models/SalesAgent');
 const { requireIdParam } = require('../utils/ids');
-const { looksLikeAPerson } = require('../middleware/visitGeo');
+const { looksLikeAPerson, LINK_PREVIEW } = require('../middleware/visitGeo');
 
 const router = express.Router();
 
@@ -722,12 +722,8 @@ router.get(
  *
  * `/s/` collides with nothing else here: no other route or static directory uses it.
  */
-// The FETCHERS that draw a link's preview card, by their own names — never the app a person
-// is using. SAP Hub's first version said `linkedin` and `twitter`, which also matched the
-// LinkedIn and X IN-APP BROWSERS ("[LinkedInApp]", "Twitter for iPhone"): a real person
-// tapping an agent's link inside LinkedIn, where agents share it, was credited at sign-up
-// and never counted as an open. LinkedIn's fetcher is LinkedInBot, X's is Twitterbot.
-const LINK_PREVIEW = /whatsapp\/|facebookexternalhit|facebookcatalog|slackbot|slack-imgproxy|telegrambot|discordbot|linkedinbot|twitterbot|skypeuripreview|viber|embedly|vkshare|redditbot|pinterestbot/i;
+// LINK_PREVIEW lives beside looksLikeAPerson in middleware/visitGeo.js: the referral link
+// counts opens by the same rule.
 
 router.get(
   '/s/:code',

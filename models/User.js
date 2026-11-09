@@ -289,7 +289,7 @@ class User {
    * revoked by an admin takes effect on the very next request rather than whenever the
    * person next signs in.
    */
-  static buildSessionUser(userRow, { displayName = null, profilePicture = null } = {}) {
+  static buildSessionUser(userRow, { displayName = null, profilePicture = null, isSalesAgent = false } = {}) {
     const roles = User.rolesOf(userRow);
     return {
       id: userRow.id,
@@ -301,6 +301,7 @@ class User {
       isRecruiter: Boolean(userRow.is_recruiter) || userRow.user_type === 'recruiter',
       isAdmin: userRow.user_type === 'admin' || Boolean(userRow.is_superadmin),
       isSuperadmin: Boolean(userRow.is_superadmin),
+      isSalesAgent: Boolean(isSalesAgent),
       emailVerified: Boolean(userRow.email_verified),
       needsOnboarding: !userRow.onboarded_at,
       name: displayName || userRow.name || String(userRow.email).split('@')[0],

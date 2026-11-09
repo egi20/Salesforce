@@ -615,6 +615,48 @@ the same reason `needs_refund` on a payment is a queue rather than an API call.
 Which products pay is named in `config/referrals.js`, not inferred: adding a product to
 `config/payments.js` must not silently create a liability.
 
+## The referrals page and the sales agent dashboard (2026-11-09)
+
+**`/referrals`** shows what a member's link did, never WHO it brought: an introduction is a date,
+a role and an amount. `Referral.introductionsFor` selects the role flags from `users` and nothing
+else of theirs, and a test reads the query and the view for name, email or country. Link opens are
+counted in `/referrals/go/:code` by the agent link's rule — `looksLikeAPerson`, `LINK_PREVIEW` (now
+both in `middleware/visitGeo.js`), once per session — into `referrers.link_opens` (migration 046).
+The two tabs are server-side (`?tab=earnings`), so they work without scripting and keep their own
+pagination.
+
+**Sales agents now earn commission, and that is the owner's decision, not drift.** Migration 031
+said an agent's link "pays nothing"; on 2026-11-09 the owner decided agents earn a share of what
+their sign-ups PAY for tax optimization or a SOW quote. Everything about it follows the referral
+rules: credited on money received by `SalesAgent.credit`, called beside `Referral.credit` in
+`services/paymentFulfilment.js`, never throwing, idempotent on `agent_commission_ledger.payment_id`
+(UNIQUE), the rate SNAPSHOT on the row, the same `commissionMinor` cap and the same finite window
+from sign-up. The agent ledger is its own table — `models/SalesAgent.js` must never write the
+referral `commission_ledger`, and a test holds that. Tax optimization has no payment product yet,
+so its row is shown with nothing counted rather than left off. A customer who came through a
+referrer's link AND an agent's can credit both; that is two schemes, and if it should not be,
+it is a decision for the owner, not a quiet `if`.
+
+**An agent's terms are DATA set by a superadmin** (`/admin/referrals?tab=agents` → Terms):
+department, `commission_bps`, `monthly_target`. NULL means "not agreed yet" and is shown that way;
+a NULL rate earns nothing. `SalesAgent.parseTerms` refuses rather than clamps an out-of-range
+value. Nothing about an agent's pay is a constant in code.
+
+**An agent sees an email address only where the person was told.** The sign-up form says an agent
+whose link you came through can see your email, role, country and join date; `SalesAgent.attribute`
+stamps `users.agent_notice_at` in the same UPDATE that credits the agent, and `peopleForAgent`
+selects the email only where that is set — and searches only those addresses, so a search cannot
+confirm a hidden one. People who signed up before the notice existed are listed without an email.
+The privacy policy says the same.
+
+Leads (`sales_agent_leads`, `user_id` = the agent) are the agent's own: every read and write is
+scoped by agent in the query, `AgentLead.leadFilter` is the one filter for the list and its count,
+`won_at` is stamped on the move into Won (the monthly target counts deals won IN the month), and
+the table is in the erasure PURGE and the export. `/referrals/agent` answers 404 to anyone who is
+not an ACTIVE agent; `isSalesAgent` is rebuilt into the session on every request, so pausing an
+agent removes the menu item and the page on their next request. The `/dashboard` agent block is a
+summary pointing at the one page that lists people.
+
 ## LinkedIn verification
 
 **What LinkedIn actually returns decides the whole design.** The OpenID Connect userinfo

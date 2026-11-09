@@ -72,7 +72,9 @@ const OWNED = Object.freeze({
   invoices: 'user_id',
   site_reviews: 'user_id',
   referrers: 'user_id',
-  sales_agents: 'user_id'
+  sales_agents: 'user_id',
+  sales_agent_leads: 'user_id',
+  agent_commission_ledger: 'user_id'
 });
 
 /** Columns never exported from any table, whatever it is called there. */

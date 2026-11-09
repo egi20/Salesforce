@@ -1,0 +1,301 @@
+<%- include('../partials/layout-start') %>
+
+<%
+  /*
+   * The sales agent dashboard. Leads are the agent's own, typed by them, and private to them
+   * and to administrators. "Came from your link" shows only what a follow-up needs — an email
+   * address (only where the person was told at sign-up that an agent may contact them), the
+   * role, the country and the date. Nothing here is reported by a browser.
+   */
+  const day = function (d) { return d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'; };
+  const roleOf = function (p) { return [p.is_consultant ? 'Consultant' : null, p.is_company ? 'Company' : null].filter(Boolean).join(' + ') || 'Other'; };
+  const target = agent.monthly_target;
+  const progress = target ? Math.min(100, Math.round((summary.wonThisMonth / target) * 100)) : 0;
+  const v = function (k) { return leadValues && typeof leadValues[k] === 'string' ? leadValues[k] : ''; };
+  const err = function (k) { return leadErrors && leadErrors[k] ? leadErrors[k] : null; };
+%>
+
+<section class="hub-hero agent-hero">
+  <div class="container">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <h1 class="mb-1">Sales agent dashboard</h1>
+        <p class="lead mb-0">Manage your leads and track performance</p>
+      </div>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <span class="hub-hero-badge"><i class="bi bi-diagram-2"></i> <%= agent.department || 'No department set' %></span>
+        <span class="hub-hero-badge agent-code"><i class="bi bi-person-badge"></i> <%= agentCode %></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="glass-section pb-5">
+<div class="container">
+  <%- include('../partials/flash') %>
+
+  <div class="glass-card mb-4"><div class="card-body p-4">
+    <div class="row g-4 align-items-center">
+      <div class="col-lg-7">
+        <h2 class="h6 mb-1"><i class="bi bi-link-45deg text-primary"></i> Your sign-up link</h2>
+        <p class="small text-muted-2 mb-3">Whoever opens it and creates an account is credited to you — the first agent's link they opened, once.</p>
+        <div class="input-group mb-2">
+          <label class="visually-hidden" for="agentLink">Your sign-up link</label>
+          <input class="form-control" id="agentLink" type="text" value="<%= link %>" readonly data-select-on-focus>
+          <button class="btn btn-primary" type="button" data-copy="<%= link %>"><i class="bi bi-clipboard me-1" aria-hidden="true"></i>Copy</button>
+        </div>
+        <p class="small text-muted-2 mb-0"><%= stats.consultants %> <%= stats.consultants === 1 ? 'consultant' : 'consultants' %> · <%= stats.companies %> <%= stats.companies === 1 ? 'company' : 'companies' %> · <%= stats.verified %> verified their email</p>
+      </div>
+      <div class="col-lg-5">
+        <div class="row g-2 text-center">
+          <div class="col-4"><div class="ref-mini"><div class="value"><%= stats.link_opens %></div><div class="label">Unique opens</div></div></div>
+          <div class="col-4"><div class="ref-mini"><div class="value"><%= stats.signups %></div><div class="label">Signed up</div></div></div>
+          <div class="col-4"><div class="ref-mini"><div class="value"><%= signupRatePct === null ? '—' : signupRatePct + '%' %></div><div class="label">Sign-up rate</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+
+  <div class="row g-3 mb-4">
+    <% [
+      ['bi-people', 'icon-blue', String(summary.total), 'Total leads'],
+      ['bi-trophy', 'icon-success', String(summary.won), 'Won deals'],
+      ['bi-bullseye', 'icon-violet', summary.winRatePct === null ? '—' : summary.winRatePct + '%', 'Win rate', 'Won out of closed deals (won + lost)'],
+      ['bi-currency-euro', 'icon-navy', formatMinor(summary.valueMinor), 'Total value', 'Estimated value of every lead not lost']
+    ].forEach(function (t) { %>
+      <div class="col-6 col-lg-3">
+        <div class="glass-card h-100"<% if (t[4]) { %> title="<%= t[4] %>"<% } %>><div class="card-body d-flex align-items-center gap-3">
+          <span class="icon-tile icon-tile-sm <%= t[1] %>"><i class="bi <%= t[0] %>"></i></span>
+          <div><div class="fs-5 fw-semibold lh-sm"><%= t[2] %></div><div class="small text-muted-2"><%= t[3] %></div></div>
+        </div></div>
+      </div>
+    <% }); %>
+  </div>
+
+  <div class="glass-card mb-4"><div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h6 mb-0"><i class="bi bi-kanban text-primary"></i> Sales pipeline</h2>
+      <% if (stage) { %><a class="small" href="<%= linkWith({ stage: '' }) %>">Show all stages</a><% } %>
+    </div>
+    <div class="agent-pipeline">
+      <% stages.forEach(function (s) { %>
+        <a class="agent-stage agent-stage-<%= s.value %> <%= stage === s.value ? 'is-active' : '' %>" href="<%= linkWith({ stage: stage === s.value ? '' : s.value }) %>"<% if (stage === s.value) { %> aria-current="true"<% } %>>
+          <span class="agent-stage-n"><%= summary.byStage[s.value] %></span>
+          <span class="agent-stage-label"><%= s.label %></span>
+        </a>
+      <% }); %>
+    </div>
+  </div></div>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="glass-card mb-4"><div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <h2 class="h6 mb-0"><i class="bi bi-list-task text-primary"></i> <%= stage ? stageFor(stage).label + ' leads' : 'Recent leads' %></h2>
+          <div class="d-flex gap-2">
+            <% if (!showAll && leadsTotal > leads.length) { %><a class="btn btn-sm btn-outline-primary" href="<%= linkWith({ leads: 'all' }) %>">View all (<%= leadsTotal %>)</a><% } %>
+            <a class="btn btn-sm btn-primary" href="#addLeadModal" data-bs-toggle="modal" data-bs-target="#addLeadModal"><i class="bi bi-plus-lg"></i> Add lead</a>
+          </div>
+        </div>
+        <% if (!leads.length) { %>
+          <div class="text-center py-4">
+            <i class="bi bi-inbox fs-1 text-muted-2"></i>
+            <p class="fw-semibold mb-1 mt-2"><%= stage ? 'No leads in this stage' : 'No leads yet' %></p>
+            <p class="small text-muted-2 mb-0">Add the companies you are talking to and move them along the pipeline.</p>
+          </div>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead><tr><th scope="col">Company</th><th scope="col">Contact</th><th scope="col">Stage</th><th scope="col" class="text-end">Value</th><th scope="col">Next step</th></tr></thead>
+              <tbody>
+                <% leads.forEach(function (l) { const st = stageFor(l.stage); %>
+                  <tr>
+                    <td class="fw-semibold"><%= l.company %><span class="d-block small text-muted-2 fw-normal"><%= sourceLabel(l.source) %></span></td>
+                    <td class="small"><%= l.contact_name || '—' %><% if (l.email) { %><span class="d-block text-muted-2"><%= l.email %></span><% } %></td>
+                    <td>
+                      <form method="post" action="/referrals/agent/leads/<%= l.id %>/stage" class="d-flex gap-1 align-items-center">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <input type="hidden" name="redirectTo" value="<%= currentUrl %>">
+                        <label class="visually-hidden" for="stage-<%= l.id %>">Stage of <%= l.company %></label>
+                        <select class="form-select form-select-sm agent-stage-select tone-<%= l.stage %>" id="stage-<%= l.id %>" name="stage" data-submit-on-change>
+                          <% stages.forEach(function (s) { %><option value="<%= s.value %>" <%= s.value === l.stage ? 'selected' : '' %>><%= s.label %></option><% }); %>
+                        </select>
+                        <noscript><button class="btn btn-sm btn-outline-secondary" type="submit">Move</button></noscript>
+                      </form>
+                    </td>
+                    <td class="text-end small"><%= l.estimated_value_minor == null ? '—' : formatMinor(l.estimated_value_minor) %></td>
+                    <td class="small"><%= l.next_step_on ? day(l.next_step_on) : '—' %></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div></div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="glass-card mb-3"><div class="card-body">
+        <h2 class="h6 mb-2"><i class="bi bi-flag text-primary"></i> Monthly target</h2>
+        <% if (target) { %>
+          <div class="d-flex justify-content-between small mb-1"><span><strong><%= summary.wonThisMonth %> / <%= target %></strong> deals this month</span><span class="text-muted-2"><%= progress %>%</span></div>
+          <div class="progress" role="progressbar" aria-label="Deals won this month" aria-valuenow="<%= summary.wonThisMonth %>" aria-valuemin="0" aria-valuemax="<%= target %>">
+            <div class="progress-bar agent-progress" style="width: <%= progress %>%"></div>
+          </div>
+        <% } else { %>
+          <p class="small text-muted-2 mb-0"><%= summary.wonThisMonth %> deals won this month. No target set yet — an administrator sets it.</p>
+        <% } %>
+      </div></div>
+
+      <div class="glass-card mb-3"><div class="card-body">
+        <h2 class="h6 mb-1"><i class="bi bi-coin text-primary"></i> What earns commission</h2>
+        <p class="small text-muted-2 mb-3">You earn only when a lead you brought in pays for Tax optimization or a SOW quote.</p>
+        <ul class="list-unstyled mb-0 ref-earn-list">
+          <% agentEarnings.forEach(function (e) { const r = e.product ? (earnings.byProduct.get(e.product) || { count: 0, commissionMinor: 0 }) : null; %>
+            <li>
+              <span><%= e.label %> <span class="text-muted-2">× <%= r ? r.count : 0 %></span>
+                <% if (!e.product) { %><span class="d-block small text-muted-2">Not paid through the Hub yet, so there is nothing to count.</span><% } %></span>
+              <span class="fw-semibold"><%= formatMinor(r ? r.commissionMinor : 0) %></span>
+            </li>
+          <% }); %>
+          <li class="ref-earn-none"><span><%= agentNotEarning.join(', ') %></span><span><%= formatMinor(0) %></span></li>
+        </ul>
+      </div></div>
+
+      <div class="glass-card mb-3"><div class="card-body">
+        <h2 class="h6 mb-2"><i class="bi bi-person-lines-fill text-primary"></i> Came from your link</h2>
+        <form method="get" action="/referrals/agent" class="row g-2 mb-2">
+          <% if (stage) { %><input type="hidden" name="stage" value="<%= stage %>"><% } %>
+          <div class="col-12">
+            <label class="visually-hidden" for="peopleQ">Search by email</label>
+            <input class="form-control form-control-sm" id="peopleQ" type="search" name="q" value="<%= people.q %>" placeholder="Search by email">
+          </div>
+          <div class="col-6">
+            <label class="visually-hidden" for="peopleRole">Role</label>
+            <select class="form-select form-select-sm" id="peopleRole" name="role" data-submit-on-change>
+              <option value="">Any role</option>
+              <% [['consultant','Consultant'],['company','Company'],['other','Other']].forEach(function (o) { %><option value="<%= o[0] %>" <%= people.role === o[0] ? 'selected' : '' %>><%= o[1] %></option><% }); %>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="visually-hidden" for="peopleVerified">Email</label>
+            <select class="form-select form-select-sm" id="peopleVerified" name="verified" data-submit-on-change>
+              <option value="">Verified or not</option>
+              <option value="yes" <%= people.verified === 'yes' ? 'selected' : '' %>>Verified</option>
+              <option value="no" <%= people.verified === 'no' ? 'selected' : '' %>>Unverified</option>
+            </select>
+          </div>
+          <noscript><div class="col-12"><button class="btn btn-sm btn-outline-secondary w-100" type="submit">Filter</button></div></noscript>
+        </form>
+        <p class="small text-muted-2 mb-2"><%= cameFrom.total %> <%= cameFrom.total === 1 ? 'person' : 'people' %><% if (cameFrom.rows.length < cameFrom.total) { %>, newest <%= cameFrom.rows.length %> shown<% } %></p>
+        <% if (cameFrom.rows.length) { %>
+          <div class="table-responsive agent-people">
+            <table class="table table-sm align-middle mb-0">
+              <thead><tr><th scope="col">Person</th><th scope="col">From</th><th scope="col">Joined</th></tr></thead>
+              <tbody>
+                <% cameFrom.rows.forEach(function (p) { %>
+                  <tr>
+                    <td class="small">
+                      <% if (p.email) { %><%= p.email %><% } else { %><span class="text-muted-2" title="Joined before the sign-up form said an agent may contact them">Email not shared</span><% } %>
+                      <span class="d-block text-muted-2"><%= roleOf(p) %><% if (!p.email_verified) { %> · unverified<% } %><% if (!p.is_active) { %> · closed<% } %></span>
+                    </td>
+                    <td class="small"><%= p.country || '—' %><% if (p.country && p.country_source === 'ip') { %> <span class="text-muted-2" title="From the sign-up address; they have not stated one">*</span><% } %></td>
+                    <td class="small text-nowrap"><%= day(p.created_at) %></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+          <p class="small text-muted-2 mt-2 mb-0">* country read from the sign-up address. Email addresses appear only for people told at sign-up that an agent may contact them.</p>
+        <% } %>
+      </div></div>
+
+      <div class="glass-card"><div class="card-body">
+        <h2 class="h6 mb-3"><i class="bi bi-info-circle text-primary"></i> Quick info</h2>
+        <ul class="list-unstyled small mb-0 ref-quick">
+          <li><span class="text-muted-2">Agent code</span><code><%= agentCode %></code></li>
+          <li><span class="text-muted-2">Department</span><span><%= agent.department || 'Not set' %></span></li>
+          <li><span class="text-muted-2">Commission</span><span class="text-end"><% if (agent.commission_bps == null) { %>Not agreed yet<% } else { %><%= agent.commission_bps / 100 %>%<span class="d-block text-muted-2">of what we are paid for Tax optimization or a SOW quote</span><% } %></span></li>
+          <li><span class="text-muted-2">Commission earned</span><span class="fw-semibold"><%= formatMinor(earnings.totalMinor) %></span></li>
+          <li><span class="text-muted-2">Since</span><span><%= day(agent.created_at) %></span></li>
+        </ul>
+      </div></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<%
+  /*
+   * Add lead. A Bootstrap modal with scripting; without it, the button's #addLeadModal
+   * target opens the same markup through a :target rule. A refused form comes back open,
+   * with the typed values and the reason beside each field.
+   */
+%>
+<div class="modal fade agent-modal" id="addLeadModal" tabindex="-1" aria-labelledby="addLeadTitle" aria-hidden="true"<% if (leadErrors) { %> data-open-on-load<% } %>>
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <form class="modal-content" method="post" action="/referrals/agent/leads" novalidate>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="modal-header">
+        <h2 class="modal-title h5" id="addLeadTitle">Add lead</h2>
+        <a class="btn-close" href="#" data-bs-dismiss="modal" aria-label="Close"></a>
+      </div>
+      <div class="modal-body">
+        <% if (leadErrors) { %><div class="alert alert-danger small">The lead was not saved. Check the fields marked below.</div><% } %>
+        <div class="row g-3">
+          <% [
+            ['company', 'Company', 'text', true, 'col-md-6'],
+            ['contact_name', 'Contact name', 'text', false, 'col-md-6'],
+            ['email', 'Email', 'email', false, 'col-md-6'],
+            ['phone', 'Phone', 'tel', false, 'col-md-6']
+          ].forEach(function (f) { %>
+            <div class="<%= f[4] %>">
+              <label class="form-label" for="lead-<%= f[0] %>"><%= f[1] %><% if (f[3]) { %> <span class="text-danger">*</span><% } %></label>
+              <input class="form-control <%= err(f[0]) ? 'is-invalid' : '' %>" id="lead-<%= f[0] %>" name="<%= f[0] %>" type="<%= f[2] %>" value="<%= v(f[0]) %>"<% if (f[3]) { %> required<% } %>>
+              <% if (err(f[0])) { %><div class="invalid-feedback"><%= err(f[0]) %></div><% } %>
+            </div>
+          <% }); %>
+          <div class="col-md-4">
+            <label class="form-label" for="lead-source">Source <span class="text-danger">*</span></label>
+            <select class="form-select <%= err('source') ? 'is-invalid' : '' %>" id="lead-source" name="source" required>
+              <option value="">Choose…</option>
+              <% sources.forEach(function (s) { %><option value="<%= s.value %>" <%= v('source') === s.value ? 'selected' : '' %>><%= s.label %></option><% }); %>
+            </select>
+            <% if (err('source')) { %><div class="invalid-feedback"><%= err('source') %></div><% } %>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="lead-value">Estimated value (€)</label>
+            <input class="form-control <%= err('estimated_value') ? 'is-invalid' : '' %>" id="lead-value" name="estimated_value" inputmode="decimal" value="<%= v('estimated_value') %>" placeholder="12000">
+            <% if (err('estimated_value')) { %><div class="invalid-feedback"><%= err('estimated_value') %></div><% } %>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="lead-stage">Stage <span class="text-danger">*</span></label>
+            <select class="form-select <%= err('stage') ? 'is-invalid' : '' %>" id="lead-stage" name="stage" required>
+              <% stages.forEach(function (s) { %><option value="<%= s.value %>" <%= (v('stage') || 'new') === s.value ? 'selected' : '' %>><%= s.label %></option><% }); %>
+            </select>
+            <% if (err('stage')) { %><div class="invalid-feedback"><%= err('stage') %></div><% } %>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="lead-next">Next step on</label>
+            <input class="form-control <%= err('next_step_on') ? 'is-invalid' : '' %>" id="lead-next" name="next_step_on" type="date" value="<%= v('next_step_on') %>">
+            <% if (err('next_step_on')) { %><div class="invalid-feedback"><%= err('next_step_on') %></div><% } %>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label" for="lead-notes">Notes</label>
+            <textarea class="form-control <%= err('notes') ? 'is-invalid' : '' %>" id="lead-notes" name="notes" rows="2" maxlength="2000"><%= v('notes') %></textarea>
+            <% if (err('notes')) { %><div class="invalid-feedback"><%= err('notes') %></div><% } %>
+          </div>
+        </div>
+        <p class="small text-muted-2 mt-3 mb-0">Leads are private to you and to the Hub's administrators.</p>
+      </div>
+      <div class="modal-footer">
+        <a class="btn btn-outline-secondary" href="#" data-bs-dismiss="modal">Cancel</a>
+        <button class="btn btn-primary" type="submit">Add lead</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="saved-toast" data-copy-toast role="status" aria-live="polite" hidden></div>
+
+<%- include('../partials/layout-end') %>

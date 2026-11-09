@@ -70,6 +70,9 @@ const PURGE = Object.freeze([
   'tax_program_stories',
   // A log of the CVs somebody generated (migration 044): what and when, never the files.
   'generated_documents',
+  // A sales agent's own pipeline (migration 046): contact details the agent typed about
+  // third parties. Nobody else's record, and the reason to hold them ends with the agent.
+  'sales_agent_leads',
   'post_votes',
   'idea_votes',
   'challenge_attempts'
@@ -93,6 +96,7 @@ const RETAINED = Object.freeze([
   ['applications, application_events', "Part of an employer's hiring record, not solely the applicant's."],
   ['messages', "Half of a conversation somebody else took part in and can still legitimately read."],
   ['commission_ledger', 'Money a DIFFERENT person is owed. The ledger is the balance.'],
+  ['agent_commission_ledger', 'What an agent was owed on a payment: a financial record beside the payment it came from.'],
   ['site_reviews', 'Published content. Hidden and unpublished exist; delete deliberately does not.'],
   ['moderation_events', 'An append-only audit trail. "Who did this, when and why" must keep an answer.'],
   ['sales_agents, users.sales_agent_id', "Who brought whom in. Once the account is anonymised the agent row is a code and two counters naming nobody, and deleting it would drop the people they brought in out of the agents' figures and the no-link row alike, so the two would no longer add up to every account."]

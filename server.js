@@ -25,6 +25,7 @@ const assistantConfig = require('./config/assistant');
 const { assertSettingsIntegrity } = require('./config/settings');
 const { socialLinks } = require('./config/social');
 const { assertReferralIntegrity } = require('./config/referrals');
+const { assertSalesAgentConfig } = require('./config/salesAgents');
 const { assertLinkedInIntegrity, isConfigured: linkedInConfigured } = require('./config/linkedin');
 const { assertDraftingIntegrity } = require('./config/drafting');
 const { assertCompanyTemplateIntegrity } = require('./config/companyTemplates');
@@ -68,6 +69,7 @@ assertSettingsIntegrity();
 // And for the scheme that owes people money: a rate above its own ceiling, or a payout
 // floor no commission can reach, fails as a person asking why they have not been paid.
 assertReferralIntegrity();
+assertSalesAgentConfig();
 // Half-configured is worse than absent: the button appears, the member is sent to
 // LinkedIn, and the failure lands after they have already granted access.
 assertLinkedInIntegrity();

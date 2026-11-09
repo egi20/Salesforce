@@ -32,12 +32,19 @@ describe('sales agents', () => {
 
   it('attribution is first touch, and an agent cannot credit themselves', () => {
     const model = read('models/SalesAgent.js');
-    expect(model).toMatch(/UPDATE users SET sales_agent_id = \? WHERE id = \? AND sales_agent_id IS NULL/);
+    // Attribution happens only on the sign-up form, which states the agent-contact notice, so
+    // the same UPDATE stamps `agent_notice_at` (migration 046).
+    expect(model).toMatch(/UPDATE users SET sales_agent_id = \?, agent_notice_at = NOW\(\) WHERE id = \? AND sales_agent_id IS NULL/);
     expect(model).toMatch(/agent\.user_id === newUserId/);
   });
 
-  it('never touches the commission ledger: agents are measured, not paid', () => {
-    expect(read('models/SalesAgent.js')).not.toMatch(/commission_ledger/);
+  it('pays agents from their own ledger, never the referral scheme\'s', () => {
+    // Since migration 046 an agent earns an admin-agreed share of tax optimization and SOW
+    // quote payments — written to agent_commission_ledger. The referral commission_ledger is
+    // money owed to members, and an agent must never be credited there.
+    const model = read('models/SalesAgent.js');
+    expect(model).not.toMatch(/\bcommission_ledger\b/);
+    expect(model).toMatch(/INSERT IGNORE INTO agent_commission_ledger/);
   });
 
   it('the schema is two new migrations, DATETIME only, recording no address or agent string', () => {
@@ -48,12 +55,18 @@ describe('sales agents', () => {
     expect(sql).not.toMatch(/\bip\b|user_agent|session_id/i);
   });
 
-  it('the agent dashboard lists people without their email addresses', async () => {
+  it('shows an agent an email address only for people told at sign-up', async () => {
     const ejs = require('ejs');
+    // The /dashboard card is a summary: the people are listed on /referrals/agent only.
     const block = read('views/dashboard/index.ejs');
     const card = block.slice(block.indexOf('salesAgent) { %>'), block.indexOf("<% if (currentUser.isConsultant) { %>\n  <section>"));
-    expect(card).toContain('salesAgent.people.forEach');
-    expect(card).not.toMatch(/p\.email\b/);
+    expect(card).not.toMatch(/people\.forEach|p\.email\b/);
     expect(typeof ejs.compile(block)).toBe('function');
+    // The address is selected only where the notice was shown, and searchable only there.
+    const model = read('models/SalesAgent.js');
+    expect(model).toMatch(/CASE WHEN u\.agent_notice_at IS NOT NULL THEN u\.email END AS email/);
+    expect(model).toMatch(/u\.agent_notice_at IS NOT NULL AND u\.email LIKE \?/);
+    // And the sign-up form says so.
+    expect(read('views/auth/register.ejs')).toMatch(/sales agent's link, that agent can see your\s+email address/);
   });
 });

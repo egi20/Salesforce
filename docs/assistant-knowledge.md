@@ -78,7 +78,8 @@ People name pages by the menu label they see, so these are the labels:
 | `/profile/settings` | "Build your profile": one page with sections for Basics, Salesforce (clouds, certifications, Trailhead), Work & rate, Projects & experience, Documents (a summary with links to My documents), Privacy, and Account (email, password, roles, LinkedIn, your data). "Import from CV" reads a .docx or .txt CV and shows what it found; nothing is kept until you tick it and save. "Preview public profile" shows the page as a signed-in company sees it. An account without the consultant role sees only the Account section and a button to add the role. `/profile/consultant` redirects here. |
 | `/payments` | What the two paid things cost. |
 | `/payments/history` | Your payments and invoices. |
-| `/referrals` | The referral scheme: get a link, see what it has earned, set payout details. |
+| `/referrals` | Your referrals: your link with Copy, LinkedIn and Email sharing, and your code; how many opened it, signed up and verified their email; unpaid, earned, paid out and introductions; an Introductions tab (date joined, role and what it earned — never who) and an Earnings tab (every ledger entry); what earns commission; where to pay you; your rate, window and start date. |
+| `/referrals/agent` | Sales agent dashboard, for Salesforce Hub sales agents only (others get "page not found"): the agent's sign-up link and its figures, leads with a seven-stage pipeline (New to Won or Lost), adding and moving leads, the monthly target, commission on tax optimization and SOW quote payments, and the people who signed up through the link. Department, commission and target are set by an administrator. |
 | `/s/<code>` | A sales agent's personal sign-up link — a member of the Hub's own team. It lands on `/auth/register`. It is not the referral scheme and earns nobody a commission; it only records whose link brought somebody in, once, at sign-up. An agent sees their link and who came through it on `/dashboard`. Agents are added by an administrator; nobody can make themselves one. |
 | `/notifications` | Your notifications. |
 | `/auth/register` | Create a free account. |
@@ -133,6 +134,15 @@ whom does not expire, the earning does.
 
 Exact figures — the rate, the per-payment cap, the payout minimum and the window — are on
 `/referrals`. **Do not quote any of them from memory**, they are configuration.
+
+A referrer sees how many people their link brought in and what each earned, but never who
+those people are: an introduction shows only the date and the role (consultant or company).
+
+Sales agents are Salesforce Hub team members, not referrers. An agent's link is `/s/<code>`
+and their dashboard is `/referrals/agent`. An agent can see the email address, role, country
+and join date of people who signed up through their link — the sign-up form says so — and
+earns a commission agreed with an administrator on what those people pay for tax
+optimization or a SOW quote. Never quote an agent's rate or target: they are set per agent.
 
 Things people ask: you cannot refer yourself; first touch wins and a later link does not
 move someone already attributed; a balance below the payout minimum keeps accruing and is

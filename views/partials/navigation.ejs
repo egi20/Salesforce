@@ -236,8 +236,11 @@
               <% } %>
 
               <div class="account-menu-section-label"><i class="bi bi-graph-up-arrow"></i> Referrals</div>
-              <a class="dropdown-item" href="/referrals"><i class="bi bi-speedometer2"></i> Agent Dashboard</a>
-              <a class="dropdown-item" href="/referrals"><i class="bi bi-people"></i> My Leads</a>
+              <a class="dropdown-item <%= path === '/referrals' ? 'active' : '' %>" href="/referrals"><i class="bi bi-people"></i> Your referrals</a>
+              <%# Only for an active sales agent: the flag is rebuilt from sales_agents on every request. %>
+              <% if (currentUser.isSalesAgent) { %>
+                <a class="dropdown-item <%= startsWith('/referrals/agent') ? 'active' : '' %>" href="/referrals/agent"><i class="bi bi-speedometer2"></i> Agent dashboard</a>
+              <% } %>
 
               <% if (currentUser.isAdmin) { %>
                 <a class="dropdown-item" href="/admin"><i class="bi bi-shield-lock"></i> Admin Panel</a>

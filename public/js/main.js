@@ -1169,6 +1169,14 @@
    * readonly field beside it means the page still works without scripting or without the
    * Clipboard API (which needs a secure context): the link can be selected by hand.
    */
+  /*
+   * A modal the server rendered open — the Add lead form refused with the typed values kept.
+   * Without scripting the same modal is shown by its :target rule (style.css).
+   */
+  document.querySelectorAll('.modal[data-open-on-load]').forEach(function (modal) {
+    if (window.bootstrap && window.bootstrap.Modal) window.bootstrap.Modal.getOrCreateInstance(modal).show();
+  });
+
   document.querySelectorAll('[data-copy]').forEach(function (button) {
     button.addEventListener('click', function () {
       var value = button.getAttribute('data-copy');
@@ -1177,6 +1185,14 @@
         var previous = button.getAttribute('aria-label');
         button.setAttribute('aria-label', 'Copied');
         button.classList.add('is-copied');
+        // A page that carries a `[data-copy-toast]` region says it out loud as well.
+        var toast = document.querySelector('[data-copy-toast]');
+        if (toast) {
+          toast.textContent = 'Copied';
+          toast.hidden = false;
+          clearTimeout(toast._timer);
+          toast._timer = setTimeout(function () { toast.hidden = true; }, 2000);
+        }
         setTimeout(function () {
           if (previous) button.setAttribute('aria-label', previous); else button.removeAttribute('aria-label');
           button.classList.remove('is-copied');

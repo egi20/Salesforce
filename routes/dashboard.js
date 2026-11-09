@@ -22,7 +22,6 @@ const { SAVED_SORTS, sortFrom, sortSaved } = require('../utils/savedJobs');
 const router = express.Router();
 
 /** How many of an agent's sign-ups their own card lists; the count beside it is the full COUNT. */
-const AGENT_LIST_CAP = 50;
 
 router.use(isAuthenticated);
 
@@ -67,16 +66,13 @@ router.get(
     }
 
     /*
-     * A sales agent's own link and who came through it (migration 031). Being an agent is a
-     * row in `sales_agents`, not a role flag, so it is asked here rather than read from the
-     * session — and an account that is not one costs this one indexed lookup.
+     * A sales agent's link and headline figures (migration 031). The people, the leads and
+     * the commission live on ONE page, /referrals/agent; this is a summary pointing there,
+     * not a second list that could disagree with it.
      */
     let salesAgent = null;
     const agentStats = await SalesAgent.statsFor(user.id);
-    if (agentStats) {
-      const people = (await SalesAgent.peopleFor([user.id], { perAgent: AGENT_LIST_CAP }))[user.id] || [];
-      salesAgent = { ...agentStats, link: `${config.app.baseUrl}/s/${agentStats.code}`, people, cap: AGENT_LIST_CAP };
-    }
+    if (agentStats) salesAgent = { ...agentStats, link: `${config.app.baseUrl}/s/${agentStats.code}` };
 
     res.render('dashboard/index', {
       title: 'Dashboard',

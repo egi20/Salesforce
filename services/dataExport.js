@@ -31,7 +31,7 @@ const USER_COLUMNS = [
   'is_consultant', 'is_company', 'is_recruiter',
   'is_active', 'email_verified',
   'terms_accepted_at', 'terms_version', 'privacy_policy_version',
-  'gender', 'date_of_birth', 'signup_country',
+  'signup_country',
   'onboarded_at', 'last_login_at', 'created_at', 'updated_at'
 ].join(', ');
 

@@ -25,9 +25,24 @@ const controller = Object.freeze({
   // Where a privacy request goes. Falls back to the general support address, because one
   // address somebody actually reads beats a second one nobody has set up.
   privacyEmail: process.env.LEGAL_PRIVACY_EMAIL || '',
-  // The data protection authority a complaint goes to. Depends on where the controller is,
-  // so it cannot be hardcoded either.
-  supervisoryAuthority: process.env.LEGAL_SUPERVISORY_AUTHORITY || ''
+  // The data protection authority a complaint goes to. Unset, the policy names Albania's
+  // Information and Data Protection Commissioner — the operator is an Albanian company (the
+  // owner, 2026-11-11) — and points EU residents to their own country's authority.
+  supervisoryAuthority: process.env.LEGAL_SUPERVISORY_AUTHORITY || '',
+  // A Data Protection Officer, ONLY if one has been appointed. Unset, the policy says nothing
+  // about one rather than inventing a contact.
+  dpoContact: process.env.LEGAL_DPO_CONTACT || ''
+});
+
+/**
+ * Where the site and its database run. The host processes every row this site holds, so the
+ * policy has to name it — and which provider and region that is is a fact about a deployment,
+ * not something the code can know. Unset, the policy page warns in development and the list of
+ * recipients is incomplete; set both before taking real users.
+ */
+const hosting = Object.freeze({
+  provider: process.env.LEGAL_HOSTING_PROVIDER || '',
+  region: process.env.LEGAL_HOSTING_REGION || ''
 });
 
 /**
@@ -44,34 +59,45 @@ const PROCESSORS = Object.freeze([
   {
     name: 'Stripe',
     purpose: 'Taking card payments. Stripe receives your email address and the amount; this site never sees or stores your card details.',
+    location: 'Ireland and the United States',
     envKey: 'STRIPE_SECRET_KEY'
   },
   {
     name: 'Resend',
     purpose: 'Sending the emails this site sends you — confirmation, password reset, notifications. Receives your email address and the message.',
+    location: 'United States',
     envKey: 'RESEND_API_KEY'
   },
   {
     name: 'Anthropic',
+    /*
+     * "Never sent your name" was true of the assistant and false of Import from CV, which
+     * sends the whole text of the CV — and a CV starts with a name, an email address and
+     * usually a phone number. Each feature is named with what it actually sends.
+     */
     purpose:
-      'The assistant, and drafting help inside quotes and outreach. Receives the text you type into it. It is never sent your name, your email address or your account id — only whether you are signed in and which roles you hold.',
+      'AI features. The assistant receives the text you type into it, and whether you are signed in and which roles you hold — never your name, email address or account id. Import from CV receives the full text of the CV you choose to import, which normally includes your name and contact details; the file itself is not kept. Drafting help inside quotes receives the quote\'s modules, phases and roles, never a figure; sales outreach drafts receive a company, country and job title, never a person\'s name or contact details.',
+    location: 'United States',
     envKey: 'ANTHROPIC_API_KEY'
   },
   {
     name: 'Google Analytics',
     purpose:
       'Counting visits, only for visitors who press "Allow analytics". Receives the pages you open, your approximate location, device and referrer, and sets the _ga cookies. Nothing is sent before you allow it.',
+    location: 'United States',
     envKey: 'GA4_MEASUREMENT_ID'
   },
   {
     name: 'Cloudflare Web Analytics',
     purpose:
       'Counting page views without a cookie or an identifier. Receives the page address, referrer, browser and device type and your country, and reports them to us only as totals.',
+    location: 'United States',
     envKey: 'CF_WEB_ANALYTICS_TOKEN'
   },
   {
     name: 'Cloudflare Turnstile',
     purpose: 'Checking that a sign-up is not automated. Receives the challenge result, not your form.',
+    location: 'United States',
     envKey: 'TURNSTILE_SECRET_KEY'
   }
 ]);
@@ -101,4 +127,9 @@ function warnIfUnconfigured(log = console) {
   return false;
 }
 
-module.exports = { controller, PROCESSORS, activeProcessors, isConfigured, warnIfUnconfigured };
+/** True when the host is named, so the policy's list of recipients is complete. */
+function hostingNamed() {
+  return Boolean(hosting.provider);
+}
+
+module.exports = { controller, hosting, hostingNamed, PROCESSORS, activeProcessors, isConfigured, warnIfUnconfigured };

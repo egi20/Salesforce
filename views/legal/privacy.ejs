@@ -1,84 +1,232 @@
 <%- include('../partials/layout-start') %>
 <%- include('../partials/page-header', { icon: 'bi-shield-check', heading: 'Privacy policy' }) %>
+<%
+  /*
+   * WRITTEN AS A STATEMENT OF WHAT THIS DEPLOYMENT DOES, not of what the software could do.
+   * Three rules keep it true:
+   *   - who is responsible, the host and the providers come from config/legal.js, and an unset
+   *     one is said to be unset, never filled with something plausible;
+   *   - every period is read from the constant the purge that enforces it reads (the route
+   *     passes `retention`); a period with no constant behind it is not stated as a number;
+   *   - every provider sentence exists only while that provider is configured.
+   * If the site starts doing something new with personal data, this page changes in the same
+   * commit, PRIVACY_VERSION moves, and PRIVACY_CHANGES says what moved.
+   */
+  const wa = (typeof webAnalytics !== 'undefined' && webAnalytics) || {};
+  const contactEmail = legal.controller.privacyEmail || (supportConfigured ? supportEmail : '');
+  const longDate = (iso) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const operator = legal.isConfigured() ? legal.controller.name : 'the operator named above';
+  const sections = [
+    ['responsible', 'Who is responsible'],
+    ['at-a-glance', 'What we hold, why, and for how long'],
+    ['tax-programme', 'The tax optimization programme'],
+    ['documents', 'CVs and other documents'],
+    ['links', 'Links that brought you here'],
+    ['business-contacts', 'Business contacts of our sales team'],
+    ['reports', 'Problem reports and ideas'],
+    ['rates', 'Your rate contributions'],
+    ['cookies', 'Cookies'],
+    ['analytics', 'Visitor analytics'],
+    ['recipients', 'Who else receives it'],
+    ['transfers', 'Outside the EU and Albania'],
+    ['rights', 'Your rights'],
+    ['complaints', 'Complaining to an authority'],
+    ['automated', 'Automated decisions'],
+    ['consent', 'Consent record'],
+    ['security', 'Security'],
+    ['changes', 'What changed']
+  ];
+%>
 <section class="glass-section pb-5">
 <div class="container">
-  <div class="row justify-content-center"><div class="col-lg-8">
-    <div class="glass-card"><div class="card-body">
-      <p class="text-muted-2">Version <%= version %></p>
+  <div class="row justify-content-center"><div class="col-lg-9">
+    <div class="glass-card policy"><div class="card-body p-4">
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <span class="badge-hub"><i class="bi bi-calendar-check" aria-hidden="true"></i> Last updated <%= longDate(version) %></span>
+        <a class="small" href="#changes">What changed</a>
+      </div>
+
+      <% if (showDevNotes) { %>
+        <%# Development only: what is still missing before this page can go live. %>
+        <% const missing = [];
+           if (!legal.isConfigured()) missing.push('the legal name and address (LEGAL_CONTROLLER_NAME, LEGAL_CONTROLLER_ADDRESS), with the NIPT in LEGAL_CONTROLLER_REGISTRATION');
+           if (!legal.controller.privacyEmail) missing.push('an address for privacy requests (LEGAL_PRIVACY_EMAIL)');
+           if (!legal.hostingNamed()) missing.push('the hosting provider and region (LEGAL_HOSTING_PROVIDER, LEGAL_HOSTING_REGION)'); %>
+        <div class="alert alert-warning small">
+          <strong>Development only — not shown in production.</strong>
+          <% if (missing.length) { %>Before publishing, set <%= missing.join('; ') %>.<% } %>
+          Have the legal bases, the transfer safeguards and the programme section reviewed by
+          somebody who knows GDPR and Albanian data protection law.
+        </div>
+      <% } %>
 
       <% if (!legal.isConfigured()) { %>
         <div class="alert alert-warning">
           <strong>This policy does not yet name who is responsible for your data.</strong>
-          Whoever runs this site must set <code>LEGAL_CONTROLLER_NAME</code> and
-          <code>LEGAL_CONTROLLER_ADDRESS</code>. Until they do, treat this site as one that
-          has not finished its setup — and be careful what you give it.
+          Until it does, treat this site as one that has not finished its setup — and be
+          careful what you give it.
         </div>
       <% } %>
 
-      <h2 class="h6">Who is responsible</h2>
+      <nav class="policy-toc mb-4" aria-label="On this page">
+        <p class="fw-semibold mb-2">On this page</p>
+        <ol class="mb-0">
+          <% sections.forEach(function (s) { %><li><a href="#<%= s[0] %>"><%= s[1] %></a></li><% }); %>
+        </ol>
+      </nav>
+
+      <h2 class="h5" id="responsible">Who is responsible</h2>
       <% if (legal.isConfigured()) { %>
-        <p class="mb-1"><strong><%= legal.controller.name %></strong></p>
-        <p class="text-muted-2 mb-1" style="white-space: pre-line"><%= legal.controller.address %></p>
-        <% if (legal.controller.registration) { %>
-          <p class="text-muted-2">Registration: <%= legal.controller.registration %></p>
-        <% } %>
+        <p class="mb-1"><strong><%= legal.controller.name %></strong> is the controller of the personal data this site holds.</p>
+        <p class="text-muted-2 mb-1" style="white-space: pre-line"><%= legal.controller.address %><% if (legal.controller.country) { %>, <%= legal.controller.country %><% } %></p>
+        <% if (legal.controller.registration) { %><p class="text-muted-2 mb-1">Registration number (NIPT): <%= legal.controller.registration %></p><% } %>
       <% } else { %>
         <p class="text-muted-2">Not published yet — see the notice above.</p>
       <% } %>
-      <p>This site is independent and is not affiliated with, endorsed by, or sponsored by
-         Salesforce, Inc.</p>
+      <p class="mb-1">Privacy questions and requests:
+        <% if (contactEmail) { %><a href="mailto:<%= contactEmail %>"><%= contactEmail %></a><% } else { %><a href="/contact">the contact page</a><% } %>.</p>
+      <% if (legal.controller.dpoContact) { %><p class="mb-1">Data Protection Officer: <%= legal.controller.dpoContact %>.</p><% } %>
+      <p>This site is independent and is not affiliated with, endorsed by, or sponsored by Salesforce, Inc.</p>
 
-      <h2 class="h6">What we store, and why we are allowed to</h2>
+      <h2 class="h5" id="at-a-glance">What we hold, why, and for how long</h2>
+      <p>Each line names the legal basis under the GDPR (Article 6(1)) and Albania's data protection law:
+         <strong>contract</strong> — needed to give you what you signed up for; <strong>legal
+         obligation</strong> — a law requires it; <strong>legitimate interest</strong> — a reason
+         of ours that does not override your rights, and that you can object to;
+         <strong>consent</strong> — you ticked a box, and you can withdraw it at any time.</p>
+      <div class="table-responsive">
+        <table class="table table-sm policy-table align-top">
+          <thead><tr><th scope="col">What</th><th scope="col">Why</th><th scope="col">Legal basis</th><th scope="col">Kept for</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Your account</strong> — email, name, password (only as a hash nobody can read back), your roles</td>
+                <td>To give you an account and sign you in</td><td>Contract</td>
+                <td>Until you close the account. Inactive accounts are not deleted automatically; close yours at any time.</td></tr>
+            <tr><td><strong>Your profile and what you publish</strong> — consultant or company profile, job posts, community posts, reviews</td>
+                <td>To show it where you chose to show it</td><td>Contract</td>
+                <td>Until you remove it or close the account. Forum posts and reviews stay, as “Deleted account”.</td></tr>
+            <tr><td><strong>CVs and cover letters</strong> you upload — <a href="#documents">see below</a></td>
+                <td>To send with an application</td><td>Contract</td>
+                <td>Until you delete them or close the account</td></tr>
+            <tr><td><strong>Applications</strong></td>
+                <td>To connect you with the company you applied to</td><td>Contract</td>
+                <td>Part of the company's hiring record, so they stay after you close the account — with your name and email removed</td></tr>
+            <tr><td><strong>Messages</strong></td>
+                <td>To let the two sides of an application or a job enquiry talk</td><td>Contract</td>
+                <td>As long as the conversation exists. After you close the account, your messages stay in the other person's conversation as “Deleted account”.</td></tr>
+            <tr><td><strong>Payments and invoices</strong></td>
+                <td>Accounting</td><td>Legal obligation</td>
+                <td>For the period accounting and tax law requires, even after you close the account</td></tr>
+            <tr><td><strong>Where your sign-up came from</strong> — your IP address (stored in binary form) and the country derived from it offline</td>
+                <td>Security, and knowing which countries members come from</td><td>Legitimate interest</td>
+                <td>Until you close the account</td></tr>
+            <tr><td><strong>Whose link brought you</strong> — <a href="#links">see below</a></td>
+                <td>To pay the commission a referral or sales agent earns</td><td>Legitimate interest</td>
+                <td>Until you close the account; then only as a count naming nobody</td></tr>
+            <tr><td><strong>Rate figures you contribute</strong> — <a href="#rates">see below</a></td>
+                <td>To publish an anonymous benchmark</td><td>Legitimate interest</td>
+                <td>Kept after you close the account, with the link to you destroyed</td></tr>
+            <tr><td><strong>Tax optimization enquiries</strong> — <a href="#tax-programme">see below</a></td>
+                <td>To answer your enquiry</td><td>Consent</td>
+                <td><%= retention.taxEnquiryDays %> days, then deleted</td></tr>
+            <tr><td><strong>Problem reports</strong> and their screenshots</td>
+                <td>To fix what you report and answer you</td><td>Legitimate interest</td>
+                <td>The text as the record of the report; screenshots <%= retention.screenshotDaysAfterClose %> days after the report is closed</td></tr>
+            <tr><td><strong>LinkedIn verification</strong> — LinkedIn's identifier for your account and the name on it</td>
+                <td>To show the “LinkedIn verified” badge</td><td>Consent</td>
+                <td>Until you unlink it or close the account</td></tr>
+            <tr><td><strong>Error log</strong> — the page, the error and, if you were signed in, your account id and browser type</td>
+                <td>To find and fix faults</td><td>Legitimate interest</td>
+                <td><%= retention.errorLogDays %> days</td></tr>
+            <tr><td><strong>The sign-in cookie</strong></td>
+                <td>To keep you signed in</td><td>Strictly necessary</td>
+                <td><%= retention.sessionHours %> hours</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Nothing is kept “just in case”, and nothing is sold. Gender and date of birth are no longer
+         asked for: nothing used them, so the answers given before were deleted.</p>
+
+      <h2 class="h5" id="tax-programme">The tax optimization programme</h2>
+      <p>The <a href="/tax-optimization">programme</a> lets a consultant keep their clients and be
+         employed through our Albanian entity. Through this website we hold three things:</p>
       <ul>
-        <li><strong>Your account</strong> — email, name, password (stored only as a hash
-            nobody can read back), and the roles you hold. Needed to give you an account at
-            all: without it there is no service to provide.</li>
-        <li><strong>Your profile, and anything you publish</strong> — a consultant profile, a
-            job posting, a community post, a review. Published because you chose to publish
-            it, and removed when you remove it.</li>
-        <li><strong>Applications and messages</strong> — needed to connect the two sides of
-            an application, which is what the site is for.</li>
-        <li><strong>Rate figures you contribute</strong> — see below.</li>
-        <li><strong>Payments</strong> — kept because tax law requires records of them to be
-            kept, and for as long as it requires.</li>
-        <li><strong>Where your sign-up came from</strong> — the country, derived offline from
-            your IP address. The address itself is stored in binary form on your account row
-            and is used for nothing else. It is destroyed when you close your account.</li>
-        <li><strong>Gender and date of birth</strong> — optional, used only in aggregate,
-            never shown on your profile and never shared with employers. Leaving them blank
-            has no effect on anything.</li>
+        <li><strong>Your enquiry</strong> — your name, email, phone (optional), country of tax
+            residence, how you work today and your question. Read only by the few people here who
+            answer them. Held on your consent, which is the box you tick, and deleted
+            <%= retention.taxEnquiryDays %> days after you send it.</li>
+        <li><strong>That you take part</strong> — the dates you joined and left, kept with your
+            account to perform the arrangement (contract).</li>
+        <li><strong>A story, only if you agree</strong> — your role, country, your pay before and
+            after (gross and net) and a quote in your words, shown with your first name and
+            initial. Published only with your consent; withdraw it at any time and it comes down.</li>
+      </ul>
+      <p><strong>The employment itself is not handled through this website.</strong> If you join,
+         you are employed by <%= operator %> under an employment contract, and what employment
+         needs — identity documents, bank details, tax residence, salary, and your social and
+         health insurance contributions — is collected under that contract. It is processed to
+         perform the contract and because Albanian tax, social insurance and health insurance law
+         requires it (legal obligation). It goes to the Albanian tax administration and the social
+         and health insurance institutions as that law requires, and to whoever keeps the payroll
+         and accounts on the entity's behalf. It is kept for the periods Albanian employment and
+         tax law set, and the contract tells you who those people are.</p>
+
+      <h2 class="h5" id="documents">CVs and other documents</h2>
+      <ul>
+        <li><strong>What you upload</strong> — up to <%= retention.cvLimit.cv %> CVs and
+            <%= retention.cvLimit.cover_letter %> cover letters, as PDF or Word. Each file is
+            checked before it is stored, and anything carrying macros or embedded code is refused.</li>
+        <li><strong>Who can see them</strong> — you. When you apply with a CV, the company you
+            applied to can download <em>that</em> CV for <em>that</em> application, and nobody else
+            can. Profiles never show your uploaded files.</li>
+        <li><strong>How long</strong> — until you delete them or close your account. Deleting a CV
+            you already sent also removes the company's access to it.</li>
+        <li><strong>Generated CVs and rate cards</strong> are built from your profile when you
+            download them and are not stored; we keep only a note of which one you made and when.</li>
+        <li><strong>Import from CV</strong> reads the file you choose and fills in your profile
+            for you to check. <% if (processors.some(function (p) { return p.name === 'Anthropic'; })) { %>Its
+            text is sent to our AI provider (see <a href="#recipients">who else receives it</a>);<% } %>
+            the file itself is not kept, and nothing is saved until you press Save.</li>
       </ul>
 
-      <h2 class="h6" id="links">Links that brought you here</h2>
+      <h2 class="h5" id="links">Links that brought you here</h2>
       <p>If you created your account after following a member's referral link, or the personal
          sign-up link of one of our team, we record against your account whose link it was. It is
          recorded once, at sign-up, and only the first such link counts. A member who referred you
          sees only the date you joined, the role you joined as and what your purchases earned them
          — never your name, email or country. A referral link can earn its member a commission on
-         what you later buy.</p>
+         what you later buy. Legal basis: our legitimate interest in paying for introductions.</p>
       <p>If the link was a team member's (a Salesforce Hub sales agent), that agent can see your
          email address, the role you signed up as, your country and the date you joined, so they
-         can follow up with you — the sign-up form says so. They may earn a commission, agreed with
+         can follow up with you — the sign-up form tells you this before you create the account.
+         Legal basis: our legitimate interest in following up a sign-up our team brought in; you
+         can object, and the agent stops contacting you. They may earn a commission, agreed with
          us, on what you later pay us for tax optimization or a SOW quote. Accounts created before
          this notice was added are shown to the agent without an email address. The number of times
          a link is opened is kept as a count, with nothing about who opened it.</p>
 
-      <h2 class="h6" id="reports">Problem reports and ideas</h2>
+      <h2 class="h5" id="business-contacts">Business contacts of our sales team</h2>
+      <p>Our sales team keeps a list of people at companies that may want to hire through the site:
+         name, work email, work phone, company, job title and country. Every entry records where it
+         came from — they contacted us, we met at an event, somebody introduced us, a public
+         business directory, the company's own website, or they are already a customer. We use it
+         to contact them about Salesforce Hub. A person reviews and sends every message from
+         their own mail; nothing is sent automatically, and the AI that may help draft one is never
+         given the person's name or contact details. Legal basis: legitimate interest in business-to-business
+         contact. An entry nobody has worked on for <%= retention.staleLeadDays %> days is flagged
+         for deletion. If you ask us to stop, we remove you and keep only a one-way code of your
+         email address, so that you are not added again; it cannot be turned back into the address.
+         To see or delete what we hold, write to us at the address above.</p>
+
+      <h2 class="h5" id="reports">Problem reports and ideas</h2>
       <p>What you type into <a href="/report-issue">Report a problem</a> is kept so we can act on
          it and answer you. Screenshots you attach are re-encoded on arrival, which removes
-         location and camera details, and are deleted 90 days after the report is closed; the
-         text stays as the record of what was reported. A suggestion is shown on the
-         <a href="/ideas">ideas page</a> only if you ticked the box that allows it and somebody
-         here published it, and never with your name. Votes on ideas are counted, never shown
-         against anybody.</p>
+         location and camera details, and are deleted <%= retention.screenshotDaysAfterClose %> days
+         after the report is closed; the text stays as the record of what was reported. A
+         suggestion is shown on the <a href="/ideas">ideas page</a> only if you ticked the box that
+         allows it and somebody here published it, and never with your name. Votes on ideas are
+         counted, never shown against anybody.</p>
 
-      <h2 class="h6">How long it is kept</h2>
-      <p>Your account and everything on it, for as long as the account exists — you can end
-         that yourself at any time. Payment records for as long as tax law requires,
-         regardless of the account. Tax-advisory enquiries are deleted on a stated schedule
-         shown on that form. Nothing else is kept "just in case".</p>
-
-      <h2 class="h6">Your rate contributions</h2>
+      <h2 class="h5" id="rates">Your rate contributions</h2>
       <p>Contributions are never displayed individually. They are aggregated with other
          people's, and no aggregate is published until at least three different people have
          contributed to it. <strong>They survive closing your account</strong>, with the link
@@ -86,18 +234,13 @@
          be a benchmark nobody could trust, and once the link is gone the figure identifies
          nobody.</p>
 
-      <%#
-        Written as a statement of what exists on THIS deployment. Every sentence about an
-        analytics provider is rendered only while that provider is configured
-        (config/webAnalytics.js), because a policy describing a tag that is not on the page
-        — or missing one that is — is wrong in a document people rely on.
-      %>
-      <% const wa = (typeof webAnalytics !== 'undefined' && webAnalytics) || {}; %>
-      <h2 class="h6" id="cookies">Cookies</h2>
+      <h2 class="h5" id="cookies">Cookies</h2>
       <p>This site sets <strong><%= wa.ga4Id ? 'one cookie of its own' : 'one cookie' %></strong>,
          the one that keeps you signed in. It holds a random session identifier and nothing
-         else, and it is strictly necessary for a function you asked for, so we do not ask you
-         to consent to it. There is no advertising cookie.</p>
+         else, expires after <%= retention.sessionHours %> hours, and is strictly necessary for a
+         function you asked for, so we do not ask you to consent to it. There is no advertising
+         cookie. The assistant keeps your conversation in your browser's session storage, which
+         is cleared when you close the tab, and never in a cookie.</p>
       <% if (wa.ga4Id) { %>
       <p><strong>Google Analytics, only if you allow it.</strong> When you first visit we ask
          whether we may count your visit with Google Analytics. If you choose "Allow
@@ -111,7 +254,7 @@
          Administrators and the sign-in pages are never measured.</p>
       <% } %>
 
-      <h2 class="h6" id="analytics">Visitor analytics</h2>
+      <h2 class="h5" id="analytics">Visitor analytics</h2>
       <p>We count page views per country per day. No path, identifier or address is kept
          alongside that count, so it cannot be traced back to a person.
          <% if (!wa.ga4Id && !wa.cloudflareToken) { %>There is no third-party analytics on
@@ -124,20 +267,42 @@
          and how long the page took to load, and reports them to us only as totals.</p>
       <% } %>
 
-      <h2 class="h6">Who else receives it</h2>
-      <% if (processors.length) { %>
-        <ul>
-          <% processors.forEach(function (p) { %>
-            <li><strong><%= p.name %></strong> — <%= p.purpose %></li>
-          <% }); %>
-        </ul>
-      <% } else { %>
-        <p>Nobody. This deployment has no payment, email or AI service connected.</p>
+      <h2 class="h5" id="recipients">Who else receives it</h2>
+      <ul>
+        <li><strong>Other members</strong> — only what you publish, and what goes with an
+            application to the company you applied to.</li>
+        <% if (legal.hostingNamed()) { %>
+          <li><strong><%= legal.hosting.provider %></strong> — hosts the site and its database<% if (legal.hosting.region) { %>, in <%= legal.hosting.region %><% } %>. Holds everything described on this page, on our instructions.</li>
+        <% } %>
+        <% processors.forEach(function (p) { %>
+          <li><strong><%= p.name %></strong> — <%= p.purpose %><% if (p.location) { %> <span class="text-muted-2">Processes data in: <%= p.location %>.</span><% } %></li>
+        <% }); %>
+        <li><strong>Public authorities</strong> — only where a law requires us to disclose
+            something, and only what it requires.</li>
+      </ul>
+      <% if (!processors.length) { %>
+        <p class="text-muted-2 small">No payment, email, AI or analytics service is connected to
+           this site at the moment, so none of them receives anything.</p>
       <% } %>
       <p class="text-muted-2 small">This list describes this site as it is actually running,
-         not every service the software can use.</p>
+         not every service the software can use. Each provider processes data on our
+         instructions under a data processing agreement.</p>
 
-      <h2 class="h6">Your rights</h2>
+      <h2 class="h5" id="transfers">Outside the EU and Albania</h2>
+      <% const abroad = processors.filter(function (p) { return p.location && /United States/.test(p.location); }); %>
+      <% if (abroad.length) { %>
+        <p><%= abroad.map(function (p) { return p.name; }).join(', ') %> process data in the United
+           States. Those transfers rely on the safeguards in each provider's data processing terms:
+           the European Commission's Standard Contractual Clauses, and the EU–US Data Privacy
+           Framework for providers certified under it. Ask us at the address above for a copy of
+           the safeguards that apply.</p>
+      <% } else { %>
+        <p>None of the services connected to this site at the moment processes data outside the
+           EU and Albania. If that changes, this section will name the provider and the safeguard
+           that applies.</p>
+      <% } %>
+
+      <h2 class="h5" id="rights">Your rights</h2>
       <p>Two of these you can exercise yourself, immediately, without asking anybody:</p>
       <ul>
         <li><strong>See it and take it</strong> — <a href="/profile/data">download everything
@@ -146,27 +311,56 @@
             page lists exactly what is destroyed and the few things that stay, with the reason
             for each.</li>
       </ul>
-      <p>You also have the right to have inaccurate data corrected, to object to processing,
-         and to ask for it to be restricted. Most corrections you can make on your profile;
-         for anything else, <a href="/contact">write to us</a>. You are entitled to an answer
-         within one month.</p>
-      <p>If you think we have handled your data badly you can complain to a data protection
-         authority<% if (legal.controller.supervisoryAuthority) { %> —
-         <%= legal.controller.supervisoryAuthority %><% } %>. You do not have to raise it with
-         us first, though we would rather you did.</p>
+      <p>You also have the right to have inaccurate data corrected, to object to processing based
+         on legitimate interest, to ask for processing to be restricted, and to withdraw any
+         consent you gave without affecting what was done before. Most corrections you can make
+         on your profile; for anything else write to
+         <% if (contactEmail) { %><a href="mailto:<%= contactEmail %>"><%= contactEmail %></a><% } else { %>us through <a href="/contact">the contact page</a><% } %>.
+         You are entitled to an answer within one month.</p>
 
-      <h2 class="h6">Consent record</h2>
+      <h2 class="h5" id="complaints">Complaining to an authority</h2>
+      <p>If you think we have handled your data badly you can complain to a data protection
+         authority. You do not have to raise it with us first, though we would rather you did.</p>
+      <ul>
+        <% if (legal.controller.supervisoryAuthority) { %>
+          <li><%= legal.controller.supervisoryAuthority %></li>
+        <% } else { %>
+          <li><strong>In Albania</strong> — the Information and Data Protection Commissioner
+              (Komisioneri për të Drejtën e Informimit dhe Mbrojtjen e të Dhënave Personale),
+              <a href="https://www.idp.al" rel="noopener" target="_blank">idp.al</a>.</li>
+        <% } %>
+        <li><strong>In the EU or EEA</strong> — the data protection authority of the country you
+            live or work in, or where you think the problem happened. The European Data Protection
+            Board <a href="https://www.edpb.europa.eu/about-edpb/about-edpb/members_en" rel="noopener" target="_blank">lists them all</a>.</li>
+      </ul>
+
+      <h2 class="h5" id="automated">Automated decisions</h2>
+      <p>Nothing on this site makes a decision about you by automated means alone. Where a page
+         shows how well a role matches your profile, it is a guide; a person at the company
+         decides.</p>
+
+      <h2 class="h5" id="consent">Consent record</h2>
       <p>When you register we store the exact versions of these documents you accepted, and
          when. We do not record consent on your behalf for accounts created by an
          administrator. If this policy changes materially its version changes too, so your
          record says what you were actually shown rather than what is on this page today.</p>
 
-      <h2 class="h6">Security</h2>
+      <h2 class="h5" id="security">Security</h2>
       <p>Passwords are hashed, never stored. The site is served over HTTPS and the session
          cookie cannot be sent over plain HTTP. Uploaded images are re-encoded rather than
          stored as you sent them, which is also what stops anything that is not an image from
-         being stored at all.</p>
+         being stored at all; uploaded documents are checked for macros and embedded code before
+         they are stored, and are only ever downloaded, never opened in the browser.</p>
+
+      <h2 class="h5" id="changes">What changed</h2>
+      <% changes.forEach(function (c) { %>
+        <p class="mb-1"><strong><%= longDate(c.version) %></strong><% if (c.version === version) { %> <span class="badge-hub ok">current</span><% } %></p>
+        <ul>
+          <% c.changes.forEach(function (line) { %><li><%= line %></li><% }); %>
+        </ul>
+      <% }); %>
     </div></div>
   </div></div>
 </div>
+</section>
 <%- include('../partials/layout-end') %>

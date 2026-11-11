@@ -67,7 +67,7 @@ describe('erasure destroys a person and keeps what is not theirs alone', () => {
     const update = source.slice(source.indexOf('UPDATE users SET'), source.indexOf('WHERE id = ?', source.indexOf('UPDATE users SET')));
 
     // signup_ip is the one a reader forgets: an IP address is personal data on its own.
-    for (const column of ['email', 'name', 'password_hash', 'gender', 'date_of_birth', 'signup_ip', 'signup_country']) {
+    for (const column of ['email', 'name', 'password_hash', 'signup_ip', 'signup_country']) {
       expect(update).toMatch(new RegExp(`\\b${column}\\s*=`));
     }
     expect(update).toMatch(/anonymised_at = NOW\(\)/);
@@ -138,14 +138,20 @@ describe('the site can say who is responsible for the data', () => {
     expect(legal.activeProcessors({})).toEqual([]);
     const withAI = legal.activeProcessors({ ANTHROPIC_API_KEY: 'x' });
     expect(withAI.map((p) => p.name)).toEqual(['Anthropic']);
-    expect(withAI[0].purpose).toMatch(/never sent your name/i);
+    // The assistant is never handed who you are; Import from CV sends the whole CV, which
+    // names you. The policy used to say the first and imply it covered the second.
+    expect(withAI[0].purpose).toMatch(/assistant[^.]*never your name/i);
+    expect(withAI[0].purpose).toMatch(/Import from CV receives the full text of the CV/);
+    // Every provider says where it processes data, because transfers are part of the policy.
+    legal.PROCESSORS.forEach((p) => expect(p.location).toEqual(expect.any(String)));
   });
 
   it('the privacy policy covers what it is required to', () => {
     const page = read('views/legal/privacy.ejs');
     for (const required of [
       /Who is responsible/i,
-      /How long it is kept/i,
+      /Kept for/i,
+      /Legal basis/i,
       /Who else receives it/i,
       /Your rights/i,
       /data protection\s*\n?\s*authority/i

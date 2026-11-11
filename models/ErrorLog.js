@@ -1,6 +1,7 @@
 'use strict';
 
 const { promisePool } = require('../config/database');
+const { ERROR_LOG_RETENTION_DAYS } = require('../config/errorLog');
 const { containsPattern } = require('../utils/likePattern');
 const { SELF_TEST_USER_AGENT } = require('../utils/qaAccounts');
 
@@ -176,7 +177,7 @@ class ErrorLog {
     }
   }
 
-  static async purgeOlderThan(days = 90) {
+  static async purgeOlderThan(days = ERROR_LOG_RETENTION_DAYS) {
     const [result] = await promisePool.query('DELETE FROM error_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)', [days]);
     return result.affectedRows;
   }

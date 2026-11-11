@@ -3310,3 +3310,15 @@ a.about-stat:hover { color: inherit; transform: translateY(-2px); }
   color: var(--text-medium); margin-bottom: 1rem;
 }
 .admin-quick-btn { font-weight: 600; padding-top: 0.55rem; padding-bottom: 0.55rem; }
+
+/* Privacy policy (/legal/privacy): a table of contents and a summary table. Headings clear the
+   sticky top bar when a contents link jumps to them. */
+.policy h2 { scroll-margin-top: 96px; margin-top: 2rem; }
+.policy h2:first-of-type { margin-top: 0; }
+.policy-toc { padding: 1rem 1.25rem; border: 1px solid var(--border-color); border-radius: 0.75rem; background: rgba(255, 255, 255, 0.6); }
+.policy-toc ol { columns: 2; column-gap: 2rem; padding-left: 1.25rem; }
+.policy-toc li { break-inside: avoid; padding: 0.1rem 0; }
+@media (max-width: 575.98px) { .policy-toc ol { columns: 1; } }
+.policy-table { font-size: 0.875rem; }
+.policy-table th { white-space: nowrap; color: var(--primary-navy); }
+.policy-table td:nth-child(3) { white-space: nowrap; font-weight: 600; }

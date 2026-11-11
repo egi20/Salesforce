@@ -1379,6 +1379,18 @@ and only the person's OWN messages are included — the other party's words are 
 party's personal data, and their right does not weaken because somebody they once messaged
 asked for a download.
 
+**The privacy policy states what the code enforces** (2026-11-11). Every period on
+`/legal/privacy` is read from the constant its purge reads (`retention` in the route:
+`RETENTION_DAYS`, the screenshot window, `ERROR_LOG_RETENTION_DAYS` — now purged by
+`npm run purge:expired` — and the CRM's stale window); a period with no constant behind it is
+not stated as a number (inactive accounts and messages have none, and the page says so). Each
+row of its summary names a legal basis, and a test holds that. Each processor carries a
+`location`, and `Import from CV` is named as sending the CV's full text to the AI provider —
+the old line "never sent your name" was true of the assistant only. Gender and date of birth
+were asked "for diversity reporting" that never existed; migration 047 dropped both columns.
+Changing what the site does with personal data means changing the page, `PRIVACY_VERSION` and
+`PRIVACY_CHANGES` in the same commit.
+
 `config/legal.js` names the controller, and **invents nothing**. A policy has to name a real
 person or company with an address; that is not something an application can fill in for
 itself, so they are environment variables, the pages say plainly when they are unset, and the

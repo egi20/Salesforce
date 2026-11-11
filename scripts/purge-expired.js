@@ -4,7 +4,8 @@
 /**
  * Delete records past their declared retention period.
  *
- * Two promises: tax-advisory enquiries, and issue-report screenshots. It exists as a script rather than only as an admin button so that
+ * Three promises: tax-advisory enquiries, issue-report screenshots, and the error log
+ * (ERROR_LOG_RETENTION_DAYS, which the privacy policy states). It exists as a script rather than only as an admin button so that
  * a deployment with a scheduler can keep the promise without anybody remembering to click
  * anything — and as a button as well, so that somebody can see the number and watch it go
  * to zero. A retention promise nobody can observe being kept is a sentence in a policy.
@@ -13,6 +14,8 @@ const TaxEnquiry = require('../models/TaxEnquiry');
 const { RETENTION_DAYS } = require('../config/taxAdvisory');
 const IssueReport = require('../models/IssueReport');
 const { SCREENSHOTS } = require('../config/issues');
+const ErrorLog = require('../models/ErrorLog');
+const { ERROR_LOG_RETENTION_DAYS } = require('../config/errorLog');
 const { promisePool } = require('../config/database');
 
 (async () => {
@@ -23,6 +26,8 @@ const { promisePool } = require('../config/database');
     const shotsDue = await IssueReport.attachmentsDueForPurge();
     const shots = await IssueReport.purgeExpiredAttachments();
     console.log(`issue_report_attachments: ${shotsDue} past ${SCREENSHOTS.retentionDaysAfterClose} days after closing, ${shots} deleted.`);
+    const errors = await ErrorLog.purgeOlderThan(ERROR_LOG_RETENTION_DAYS);
+    console.log(`error_logs: ${errors} older than ${ERROR_LOG_RETENTION_DAYS} days deleted.`);
     process.exitCode = 0;
   } catch (err) {
     console.error(`Purge failed: ${err.message}`);

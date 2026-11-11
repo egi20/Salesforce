@@ -126,7 +126,7 @@ class User {
    * actually accepted. Admin creation, seeds and tests pass nothing, because consent
    * must never be fabricated on someone's behalf.
    */
-  static async create({ email, password, name, roles, consent = null, gender = null, dateOfBirth = null, signupIp = null, signupCountry = null }) {
+  static async create({ email, password, name, roles, consent = null, signupIp = null, signupCountry = null }) {
     const normalisedEmail = normaliseEmail(email);
     const requestedRoles = unionRoles([], roles, { allowed: ALL_ROLES });
     const finalRoles = requestedRoles.length ? requestedRoles : ['consultant'];
@@ -144,8 +144,8 @@ class User {
          (email, password_hash, name, user_type,
           is_consultant, is_company, is_recruiter,
           terms_accepted_at, terms_version, privacy_policy_version,
-          gender, date_of_birth, signup_ip, signup_country)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          signup_ip, signup_country)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         normalisedEmail,
         passwordHash,
@@ -157,8 +157,6 @@ class User {
         consent ? new Date() : null,
         consent ? consent.termsVersion : null,
         consent ? consent.privacyVersion : null,
-        gender,
-        dateOfBirth,
         signupIp,
         signupCountry
       ]

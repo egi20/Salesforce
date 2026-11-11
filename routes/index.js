@@ -555,7 +555,22 @@ router.get('/legal/privacy', (req, res) => {
   res.render('legal/privacy', {
     title: 'Privacy policy',
     version: legalVersions.PRIVACY_VERSION,
+    changes: legalVersions.PRIVACY_CHANGES,
     legal,
+    /*
+     * Every period the policy states, read from the config the code that ENFORCES it reads —
+     * so the page cannot promise 180 days while a purge deletes at 90. A period with no
+     * constant behind it is not stated as a number.
+     */
+    retention: {
+      taxEnquiryDays: require('../config/taxAdvisory').RETENTION_DAYS,
+      screenshotDaysAfterClose: require('../config/issues').SCREENSHOTS.retentionDaysAfterClose,
+      errorLogDays: require('../config/errorLog').ERROR_LOG_RETENTION_DAYS,
+      staleLeadDays: require('../config/crm').STALE_AFTER_DAYS,
+      sessionHours: Math.round(config.session.cookie.maxAge / 3600000),
+      cvLimit: require('../models/ConsultantDocument').LIMITS
+    },
+    showDevNotes: !config.isProduction,
     // Only the processors THIS deployment actually uses — a policy that names Stripe on a
     // site with no Stripe key is inaccurate in the direction that matters.
     processors: legal.activeProcessors(),

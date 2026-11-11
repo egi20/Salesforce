@@ -40,18 +40,6 @@ const registerValidators = [
     .custom((value, { req }) => value === req.body.password)
     .withMessage('The two passwords do not match.'),
   body('terms').equals('on').withMessage('Please accept the terms to continue.'),
-  body('gender').optional({ checkFalsy: true }).isIn(['male', 'female', 'non_binary', 'other']),
-  body('date_of_birth')
-    .optional({ checkFalsy: true })
-    .isISO8601()
-    .custom((value) => {
-      const dob = new Date(value);
-      const now = new Date();
-      if (dob > now) throw new Error('That date is in the future.');
-      const age = (now - dob) / (365.25 * 24 * 60 * 60 * 1000);
-      if (age < 16 || age > 100) throw new Error('Please enter a valid date of birth.');
-      return true;
-    })
 ];
 
 router.get('/register', isGuest, registrationOpen, asyncHandler(async (req, res) => {
@@ -133,8 +121,6 @@ router.post(
       roles: finalRoles,
       // Only this route stamps consent, and it stamps the exact versions accepted.
       consent: { termsVersion: legalVersions.TERMS_VERSION, privacyVersion: legalVersions.PRIVACY_VERSION },
-      gender: req.body.gender || null,
-      dateOfBirth: req.body.date_of_birth || null,
       signupIp: packIp(ip),
       signupCountry: countryFromIp(ip)
     });

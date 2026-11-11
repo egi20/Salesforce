@@ -18,21 +18,28 @@
   const v = typeof assetVersion !== 'undefined' ? assetVersion : '';
 %>
 <div class="sf-assistant" data-assistant>
+  <%# Dynamics Hub's first-visit greeting: shown once, so nobody takes the robot for decoration. %>
+  <div class="sf-assistant-teaser" data-assistant-teaser hidden>
+    <button type="button" class="sf-assistant-teaser-close" data-assistant-teaser-close aria-label="Dismiss">
+      <i class="bi bi-x" aria-hidden="true"></i>
+    </button>
+    <strong>Hi, I'm Sorca!</strong><br>Salesforce Hub's AI assistant — ask me anything about the site.
+  </div>
   <button type="button" class="sf-assistant-launcher" data-assistant-launcher
-          aria-label="Open Sorca, the Hub's AI assistant" aria-expanded="false" aria-controls="sfAssistantPanel">
+          aria-label="Open Sorca, the AI Hub Assistant" aria-expanded="false" aria-controls="sfAssistantPanel">
     <img class="sf-assistant-launcher-img" src="/images/sf-assistant.webp?v=<%= v %>" alt="" width="59" height="78" decoding="async">
     <span class="sf-assistant-launcher-tag" aria-hidden="true">AI</span>
   </button>
 
   <div class="sf-assistant-panel" id="sfAssistantPanel" data-assistant-panel role="dialog"
-       aria-label="Sorca, the site assistant" hidden>
+       aria-label="Sorca, the Hub Assistant" hidden>
     <div class="sf-assistant-header">
       <img class="sf-assistant-avatar" src="/images/sf-assistant-head.webp?v=<%= v %>" alt="" width="40" height="40">
       <span class="sf-assistant-title">
-        Sorca
+        Sorca <span class="sf-assistant-sub">Hub Assistant</span>
         <span class="badge-hub cloud">AI</span>
       </span>
-      <button type="button" class="sf-assistant-close" data-assistant-close aria-label="Close Sorca">
+      <button type="button" class="sf-assistant-close" data-assistant-close aria-label="Close Hub Assistant">
         <i class="bi bi-x-lg"></i>
       </button>
     </div>
@@ -41,8 +48,8 @@
 
     <div class="sf-assistant-chips" data-assistant-chips>
       <button type="button" class="sf-assistant-chip">How do I get started?</button>
-      <button type="button" class="sf-assistant-chip">What does it cost?</button>
-      <button type="button" class="sf-assistant-chip">How does the rate index work?</button>
+      <button type="button" class="sf-assistant-chip">What does Salesforce Hub cost?</button>
+      <button type="button" class="sf-assistant-chip">How does the SOW generator work?</button>
     </div>
 
     <%
@@ -53,17 +60,16 @@
        */
     %>
     <form class="sf-assistant-form" data-assistant-form data-no-guard="true" autocomplete="off">
-      <label class="visually-hidden" for="sfAssistantInput">Message the assistant</label>
+      <label class="visually-hidden" for="sfAssistantInput">Message Hub Assistant</label>
       <input class="sf-assistant-input" id="sfAssistantInput" data-assistant-input type="text"
-             placeholder="Ask about this site…" maxlength="<%= assistantMaxChars %>">
-      <button class="sf-assistant-send" type="submit" aria-label="Send">
+             placeholder="Ask about Salesforce Hub..." maxlength="<%= assistantMaxChars %>">
+      <button class="sf-assistant-send" type="submit" aria-label="Send message">
         <i class="bi bi-send-fill"></i>
       </button>
     </form>
 
-    <p class="sf-assistant-footnote">
-      An AI assistant, and it can be wrong. It cannot see your account —
-      for anything account-specific, email <%= supportEmail %>.
-    </p>
+    <%# Dynamics Hub's wording. It points at the Contact page rather than printing an address,
+        so the one place the support address is shown is the page that explains how to ask. %>
+    <p class="sf-assistant-footnote">AI assistant &mdash; may make mistakes. For account issues use <a href="/contact">Contact</a>.</p>
   </div>
 </div>

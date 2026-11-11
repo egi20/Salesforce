@@ -1984,6 +1984,27 @@ body[data-active-tab="account"] .profile-savebar { display: none; }
 
 .sf-assistant { position: fixed; right: var(--space-5); bottom: var(--space-5); z-index: 1045; }
 
+.sf-assistant-teaser {
+  position: absolute;
+  right: 0;
+  bottom: 5.5rem;
+  width: 14.5rem;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow-lg);
+  padding: 0.7rem 1.9rem 0.7rem 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-dark);
+  cursor: pointer;
+}
+.sf-assistant-teaser strong { color: var(--primary-navy); }
+.sf-assistant-teaser-close {
+  position: absolute; top: 4px; right: 4px; border: 0; background: transparent;
+  color: var(--text-light); font-size: 1rem; line-height: 1; padding: 0.15rem;
+}
+
 .sf-assistant-launcher {
   /* The mascot is the button: transparent, so the robot's own outline is the shape. */
   width: 68px;
@@ -2046,6 +2067,7 @@ body[data-active-tab="account"] .profile-savebar { display: none; }
   border-bottom: 1px solid var(--border-color);
 }
 .sf-assistant-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-navy); object-fit: cover; flex-shrink: 0; }
+.sf-assistant-sub { font-weight: 500; font-size: 0.78rem; color: var(--text-light); }
 .sf-assistant-title { font-weight: 600; flex-grow: 1; display: flex; align-items: center; gap: var(--space-2); }
 .sf-assistant-close { border: 0; background: transparent; color: var(--text-light); line-height: 1; }
 .sf-assistant-close:hover { color: var(--text-dark); }

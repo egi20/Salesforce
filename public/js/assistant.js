@@ -16,10 +16,12 @@
 
   var STORAGE_KEY = 'sfAssistantHistory';
   var MAX_TURNS = 12;
+  // Dynamics Hub's wording, for Salesforce Hub.
   var GREETING =
-    'Hi, I\'m Sorca — I can help you find your way around: jobs, consultants, the rate index, '
-    + 'the scope estimator and the community. What are you looking for?';
-  var ERROR_FALLBACK = 'Something went wrong. Please try again in a moment.';
+    'Hi, I\'m Sorca — Salesforce Hub\'s AI assistant! I can help you find your way around: jobs, '
+    + 'talent, the SOW and CV generators, pricing and more. What are you looking for?';
+  var RATE_LIMIT_FALLBACK = 'You are sending messages too quickly — please wait a few minutes.';
+  var ERROR_FALLBACK = 'Sorry, something went wrong — please try again in a moment.';
 
   var tokenMeta = document.querySelector('meta[name="csrf-token"]');
   var csrfToken = tokenMeta ? tokenMeta.getAttribute('content') : '';
@@ -224,7 +226,7 @@
     })
       .then(function (response) {
         return response.json().catch(function () {
-          return { success: false };
+          return { success: false, rateLimited: response.status === 429 };
         });
       })
       .then(function (data) {
@@ -240,7 +242,7 @@
          * banner. "The assistant has reached its budget for this month" is an answer the
          * visitor can act on; a red box saying "502" is not.
          */
-        appendBubble('assistant', (data && data.error) || ERROR_FALLBACK);
+        appendBubble('assistant', (data && data.error) || (data && data.rateLimited ? RATE_LIMIT_FALLBACK : ERROR_FALLBACK));
       })
       .catch(function () {
         hideTyping();
@@ -252,7 +254,37 @@
       });
   }
 
+  /*
+   * First-visit teaser, as on Dynamics Hub: once per browser (localStorage), after a short
+   * pause, gone after 15 seconds. Clicking it opens the chat; the x only dismisses it.
+   * Storage that throws (private mode) counts as seen, so nobody is shown it every page.
+   */
+  var teaser = root.querySelector('[data-assistant-teaser]');
+  var teaserClose = root.querySelector('[data-assistant-teaser-close]');
+  var TEASER_SEEN_KEY = 'sfSorcaTeaserSeen';
+  function teaserSeen() {
+    try { return localStorage.getItem(TEASER_SEEN_KEY) === '1'; } catch (e) { return true; }
+  }
+  function markTeaserSeen() {
+    try { localStorage.setItem(TEASER_SEEN_KEY, '1'); } catch (e) { /* private mode */ }
+    if (teaser) teaser.hidden = true;
+  }
+  if (teaser && !teaserSeen()) {
+    setTimeout(function () {
+      if (!teaserSeen() && panel.hidden) {
+        teaser.hidden = false;
+        setTimeout(function () { teaser.hidden = true; }, 15000);
+      }
+    }, 1800);
+    teaser.addEventListener('click', function (e) {
+      var dismissOnly = teaserClose && (e.target === teaserClose || teaserClose.contains(e.target));
+      markTeaserSeen();
+      if (!dismissOnly) openPanel();
+    });
+  }
+
   launcher.addEventListener('click', function () {
+    if (teaser && !teaser.hidden) markTeaserSeen();
     if (panel.hidden) openPanel();
     else closePanel();
   });

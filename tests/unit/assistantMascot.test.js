@@ -21,7 +21,7 @@ describe('the assistant mascot', () => {
     expect(out).toMatch(/<img class="sf-assistant-launcher-img" src="\/images\/sf-assistant\.webp\?v=abc123" alt=""/);
     expect(out).toMatch(/<img class="sf-assistant-avatar" src="\/images\/sf-assistant-head\.webp\?v=abc123" alt=""/);
     expect(out).toContain('class="sf-assistant-launcher-tag"');
-    expect(out).toMatch(/aria-label="Open Sorca, the Hub&#39;s AI assistant"|aria-label="Open Sorca, the Hub's AI assistant"/);
+    expect(out).toMatch(/aria-label="Open Sorca, the AI Hub Assistant"/);
     // The name the owner chose is what the panel shows.
     expect(out).toMatch(/class="sf-assistant-title">\s*Sorca/);
   });

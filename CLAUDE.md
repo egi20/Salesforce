@@ -649,6 +649,20 @@ both in `middleware/visitGeo.js`), once per session — into `referrers.link_ope
 The two tabs are server-side (`?tab=earnings`), so they work without scripting and keep their own
 pagination.
 
+**Each agent also has a TAX link, `/t/<code>`** (owner, 2026-11-12, on all three hubs): the
+SAME code as the sign-up link, landing on `/tax-optimization`. It remembers the code in the
+session exactly as `/s/` does (so a later registration is still credited) and an unknown or
+paused code still lands on `/tax-optimization`. Opens go to `sales_agent_tax_opens` (migration
+047, agent + `opened_at` only) via `countTaxOpenOnce` in `utils/salesAgentOpens.js` — the same
+person/preview filters, once per session per agent in its OWN session list
+(`salesAgentTaxOpens`), so one link never uses up the other's open. **Unlike `/s/`, a signed-in
+visitor counts** (the programme is for people who already have an account) — except the agent
+themselves (`shouldCountTax`). There is no lifetime counter: the table IS the count, and
+`SalesAgent.listAll`/`statsFor` read `tax_opens` + `tax_opens_24h`. Shown as "Tax opens" /
+"Tax opens (24h)" on the agents tab (copyable `/t/` link under the sign-up one), in each agent's
+modal, and on `/referrals/agent`. Pinned by `tests/unit/agentTaxLink.test.js` and
+`tests/unit/salesAgentCountries.test.js`.
+
 **Sales agents now earn commission, and that is the owner's decision, not drift.** Migration 031
 said an agent's link "pays nothing"; on 2026-11-09 the owner decided agents earn a share of what
 their sign-ups PAY for tax optimization or a SOW quote. Everything about it follows the referral

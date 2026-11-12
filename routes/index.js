@@ -31,7 +31,7 @@ const { toPlainText } = require('../utils/sanitize');
 const legalVersions = require('../config/legal-versions');
 const SalesAgent = require('../models/SalesAgent');
 const { requireIdParam } = require('../utils/ids');
-const { LINK_PREVIEW, countOpenOnce } = require('../utils/salesAgentOpens');
+const { LINK_PREVIEW, countOpenOnce, countTaxOpenOnce } = require('../utils/salesAgentOpens');
 const { QA_EMAIL_LIKE } = require('../utils/qaAccounts');
 
 const router = express.Router();
@@ -774,6 +774,26 @@ router.get(
     // registration form the redirect lands on, so the two never count one visitor twice.
     await countOpenOnce(req, agent);
     return res.redirect(302, `/auth/register?a=${encodeURIComponent(agent.code)}`);
+  })
+);
+
+/**
+ * GET /t/:code — the same agent's personal link to Tax Optimization (2026-11-12, owner, on
+ * all three hubs). Same code as /s/, a different landing page. The code is remembered in the
+ * session exactly as /s/ does, so somebody who reads about the programme and registers later
+ * is still credited to that colleague; the open is counted separately
+ * (utils/salesAgentOpens.js). An unknown or paused code still lands on /tax-optimization —
+ * the page it promised. 302 for the same reason as /s/. `/t/` collides with nothing else.
+ */
+router.get(
+  '/t/:code',
+  asyncHandler(async (req, res) => {
+    const agent = await SalesAgent.findActiveByCode(req.params.code);
+    if (agent) {
+      if (!req.session.salesAgentCode) req.session.salesAgentCode = agent.code;
+      await countTaxOpenOnce(req, agent);
+    }
+    return res.redirect(302, '/tax-optimization');
   })
 );
 

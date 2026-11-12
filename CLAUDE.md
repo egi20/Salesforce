@@ -662,6 +662,12 @@ themselves (`shouldCountTax`). There is no lifetime counter: the table IS the co
 "Tax opens (24h)" on the agents tab (copyable `/t/` link under the sign-up one), in each agent's
 modal, and on `/referrals/agent`. Pinned by `tests/unit/agentTaxLink.test.js` and
 `tests/unit/salesAgentCountries.test.js`.
+**The agents table must fit the page without a sideways scroll** (owner, 2026-11-12): it is
+`.agents-table` (rules at the end of `public/css/style.css`) — headers wrap, the two links show
+their short path (`/s/<code>`, `/t/<code>`; Copy puts the full address on the clipboard), an
+email stays on ONE line in a smaller size (never split), and the breakdown lines under the
+counts wrap. Measured to fit a 1280px viewport with seven agents; a new column needs room
+taken from somewhere.
 
 **Sales agents now earn commission, and that is the owner's decision, not drift.** Migration 031
 said an agent's link "pays nothing"; on 2026-11-09 the owner decided agents earn a share of what

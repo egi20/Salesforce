@@ -44,7 +44,15 @@
           <input class="form-control" id="agentLink" type="text" value="<%= link %>" readonly data-select-on-focus>
           <button class="btn btn-primary" type="button" data-copy="<%= link %>"><i class="bi bi-clipboard me-1" aria-hidden="true"></i>Copy</button>
         </div>
-        <p class="small text-muted-2 mb-0"><%= stats.consultants %> <%= stats.consultants === 1 ? 'consultant' : 'consultants' %> · <%= stats.companies %> <%= stats.companies === 1 ? 'company' : 'companies' %> · <%= stats.verified %> verified their email</p>
+        <p class="small text-muted-2 mb-3"><%= stats.consultants %> <%= stats.consultants === 1 ? 'consultant' : 'consultants' %> · <%= stats.companies %> <%= stats.companies === 1 ? 'company' : 'companies' %> · <%= stats.verified %> verified their email</p>
+        <h2 class="h6 mb-1"><i class="bi bi-calculator text-primary"></i> Your Tax Optimization link</h2>
+        <p class="small text-muted-2 mb-2">The same code, landing on the Tax Optimization page. Its opens are counted separately.</p>
+        <div class="input-group mb-2">
+          <label class="visually-hidden" for="agentTaxLink">Your Tax Optimization link</label>
+          <input class="form-control" id="agentTaxLink" type="text" value="<%= taxLink %>" readonly data-select-on-focus>
+          <button class="btn btn-primary" type="button" data-copy="<%= taxLink %>"><i class="bi bi-clipboard me-1" aria-hidden="true"></i>Copy</button>
+        </div>
+        <p class="small text-muted-2 mb-0"><strong><%= stats.tax_opens %></strong> people opened it · <%= stats.tax_opens_24h %> in the last 24 hours</p>
       </div>
       <div class="col-lg-5">
         <div class="row g-2 text-center">

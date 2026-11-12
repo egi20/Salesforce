@@ -221,6 +221,7 @@ async function renderAgent(req, res, { status = 200, leadErrors = null, leadValu
     SalesAgent.peopleForAgent(userId, people)
   ]);
   const link = `${config.app.baseUrl}/s/${agent.code}`;
+  const taxLink = `${config.app.baseUrl}/t/${agent.code}`;
   // Every link on the page is built from the current query with one thing changed, so a
   // stage filter survives a people search and the other way round.
   const linkWith = (change) => {
@@ -235,6 +236,7 @@ async function renderAgent(req, res, { status = 200, leadErrors = null, leadValu
     agent,
     agentCode: `AGT-${agent.code}`,
     link,
+    taxLink,
     stats,
     signupRatePct: stats.link_opens > 0 ? Math.round((stats.signups / stats.link_opens) * 100) : null,
     summary,

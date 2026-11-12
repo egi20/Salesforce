@@ -55,4 +55,38 @@ async function countOpenOnce(req, agent) {
   return true;
 }
 
-module.exports = { LINK_PREVIEW, shouldCount, countOpenOnce };
+/**
+ * Pure: would this request count as an open of the agent's TAX link (`/t/<code>`, 2026-11-12)?
+ * The same person and preview filters, once per session per code — but a signed-in visitor
+ * DOES count here, because tax optimisation is for people who already have an account. The
+ * one signed-in visitor who does not count is the agent checking their own link.
+ */
+function shouldCountTax({ viewerId, agentUserId, userAgent, alreadyCounted, code }) {
+  if (viewerId && viewerId === agentUserId) return false;
+  if (!looksLikeAPerson(userAgent) || LINK_PREVIEW.test(userAgent || '')) return false;
+  return !(alreadyCounted || []).includes(code);
+}
+
+/**
+ * Count an open of `agent`'s tax link if this request is one. Its OWN session list
+ * (`salesAgentTaxOpens`), so opening the sign-up link never uses up the tax link's open,
+ * nor the other way round. Best-effort: a counting failure never stops the redirect.
+ */
+async function countTaxOpenOnce(req, agent) {
+  try {
+    if (!agent || !req.session) return false;
+    const counted = Array.isArray(req.session.salesAgentTaxOpens) ? req.session.salesAgentTaxOpens : [];
+    const viewerId = req.session.user ? req.session.user.id : null;
+    if (!shouldCountTax({ viewerId, agentUserId: agent.user_id, userAgent: req.get('user-agent') || '', alreadyCounted: counted, code: agent.code })) {
+      return false;
+    }
+    req.session.salesAgentTaxOpens = [...counted, agent.code].slice(-10);
+    await SalesAgent.countTaxOpen(agent.user_id);
+    return true;
+  } catch (err) {
+    console.error(`Sales agent tax-link open not counted: ${err.message}`);
+    return false;
+  }
+}
+
+module.exports = { LINK_PREVIEW, shouldCount, countOpenOnce, shouldCountTax, countTaxOpenOnce };

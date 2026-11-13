@@ -1185,6 +1185,9 @@
         var previous = button.getAttribute('aria-label');
         button.setAttribute('aria-label', 'Copied');
         button.classList.add('is-copied');
+        // A row that carries its own state glyph (the agent link rows) shows a tick on it.
+        var state = button.querySelector('.copy-state');
+        if (state) state.classList.replace('bi-clipboard', 'bi-check2');
         // A page that carries a `[data-copy-toast]` region says it out loud as well.
         var toast = document.querySelector('[data-copy-toast]');
         if (toast) {
@@ -1196,6 +1199,7 @@
         setTimeout(function () {
           if (previous) button.setAttribute('aria-label', previous); else button.removeAttribute('aria-label');
           button.classList.remove('is-copied');
+          if (state) state.classList.replace('bi-check2', 'bi-clipboard');
         }, 1500);
       }).catch(function () { /* Nothing to do: the link is on the page to select by hand. */ });
     });
